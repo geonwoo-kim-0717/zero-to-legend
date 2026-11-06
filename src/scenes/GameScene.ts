@@ -244,7 +244,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
 
     this.cameras.main.setBackgroundColor(COLORS.bg);
     this.bg = this.add.tileSprite(0, 0, VIEW_W, VIEW_H, 'ground').setOrigin(0).setScrollFactor(0).setDepth(0);
-    this.skyline = this.add.tileSprite(0, 0, VIEW_W, 150, 'skyline_ch1').setOrigin(0).setScrollFactor(0).setDepth(0.5);
+    this.skyline = this.add.tileSprite(0, 0, VIEW_W, 150, 'skyline_ch1').setOrigin(0).setScrollFactor(0).setDepth(1.5); // 바닥 무늬(컨베이어 등) 위, 아이템·적 아래
     this.floorG = this.add.graphics().setDepth(1);
     this.rainFx = this.add.tileSprite(0, 0, VIEW_W, VIEW_H, 'rain').setOrigin(0).setScrollFactor(0).setDepth(144).setAlpha(0.7);
     this.fx = this.add.graphics().setDepth(17);
@@ -707,6 +707,8 @@ export class GameScene extends Phaser.Scene implements GameContext {
     this.bg.tilePositionX = this.cameras.main.scrollX;
     this.bg.tilePositionY = this.cameras.main.scrollY;
     this.skyline.tilePositionX = this.cameras.main.scrollX * 0.25;
+    // 보스 경계전에는 카메라가 고정되어 화면 위쪽 바닥도 싸움터가 되므로 먼 배경을 걷어낸다
+    this.skyline.alpha += ((this.arena ? 0 : 1) - this.skyline.alpha) * Math.min(1, dt * 3);
 
     const zt = this.elapsed - this.zoneStart;
     const nextBoss = gameData.bosses.filter((b) => b.zone === this.zone.id)[this.bossesSpawned];
@@ -1538,8 +1540,11 @@ export class GameScene extends Phaser.Scene implements GameContext {
     const y0 = Math.floor(cam.scrollY / c.period) * c.period;
     for (let y = y0; y < cam.scrollY + VIEW_H; y += c.period) {
       const dir = this.conveyorAt(y + 1) > 0 ? 1 : -1;
-      g.fillStyle(0x120a1c, 0.9).fillRect(cam.scrollX, y, VIEW_W, c.band);
-      g.fillStyle(COLORS.yellow, 0.5).fillRect(cam.scrollX, y, VIEW_W, 2).fillRect(cam.scrollX, y + c.band - 2, VIEW_W, 2);
+      // 레일과 벨트는 바닥 그림(ground_industrial)에 있다. 여기서는 움직이는 벨트 칸살과 화살표만 그린다
+      const slat = 12;
+      const so = (((this.elapsed * c.speed * dir) % slat) + slat) % slat;
+      g.fillStyle(0x2c2246, 0.85);
+      for (let x = Math.floor(cam.scrollX / slat) * slat - slat + so; x < cam.scrollX + VIEW_W + slat; x += slat) g.fillRect(x, y + 7, 2, c.band - 14);
       // 흐르는 방향을 보여주는 화살표 무늬
       const step = 28;
       const off = (((this.elapsed * c.speed * dir) % step) + step) % step;

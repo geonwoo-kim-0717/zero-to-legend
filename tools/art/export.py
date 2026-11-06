@@ -6,6 +6,7 @@ sys.path.insert(0, os.path.dirname(__file__))
 from PIL import Image, ImageDraw
 import pixelart as A
 import ground_v2
+import ground_ch2
 
 OUT = os.path.join(os.path.dirname(__file__), '..', '..', 'src', 'assets')
 os.makedirs(OUT, exist_ok=True)
@@ -558,7 +559,9 @@ if __name__ == '__main__':
     for k in ('smartPistol', 'mantisBlade', 'hackDrone', 'plasmaGrenade', 'monowire', 'empField', 'railgun', 'shotgun', 'turret', 'microMissile', 'arcCoil', 'proxMine', 'muscle', 'neural', 'dermal', 'magnet'):
         save(f'icon_{k}.png', icon(k).im)
     save('rain.png', rain_tile())
-    save('ground_industrial.png', ground_industrial())
+    # 2챕터 바닥: 철판 작업장 + 콘크리트 하역장 + 컨베이어 (ground_ch2.py), 화면 위쪽 먼 공장
+    save('ground_industrial.png', ground_ch2.ground_ch2()[0])
+    save('skyline_ch2.png', ground_ch2.factory_skyline())
     save('ground_tower.png', ground_tower())
     save('client.png', client().im)
     save('kamikaze.png', kamikaze().im)

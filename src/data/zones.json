@@ -22,7 +22,7 @@
       "name": "인더스트리얼 구역",
       "label": "ZONE 2",
       "ground": "ground_industrial",
-      "skyline": null,
+      "skyline": "skyline_ch2",
       "rain": false,
       "rule": "conveyor",
       "ruleHint": "바닥 컨베이어가 몸을 끌고 간다",
