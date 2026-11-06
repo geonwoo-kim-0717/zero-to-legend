@@ -367,6 +367,19 @@
       "reach": 230,
       "slow": 0.5,
       "duration": 2.5
+    },
+    "dodge": {
+      "roles": [
+        "trooper_melee",
+        "trooper_hacker",
+        "trooper_sniper"
+      ],
+      "everyMin": 4,
+      "everyMax": 7,
+      "time": 0.3,
+      "speed": 260,
+      "reactBelow": 1.5,
+      "ghostEvery": 0.035
     }
   },
   "zoneRules": {

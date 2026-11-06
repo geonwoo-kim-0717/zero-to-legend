@@ -384,6 +384,10 @@ export class GameScene extends Phaser.Scene implements GameContext {
   // ───────────────────────────── GameContext ─────────────────────────────
   damage(e: Enemy, amount: number, tag?: DamageTag): boolean {
     if (!e.active) return false;
+    // 회피 기동 중인 진압대는 피해를 받지 않음
+    if (e.dodgeT > 0) return false;
+    const DG = gameData.squadAi.dodge;
+    if (DG.roles.includes(e.id) && e.dodgeCd < DG.reactBelow && e.hp > amount) this.startDodge(e);
     // 카운터 몬스터: 특정 피해 종류에 강함
     const res = (CT.mul as Record<string, Record<string, number>>)[e.id];
     if (res && tag && res[tag] !== undefined) amount *= res[tag];
@@ -805,6 +809,19 @@ export class GameScene extends Phaser.Scene implements GameContext {
         if (e.id === 'sniper_turret') this.turretAi(e, dt, dx, dy, d, hidden);
         else if (e.id === 'glitch_ghost') this.ghostAi(e, dt, d, hidden);
         if (e.id === 'kamikaze' && this.kamikazeAi(e, dt, d, (x, y) => ((vx = x), (vy = y)))) continue;
+        // 진압대 회피 기동
+        const DGM = gameData.squadAi.dodge;
+        if (DGM.roles.includes(e.id)) {
+          if (e.dodgeT > 0) {
+            e.dodgeT -= dt;
+            vx = e.dodgeVX * slow;
+            vy = e.dodgeVY * slow;
+            if ((e.ghostT -= dt) <= 0) {
+              e.ghostT = DGM.ghostEvery;
+              this.spawnGhostAt(e.sprite.texture.key, e.x, e.y, e.sprite.flipX, 0xff2a3a);
+            }
+          } else if ((e.dodgeCd -= dt) <= 0 && e.state === 'walk' && !hidden && this.onScreen(e.x, e.y)) this.startDodge(e);
+        }
         if (e.slowT > 0) {
           e.slowT -= dt;
           vx *= 0.55;
@@ -912,7 +929,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
       b.update(dt);
       if (!b.active) continue;
       for (const e of this.grid.query(b.x, b.y, b.radius + MAX_ENEMY_RADIUS, this.near)) {
-        if (!e.active || b.hits.includes(e)) continue;
+        if (!e.active || b.hits.includes(e) || e.dodgeT > 0) continue;
         const rr = e.radius + b.radius;
         if ((e.x - b.x) ** 2 + (e.y - b.y) ** 2 < rr * rr) {
           b.hits.push(e);
@@ -1719,13 +1736,48 @@ export class GameScene extends Phaser.Scene implements GameContext {
 
   private spawnGhost(color: number): void {
     const p = this.player;
+    this.spawnGhostAt(p.sprite.texture.key, p.x, p.y, p.sprite.flipX, color);
+  }
+
+  /** 잔상 한 장 (플레이어·회피하는 진압대 공용) */
+  private spawnGhostAt(tex: string, x: number, y: number, flip: boolean, color: number): void {
     let g = this.ghosts.find((o) => o.life <= 0);
     if (!g) {
-      g = { img: this.add.image(0, 0, this.runner.texture).setDepth(19).setBlendMode(Phaser.BlendModes.ADD), life: 0 };
+      if (this.ghosts.length >= 80) return;
+      g = { img: this.add.image(0, 0, tex).setDepth(19).setBlendMode(Phaser.BlendModes.ADD), life: 0 };
       this.ghosts.push(g);
     }
     g.life = 0.25;
-    g.img.setPosition(p.x, p.y).setFlipX(p.sprite.flipX).setTint(color).setVisible(true);
+    g.img.setTexture(tex).setPosition(x, y).setFlipX(flip).setTint(color).setVisible(true);
+  }
+
+  /** 진압대 회피 기동: 뉴럴 오버클럭의 축소판. 플레이어 기준 옆으로 빠르게 미끄러지며 잔상, 그동안 피해 무시 */
+  private startDodge(e: Enemy): void {
+    const D = gameData.squadAi.dodge;
+    const p = this.player;
+    const dx = p.x - e.x;
+    const dy = p.y - e.y;
+    const d = Math.hypot(dx, dy) || 1;
+    const side = Math.random() < 0.5 ? 1 : -1;
+    // 옆으로 + (공격수는 앞으로 파고들고, 해커·저격수는 뒤로 빠짐)
+    const fwd = e.id === 'trooper_melee' ? 0.45 : -0.5;
+    let vx = (-dy / d) * side + (dx / d) * fwd;
+    let vy = (dx / d) * side + (dy / d) * fwd;
+    const m = Math.hypot(vx, vy) || 1;
+    vx /= m;
+    vy /= m;
+    e.dodgeVX = vx * D.speed;
+    e.dodgeVY = vy * D.speed;
+    e.dodgeT = D.time;
+    e.ghostT = 0;
+    e.dodgeCd = Phaser.Math.FloatBetween(D.everyMin, D.everyMax);
+    // 예고·조준 중이던 동작은 취소
+    if (e.state !== 'walk') {
+      e.state = 'walk';
+      e.t = 1;
+    }
+    this.burst(e.x, e.y, 0xff2a3a, 6);
+    if (this.onScreen(e.x, e.y)) Sound.play('dash');
   }
 
   // ───────────────────────────── 블랙 실드 진압대 습격 ─────────────────────────────

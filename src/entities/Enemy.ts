@@ -27,6 +27,12 @@ export class Enemy {
   cd = 0;
   /** EMP 필드 등으로 느려진 남은 시간 */
   slowT = 0;
+  /** 진압대 회피 기동: 남은 시간, 다음 회피까지, 회피 속도 */
+  dodgeT = 0;
+  dodgeCd = 0;
+  dodgeVX = 0;
+  dodgeVY = 0;
+  ghostT = 0;
   readonly sprite: Phaser.GameObjects.Image;
 
   constructor(scene: Phaser.Scene) {
@@ -48,6 +54,8 @@ export class Enemy {
     this.flash = 0;
     this.stun = 0;
     this.slowT = 0;
+    this.dodgeT = 0;
+    this.dodgeCd = 3 + Math.random() * 3;
     this.state = 'walk';
     this.t = 2 + Math.random() * 2;
     this.cd = 1 + Math.random() * 1.5;
