@@ -6,6 +6,7 @@ import { GameScene } from './scenes/GameScene';
 import { ResultScene } from './scenes/ResultScene';
 import { HideoutScene } from './scenes/HideoutScene';
 import { Ads } from './systems/Ads';
+import { I18n } from './i18n';
 
 const game = new Phaser.Game({
   type: Phaser.AUTO,
@@ -18,6 +19,7 @@ const game = new Phaser.Game({
   scene: [BootScene, TitleScene, HideoutScene, GameScene, ResultScene],
 });
 
+I18n.init();
 void Ads.init();
 
 // 개발 중 브라우저 콘솔/자동 테스트에서 접근하기 위함

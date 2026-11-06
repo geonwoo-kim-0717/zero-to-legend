@@ -3,6 +3,7 @@ import { BASE_TEXT } from './text';
 import { Sound } from '../systems/Sound';
 import { VIEW_W, VIEW_H } from '../config';
 import type { Choice } from '../systems/Progression';
+import { t } from '../i18n';
 
 
 /** 레벨업 3택 1 화면. 키보드(1·2·3, R)와 클릭/터치 모두 지원 */
@@ -56,7 +57,7 @@ export class LevelUpUI {
           .text(x + cw - 8, y + 8, c.rarity.label, { ...BASE_TEXT, fontSize: '11px', color: c.rarity.color })
           .setOrigin(1, 0),
       );
-      const kind = c.kind === 'weapon' ? '무기' : c.kind === 'passive' ? '사이버웨어' : '반복 강화';
+      const kind = t(c.kind === 'weapon' ? 'lvl.kind.weapon' : c.kind === 'passive' ? 'lvl.kind.passive' : 'lvl.kind.overflow');
       add(s.add.text(x + cw / 2, y + 34, kind, { ...BASE_TEXT, fontSize: '11px', color: '#8a7aa8' }).setOrigin(0.5));
       add(
         s.add
@@ -68,7 +69,7 @@ export class LevelUpUI {
           .text(x + cw / 2, y + 76, c.levelLabel, {
             ...BASE_TEXT,
             fontSize: '11px',
-            color: c.levelLabel === '신규' ? '#fff23a' : '#39ff88',
+            color: c.isNew ? '#fff23a' : '#39ff88',
           })
           .setOrigin(0.5),
       );
@@ -104,7 +105,7 @@ export class LevelUpUI {
     if (rerolls > 0) {
       const btn = add(
         s.add
-          .text(VIEW_W / 2, 314, `[R] 리롤 (남은 횟수 ${rerolls})`, {
+          .text(VIEW_W / 2, 314, t('lvl.reroll', { n: rerolls }), {
             ...BASE_TEXT,
             fontSize: '12px',
             color: '#00f0ff',

@@ -30,6 +30,7 @@ import { isTouch } from '../systems/Fullscreen';
 import { Settings } from '../systems/Settings';
 import { Ads } from '../systems/Ads';
 import type { RunResult } from './ResultScene';
+import { t as tr } from '../i18n';
 
 type State = 'play' | 'levelup' | 'paused' | 'over' | 'dialog' | 'carry';
 /** 이번 판에 얻은 전설·신화 능력 (챕터 이월 후보) */
@@ -288,12 +289,12 @@ export class GameScene extends Phaser.Scene implements GameContext {
 
     this.addWeapon(this.runner.startWeapon as WeaponId);
     this.bindKeys();
-    Ads.gameplayStart();
     Sound.duck(1);
     Sound.music('battle');
-    addMuteToggle(this, 8, VIEW_H - 18, 0);
-    addFxToggle(this, 92, VIEW_H - 18, 0);
-    addFullscreenToggle(this, 206, VIEW_H - 18, 0);
+    // 아래쪽 설정 버튼: 글자 길이가 언어마다 달라서 앞 버튼 폭만큼 띄워 놓는다
+    const muteBtn = addMuteToggle(this, 8, VIEW_H - 18, 0);
+    const fxBtn = addFxToggle(this, muteBtn.x + muteBtn.width + 12, VIEW_H - 18, 0);
+    addFullscreenToggle(this, fxBtn.x + fxBtn.width + 12, VIEW_H - 18, 0);
     if (isTouch()) {
       // 터치 기기에는 Esc가 없으므로 일시정지 버튼을 둔다
       const pb = this.add
@@ -311,6 +312,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
       this.game.events.off(Phaser.Core.Events.BLUR, this.onBlur, this);
       this.levelUi.hide();
       Sound.musicRate(1);
+      Ads.setPlaying(false);
       if (this.carryKeys) this.input.keyboard?.off('keydown', this.carryKeys);
       for (const w of this.weapons) w.destroy();
     });
@@ -318,13 +320,15 @@ export class GameScene extends Phaser.Scene implements GameContext {
 
   private bindKeys(): void {
     const kb = this.input.keyboard!;
-    kb.on('keydown-ESC', () => this.togglePause());
+    // 일시정지: P (CrazyGames에서는 Esc가 포털 전체화면 해제 키라 쓰지 않음)
+    kb.on('keydown-P', () => this.togglePause());
+    if (Ads.provider !== 'crazygames') kb.on('keydown-ESC', () => this.togglePause());
     kb.on('keydown-ENTER', () => this.state === 'dialog' && this.advanceDialog());
     kb.on('keydown-SPACE', () => this.state === 'dialog' && this.advanceDialog());
     kb.on('keydown-F1', () => (this.debug = !this.debug));
     kb.on('keydown-BACKTICK', () => (this.debug = !this.debug));
     // 디버그 전용 치트 (F1으로 디버그를 켰을 때만)
-    kb.on('keydown-P', () => {
+    kb.on('keydown-N', () => {
       if (!this.debug) return;
       for (let i = 0; i < 100; i++) this.spawner.spawnAround(i % 3 ? 'drone' : 'thug', this.player.x, this.player.y, 1);
     });
@@ -490,7 +494,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
     if (this.state !== 'play' && this.state !== 'paused') return;
     this.state = this.state === 'play' ? 'paused' : 'play';
     Sound.duck(this.state === 'paused' ? 0.3 : 1);
-    this.hud.center.setText(this.state === 'paused' ? (isTouch() ? 'PAUSED\n\n화면을 탭하면 계속' : 'PAUSED\n\nESC 로 계속') : '').setVisible(this.state === 'paused');
+    this.hud.center.setText(this.state === 'paused' ? (isTouch() ? tr('pause.touch') : tr('pause.desktop')) : '').setVisible(this.state === 'paused');
   }
 
   private openLevelUp(): void {
@@ -580,7 +584,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
   private endRun(victory: boolean): void {
     if (this.state === 'over') return;
     this.state = 'over';
-    Ads.gameplayStop();
+    Ads.setPlaying(false);
     this.levelUi.hide();
     const result: RunResult = {
       victory,
@@ -608,6 +612,8 @@ export class GameScene extends Phaser.Scene implements GameContext {
 
   // ───────────────────────────── 메인 루프 ─────────────────────────────
   update(_time: number, deltaMs: number): void {
+    // 포털에 '지금 조작 중인지' 알림 (레벨업·대화·일시정지·이월 화면은 플레이 아님)
+    Ads.setPlaying(this.state === 'play');
     if (this.state !== 'play') return;
     const realDt = Math.min(deltaMs / 1000, 0.05);
     // 뉴럴 오버클럭 발동 직후: 시간이 느려졌다가 원래 속도로 돌아온다
@@ -1305,7 +1311,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
         this.counterSeen.add(id);
         const info = (CT.info as Record<string, { label: string; color: string }>)[id];
         const t = this.add
-          .text(VIEW_W / 2, 84, `카운터 등장: ${enemiesData[id].name}\n${info.label}`, { ...TEXT, fontSize: '12px', color: info.color, align: 'center' })
+          .text(VIEW_W / 2, 84, tr('counter.appear', { name: enemiesData[id].name, label: info.label }), { ...TEXT, fontSize: '12px', color: info.color, align: 'center' })
           .setOrigin(0.5, 0)
           .setScrollFactor(0)
           .setDepth(120);
@@ -1342,7 +1348,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
     };
     add(this.add.rectangle(0, 0, VIEW_W, VIEW_H, 0x000000, 0.72).setOrigin(0));
     add(this.add.text(VIEW_W / 2, 30, gameData.carryOver.title, { ...TEXT, fontSize: '20px', color: '#fff23a' }).setOrigin(0.5).setShadow(0, 0, '#fff23a', 8, true, true));
-    add(this.add.text(VIEW_W / 2, 52, '다음 챕터로 가져갈 전설·신화 카드 1장을 고르세요. 나머지 무기·사이버웨어·레벨은 초기화됩니다', { ...TEXT, fontSize: '11px', color: '#c8b8e8' }).setOrigin(0.5));
+    add(this.add.text(VIEW_W / 2, 52, tr('carry.sub'), { ...TEXT, fontSize: '11px', color: '#c8b8e8' }).setOrigin(0.5));
     const desc = add(this.add.text(VIEW_W / 2, 318, '', { ...TEXT, fontSize: '12px', color: '#e8f7ff', align: 'center', wordWrap: { width: 560 } }).setOrigin(0.5, 0));
     const cols = Math.min(4, list.length);
     const cw = 144;
@@ -1366,7 +1372,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
       card.on('pointerout', () => card.setFillStyle(0x120a24, 0.95));
       card.on('pointerup', () => this.chooseCarry(i));
     });
-    desc.setText(isTouch() ? '카드를 길게 누르면 설명, 탭하면 선택' : '카드에 마우스를 올리면 설명이 나와요 (1~9 키로도 선택)');
+    desc.setText(isTouch() ? tr('carry.hint.touch') : tr('carry.hint.desktop'));
     this.carryKeys = (e: KeyboardEvent) => {
       const n = Number(e.key);
       if (n >= 1 && n <= list.length) this.chooseCarry(n - 1);
@@ -1418,7 +1424,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
     this.player.hp = this.player.maxHp;
     const name = keep ? this.keepInfo(keep).ability.name : '';
     const t = this.add
-      .text(VIEW_W / 2, VIEW_H / 2 + 10, keep ? `빌드 초기화 · ★ ${name} 유지` : '빌드 초기화', { ...TEXT, fontSize: '13px', color: '#fff23a' })
+      .text(VIEW_W / 2, VIEW_H / 2 + 10, keep ? tr('carry.keep', { name }) : tr('carry.reset'), { ...TEXT, fontSize: '13px', color: '#fff23a' })
       .setOrigin(0.5)
       .setScrollFactor(0)
       .setDepth(120);
@@ -1468,7 +1474,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
     d.box.add(this.add.rectangle(36, VIEW_H - 102, 72, 72, 0x140c2a).setOrigin(0).setStrokeStyle(1, isRunner ? COLORS.cyan : COLORS.magenta));
     d.box.add(this.add.image(72, VIEW_H - 66, tex).setScale(2));
     d.box.add(this.add.text(118, VIEW_H - 104, name, { ...TEXT, fontSize: '13px', color: isRunner ? '#00f0ff' : '#ff2bd6' }));
-    d.box.add(this.add.text(VIEW_W - 36, VIEW_H - 30, `${d.i + 1}/${d.lines.length}  ▶ ${isTouch() ? '탭' : 'ENTER'}`, { ...TEXT, fontSize: '10px', color: '#8a7aa8' }).setOrigin(1, 0));
+    d.box.add(this.add.text(VIEW_W - 36, VIEW_H - 30, `${d.i + 1}/${d.lines.length}  ▶ ${isTouch() ? tr('dialog.next.touch') : 'ENTER'}`, { ...TEXT, fontSize: '10px', color: '#8a7aa8' }).setOrigin(1, 0));
     d.full = line.text.replace('{runner}', this.runner.name);
     d.shown = 0;
     d.text.setText('');
@@ -1743,7 +1749,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
         shadow: this.add.ellipse(sx, ty + 8, 58, 14, 0x000000, 0.35).setDepth(9),
       };
       const warn = this.add
-        .text(VIEW_W / 2, 72, 'WARNING\n블랙 실드 진압대 투입', { ...TEXT, fontSize: '16px', color: '#ff2a3a', align: 'center' })
+        .text(VIEW_W / 2, 72, tr('raid.warn'), { ...TEXT, fontSize: '16px', color: '#ff2a3a', align: 'center' })
         .setOrigin(0.5)
         .setScrollFactor(0)
         .setDepth(120);
@@ -1921,7 +1927,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
     this.bossDef = def;
     const p = this.player;
     const warn = this.add
-      .text(VIEW_W / 2, VIEW_H / 2 - 40, `WARNING\n${def.title} 접근`, { ...TEXT, fontSize: '18px', color: '#ff2a3a', align: 'center' })
+      .text(VIEW_W / 2, VIEW_H / 2 - 40, tr('boss.warn', { title: def.title }), { ...TEXT, fontSize: '18px', color: '#ff2a3a', align: 'center' })
       .setOrigin(0.5)
       .setScrollFactor(0)
       .setDepth(120);
@@ -2130,7 +2136,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
     this.hud.debug.setText(
       this.debug
         ? `FPS ${this.game.loop.actualFps.toFixed(0)}\nENEMY ${this.enemyPool.countActive()}\nBULLET ${this.bullets.countActive()}\n` +
-            `HP ${Math.ceil(p.hp)}/${p.maxHp}${this.god ? ' GOD' : ''}\n[P]+100 [T]+60s [L]lvl\n[G]god [O]ability\n[K]전설 [M]신화`
+            `HP ${Math.ceil(p.hp)}/${p.maxHp}${this.god ? ' GOD' : ''}\n[N]+100 [T]+60s [L]lvl\n[G]god [O]ability\n${tr('debug.rarity')}`
         : '',
     );
   }

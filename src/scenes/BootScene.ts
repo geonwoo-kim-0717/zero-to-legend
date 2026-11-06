@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { COLORS, VIEW_W, VIEW_H } from '../config';
 import { Sound } from '../systems/Sound';
 import { setupCamera } from '../ui/text';
+import { Ads } from '../systems/Ads';
 // src/assets/*.png 를 모두 data URI로 포함하고, 파일 이름을 텍스처 키로 쓴다
 const PNGS = import.meta.glob('../assets/*.png', { eager: true, query: '?inline', import: 'default' }) as Record<string, string>;
 const PIXEL_ART: [string, string][] = Object.entries(PNGS).map(([path, url]) => [path.split('/').pop()!.replace('.png', ''), url]);
@@ -32,6 +33,7 @@ export class BootScene extends Phaser.Scene {
     this.add.text(VIEW_W / 2, VIEW_H / 2 - 6, 'LOADING', { fontFamily: 'sans-serif', fontSize: '12px', color: '#8a7aa8', resolution: 2 }).setOrigin(0.5);
     this.load.on('progress', (v: number) => (bar.width = 200 * v));
     Sound.preload(this);
+    Ads.loadingStart();
   }
 
   create(): void {
@@ -102,7 +104,11 @@ export class BootScene extends Phaser.Scene {
         ])
       : Promise.resolve();
     Promise.all([ready.catch(() => undefined), ...PIXEL_ART.map(([k, u]) => loadTexture(this, k, u))])
-      .then(() => this.scene.start('Title'))
+      .then(() => {
+        Ads.loadingStop();
+        // CrazyGames: 한 번의 클릭으로 플레이할 수 있게 타이틀을 건너뛰고 아지트로
+        this.scene.start(Ads.provider === 'crazygames' ? 'Hideout' : 'Title');
+      })
       .catch((e) => console.error(e));
   }
 }

@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import audio from '../data/audio.json';
+import { Ads } from './Ads';
 
 export type SfxKey = keyof typeof audio.sfx;
 export type MusicKey = keyof typeof audio.music;
@@ -11,6 +12,12 @@ const lastPlayed = new Map<string, number>();
 let current: { key: MusicKey; sound: Vol } | null = null;
 let pending: MusicKey | null = null;
 let duckFactor = 1;
+/** 사용자가 끈 소리 / 포털(CrazyGames)이 끈 소리 — 둘 중 하나라도 켜져 있으면 음소거 */
+let userMuted = false;
+let portalMuted = false;
+const applyMute = () => {
+  if (game) game.sound.mute = userMuted || portalMuted;
+};
 /** 이 시각까지 다른 효과음을 줄인다 (슬로우 모션 '우우웅'이 잘 들리게) */
 let sfxDuckUntil = 0;
 
@@ -44,7 +51,12 @@ export const Sound = {
     } catch {
       /* 저장소를 못 쓰는 환경 */
     }
-    g.sound.mute = muted;
+    userMuted = muted;
+    applyMute();
+    Ads.onPortalMute((m) => {
+      portalMuted = m;
+      applyMute();
+    });
   },
 
   get muted(): boolean {
@@ -53,9 +65,10 @@ export const Sound = {
 
   toggleMute(): boolean {
     if (!game) return false;
-    game.sound.mute = !game.sound.mute;
+    userMuted = !userMuted;
+    applyMute();
     try {
-      localStorage.setItem(STORAGE_KEY, game.sound.mute ? '1' : '0');
+      localStorage.setItem(STORAGE_KEY, userMuted ? '1' : '0');
     } catch {
       /* 무시 */
     }

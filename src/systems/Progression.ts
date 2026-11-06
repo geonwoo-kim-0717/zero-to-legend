@@ -6,6 +6,7 @@ import gameData from '../data/game.json';
 import { WEAPON_IDS, WeaponBase, type WeaponId } from '../weapons';
 import { WEAPON_MAX_LEVEL, type AbilityTier } from '../weapons/WeaponBase';
 import type { Stats } from '../weapons/types';
+import { t } from '../i18n';
 
 export type PassiveId = keyof typeof passives;
 export type Rarity = (typeof gameData.rarity)[number];
@@ -31,6 +32,8 @@ export interface Choice {
   rarity: Rarity;
   title: string;
   levelLabel: string;
+  /** 아직 없는 무기·사이버웨어 (신규) */
+  isNew?: boolean;
   desc: string;
   ability?: Ability;
 }
@@ -79,12 +82,12 @@ export function rollChoices(
     if (opts.pool && !opts.pool.includes(id)) continue;
     const w = owned.find((o) => o.id === id);
     if (w && w.level < WEAPON_MAX_LEVEL) pool.push({ kind: 'weapon', id, title: w.name, levelLabel: `Lv.${w.level + 1}` });
-    else if (!w && owned.length < gameData.maxWeapons) pool.push({ kind: 'weapon', id, title: weapons[id].name, levelLabel: '신규' });
+    else if (!w && owned.length < gameData.maxWeapons) pool.push({ kind: 'weapon', id, title: weapons[id].name, levelLabel: t('lvl.new'), isNew: true });
   }
   for (const id of PASSIVE_IDS) {
     const st = ownedPassives.get(id);
     if (st && st.level < passives[id].maxLevel) pool.push({ kind: 'passive', id, title: passives[id].name, levelLabel: `Lv.${st.level + 1}` });
-    else if (!st && ownedPassives.size < gameData.maxPassives) pool.push({ kind: 'passive', id, title: passives[id].name, levelLabel: '신규' });
+    else if (!st && ownedPassives.size < gameData.maxPassives) pool.push({ kind: 'passive', id, title: passives[id].name, levelLabel: t('lvl.new'), isNew: true });
   }
 
   if (mode === 'boss') {
@@ -111,7 +114,7 @@ export function rollChoices(
 
   const picks = Phaser.Utils.Array.Shuffle(pool).slice(0, 3);
   // 초반 무기 확정: 무기가 적을 때는 새 무기 카드가 최소 한 장 나오게
-  const isNewWeapon = (c: (typeof pool)[number]) => c.kind === 'weapon' && c.levelLabel === '신규';
+  const isNewWeapon = (c: (typeof pool)[number]) => c.kind === 'weapon' && !!c.isNew;
   if (opts.guaranteeWeapon && !picks.some(isNewWeapon)) {
     const nw = pool.filter((c) => isNewWeapon(c) && !picks.includes(c));
     if (nw.length) {
@@ -134,7 +137,7 @@ export function rollChoices(
   const left = Phaser.Utils.Array.Shuffle(gameData.overflow.slice());
   while (out.length < 3 && left.length) {
     const o = left.pop()!;
-    out.push({ kind: 'overflow', id: o.id, rarity: gameData.rarity[0], title: o.name, levelLabel: '강화', desc: o.desc.replace('{v}', String(o.amount)) });
+    out.push({ kind: 'overflow', id: o.id, rarity: gameData.rarity[0], title: o.name, levelLabel: t('lvl.overflow'), desc: o.desc.replace('{v}', String(o.amount)) });
   }
   return out;
 }
@@ -144,7 +147,7 @@ function describe(c: { kind: string; id: string }, rarity: Rarity, owned: Weapon
     const id = c.id as WeaponId;
     const w = owned.find((o) => o.id === id);
     let desc = w ? WeaponBase.levelDesc(id, w.level + 1) : weapons[id].desc;
-    if (rarity.weaponBonus > 0) desc += `\n+ 피해 보너스 ${Math.round(rarity.weaponBonus * 100)}%`;
+    if (rarity.weaponBonus > 0) desc += t('lvl.bonus', { v: Math.round(rarity.weaponBonus * 100) });
     return desc;
   }
   const id = c.id as PassiveId;

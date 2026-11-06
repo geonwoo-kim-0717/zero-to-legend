@@ -3,8 +3,10 @@ import { BASE_TEXT } from './text';
 import { Sound } from '../systems/Sound';
 import { Settings } from '../systems/Settings';
 import { toggleFullscreen, notify } from '../systems/Fullscreen';
+import { t as tr, I18n } from '../i18n';
+import { Ads } from '../systems/Ads';
 
-const label = () => (Sound.muted ? '♪ 소리 끔 (M)' : '♪ 소리 켬 (M)');
+const label = () => (Sound.muted ? tr('ui.sound.off') : tr('ui.sound.on'));
 
 /** 화면 구석의 소리 켜기/끄기 버튼 + M 키. 클릭·탭·키 모두 지원 */
 export function addMuteToggle(scene: Phaser.Scene, x: number, y: number, originX = 1): Phaser.GameObjects.Text {
@@ -27,7 +29,7 @@ export function addMuteToggle(scene: Phaser.Scene, x: number, y: number, originX
   return t;
 }
 
-const fxLabel = () => (Settings.reducedFx ? '화면 효과: 줄임 (V)' : '화면 효과: 보통 (V)');
+const fxLabel = () => (Settings.reducedFx ? tr('ui.fx.reduced') : tr('ui.fx.normal'));
 
 /** 화면 효과 줄이기 버튼 + V 키 (흔들림·번쩍임·글리치를 끔) */
 export function addFxToggle(scene: Phaser.Scene, x: number, y: number, originX = 1): Phaser.GameObjects.Text {
@@ -52,13 +54,15 @@ export function addFxToggle(scene: Phaser.Scene, x: number, y: number, originX =
 
 /** 전체화면 버튼 + F 키. 브라우저가 사용자 입력 안에서만 전체화면을 허락하므로 pointerup에서 바로 요청한다 */
 export function addFullscreenToggle(scene: Phaser.Scene, x: number, y: number, originX = 1): Phaser.GameObjects.Text {
-  const label = () => (scene.scale.isFullscreen ? '⛶ 창 모드 (F)' : '⛶ 전체화면 (F)');
+  const label = () => (scene.scale.isFullscreen ? tr('ui.fs.exit') : tr('ui.fs.enter'));
   const t = scene.add
     .text(x, y, label(), { ...BASE_TEXT, fontSize: '11px', color: '#8a7aa8' })
     .setOrigin(originX, 0)
     .setScrollFactor(0)
     .setDepth(160)
     .setInteractive({ useHandCursor: true });
+  // CrazyGames는 게임 안 전체화면 버튼을 금지한다 (포털이 제공)
+  if (Ads.provider === 'crazygames') return t.setVisible(false).disableInteractive();
   t.on('pointerup', (_p: Phaser.Input.Pointer, _x: number, _y: number, e: Phaser.Types.Input.EventData) => {
     e.stopPropagation();
     toggleFullscreen(scene);
@@ -67,7 +71,7 @@ export function addFullscreenToggle(scene: Phaser.Scene, x: number, y: number, o
   t.on('pointerdown', (_p: Phaser.Input.Pointer, _x: number, _y: number, e: Phaser.Types.Input.EventData) => e.stopPropagation());
   const refresh = () => t.setText(label());
   const onKey = () => toggleFullscreen(scene);
-  const onFail = () => notify(scene, '전체화면 전환이 막혔어요. 다시 눌러 주세요');
+  const onFail = () => notify(scene, tr('ui.fs.blocked'));
   scene.scale.on(Phaser.Scale.Events.ENTER_FULLSCREEN, refresh);
   scene.scale.on(Phaser.Scale.Events.LEAVE_FULLSCREEN, refresh);
   scene.scale.on(Phaser.Scale.Events.FULLSCREEN_FAILED, onFail);
@@ -78,5 +82,29 @@ export function addFullscreenToggle(scene: Phaser.Scene, x: number, y: number, o
     scene.scale.off(Phaser.Scale.Events.FULLSCREEN_FAILED, onFail);
     scene.input.keyboard?.off('keydown-F', onKey);
   });
+  return t;
+}
+
+/** 언어 바꾸기 버튼 + L 키. 바꾸면 지금 화면을 다시 그린다 (설정은 기억) */
+export function addLangToggle(scene: Phaser.Scene, x: number, y: number, originX = 1): Phaser.GameObjects.Text {
+  const t = scene.add
+    .text(x, y, tr('ui.lang'), { ...BASE_TEXT, fontSize: '11px', color: '#8a7aa8' })
+    .setOrigin(originX, 0)
+    .setScrollFactor(0)
+    .setDepth(160)
+    .setInteractive({ useHandCursor: true });
+  const toggle = () => {
+    I18n.toggle();
+    scene.scene.restart();
+  };
+  t.on('pointerdown', (_p: Phaser.Input.Pointer, _x: number, _y: number, e: Phaser.Types.Input.EventData) => {
+    e.stopPropagation();
+  });
+  t.on('pointerup', (_p: Phaser.Input.Pointer, _x: number, _y: number, e: Phaser.Types.Input.EventData) => {
+    e.stopPropagation();
+    toggle();
+  });
+  scene.input.keyboard?.on('keydown-L', toggle);
+  scene.events.once(Phaser.Scenes.Events.SHUTDOWN, () => scene.input.keyboard?.off('keydown-L', toggle));
   return t;
 }

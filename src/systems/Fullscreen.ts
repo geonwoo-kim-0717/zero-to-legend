@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { t } from '../i18n';
 
 /** 손가락으로 조작하는 기기인지 (휴대폰·태블릿) */
 export function isTouch(): boolean {
@@ -16,7 +17,7 @@ type LockableOrientation = ScreenOrientation & { lock?: (o: string) => Promise<v
 export function enterFullscreen(scene: Phaser.Scene): void {
   const sm = scene.scale;
   if (!sm.fullscreen.available) {
-    notify(scene, isIPhone() ? 'iPhone은 공유 → 홈 화면에 추가로 전체화면 실행' : '이 화면에서는 전체화면을 쓸 수 없어요');
+    notify(scene, isIPhone() ? t('ui.fs.iphone') : t('ui.fs.unavailable'));
     return;
   }
   if (!sm.isFullscreen) sm.startFullscreen({ navigationUI: 'hide' });
