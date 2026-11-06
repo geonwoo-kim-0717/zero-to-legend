@@ -5,6 +5,7 @@ import os, random, sys, math
 sys.path.insert(0, os.path.dirname(__file__))
 from PIL import Image, ImageDraw
 import pixelart as A
+import ground_v2
 
 OUT = os.path.join(os.path.dirname(__file__), '..', '..', 'src', 'assets')
 os.makedirs(OUT, exist_ok=True)
@@ -546,7 +547,9 @@ if __name__ == '__main__':
     save('thug.png', A.thug().im)
     save('gunner.png', A.gunner().im)
     save('psycho.png', A.psycho().im)
-    save('ground.png', ground_tile())
+    # 1챕터 바닥: 아스팔트 찻길 + 콘크리트 인도 (ground_v2.py), 화면 위쪽 먼 빌딩층
+    save('ground.png', ground_v2.ground_ch1()[0])
+    save('skyline_ch1.png', ground_v2.skyline())
     save('trooper_tank.png', trooper().im)
     save('trooper_sniper.png', trooper_sniper().im)
     save('trooper_melee.png', trooper_melee().im)

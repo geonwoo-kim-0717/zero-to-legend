@@ -80,6 +80,8 @@ export class GameScene extends Phaser.Scene implements GameContext {
   private spawner!: Spawner;
   private controls!: InputController;
   private bg!: Phaser.GameObjects.TileSprite;
+  /** 화면 위쪽에 깔리는 먼 고층 빌딩 (구역에 따라 켜짐, 바닥보다 느리게 움직임) */
+  private skyline!: Phaser.GameObjects.TileSprite;
   private sparks!: Phaser.GameObjects.Particles.ParticleEmitter;
   private levelUi!: LevelUpUI;
 
@@ -242,6 +244,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
 
     this.cameras.main.setBackgroundColor(COLORS.bg);
     this.bg = this.add.tileSprite(0, 0, VIEW_W, VIEW_H, 'ground').setOrigin(0).setScrollFactor(0).setDepth(0);
+    this.skyline = this.add.tileSprite(0, 0, VIEW_W, 150, 'skyline_ch1').setOrigin(0).setScrollFactor(0).setDepth(0.5);
     this.floorG = this.add.graphics().setDepth(1);
     this.rainFx = this.add.tileSprite(0, 0, VIEW_W, VIEW_H, 'rain').setOrigin(0).setScrollFactor(0).setDepth(144).setAlpha(0.7);
     this.fx = this.add.graphics().setDepth(17);
@@ -703,6 +706,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
     this.rainFx.tilePositionX += 30 * dt;
     this.bg.tilePositionX = this.cameras.main.scrollX;
     this.bg.tilePositionY = this.cameras.main.scrollY;
+    this.skyline.tilePositionX = this.cameras.main.scrollX * 0.25;
 
     const zt = this.elapsed - this.zoneStart;
     const nextBoss = gameData.bosses.filter((b) => b.zone === this.zone.id)[this.bossesSpawned];
@@ -1260,6 +1264,8 @@ export class GameScene extends Phaser.Scene implements GameContext {
   private applyZone(fanfare: boolean): void {
     const z = this.zone;
     this.bg.setTexture(z.ground);
+    this.skyline.setVisible(!!z.skyline);
+    if (z.skyline) this.skyline.setTexture(z.skyline);
     this.rainFx.setVisible(z.rain);
     this.floorG.clear();
     this.laser = { phase: 'idle', t: 5, lines: [], hit: false };

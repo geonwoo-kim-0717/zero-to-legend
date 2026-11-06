@@ -471,3 +471,232 @@ def build_v2(out):
         add_debris_and_neon(img, random.Random(seed), density=0.8 if name == 'C' else 1.0)
         img.save(os.path.join(out, f'ground_ch1_{name}2.png'))
     skyline().save(os.path.join(out, 'skyline_ch1.png'))
+
+
+# ───────── 1챕터 확정판: 위치에 따라 아스팔트 찻길(A2) + 콘크리트 인도(B2), 오브젝트끼리 겹치지 않게 ─────────
+T = 1024                 # 타일 한 장 크기 (화면 640x360보다 커서 반복이 덜 보임)
+ROAD_H = (400, 620)      # 가로 찻길이 지나는 y 범위
+ROAD_V = (620, 800)      # 세로 찻길이 지나는 x 범위
+XWALK_H = (572, 608)     # 가로 찻길 횡단보도 (x 범위)
+XWALK_V = (352, 388)     # 세로 찻길 횡단보도 (y 범위)
+
+
+class Placer:
+    """타일(상하좌우가 이어진 판) 위에 사각형을 서로 겹치지 않게 놓는다.
+    where: 'road'(찻길 안), 'walk'(인도 안), 'any'. 경계(연석)에 걸치지 않도록 여유를 둔다."""
+
+    def __init__(self, road, rnd):
+        self.road, self.rnd, self.rects = road, rnd, []
+
+    @staticmethod
+    def _hit(a0, a1, b0, b1):
+        return any(a0 < b1 + o and b0 + o < a1 for o in (-T, 0, T))
+
+    def free(self, x, y, w, h, pad):
+        return not any(self._hit(x - pad, x + w + pad, rx, rx + rw) and self._hit(y - pad, y + h + pad, ry, ry + rh) for rx, ry, rw, rh in self.rects)
+
+    def inside(self, x, y, w, h, where, margin=7):
+        if where == 'any':
+            return True
+        sub = self.road[np.ix_(np.arange(y - margin, y + h + margin) % T, np.arange(x - margin, x + w + margin) % T)]
+        return bool(sub.all()) if where == 'road' else not sub.any()
+
+    def reserve(self, x, y, w, h):
+        self.rects.append((x, y, w, h))
+
+    def place(self, w, h, where='any', pad=6, ok=None, tries=600):
+        for _ in range(tries):
+            x, y = self.rnd.randrange(T), self.rnd.randrange(T)
+            if (ok is None or ok(x, y, w, h)) and self.inside(x, y, w, h, where) and self.free(x, y, w, h, pad):
+                self.reserve(x, y, w, h)
+                return x, y
+        return None
+
+
+def _road_mask():
+    yy, xx = np.mgrid[0:T, 0:T]
+    return ((yy >= ROAD_H[0]) & (yy < ROAD_H[1])) | ((xx >= ROAD_V[0]) & (xx < ROAD_V[1]))
+
+
+def _grow(mask, k):
+    """마스크를 k칸 넓힌다 (상하좌우로 이어진 판이므로 roll 사용)"""
+    m = mask.copy()
+    for _ in range(k):
+        m = m | np.roll(m, 1, 0) | np.roll(m, -1, 0) | np.roll(m, 1, 1) | np.roll(m, -1, 1)
+    return m
+
+
+def _slabs(d, rnd):
+    """B2의 콘크리트 판석 무늬 (줄마다 높이가 다르고 이음이 엇갈림) + 틈새 이끼"""
+    y, rows = 0, []
+    while y < N:
+        h = rnd.choice([48, 56, 64])
+        if y + h > N - 24:
+            h = N - y
+        rows.append((y, h)); y += h
+    for y, h in rows:
+        d.line([0, y, N, y], fill=C('D0')); d.line([0, y + 1, N, y + 1], fill=C('D1'))
+        x = rnd.randint(0, 40)
+        while x < N + 80:
+            def f(ox, oy, x=x, y=y, h=h):
+                d.line([x + ox, y + oy, x + ox, y + h + oy], fill=C('D0'))
+                d.line([x + 1 + ox, y + oy, x + 1 + ox, y + h + oy], fill=C('D1'))
+            wrapped(f)
+            if rnd.random() < 0.35:  # 판 하나의 물기·기름 얼룩
+                sx, sy = x + rnd.randint(6, 40), y + rnd.randint(6, max(7, h - 10))
+                ex, ey = sx + rnd.randint(10, 26), sy + rnd.randint(4, 9)
+                wrapped(lambda ox, oy, sx=sx, sy=sy, ex=ex, ey=ey: d.ellipse([sx + ox, sy + oy, ex + ox, ey + oy], fill=C('D2')))
+            x += rnd.choice([56, 72, 88, 104])
+    for _ in range(520):
+        y, _h = rnd.choice(rows)
+        x = rnd.randrange(N)
+        d.point((x, y + 1), fill=C('MOSS')); d.point(((x + 1) % N, y + 1), fill=C('MOSS'))
+
+
+def _markings(img, rnd):
+    """찻길 페인트: 바랜 노란 중앙 점선 + 낡은 횡단보도 (일부가 벗겨짐)"""
+    px = img.load()
+    def paint(x, y, col, wear):
+        if rnd.random() > wear:
+            px[x % T, y % T] = C(col)
+    cy = (ROAD_H[0] + ROAD_H[1]) // 2
+    for x0 in range(0, T, 64):
+        for x in range(x0, x0 + 34):
+            if not (ROAD_V[0] - 50 <= x % T < ROAD_V[1] + 14):
+                paint(x, cy - 1, 'YELD', 0.25); paint(x, cy, 'YELD', 0.25)
+    cx = (ROAD_V[0] + ROAD_V[1]) // 2
+    for y0 in range(0, T, 64):
+        for y in range(y0, y0 + 34):
+            if not (ROAD_H[0] - 50 <= y % T < ROAD_H[1] + 14):
+                paint(cx - 1, y, 'YELD', 0.25); paint(cx, y, 'YELD', 0.25)
+    for y0 in range(ROAD_H[0] + 8, ROAD_H[1] - 12, 16):  # 가로 찻길 횡단보도
+        for y in range(y0, y0 + 8):
+            for x in range(*XWALK_H):
+                paint(x, y, 'GRAY', 0.35)
+    for x0 in range(ROAD_V[0] + 8, ROAD_V[1] - 12, 16):  # 세로 찻길 횡단보도
+        for x in range(x0, x0 + 8):
+            for y in range(*XWALK_V):
+                paint(x, y, 'GRAY', 0.35)
+
+
+def _curbs(img, road, rnd):
+    """찻길과 인도 경계의 연석: 인도 쪽은 밝은 턱, 찻길 쪽은 어두운 물길"""
+    arr = np.array(img)
+    walk = ~road
+    near1, near2, near3 = _grow(road, 1) & walk, _grow(road, 2) & walk, _grow(road, 3) & walk
+    arr[near3] = C('GRAYD'); arr[near2] = C('GRAY'); arr[near1] = C('STONEL')
+    g1, g2 = _grow(walk, 1) & road, _grow(walk, 2) & road
+    arr[g2] = C('D0'); arr[g1] = C('BG')
+    out = Image.fromarray(arr, 'RGBA')
+    d = ImageDraw.Draw(out)
+    ys, xs = np.nonzero(near3)
+    for i in rnd.sample(range(len(xs)), 90):  # 깨진 연석 조각
+        d.rectangle([xs[i], ys[i], xs[i] + rnd.randint(1, 3), ys[i] + rnd.randint(0, 1)], fill=C('D2'))
+    return out
+
+
+def _ground_ch1(seed):
+    rnd = random.Random(seed)
+    road = _road_mask()
+    asphalt = base_from_noise(value_noise(seed, 16, 4), ['D1', 'D2', 'D2', 'D3', 'D3', 'D4'], seed, 0.18)
+    da = ImageDraw.Draw(asphalt)
+    cracks(da, rnd, 70)
+    concrete = base_from_noise(value_noise(seed + 1, 12, 3), ['D2', 'D3', 'D3', 'D4'], seed + 1, 0.10)
+    dc = ImageDraw.Draw(concrete)
+    _slabs(dc, rnd)
+    cracks(dc, rnd, 50)
+    img = Image.composite(asphalt, concrete, Image.fromarray((road * 255).astype(np.uint8), 'L'))
+    _markings(img, rnd)
+    img = _curbs(img, road, rnd)
+    d = ImageDraw.Draw(img)
+    rain_spots(d, rnd, 1700)
+
+    P = Placer(road, rnd)
+    P.reserve(XWALK_H[0], ROAD_H[0], XWALK_H[1] - XWALK_H[0], ROAD_H[1] - ROAD_H[0])  # 횡단보도는 비워 둔다
+    P.reserve(ROAD_V[0], XWALK_V[0], ROAD_V[1] - ROAD_V[0], XWALK_V[1] - XWALK_V[0])
+    # 바닥 시설: 연석 옆 빗물 배수구, 맨홀, 물웅덩이
+    for side in (ROAD_H[0] + 3, ROAD_H[1] - 17, ROAD_H[0] + 3, ROAD_H[1] - 17):
+        for _ in range(300):
+            x = rnd.randrange(T)
+            if not (ROAD_V[0] - 30 < x < ROAD_V[1]) and P.free(x, side, 26, 14, 6):
+                P.reserve(x, side, 26, 14); grate(d, x, side, 26, 14); break
+    for side in (ROAD_V[0] + 3, ROAD_V[1] - 17):
+        for _ in range(300):
+            y = rnd.randrange(T)
+            if not (ROAD_H[0] - 30 < y < ROAD_H[1]) and P.free(side, y, 14, 26, 6):
+                P.reserve(side, y, 14, 26); grate(d, side, y, 14, 26); break
+    for where, r, n in (('road', 15, 3), ('walk', 13, 2)):
+        for _ in range(n):
+            p = P.place(2 * r + 1, 2 * r + 1, where)
+            if p: manhole(d, p[0] + r, p[1] + r, r)
+    for where, n, rxr, ryr, neon in (('road', 8, (18, 44), (8, 18), ['MAG', 'MAGM', 'CYAN', 'CYANM']), ('walk', 5, (14, 30), (6, 12), ['MAGM', 'CYANM', 'CYAN'])):
+        for _ in range(n):
+            rx, ry = rnd.randint(*rxr), rnd.randint(*ryr)
+            p = P.place(2 * rx + 1, 2 * ry + 1, where)
+            if p: puddle(d, rnd, p[0] + rx, p[1] + ry, rx, ry, neon)
+
+    # 떨어진 네온 간판 (인도 위) + 빛 번짐, 화면 밖 간판이 비추는 빛 웅덩이
+    spots, signs = [], []
+    for _ in range(6):
+        p = P.place(40, 18, 'walk', pad=10)
+        if p:
+            c1, c2 = rnd.choice([('MAG', 'CYAN'), ('CYAN', 'MAG'), ('MAG', 'YEL')])
+            signs.append((p[0], p[1], c1, c2)); spots.append((p[0] + 20, p[1] + 9, 46, 26, c1, 90))
+    for _ in range(9):
+        spots.append((rnd.randrange(T), rnd.randrange(T), rnd.randint(40, 70), rnd.randint(22, 36), rnd.choice(['MAG', 'CYAN', 'MAGM']), 45))
+    img.alpha_composite(glow_layer(spots))
+    d = ImageDraw.Draw(img)
+    for x, y, c1, c2 in signs:
+        stamp(img, neon_sign(rnd, c1, c2), x, y)
+        for _ in range(4):  # 튀는 불꽃 (간판 바로 곁에만)
+            d.point(((x + rnd.randint(-3, 42)) % T, (y + rnd.randint(-3, 20)) % T), fill=C('YEL'))
+
+    # 버려진 잔해: 폐차는 찻길 방향에 맞춰, 상자·드럼통은 인도에, 나머지는 어디든
+    in_h = lambda x, y, w, h: ROAD_H[0] <= y and y + h <= ROAD_H[1] and not (ROAD_V[0] - 60 < x < ROAD_V[1] + 10)
+    in_v = lambda x, y, w, h: ROAD_V[0] <= x and x + w <= ROAD_V[1] and not (ROAD_H[0] - 60 < y < ROAD_H[1] + 10)
+    for k in range(4):
+        car = car_wreck(rnd)
+        if k % 2:
+            car = car.rotate(90, expand=True)
+        p = P.place(car.width, car.height, 'road', pad=10, ok=in_v if k % 2 else in_h)
+        if p: stamp(img, car, *p)
+    for fn, n, where in ((crate, 12, 'walk'), (barrel, 8, 'walk'), (rubble, 7, 'walk'), (rubble, 3, 'road'),
+                         (scrap_sheet, 10, 'any'), (lambda r: tire(), 10, 'any')):
+        for _ in range(n):
+            obj = fn(rnd)
+            p = P.place(obj.width, obj.height, where)
+            if p: stamp(img, obj, *p)
+    # 자잘한 쓰레기 (캔, 종이, 유리 조각) 도 서로·다른 물건과 겹치지 않게
+    d = ImageDraw.Draw(img)
+    for _ in range(150):
+        p = P.place(6, 5, 'any', pad=2, tries=60)
+        if not p: continue
+        x, y = p
+        kind = rnd.random()
+        if kind < 0.4:
+            d.rectangle([x, y, x + 3, y + 2], fill=C(rnd.choice(['MAGD', 'CYAND', 'YELD'])))
+        elif kind < 0.7:
+            d.polygon([(x, y), (x + 5, y + 1), (x + 4, y + 4), (x + 1, y + 3)], fill=C('D5'))
+        else:
+            d.point((x, y), fill=C('CYANM')); d.point((x + 2, y + 1), fill=C('GRAY'))
+    return img, P
+
+
+def ground_ch1(seed=500):
+    """1챕터 바닥 (1024x1024, 이음새 없음). (이미지, 배치기록) 을 돌려준다"""
+    global N
+    old, N = N, T
+    try:
+        return _ground_ch1(seed)
+    finally:
+        N = old
+
+
+def check_overlaps(P):
+    """배치된 오브젝트 중 겹치는 쌍의 수 (0이어야 함)"""
+    bad = 0
+    for i, a in enumerate(P.rects):
+        for b in P.rects[i + 1:]:
+            if Placer._hit(a[0], a[0] + a[2], b[0], b[0] + b[2]) and Placer._hit(a[1], a[1] + a[3], b[1], b[1] + b[3]):
+                bad += 1
+    return bad
