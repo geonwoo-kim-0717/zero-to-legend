@@ -1,0 +1,27 @@
+{
+  "name": "zero-to-legend",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview --host",
+    "build:web": "tsc --noEmit && vite build --mode web",
+    "build:crazygames": "tsc --noEmit && vite build --mode crazygames",
+    "build:android": "tsc --noEmit && vite build --mode android && npx cap sync android",
+    "android:apk": "npm run build:android && cd android && ./gradlew assembleDebug",
+    "android:aab": "npm run build:android && cd android && ./gradlew bundleRelease"
+  },
+  "dependencies": {
+    "@capacitor-community/admob": "^7.2.0",
+    "@capacitor/core": "^7.6.10",
+    "phaser": "3.90.0"
+  },
+  "devDependencies": {
+    "@capacitor/android": "^7.6.10",
+    "@capacitor/cli": "^7.6.10",
+    "typescript": "5.9.3",
+    "vite": "6.4.5"
+  }
+}

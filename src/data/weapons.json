@@ -1,0 +1,550 @@
+{
+  "smartPistol": {
+    "name": "스마트 피스톨",
+    "desc": "가장 가까운 적에게 유도탄 발사",
+    "base": {
+      "damage": 12,
+      "interval": 0.45,
+      "count": 1,
+      "speed": 380,
+      "pierce": 0,
+      "area": 1
+    },
+    "levels": [
+      {
+        "desc": "획득"
+      },
+      {
+        "desc": "탄 +1",
+        "count": 1
+      },
+      {
+        "desc": "피해 +5",
+        "damage": 5
+      },
+      {
+        "desc": "관통 +1",
+        "pierce": 1
+      },
+      {
+        "desc": "탄 +1",
+        "count": 1
+      },
+      {
+        "desc": "쿨다운 -15%",
+        "interval": -0.07
+      },
+      {
+        "desc": "피해 +8",
+        "damage": 8
+      },
+      {
+        "desc": "탄 +2, 관통 +1",
+        "count": 2,
+        "pierce": 1
+      }
+    ]
+  },
+  "mantisBlade": {
+    "name": "맨티스 블레이드",
+    "desc": "바라보는 방향을 넓게 베기",
+    "base": {
+      "damage": 25,
+      "interval": 1.1,
+      "count": 1,
+      "speed": 0,
+      "pierce": 0,
+      "area": 1
+    },
+    "levels": [
+      {
+        "desc": "획득"
+      },
+      {
+        "desc": "피해 +10",
+        "damage": 10
+      },
+      {
+        "desc": "범위 +20%",
+        "area": 0.2
+      },
+      {
+        "desc": "앞뒤 동시 베기",
+        "count": 1
+      },
+      {
+        "desc": "피해 +15",
+        "damage": 15
+      },
+      {
+        "desc": "쿨다운 -15%",
+        "interval": -0.16
+      },
+      {
+        "desc": "범위 +25%",
+        "area": 0.25
+      },
+      {
+        "desc": "피해 +25",
+        "damage": 25
+      }
+    ]
+  },
+  "hackDrone": {
+    "name": "해킹 드론",
+    "desc": "주위를 도는 드론이 닿은 적에게 피해",
+    "base": {
+      "damage": 8,
+      "interval": 0.35,
+      "count": 2,
+      "speed": 3,
+      "pierce": 0,
+      "area": 1
+    },
+    "levels": [
+      {
+        "desc": "획득"
+      },
+      {
+        "desc": "드론 +1",
+        "count": 1
+      },
+      {
+        "desc": "피해 +4",
+        "damage": 4
+      },
+      {
+        "desc": "회전 속도 +30%",
+        "speed": 0.9
+      },
+      {
+        "desc": "드론 +1",
+        "count": 1
+      },
+      {
+        "desc": "궤도 +25%",
+        "area": 0.25
+      },
+      {
+        "desc": "피해 +6",
+        "damage": 6
+      },
+      {
+        "desc": "드론 +2",
+        "count": 2
+      }
+    ]
+  },
+  "plasmaGrenade": {
+    "name": "플라즈마 유탄",
+    "desc": "근처 적에게 유탄을 던져 범위 폭발",
+    "base": {
+      "damage": 30,
+      "interval": 2.2,
+      "count": 1,
+      "speed": 0,
+      "pierce": 0,
+      "area": 1
+    },
+    "levels": [
+      {
+        "desc": "획득"
+      },
+      {
+        "desc": "유탄 +1",
+        "count": 1
+      },
+      {
+        "desc": "피해 +15",
+        "damage": 15
+      },
+      {
+        "desc": "폭발 범위 +25%",
+        "area": 0.25
+      },
+      {
+        "desc": "쿨다운 -18%",
+        "interval": -0.4
+      },
+      {
+        "desc": "유탄 +1",
+        "count": 1
+      },
+      {
+        "desc": "피해 +25",
+        "damage": 25
+      },
+      {
+        "desc": "유탄 +2, 범위 +20%",
+        "count": 2,
+        "area": 0.2
+      }
+    ]
+  },
+  "monowire": {
+    "name": "모노와이어",
+    "desc": "이동 방향으로 긴 채찍을 휘둘러 줄 위의 적을 모두 벰",
+    "base": {
+      "damage": 20,
+      "interval": 1.0,
+      "count": 1,
+      "speed": 0,
+      "pierce": 0,
+      "area": 1
+    },
+    "levels": [
+      {
+        "desc": "획득"
+      },
+      {
+        "desc": "피해 +6",
+        "damage": 6
+      },
+      {
+        "desc": "길이 +20%",
+        "area": 0.2
+      },
+      {
+        "desc": "반대쪽도 휘두름",
+        "count": 1
+      },
+      {
+        "desc": "쿨다운 -15%",
+        "interval": -0.15
+      },
+      {
+        "desc": "피해 +8",
+        "damage": 8
+      },
+      {
+        "desc": "길이 +20%",
+        "area": 0.2
+      },
+      {
+        "desc": "4방향, 피해 +10",
+        "count": 2,
+        "damage": 10
+      }
+    ]
+  },
+  "empField": {
+    "name": "EMP 필드",
+    "desc": "주변에 전자기장을 둘러 계속 피해를 주고 적을 느리게 함",
+    "base": {
+      "damage": 6,
+      "interval": 0.5,
+      "count": 1,
+      "speed": 0,
+      "pierce": 0,
+      "area": 1
+    },
+    "levels": [
+      {
+        "desc": "획득"
+      },
+      {
+        "desc": "범위 +15%",
+        "area": 0.15
+      },
+      {
+        "desc": "피해 +3",
+        "damage": 3
+      },
+      {
+        "desc": "범위 +15%",
+        "area": 0.15
+      },
+      {
+        "desc": "틱 간격 -0.1초",
+        "interval": -0.1
+      },
+      {
+        "desc": "피해 +4",
+        "damage": 4
+      },
+      {
+        "desc": "범위 +20%",
+        "area": 0.2
+      },
+      {
+        "desc": "피해 +5",
+        "damage": 5
+      }
+    ]
+  },
+  "railgun": {
+    "name": "레일건",
+    "desc": "가장 단단한 적을 향해 화면을 꿰뚫는 빔 발사",
+    "base": {
+      "damage": 80,
+      "interval": 2.6,
+      "count": 1,
+      "speed": 0,
+      "pierce": 0,
+      "area": 1
+    },
+    "levels": [
+      {
+        "desc": "획득"
+      },
+      {
+        "desc": "피해 +30",
+        "damage": 30
+      },
+      {
+        "desc": "쿨다운 -0.3초",
+        "interval": -0.3
+      },
+      {
+        "desc": "빔 +1",
+        "count": 1
+      },
+      {
+        "desc": "피해 +40",
+        "damage": 40
+      },
+      {
+        "desc": "빔 굵기 +50%",
+        "area": 0.5
+      },
+      {
+        "desc": "쿨다운 -0.3초",
+        "interval": -0.3
+      },
+      {
+        "desc": "빔 +1, 피해 +60",
+        "count": 1,
+        "damage": 60
+      }
+    ]
+  },
+  "shotgun": {
+    "name": "스캐터 샷건",
+    "desc": "가까운 적에게 산탄 5발을 부채꼴로 발사",
+    "base": {
+      "damage": 9,
+      "interval": 1.2,
+      "count": 5,
+      "speed": 320,
+      "pierce": 0,
+      "area": 1
+    },
+    "levels": [
+      {
+        "desc": "획득"
+      },
+      {
+        "desc": "산탄 +2",
+        "count": 2
+      },
+      {
+        "desc": "피해 +3",
+        "damage": 3
+      },
+      {
+        "desc": "쿨다운 -12%",
+        "interval": -0.15
+      },
+      {
+        "desc": "관통 +1",
+        "pierce": 1
+      },
+      {
+        "desc": "산탄 +2",
+        "count": 2
+      },
+      {
+        "desc": "피해 +4",
+        "damage": 4
+      },
+      {
+        "desc": "쿨다운 -15%, 산탄 +2",
+        "interval": -0.2,
+        "count": 2
+      }
+    ]
+  },
+  "turret": {
+    "name": "포탑 배치",
+    "desc": "제자리에 6초 동안 자동 포탑을 세움",
+    "base": {
+      "damage": 10,
+      "interval": 7,
+      "count": 1,
+      "speed": 0,
+      "pierce": 0,
+      "area": 1
+    },
+    "levels": [
+      {
+        "desc": "획득"
+      },
+      {
+        "desc": "탄 피해 +4",
+        "damage": 4
+      },
+      {
+        "desc": "동시 포탑 +1",
+        "count": 1
+      },
+      {
+        "desc": "배치 쿨다운 -1.5초",
+        "interval": -1.5
+      },
+      {
+        "desc": "탄 피해 +5",
+        "damage": 5
+      },
+      {
+        "desc": "사거리 +25%",
+        "area": 0.25
+      },
+      {
+        "desc": "동시 포탑 +1",
+        "count": 1
+      },
+      {
+        "desc": "탄 피해 +8, 쿨다운 -1초",
+        "damage": 8,
+        "interval": -1
+      }
+    ]
+  },
+  "microMissile": {
+    "name": "마이크로 미사일",
+    "desc": "화면 안 무작위 적에게 유도 미사일, 작은 폭발",
+    "base": {
+      "damage": 14,
+      "interval": 1.6,
+      "count": 3,
+      "speed": 200,
+      "pierce": 0,
+      "area": 1
+    },
+    "levels": [
+      {
+        "desc": "획득"
+      },
+      {
+        "desc": "미사일 +1",
+        "count": 1
+      },
+      {
+        "desc": "피해 +4",
+        "damage": 4
+      },
+      {
+        "desc": "폭발 범위 +20%",
+        "area": 0.2
+      },
+      {
+        "desc": "미사일 +2",
+        "count": 2
+      },
+      {
+        "desc": "쿨다운 -0.3초",
+        "interval": -0.3
+      },
+      {
+        "desc": "피해 +6",
+        "damage": 6
+      },
+      {
+        "desc": "미사일 +2",
+        "count": 2
+      }
+    ]
+  },
+  "arcCoil": {
+    "name": "아크 코일",
+    "desc": "가까운 적에게 번개, 근처 적으로 연쇄",
+    "base": {
+      "damage": 15,
+      "interval": 1.0,
+      "count": 3,
+      "speed": 0,
+      "pierce": 0,
+      "area": 1
+    },
+    "levels": [
+      {
+        "desc": "획득"
+      },
+      {
+        "desc": "연쇄 +1",
+        "count": 1
+      },
+      {
+        "desc": "피해 +4",
+        "damage": 4
+      },
+      {
+        "desc": "쿨다운 -15%",
+        "interval": -0.15
+      },
+      {
+        "desc": "연쇄 +2",
+        "count": 2
+      },
+      {
+        "desc": "피해 +6",
+        "damage": 6
+      },
+      {
+        "desc": "사거리 +20%",
+        "area": 0.2
+      },
+      {
+        "desc": "연쇄 +2, 피해 +6",
+        "count": 2,
+        "damage": 6
+      }
+    ]
+  },
+  "proxMine": {
+    "name": "근접 지뢰",
+    "desc": "지나간 자리에 지뢰, 적이 밟으면 폭발",
+    "base": {
+      "damage": 40,
+      "interval": 1.5,
+      "count": 1,
+      "speed": 0,
+      "pierce": 0,
+      "area": 1
+    },
+    "levels": [
+      {
+        "desc": "획득"
+      },
+      {
+        "desc": "피해 +15",
+        "damage": 15
+      },
+      {
+        "desc": "쿨다운 -0.2초",
+        "interval": -0.2
+      },
+      {
+        "desc": "폭발 범위 +20%",
+        "area": 0.2
+      },
+      {
+        "desc": "한 번에 2개",
+        "count": 1
+      },
+      {
+        "desc": "피해 +20",
+        "damage": 20
+      },
+      {
+        "desc": "폭발 범위 +20%",
+        "area": 0.2
+      },
+      {
+        "desc": "한 번에 +1, 피해 +20",
+        "count": 1,
+        "damage": 20
+      }
+    ]
+  }
+}

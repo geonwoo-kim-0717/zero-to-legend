@@ -1,0 +1,80 @@
+{
+  "client": {
+    "name": "픽서 진",
+    "texture": "client"
+  },
+  "zones": [
+    {
+      "id": "slum",
+      "name": "하층가 슬럼",
+      "label": "ZONE 1",
+      "ground": "ground",
+      "rain": true,
+      "rule": null,
+      "ruleHint": "",
+      "raidStart": 330,
+      "raidHpMul": 1,
+      "hpMul": 1
+    },
+    {
+      "id": "industrial",
+      "name": "인더스트리얼 구역",
+      "label": "ZONE 2",
+      "ground": "ground_industrial",
+      "rain": false,
+      "rule": "conveyor",
+      "ruleHint": "바닥 컨베이어가 몸을 끌고 간다",
+      "raidStart": 330,
+      "raidHpMul": 1.6,
+      "intro": [
+        {
+          "who": "client",
+          "text": "레드바이트가 쓰러졌다고? 하층가가 한동안 조용하겠군. 잘했어, {runner}."
+        },
+        {
+          "who": "client",
+          "text": "다음 의뢰야. 아르코난이 인더스트리얼 구역 공장에서 전투 메크를 찍어내고 있어. 생산 라인을 멈춰."
+        },
+        {
+          "who": "runner",
+          "text": "보수나 두둑이 준비해 둬."
+        },
+        {
+          "who": "client",
+          "text": "바닥 컨베이어 조심해. 발밑이 널 끌고 간다."
+        }
+      ],
+      "hpMul": 1.6
+    },
+    {
+      "id": "tower",
+      "name": "기업 타워",
+      "label": "ZONE 3",
+      "ground": "ground_tower",
+      "rain": false,
+      "rule": "laser",
+      "ruleHint": "붉은 선이 깜빡이면 보안 레이저가 지나간다",
+      "raidStart": 330,
+      "raidHpMul": 2.2,
+      "intro": [
+        {
+          "who": "client",
+          "text": "헥사워드가 고철이 됐네. 기업 통신망이 난리야."
+        },
+        {
+          "who": "client",
+          "text": "마지막이야. 기업 타워 꼭대기의 아르코난 코어. 그걸 끄면 네 이름이 이 도시의 전설이 된다."
+        },
+        {
+          "who": "runner",
+          "text": "이름 없는 용병으로 끝나진 않겠다는 거지."
+        },
+        {
+          "who": "client",
+          "text": "타워엔 보안 레이저 격자가 주기적으로 지나가. 붉은 선이 깜빡이면 피해."
+        }
+      ],
+      "hpMul": 2.2
+    }
+  ]
+}

@@ -1,0 +1,6 @@
+{
+  "muscle":  { "name": "강화 근섬유",  "desc": "공격력 +{v}%",       "stat": "damageMul",   "amount": 10,  "maxLevel": 5 },
+  "neural":  { "name": "신경 가속기",  "desc": "공격 쿨다운 -{v}%",   "stat": "cooldownMul", "amount": 8,   "maxLevel": 5 },
+  "dermal":  { "name": "피하 장갑",    "desc": "최대 체력 +{v}",      "stat": "maxHp",       "amount": 20,  "maxLevel": 5 },
+  "magnet":  { "name": "자기 수집기",  "desc": "획득 범위 +{v}%",     "stat": "pickupMul",   "amount": 25,  "maxLevel": 5 }
+}

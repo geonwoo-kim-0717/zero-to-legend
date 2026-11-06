@@ -1,0 +1,240 @@
+{
+  "drone": {
+    "name": "보안 드론",
+    "hp": 20,
+    "speed": 55,
+    "damage": 8,
+    "radius": 6,
+    "xp": 1,
+    "texture": "drone"
+  },
+  "thug": {
+    "name": "거리 갱단",
+    "hp": 55,
+    "speed": 38,
+    "damage": 14,
+    "radius": 8,
+    "xp": 3,
+    "texture": "thug"
+  },
+  "gunner": {
+    "name": "갱단 총잡이",
+    "hp": 40,
+    "speed": 45,
+    "damage": 8,
+    "radius": 7,
+    "xp": 3,
+    "texture": "gunner"
+  },
+  "psycho": {
+    "name": "사이버 사이코",
+    "hp": 120,
+    "speed": 48,
+    "damage": 18,
+    "radius": 10,
+    "xp": 5,
+    "texture": "psycho"
+  },
+  "boss": {
+    "name": "레드바이트",
+    "hp": 20000,
+    "speed": 42,
+    "damage": 25,
+    "radius": 18,
+    "xp": 0,
+    "texture": "boss_w1"
+  },
+  "midboss": {
+    "name": "스크랩 브루트",
+    "hp": 8000,
+    "speed": 48,
+    "damage": 20,
+    "radius": 16,
+    "xp": 0,
+    "texture": "midboss_w1"
+  },
+  "trooper_tank": {
+    "name": "진압대 탱커",
+    "hp": 6400,
+    "speed": 36,
+    "damage": 7,
+    "radius": 11,
+    "xp": 15,
+    "texture": "trooper_tank"
+  },
+  "trooper_melee": {
+    "name": "진압대 근접 공격수",
+    "hp": 4000,
+    "speed": 52,
+    "damage": 7,
+    "radius": 10,
+    "xp": 15,
+    "texture": "trooper_melee"
+  },
+  "trooper_hacker": {
+    "name": "진압대 해커",
+    "hp": 3200,
+    "speed": 46,
+    "damage": 7,
+    "radius": 10,
+    "xp": 15,
+    "texture": "trooper_hacker"
+  },
+  "trooper_sniper": {
+    "name": "진압대 저격수",
+    "hp": 2400,
+    "speed": 44,
+    "damage": 7,
+    "radius": 10,
+    "xp": 15,
+    "texture": "trooper_sniper"
+  },
+  "kamikaze": {
+    "name": "자폭 드론",
+    "hp": 30,
+    "speed": 80,
+    "damage": 6,
+    "radius": 6,
+    "xp": 2,
+    "texture": "kamikaze",
+    "blast": 20,
+    "blastRadius": 42,
+    "fuse": 0.5
+  },
+  "midboss2": {
+    "name": "리벳 크러셔",
+    "hp": 13000,
+    "speed": 46,
+    "damage": 24,
+    "radius": 16,
+    "xp": 0,
+    "texture": "midboss2_w1"
+  },
+  "boss2": {
+    "name": "헥사워드",
+    "hp": 35000,
+    "speed": 36,
+    "damage": 30,
+    "radius": 20,
+    "xp": 0,
+    "texture": "boss2_w1"
+  },
+  "midboss3": {
+    "name": "보안 집행관 프리즘",
+    "hp": 18000,
+    "speed": 50,
+    "damage": 28,
+    "radius": 16,
+    "xp": 0,
+    "texture": "midboss3_w1"
+  },
+  "boss3": {
+    "name": "아르코난 코어",
+    "hp": 55000,
+    "speed": 24,
+    "damage": 35,
+    "radius": 22,
+    "xp": 0,
+    "texture": "boss3_w1"
+  },
+  "sniper_turret": {
+    "name": "저격 터렛",
+    "hp": 150,
+    "speed": 0,
+    "damage": 6,
+    "radius": 9,
+    "xp": 6,
+    "texture": "sniper_turret"
+  },
+  "corrupt_cop": {
+    "name": "부패 경찰",
+    "hp": 90,
+    "speed": 42,
+    "damage": 12,
+    "radius": 8,
+    "xp": 4,
+    "texture": "corrupt_cop"
+  },
+  "sec_bot": {
+    "name": "보안 로봇",
+    "hp": 420,
+    "speed": 26,
+    "damage": 22,
+    "radius": 12,
+    "xp": 10,
+    "texture": "sec_bot"
+  },
+  "glitch_ghost": {
+    "name": "글리치 유령 AI",
+    "hp": 60,
+    "speed": 40,
+    "damage": 12,
+    "radius": 7,
+    "xp": 4,
+    "texture": "glitch_ghost"
+  },
+  "rat_bot": {
+    "name": "쥐떼 봇",
+    "hp": 8,
+    "speed": 95,
+    "damage": 5,
+    "radius": 4,
+    "xp": 1,
+    "texture": "rat_bot",
+    "group": 5
+  },
+  "c_mirror": {
+    "name": "반사 장갑병",
+    "hp": 320,
+    "speed": 38,
+    "damage": 12,
+    "radius": 10,
+    "xp": 8,
+    "texture": "c_mirror"
+  },
+  "c_insulator": {
+    "name": "절연 유닛",
+    "hp": 280,
+    "speed": 40,
+    "damage": 12,
+    "radius": 10,
+    "xp": 8,
+    "texture": "c_insulator"
+  },
+  "c_dampener": {
+    "name": "폭압 흡수체",
+    "hp": 320,
+    "speed": 34,
+    "damage": 12,
+    "radius": 10,
+    "xp": 8,
+    "texture": "c_dampener"
+  },
+  "c_thorn": {
+    "name": "가시 갑주병",
+    "hp": 300,
+    "speed": 44,
+    "damage": 12,
+    "radius": 10,
+    "xp": 8,
+    "texture": "c_thorn"
+  },
+  "c_prism": {
+    "name": "굴절 프리즘",
+    "hp": 240,
+    "speed": 40,
+    "damage": 12,
+    "radius": 10,
+    "xp": 8,
+    "texture": "c_prism"
+  },
+  "c_firewall": {
+    "name": "해킹 방벽 드론",
+    "hp": 200,
+    "speed": 46,
+    "damage": 12,
+    "radius": 10,
+    "xp": 8,
+    "texture": "c_firewall"
+  }
+}

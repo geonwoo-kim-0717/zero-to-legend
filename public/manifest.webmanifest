@@ -1,0 +1,15 @@
+{
+  "name": "Zero to Legend",
+  "short_name": "Zero to Legend",
+  "description": "이름 없는 용병이 전설이 되기까지. 사이버펑크 자동 전투 로그라이트",
+  "start_url": "./",
+  "scope": "./",
+  "display": "fullscreen",
+  "orientation": "landscape",
+  "background_color": "#07060f",
+  "theme_color": "#07060f",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}

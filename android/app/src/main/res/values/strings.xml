@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Zero to Legend</string>
+    <string name="title_activity_main">Zero to Legend</string>
+    <string name="package_name">com.zerotolegend.game</string>
+    <string name="custom_url_scheme">com.zerotolegend.game</string>
+</resources>

@@ -1,0 +1,27 @@
+Zero to Legend - audio credits
+All audio below is CC0 1.0 (public domain). Credit is not required but given with thanks.
+Files were trimmed, converted to MP3 and loudness-normalized (tools/audio/process.py).
+
+MUSIC
+- title.mp3  : "Calm Ambient 2 (Synthwave 15k)" by cynicmusic (The Cynic Project)
+               https://opengameart.org/content/calm-ambient-2-synthwave-15k
+- battle.mp3 : "Space City" by MintoDog
+               https://opengameart.org/content/space-city
+- boss.mp3   : "Cyberpunk Moonlight Sonata" (v2) by Joth
+               https://opengameart.org/content/cyberpunk-moonlight-sonata
+
+SOUND EFFECTS
+- Juhani Junkala (SubspaceAudio), "The Essential Retro Video Game Sound Effects Collection [512 sounds]"
+  https://opengameart.org/content/512-sound-effects-8-bit-style
+  -> slash, explode, kill, pickup, heal, levelup, hurt, lunge, bosswarn, bossdie, victory, start
+- Kenney (www.kenney.nl), "Sci-Fi Sounds"
+  https://opengameart.org/content/sci-fi-sounds
+  -> shoot, overclock, enemyshot, block, bosscharge
+- Kenney, "Digital Sound Effects" (63 digital sound effects)
+  https://opengameart.org/content/63-digital-sound-effects-lasers-phasers-space-etc
+  -> dash, lungewarn, gameover, netcrash
+- Kenney, "Interface Sounds"
+  https://opengameart.org/content/interface-sounds
+  -> glitch, hover, select, reroll
+
+slowmo.mp3, slowmo_out.mp3: 이 게임용으로 직접 합성 (tools 없이 Python 사인파 합성, CC0)

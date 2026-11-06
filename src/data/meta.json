@@ -1,0 +1,312 @@
+{
+  "credits": {
+    "perKill": 0.5,
+    "perSecond": 0.1667,
+    "victoryBonus": 500,
+    "midbossBonus": 60,
+    "zoneBossBonus": 150
+  },
+  "runners": [
+    {
+      "id": "zero",
+      "name": "제로",
+      "concept": "균형형 거리의 용병",
+      "texture": "player",
+      "startWeapon": "smartPistol",
+      "special": "neural",
+      "trait": "크레딧 획득 +15%",
+      "mods": {
+        "creditMul": 1.15
+      },
+      "unlock": null
+    },
+    {
+      "id": "viper",
+      "name": "바이퍼",
+      "concept": "근접 강화형 신체 개조인",
+      "texture": "runner_viper",
+      "startWeapon": "mantisBlade",
+      "special": "berserk",
+      "trait": "체력 +30%\n근접 피해 +20%",
+      "mods": {
+        "maxHpMul": 1.3,
+        "meleeMul": 1.2
+      },
+      "unlock": {
+        "stat": "meleeKills",
+        "goal": 5000,
+        "desc": "근접 무기로 5,000킬 (누적)"
+      }
+    },
+    {
+      "id": "ghost",
+      "name": "고스트",
+      "concept": "스텔스 넷러너",
+      "texture": "runner_ghost",
+      "startWeapon": "hackDrone",
+      "special": "cloak",
+      "trait": "대시 후 1초\n투명화",
+      "mods": {
+        "dashCloak": 1
+      },
+      "unlock": {
+        "stat": "bossKills",
+        "goal": 1,
+        "desc": "1구역 보스 레드바이트 처치"
+      }
+    },
+    {
+      "id": "nova",
+      "name": "노바",
+      "concept": "폭발물 전문가",
+      "texture": "runner_nova",
+      "startWeapon": "plasmaGrenade",
+      "special": "orbital",
+      "trait": "범위 +20%\n폭발 피해 +20%",
+      "mods": {
+        "areaMul": 1.2,
+        "explosiveMul": 1.2
+      },
+      "unlock": {
+        "stat": "bestTime",
+        "goal": 1200,
+        "desc": "한 판에서 20분 생존"
+      }
+    }
+  ],
+  "specials": {
+    "neural": {
+      "name": "뉴럴 오버클럭",
+      "label": "NEURAL OVERCLOCK",
+      "color": "#ff2bd6",
+      "desc": "공격속도 2배, 적과 적 탄 속도 0.5배",
+      "cost": 1000
+    },
+    "berserk": {
+      "name": "광전사 모드",
+      "label": "BERSERK",
+      "color": "#ff2a3a",
+      "desc": "근접 피해 2배, 이동속도 +20%, 처치할 때마다 체력 2 회복",
+      "cost": 1000,
+      "meleeMul": 2,
+      "moveMul": 1.2,
+      "healPerKill": 2
+    },
+    "cloak": {
+      "name": "광학 위장",
+      "label": "OPTICAL CAMO",
+      "color": "#39ff88",
+      "desc": "적이 플레이어를 놓치고 사격을 멈춤 (보스는 제외)",
+      "cost": 1000
+    },
+    "orbital": {
+      "name": "궤도 폭격",
+      "label": "ORBITAL STRIKE",
+      "color": "#fff23a",
+      "desc": "10초 동안 4번, 화면 안 모든 적에게 큰 폭발 피해",
+      "cost": 1000,
+      "strikes": 4,
+      "warn": 0.6,
+      "damage": 400
+    }
+  },
+  "clinic": [
+    {
+      "id": "hp",
+      "name": "강화 심폐",
+      "desc": "최대 체력 +{v}",
+      "per": 10,
+      "costs": [
+        150,
+        300,
+        500,
+        800,
+        1200
+      ]
+    },
+    {
+      "id": "dmg",
+      "name": "신경 가속기",
+      "desc": "공격력 +{v}%",
+      "per": 5,
+      "costs": [
+        200,
+        400,
+        650,
+        950,
+        1400
+      ]
+    },
+    {
+      "id": "spd",
+      "name": "다리 서보",
+      "desc": "이동 속도 +{v}%",
+      "per": 3,
+      "costs": [
+        150,
+        300,
+        500,
+        800,
+        1200
+      ]
+    },
+    {
+      "id": "pick",
+      "name": "수집 자석",
+      "desc": "회수 범위 +{v}%",
+      "per": 10,
+      "costs": [
+        100,
+        200,
+        350,
+        550,
+        800
+      ]
+    },
+    {
+      "id": "regen",
+      "name": "나노 수복",
+      "desc": "초당 체력 {v} 회복",
+      "per": 0.2,
+      "costs": [
+        200,
+        400,
+        650,
+        950,
+        1400
+      ]
+    },
+    {
+      "id": "revive",
+      "name": "비상 재부팅",
+      "desc": "쓰러지면 1회 부활 (체력 50%)",
+      "per": 1,
+      "costs": [
+        1500
+      ]
+    }
+  ],
+  "contracts": [
+    {
+      "id": "first",
+      "name": "첫 의뢰",
+      "desc": "의뢰를 1번 수행",
+      "stat": "runs",
+      "goal": 1,
+      "reward": 100
+    },
+    {
+      "id": "drones",
+      "name": "드론 사냥꾼",
+      "desc": "보안 드론 1,000대 처치",
+      "stat": "droneKills",
+      "goal": 1000,
+      "reward": 300
+    },
+    {
+      "id": "kills",
+      "name": "골목의 소문",
+      "desc": "적 5,000명 처치 (누적)",
+      "stat": "totalKills",
+      "goal": 5000,
+      "reward": 400
+    },
+    {
+      "id": "midboss",
+      "name": "행동대장 제거",
+      "desc": "중간 보스 스크랩 브루트 처치",
+      "stat": "midbossKills",
+      "goal": 1,
+      "reward": 300
+    },
+    {
+      "id": "raiders",
+      "name": "블랙 실드 사냥",
+      "desc": "진압대원 20명 처치 (누적)",
+      "stat": "trooperKills",
+      "goal": 20,
+      "reward": 400
+    },
+    {
+      "id": "level",
+      "name": "풀 개조",
+      "desc": "한 판에서 레벨 30 달성",
+      "stat": "bestLevel",
+      "goal": 30,
+      "reward": 300
+    },
+    {
+      "id": "melee",
+      "name": "칼날의 길",
+      "desc": "근접 무기로 5,000킬 → 바이퍼 해금",
+      "stat": "meleeKills",
+      "goal": 5000,
+      "reward": 500
+    },
+    {
+      "id": "survive",
+      "name": "버티는 자",
+      "desc": "한 판에서 20분 생존 → 노바 해금",
+      "stat": "bestTime",
+      "goal": 1200,
+      "reward": 300
+    },
+    {
+      "id": "boss",
+      "name": "레드바이트 처치",
+      "desc": "1구역 보스 처치 → 고스트 해금",
+      "stat": "bossKills",
+      "goal": 1,
+      "reward": 800
+    },
+    {
+      "id": "hex",
+      "name": "메크 해체",
+      "desc": "2구역 보스 헥사워드 처치",
+      "stat": "hexKills",
+      "goal": 1,
+      "reward": 1000
+    },
+    {
+      "id": "core",
+      "name": "제로 투 레전드",
+      "desc": "아르코난 코어 처치 (최종 클리어)",
+      "stat": "coreKills",
+      "goal": 1,
+      "reward": 2000
+    },
+    {
+      "id": "market",
+      "name": "블랙마켓 단골",
+      "desc": "블랙마켓에서 무기 4종 구매",
+      "stat": "marketBuys",
+      "goal": 4,
+      "reward": 500
+    }
+  ],
+  "heat": {
+    "max": 5,
+    "hpPer": 0.3,
+    "damagePer": 0.1,
+    "creditPer": 0.25,
+    "desc": "적 체력 +30%, 적 피해 +10%, 크레딧 +25% (단계마다)"
+  },
+  "market": {
+    "starter": [
+      "smartPistol",
+      "mantisBlade",
+      "hackDrone",
+      "plasmaGrenade"
+    ],
+    "prices": {
+      "monowire": 600,
+      "shotgun": 600,
+      "arcCoil": 800,
+      "empField": 800,
+      "proxMine": 900,
+      "microMissile": 1000,
+      "turret": 1000,
+      "railgun": 1200
+    }
+  }
+}

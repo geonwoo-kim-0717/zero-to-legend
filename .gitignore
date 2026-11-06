@@ -1,0 +1,15 @@
+node_modules/
+dist/
+*.log
+.DS_Store
+# 안드로이드 빌드 산출물·로컬 경로·서명 키 (키는 절대 저장소에 넣지 않음)
+android/local.properties
+android/.gradle/
+android/app/build/
+android/build/
+android/app/src/main/assets/public/
+android/capacitor-cordova-android-plugins/
+*.jks
+*.keystore
+# 실제 광고 ID 등 개인 설정은 .env.*.local 에
+*.local

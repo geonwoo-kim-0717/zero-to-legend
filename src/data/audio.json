@@ -1,0 +1,162 @@
+{
+  "musicVolume": 0.45,
+  "sfxVolume": 0.8,
+  "music": {
+    "title": {
+      "file": "music/title.mp3",
+      "volume": 1.0,
+      "name": "Calm Ambient 2 (Synthwave 15k)"
+    },
+    "battle": {
+      "file": "music/battle.mp3",
+      "volume": 0.9,
+      "name": "Space City"
+    },
+    "boss": {
+      "file": "music/boss.mp3",
+      "volume": 1.0,
+      "name": "Cyberpunk Moonlight Sonata"
+    }
+  },
+  "sfx": {
+    "shoot": {
+      "volume": 0.22,
+      "minGap": 70,
+      "detune": 150
+    },
+    "slash": {
+      "volume": 0.4,
+      "minGap": 60,
+      "detune": 120
+    },
+    "explode": {
+      "volume": 0.5,
+      "minGap": 90,
+      "detune": 150
+    },
+    "kill": {
+      "volume": 0.3,
+      "minGap": 45,
+      "detune": 250
+    },
+    "pickup": {
+      "volume": 0.22,
+      "minGap": 50,
+      "detune": 300
+    },
+    "heal": {
+      "volume": 0.7,
+      "minGap": 200,
+      "detune": 0
+    },
+    "levelup": {
+      "volume": 0.8,
+      "minGap": 300,
+      "detune": 0
+    },
+    "hurt": {
+      "volume": 0.7,
+      "minGap": 150,
+      "detune": 100
+    },
+    "dash": {
+      "volume": 0.45,
+      "minGap": 100,
+      "detune": 80
+    },
+    "overclock": {
+      "volume": 0.85,
+      "minGap": 500,
+      "detune": 0
+    },
+    "glitch": {
+      "volume": 0.5,
+      "minGap": 60,
+      "detune": 200
+    },
+    "enemyshot": {
+      "volume": 0.16,
+      "minGap": 90,
+      "detune": 200
+    },
+    "lungewarn": {
+      "volume": 0.35,
+      "minGap": 200,
+      "detune": 100
+    },
+    "lunge": {
+      "volume": 0.4,
+      "minGap": 120,
+      "detune": 100
+    },
+    "block": {
+      "volume": 0.3,
+      "minGap": 120,
+      "detune": 150
+    },
+    "bosswarn": {
+      "volume": 0.8,
+      "minGap": 500,
+      "detune": 0
+    },
+    "bosscharge": {
+      "volume": 0.55,
+      "minGap": 300,
+      "detune": 0
+    },
+    "bossdie": {
+      "volume": 0.9,
+      "minGap": 500,
+      "detune": 0
+    },
+    "victory": {
+      "volume": 1.0,
+      "minGap": 500,
+      "detune": 0
+    },
+    "gameover": {
+      "volume": 0.8,
+      "minGap": 500,
+      "detune": 0
+    },
+    "netcrash": {
+      "volume": 0.7,
+      "minGap": 500,
+      "detune": 0
+    },
+    "start": {
+      "volume": 0.6,
+      "minGap": 300,
+      "detune": 0
+    },
+    "hover": {
+      "volume": 0.35,
+      "minGap": 40,
+      "detune": 0
+    },
+    "select": {
+      "volume": 0.6,
+      "minGap": 80,
+      "detune": 0
+    },
+    "reroll": {
+      "volume": 0.6,
+      "minGap": 80,
+      "detune": 0
+    },
+    "slowmo": {
+      "volume": 1.0,
+      "minGap": 500,
+      "detune": 0
+    },
+    "slowmo_out": {
+      "volume": 0.5,
+      "minGap": 300,
+      "detune": 0
+    }
+  },
+  "slowmoDuck": {
+    "ms": 1500,
+    "factor": 0.5
+  }
+}

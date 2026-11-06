@@ -1,0 +1,267 @@
+{
+  "weapons": {
+    "smartPistol": {
+      "legendary": [
+        {
+          "id": "chainShot",
+          "name": "연쇄 사격",
+          "desc": "적을 맞힌 탄이 근처 다른 적에게 1번 튕김"
+        },
+        {
+          "id": "targetLock",
+          "name": "표적 고정",
+          "desc": "같은 적을 연속으로 맞힐 때마다 피해 +10% (최대 +50%)"
+        }
+      ],
+      "mythic": [
+        {
+          "id": "bulletStorm",
+          "name": "탄막 오버로드",
+          "desc": "5초마다 사방으로 탄 24발을 동시에 발사"
+        },
+        {
+          "id": "deadeye",
+          "name": "데드아이",
+          "desc": "3초마다 화면의 모든 적에게 동시 사격"
+        }
+      ]
+    },
+    "mantisBlade": {
+      "legendary": [
+        {
+          "id": "swordWave",
+          "name": "검기",
+          "desc": "가장 가까운 적 방향으로 베고, 벨 때마다 앞으로 관통하는 검기 발사"
+        },
+        {
+          "id": "counterStance",
+          "name": "반격 자세",
+          "desc": "대시 직후 0.5초 안의 베기는 범위 2배, 피해 2배"
+        }
+      ],
+      "mythic": [
+        {
+          "id": "whirlwind",
+          "name": "회전 칼날",
+          "desc": "주변 360도를 더 빠르게 베는 칼날 회오리"
+        },
+        {
+          "id": "reaperHarvest",
+          "name": "사신의 수확",
+          "desc": "베어서 처치할 때마다 체력 1 회복, 다음 베기 0.1초 빨라짐"
+        }
+      ]
+    },
+    "hackDrone": {
+      "legendary": [
+        {
+          "id": "virusSpread",
+          "name": "바이러스 전파",
+          "desc": "드론에 맞아 죽은 적 근처 3마리에게 피해가 퍼짐"
+        },
+        {
+          "id": "defenseOrbit",
+          "name": "방어 궤도",
+          "desc": "드론이 방어막을 펼쳐 적 탄을 막고, 닿은 적을 바깥으로 밀어냄"
+        }
+      ],
+      "mythic": [
+        {
+          "id": "swarm",
+          "name": "드론 군집",
+          "desc": "드론 수 2배, 1.5초마다 드론이 먼 적에게 돌격"
+        },
+        {
+          "id": "netCrash",
+          "name": "넷 붕괴",
+          "desc": "15초마다 화면의 모든 적이 2초간 멈추고 큰 피해"
+        }
+      ]
+    },
+    "plasmaGrenade": {
+      "legendary": [
+        {
+          "id": "plasmaPool",
+          "name": "플라즈마 장판",
+          "desc": "폭발 자리에 3초간 피해를 주는 장판이 남음"
+        },
+        {
+          "id": "cluster",
+          "name": "집속탄",
+          "desc": "폭발 후 작은 유탄 4개가 사방으로 튀어 다시 폭발"
+        },
+        {
+          "id": "gravity",
+          "name": "중력탄",
+          "desc": "폭발 직전 주변 적을 중심으로 끌어당김"
+        }
+      ],
+      "mythic": [
+        {
+          "id": "orbitalStrike",
+          "name": "궤도 폭격",
+          "desc": "유탄 대신 하늘에서 폭격, 폭발 범위 3배"
+        },
+        {
+          "id": "chainReaction",
+          "name": "연쇄 폭발",
+          "desc": "폭발로 죽은 적도 같은 크기로 폭발"
+        }
+      ]
+    },
+    "monowire": {
+      "legendary": [
+        {
+          "id": "entangle",
+          "name": "휘감기",
+          "desc": "맞은 적을 0.5초 기절"
+        }
+      ],
+      "mythic": [
+        {
+          "id": "laserNet",
+          "name": "레이저 그물",
+          "desc": "4초마다 사방 8방향으로 와이어, 피해 ×1.5"
+        }
+      ]
+    },
+    "empField": {
+      "legendary": [
+        {
+          "id": "overcharge",
+          "name": "과충전",
+          "desc": "6번째 틱마다 장 안의 적 0.8초 기절"
+        }
+      ],
+      "mythic": [
+        {
+          "id": "blackout",
+          "name": "블랙아웃",
+          "desc": "8초마다 3배 범위 대폭발(피해 ×10), 적 탄도 지움"
+        }
+      ]
+    },
+    "railgun": {
+      "legendary": [
+        {
+          "id": "piercingAmp",
+          "name": "관통 증폭",
+          "desc": "꿰뚫은 적마다 피해 +15% (최대 ×2)"
+        }
+      ],
+      "mythic": [
+        {
+          "id": "crossfire",
+          "name": "십자 포화",
+          "desc": "빔을 쏠 때마다 90도씩 돌린 빔 3개를 더 쏨"
+        }
+      ]
+    },
+    "shotgun": {
+      "legendary": [
+        {
+          "id": "slug",
+          "name": "넉백 슬러그",
+          "desc": "산탄이 적을 뒤로 밀어냄"
+        }
+      ],
+      "mythic": [
+        {
+          "id": "doubleTap",
+          "name": "이중 장전",
+          "desc": "0.2초 뒤 같은 사격을 한 번 더"
+        }
+      ]
+    },
+    "turret": {
+      "legendary": [
+        {
+          "id": "selfDestruct",
+          "name": "자폭 프로토콜",
+          "desc": "포탑이 사라질 때 큰 폭발(피해 ×6)"
+        }
+      ],
+      "mythic": [
+        {
+          "id": "sentryNet",
+          "name": "센트리 네트워크",
+          "desc": "포탑이 3갈래로 쏘고 2배 오래 버팀"
+        }
+      ]
+    },
+    "microMissile": {
+      "legendary": [
+        {
+          "id": "cluster",
+          "name": "확산 탄두",
+          "desc": "폭발 범위 ×1.6"
+        }
+      ],
+      "mythic": [
+        {
+          "id": "missileStorm",
+          "name": "미사일 폭풍",
+          "desc": "6초마다 미사일 20발 일제 발사"
+        }
+      ]
+    },
+    "arcCoil": {
+      "legendary": [
+        {
+          "id": "staticShock",
+          "name": "정전기",
+          "desc": "연쇄로 맞은 적 25% 확률로 0.5초 기절"
+        }
+      ],
+      "mythic": [
+        {
+          "id": "thunderstorm",
+          "name": "뇌우",
+          "desc": "5초마다 화면 안 무작위 적 12명에게 낙뢰(피해 ×4)"
+        }
+      ]
+    },
+    "proxMine": {
+      "legendary": [
+        {
+          "id": "chainDet",
+          "name": "연쇄 기폭",
+          "desc": "폭발이 근처 지뢰도 함께 터뜨림"
+        }
+      ],
+      "mythic": [
+        {
+          "id": "claymore",
+          "name": "클레이모어 벽",
+          "desc": "7초마다 주위에 지뢰 8개를 원형으로 즉시 설치"
+        }
+      ]
+    }
+  },
+  "passives": {
+    "muscle": {
+      "id": "crit",
+      "name": "치명타",
+      "desc": "모든 공격이 10% 확률로 2배 피해",
+      "chance": 0.1,
+      "mult": 2
+    },
+    "neural": {
+      "id": "reboot",
+      "name": "순간 재부팅",
+      "desc": "대시 쿨다운 -1초, 대시 후 쉴드 20 획득 (1초 지속)",
+      "shield": 20,
+      "shieldTime": 1
+    },
+    "dermal": {
+      "id": "pulse",
+      "name": "반격 펄스",
+      "desc": "피격 시 주변 적을 밀어내고 피해"
+    },
+    "magnet": {
+      "id": "dataSiphon",
+      "name": "데이터 흡입",
+      "desc": "30초마다 화면의 모든 경험치 조각을 끌어옴"
+    }
+  }
+}

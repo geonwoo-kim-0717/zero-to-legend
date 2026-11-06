@@ -1,0 +1,459 @@
+{
+  "maxWeapons": 6,
+  "maxPassives": 6,
+  "rerollsPerRun": 2,
+  "rarity": [
+    {
+      "id": "common",
+      "label": "일반",
+      "weight": 70,
+      "mul": 1,
+      "weaponBonus": 0,
+      "color": "#e8f7ff",
+      "ability": false
+    },
+    {
+      "id": "rare",
+      "label": "희귀",
+      "weight": 25,
+      "mul": 1.5,
+      "weaponBonus": 0.05,
+      "color": "#00f0ff",
+      "ability": false
+    },
+    {
+      "id": "epic",
+      "label": "영웅",
+      "weight": 5,
+      "mul": 1.7,
+      "weaponBonus": 0.15,
+      "color": "#ff2bd6",
+      "ability": false
+    },
+    {
+      "id": "legendary",
+      "label": "전설",
+      "weight": 1,
+      "mul": 2,
+      "weaponBonus": 0.2,
+      "color": "#fff23a",
+      "ability": true
+    },
+    {
+      "id": "mythic",
+      "label": "신화",
+      "weight": 0.2,
+      "mul": 2.5,
+      "weaponBonus": 0.4,
+      "color": "#ff2a3a",
+      "ability": true
+    }
+  ],
+  "overdrive": {
+    "perKill": 0.5,
+    "duration": 10,
+    "fireRateMul": 2,
+    "enemySpeedMul": 0.5,
+    "slowmoScale": 0.25,
+    "slowmoTime": 0.8
+  },
+  "healDropChance": 0.006,
+  "healAmount": 25,
+  "bosses": [
+    {
+      "id": "midboss",
+      "time": 300,
+      "final": false,
+      "title": "갱단 행동대장 스크랩 브루트",
+      "chargeSpeed": 300,
+      "summon": "thug",
+      "summonCount": 4,
+      "summonEvery": 9,
+      "rewardXp": 40,
+      "firstWalk": 3,
+      "walkTime": 4,
+      "aimTime": 0.8,
+      "chargeTime": 0.7,
+      "firstSummon": 6,
+      "zone": "slum"
+    },
+    {
+      "id": "boss",
+      "time": 600,
+      "final": true,
+      "title": "갱단 두목 레드바이트",
+      "chargeSpeed": 330,
+      "summon": "drone",
+      "summonCount": 6,
+      "summonEvery": 8,
+      "rewardXp": 0,
+      "firstWalk": 3,
+      "walkTime": 4,
+      "aimTime": 0.8,
+      "chargeTime": 0.7,
+      "firstSummon": 6,
+      "phase2": {
+        "at": 0.5,
+        "chargeCount": 3,
+        "aimTime": 0.45,
+        "chargeTime": 0.55,
+        "chargeSpeed": 380,
+        "volleyEvery": 3,
+        "volleyCount": 16,
+        "bulletSpeed": 120,
+        "bulletDamage": 12
+      },
+      "arena": {
+        "w": 560,
+        "h": 300
+      },
+      "zone": "slum"
+    },
+    {
+      "id": "midboss2",
+      "zone": "industrial",
+      "time": 300,
+      "final": false,
+      "title": "공장 경비 로봇 리벳 크러셔",
+      "chargeSpeed": 300,
+      "summon": "kamikaze",
+      "summonCount": 6,
+      "summonEvery": 8,
+      "rewardXp": 60,
+      "firstWalk": 3,
+      "walkTime": 3.5,
+      "aimTime": 0.7,
+      "chargeTime": 0.7,
+      "firstSummon": 5
+    },
+    {
+      "id": "boss2",
+      "zone": "industrial",
+      "time": 600,
+      "final": true,
+      "title": "기업 전투메크 헥사워드",
+      "chargeSpeed": 300,
+      "summon": "kamikaze",
+      "summonCount": 8,
+      "summonEvery": 7,
+      "rewardXp": 0,
+      "firstWalk": 3,
+      "walkTime": 4,
+      "aimTime": 0.9,
+      "chargeTime": 0.6,
+      "firstSummon": 5,
+      "volley": {
+        "volleyEvery": 4,
+        "volleyCount": 12,
+        "bulletSpeed": 110,
+        "bulletDamage": 12
+      },
+      "phase2": {
+        "at": 0.5,
+        "chargeCount": 3,
+        "aimTime": 0.45,
+        "chargeTime": 0.55,
+        "chargeSpeed": 360,
+        "volleyEvery": 2.2,
+        "volleyCount": 18,
+        "bulletSpeed": 125,
+        "bulletDamage": 14
+      },
+      "arena": {
+        "w": 560,
+        "h": 300
+      }
+    },
+    {
+      "id": "midboss3",
+      "zone": "tower",
+      "time": 300,
+      "final": false,
+      "title": "보안 집행관 프리즘",
+      "chargeSpeed": 340,
+      "summon": "gunner",
+      "summonCount": 5,
+      "summonEvery": 8,
+      "rewardXp": 80,
+      "firstWalk": 3,
+      "walkTime": 3,
+      "aimTime": 0.6,
+      "chargeTime": 0.6,
+      "firstSummon": 5,
+      "volley": {
+        "volleyEvery": 5,
+        "volleyCount": 10,
+        "bulletSpeed": 110,
+        "bulletDamage": 12
+      }
+    },
+    {
+      "id": "boss3",
+      "zone": "tower",
+      "time": 600,
+      "final": true,
+      "title": "최종 AI 아르코난 코어",
+      "chargeSpeed": 260,
+      "summon": "gunner",
+      "summonCount": 6,
+      "summonEvery": 8,
+      "rewardXp": 0,
+      "firstWalk": 4,
+      "walkTime": 5,
+      "aimTime": 1.0,
+      "chargeTime": 0.6,
+      "firstSummon": 5,
+      "volley": {
+        "volleyEvery": 2.5,
+        "volleyCount": 16,
+        "bulletSpeed": 105,
+        "bulletDamage": 13
+      },
+      "phase2": {
+        "at": 0.5,
+        "chargeCount": 2,
+        "aimTime": 0.5,
+        "chargeTime": 0.55,
+        "chargeSpeed": 340,
+        "volleyEvery": 1.2,
+        "volleyCount": 22,
+        "bulletSpeed": 120,
+        "bulletDamage": 15
+      },
+      "arena": {
+        "w": 560,
+        "h": 300
+      }
+    }
+  ],
+  "hpGrowthPerMin": 0.05,
+  "ranged": {
+    "gunner": {
+      "range": 170,
+      "interval": 2.5,
+      "bulletSpeed": 140,
+      "bulletDamage": 10,
+      "bulletLife": 3
+    },
+    "corrupt_cop": {
+      "range": 160,
+      "interval": 3,
+      "bulletSpeed": 130,
+      "bulletDamage": 9,
+      "bulletLife": 2.5,
+      "spread": 0.25,
+      "shots": 3
+    },
+    "sniper_turret": {
+      "range": 280,
+      "interval": 3.5,
+      "aim": 0.8,
+      "bulletSpeed": 260,
+      "bulletDamage": 14,
+      "bulletLife": 2
+    }
+  },
+  "spawn": {
+    "ringExtra": 24,
+    "ringJitter": 40,
+    "despawnDistance": 700,
+    "maxEnemies": 600
+  },
+  "melee": {
+    "psycho": {
+      "range": 150,
+      "interval": 4,
+      "windup": 0.5,
+      "lungeTime": 0.35,
+      "lungeSpeed": 230
+    },
+    "trooper_melee": {
+      "range": 200,
+      "interval": 4.5,
+      "windup": 0.8,
+      "lungeTime": 0.6,
+      "lungeSpeed": 260
+    }
+  },
+  "xpCurve": {
+    "base": 4,
+    "linear": 3,
+    "quad": 0.2
+  },
+  "pickup": {
+    "radius": 80,
+    "autoMagnetAge": 10,
+    "mergeAbove": 200,
+    "mergeDistance": 400
+  },
+  "guaranteeWeaponUntil": 3,
+  "overflow": [
+    {
+      "id": "dmg",
+      "name": "과부하 회로",
+      "desc": "공격력 +{v}%",
+      "stat": "damageMul",
+      "amount": 3
+    },
+    {
+      "id": "cd",
+      "name": "냉각 코어",
+      "desc": "공격 쿨다운 -{v}%",
+      "stat": "cooldownMul",
+      "amount": 2
+    },
+    {
+      "id": "hp",
+      "name": "강화 골격",
+      "desc": "최대 체력 +{v}, 그만큼 회복",
+      "stat": "maxHp",
+      "amount": 10
+    },
+    {
+      "id": "spd",
+      "name": "다리 액추에이터",
+      "desc": "이동 속도 +{v}%",
+      "stat": "moveMul",
+      "amount": 3
+    },
+    {
+      "id": "pick",
+      "name": "수집 안테나",
+      "desc": "획득 범위 +{v}%",
+      "stat": "pickupMul",
+      "amount": 5
+    },
+    {
+      "id": "heal",
+      "name": "응급 나노봇",
+      "desc": "체력 {v} 회복",
+      "stat": "heal",
+      "amount": 50
+    }
+  ],
+  "hpGrowthPerMinLate": 0.25,
+  "hpGrowthLateFrom": 300,
+  "raid": {
+    "start": 330,
+    "firstDelayMax": 40,
+    "minGap": 60,
+    "maxGap": 90,
+    "flyIn": 1.4,
+    "hover": 1.0,
+    "flyOut": 1.4,
+    "squad": [
+      "trooper_tank",
+      "trooper_melee",
+      "trooper_hacker",
+      "trooper_sniper"
+    ],
+    "hpGrowthPerRaid": 1.2
+  },
+  "squadAi": {
+    "sniper": {
+      "range": 240,
+      "interval": 3.5,
+      "aim": 1.0,
+      "lock": 0.3,
+      "bulletSpeed": 340,
+      "bulletDamage": 15,
+      "bulletLife": 2
+    },
+    "hacker": {
+      "range": 170,
+      "behindTank": 50,
+      "interval": 6,
+      "cast": 0.8,
+      "reach": 230,
+      "slow": 0.5,
+      "duration": 2.5
+    }
+  },
+  "zoneRules": {
+    "conveyor": {
+      "period": 176,
+      "band": 44,
+      "speed": 55
+    },
+    "laser": {
+      "every": 7,
+      "warn": 1.3,
+      "fire": 0.45,
+      "damage": 18,
+      "count": 3,
+      "width": 5
+    }
+  },
+  "glitch": {
+    "every": 3.5,
+    "min": 50,
+    "max": 90
+  },
+  "counters": {
+    "startZone": 1,
+    "startTime": 300,
+    "every": 5,
+    "count": 2,
+    "maxAlive": 12,
+    "byWeapon": {
+      "smartPistol": "c_mirror",
+      "shotgun": "c_mirror",
+      "turret": "c_firewall",
+      "hackDrone": "c_firewall",
+      "arcCoil": "c_insulator",
+      "plasmaGrenade": "c_dampener",
+      "proxMine": "c_dampener",
+      "microMissile": "c_dampener",
+      "mantisBlade": "c_thorn",
+      "monowire": "c_thorn",
+      "railgun": "c_prism",
+      "empField": "c_prism"
+    },
+    "info": {
+      "c_mirror": {
+        "label": "총탄 피해 -75%, 맞은 탄은 관통·연쇄 없이 사라짐",
+        "color": "#00f0ff"
+      },
+      "c_insulator": {
+        "label": "전기 피해 -70%, 연쇄 번개가 여기서 끊김, 기절 면역",
+        "color": "#fff23a"
+      },
+      "c_dampener": {
+        "label": "폭발 피해 -75%",
+        "color": "#ff8a1f"
+      },
+      "c_thorn": {
+        "label": "근접 공격을 받으면 플레이어에게 3 반사 피해, 기절 면역",
+        "color": "#ff2a3a"
+      },
+      "c_prism": {
+        "label": "빔·EMP 피해 -70%, 레일건·와이어가 여기서 멈춤, 둔화 면역",
+        "color": "#ff2bd6"
+      },
+      "c_firewall": {
+        "label": "반경 70 안의 포탑과 해킹 드론을 먹통으로 만듦",
+        "color": "#39ff88"
+      }
+    },
+    "mul": {
+      "c_mirror": {
+        "bullet": 0.25
+      },
+      "c_insulator": {
+        "electric": 0.3
+      },
+      "c_dampener": {
+        "explosive": 0.25
+      },
+      "c_prism": {
+        "beam": 0.3
+      }
+    },
+    "thornReflect": 3,
+    "thornGap": 0.4,
+    "jamRadius": 70
+  },
+  "carryOver": {
+    "title": "CHAPTER CARRY-OVER"
+  }
+}
