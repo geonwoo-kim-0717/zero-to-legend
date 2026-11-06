@@ -518,7 +518,10 @@ def save(name, im):
     im.save(os.path.join(OUT, name)); print('wrote', name, im.size)
 
 if __name__ == '__main__':
-    save('player.png', A.zero().im)
+    # 제로: 사용자 컨셉(보라 트렌치코트) 기반 v2, 서 있기 + 걷기 2프레임
+    save('player.png', A.zero_v2('idle').im)
+    save('player_w1.png', A.zero_v2('w1').im)
+    save('player_w2.png', A.zero_v2('w2').im)
     save('runner_viper.png', A.viper().im)
     save('runner_ghost.png', A.ghost().im)
     save('runner_nova.png', A.nova().im)

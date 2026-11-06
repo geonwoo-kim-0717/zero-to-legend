@@ -49,6 +49,51 @@ def zero():
     s.p(10, 11, 'CYAN'); s.p(21, 11, 'CYAN'); s.p(13, 4, 'WHITE')
     return s.outline()
 
+# ───────────────────────── 제로 v2 (사용자 컨셉 기반, 32x32) ─────────────────────────
+# 보라 롱 트렌치코트 + 시안 옷깃·소매 줄, 파란 선글라스, 남색 올백 머리, 오른손 권총
+ZP = dict(COAT='#5a2d8a', COATD='#3a1a5e', COATL='#7a48b4', SKIN='#c58a68', SKIND='#8e5a44',
+          HAIR='#22224a', HAIRL='#3a3a78', SHADE='#2f5bd0', SHIRT='#1c1430', PANT='#241a3c', BOOT='#3a3552', BOOTL='#5a5478')
+for _k, _v in ZP.items(): P[_k] = _v
+
+def zero_v2(frame='idle'):
+    s = Spr(32, 32)
+    # 걷기: w1 앞다리 앞으로 / w2 반대, 코트 자락도 반대로 흔들림
+    la, ra = {'idle': (0, 0), 'w1': (-2, 2), 'w2': (2, -2)}[frame]
+    lift_l, lift_r = {'idle': (0, 0), 'w1': (0, 1), 'w2': (1, 0)}[frame]
+    sway = {'idle': 0, 'w1': 1, 'w2': -1}[frame]
+    # 다리·부츠 (코트 아래로 보임)
+    s.r(12 + la, 22, 14 + la, 27, 'PANT'); s.r(17 + ra, 22, 19 + ra, 27, 'PANT')
+    s.r(11 + la, 27 - lift_l, 15 + la, 29 - lift_l, 'BOOT'); s.r(16 + ra, 27 - lift_r, 20 + ra, 29 - lift_r, 'BOOT')
+    s.r(11 + la, 29 - lift_l, 15 + la, 29 - lift_l, 'BOOTL'); s.r(16 + ra, 29 - lift_r, 20 + ra, 29 - lift_r, 'BOOTL')
+    # 코트 몸통 (아래로 넓어지는 롱코트, 자락이 흔들림)
+    s.poly([(10, 10), (21, 10), (23 + sway, 26), (20 + sway, 27), (17, 22), (14, 22), (11 - sway, 27), (8 - sway, 26)], 'COAT')
+    s.poly([(10, 10), (13, 10), (12, 22), (11 - sway, 27), (8 - sway, 26)], 'COATD')  # 왼쪽 그늘
+    s.l(21, 11, 23 + sway, 25, 'COATL')  # 오른쪽 가장자리 빛
+    # 안쪽 셔츠: V자로 열린 앞섶 + 벨트
+    s.poly([(12, 10), (19, 10), (16, 19), (15, 19)], 'SHIRT'); s.r(14, 20, 17, 21, 'SHIRT')
+    s.r(14, 19, 17, 19, 'BOOT'); s.p(16, 19, 'BOOTL')
+    # 시안 옷깃 테두리 (얇은 V)
+    s.l(11, 10, 14, 18, 'CYAN'); s.l(20, 10, 17, 18, 'CYAN'); s.p(11, 10, 'CYAND'); s.p(20, 10, 'CYAND')
+    s.p(15, 12, 'COATD'); s.p(16, 14, 'COATD')  # 셔츠 단추 그늘
+    # 세운 깃
+    s.r(11, 8, 12, 11, 'COAT'); s.r(19, 8, 20, 11, 'COAT'); s.p(11, 8, 'COATL'); s.p(20, 8, 'COATL')
+    # 왼팔 (몸 옆으로 늘어뜨림) + 시안 소매 줄 + 장갑
+    s.r(7, 11, 9, 19, 'COAT'); s.r(7, 11, 7, 19, 'COATD'); s.r(7, 18, 9, 18, 'CYAN'); s.r(7, 20, 9, 21, 'SHIRT')
+    # 오른팔: 팔꿈치를 굽혀 권총을 위로 들고 있음
+    s.r(21, 11, 23, 16, 'COAT'); s.r(21, 16, 23, 16, 'CYAN'); s.p(23, 11, 'COATL')
+    s.r(23, 12, 25, 14, 'COAT')                        # 팔뚝
+    s.r(25, 10, 27, 13, 'BOOT'); s.p(25, 13, 'SKIND')  # 장갑 낀 손
+    s.r(26, 4, 27, 10, 'BOOTL'); s.r(26, 4, 26, 9, 'BOOT'); s.p(27, 3, 'BOOTL'); s.p(28, 9, 'BOOT')  # 권총 (총구 위)
+    # 목 + 얼굴
+    s.r(15, 8, 16, 9, 'SKIND')
+    s.r(13, 3, 18, 8, 'SKIN'); s.r(13, 7, 14, 8, 'SKIND'); s.p(18, 8, 'SKIND')
+    # 선글라스
+    s.r(13, 5, 19, 5, 'SHADE'); s.r(14, 6, 15, 6, 'SHADE'); s.r(17, 6, 18, 6, 'SHADE'); s.p(14, 5, 'CYAN'); s.p(17, 5, 'CYAN')
+    # 남색 올백 머리
+    s.r(12, 0, 18, 2, 'HAIR'); s.r(12, 2, 13, 5, 'HAIR'); s.r(18, 1, 19, 3, 'HAIR'); s.r(13, 0, 16, 0, 'HAIRL'); s.p(17, 1, 'HAIRL')
+    s.p(15, 7, 'SKIND')  # 입
+    return s.outline()
+
 def viper():
     s = Spr(32, 32)
     s.r(10, 21, 14, 27, 'BG'); s.r(17, 21, 21, 27, 'BG'); s.r(10, 22, 10, 26, 'MAGD'); s.r(21, 22, 21, 26, 'MAGD')

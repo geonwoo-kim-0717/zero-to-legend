@@ -23,11 +23,17 @@ export class Player {
   dirX = 1;
   dirY = 0;
   readonly sprite: Phaser.GameObjects.Image;
+  /** 걷기 그림이 있는 러너는 움직일 때 두 장을 번갈아 보여준다 */
+  private readonly baseTex: string;
+  private readonly walkTex: [string, string] | null;
+  private walkT = 0;
   readonly glow: Phaser.GameObjects.Image;
 
   constructor(scene: Phaser.Scene, texture = 'player') {
     this.glow = scene.add.image(0, 0, 'glow').setDepth(19).setTint(0x00f0ff).setAlpha(0.45).setScale(1.5).setBlendMode(Phaser.BlendModes.ADD);
     this.sprite = scene.add.image(0, 0, texture).setDepth(20);
+    this.baseTex = texture;
+    this.walkTex = scene.textures.exists(`${texture}_w1`) ? [`${texture}_w1`, `${texture}_w2`] : null;
   }
 
   get dashing(): boolean {
@@ -75,5 +81,12 @@ export class Player {
     // 피격 무적 중 깜빡임
     this.sprite.setAlpha(this.invuln > 0 && !this.dashing ? (Math.floor(this.invuln * 20) % 2 ? 0.3 : 1) : 1);
     if (Math.abs(mx) > 0.01) this.sprite.setFlipX(mx < 0);
+    // 걷기 애니메이션 (초당 약 8프레임)
+    if (this.walkTex) {
+      const moving = len > 0.1 && !this.dashing;
+      this.walkT = moving ? this.walkT + dt : 0;
+      const key = moving ? this.walkTex[Math.floor(this.walkT * 8) % 2] : this.baseTex;
+      if (this.sprite.texture.key !== key) this.sprite.setTexture(key);
+    }
   }
 }
