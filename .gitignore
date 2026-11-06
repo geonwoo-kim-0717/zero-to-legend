@@ -14,3 +14,4 @@ android/capacitor-cordova-android-plugins/
 # 실제 광고 ID 등 개인 설정은 .env.*.local 에
 *.local
 release/
+__pycache__/

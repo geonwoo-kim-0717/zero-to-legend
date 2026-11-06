@@ -263,3 +263,211 @@ if __name__ == '__main__':
     for name, fn in (('A', ground_a), ('B', ground_b), ('C', ground_c)):
         fn().save(os.path.join(out, f'ground_ch1_{name}.png'))
         print('wrote', name)
+
+
+# ───────────────────────── v2 추가 요소: 네온사인 · 버려진 잔해 · 먼 고층 빌딩 ─────────────────────────
+from PIL import ImageFilter
+
+PAL.update(RUSTL='#a8521f', STONE='#3e3852', STONEL='#5a5272', WOOD='#4a2a1c', WOODL='#6e4228', GLASS='#2a6a7a', RED='#ff2a3a', LIME='#b6ff3a')
+
+
+def stamp(img, obj, x, y):
+    """작은 그림을 이음새 없이 붙인다 (타일 경계를 넘으면 반대편에도)"""
+    for ox in (-N, 0, N):
+        for oy in (-N, 0, N):
+            img.alpha_composite(obj, (x + ox, y + oy)) if -obj.width < x + ox < N and -obj.height < y + oy < N else None
+
+
+def glow_layer(spots):
+    """빛 번짐 층: 3x3으로 이어 붙인 뒤 흐리게 해서 가운데만 잘라 이음새 없이"""
+    big = Image.new('RGBA', (N * 3, N * 3), (0, 0, 0, 0))
+    d = ImageDraw.Draw(big)
+    for x, y, rx, ry, col, a in spots:
+        for ox in (0, N, 2 * N):
+            for oy in (0, N, 2 * N):
+                d.ellipse([x - rx + ox, y - ry + oy, x + rx + ox, y + ry + oy], fill=C(col, a))
+    big = big.filter(ImageFilter.GaussianBlur(14))
+    return big.crop((N, N, 2 * N, 2 * N))
+
+
+def obj_canvas(w, h):
+    im = Image.new('RGBA', (w, h), (0, 0, 0, 0))
+    return im, ImageDraw.Draw(im)
+
+
+def outline(im, k='BG'):
+    src = im.copy(); px = src.load(); out = im.load()
+    for y in range(im.height):
+        for x in range(im.width):
+            if px[x, y][3] == 0:
+                for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+                    nx, ny = x + dx, y + dy
+                    if 0 <= nx < im.width and 0 <= ny < im.height and px[nx, ny][3] > 0:
+                        out[x, y] = C(k); break
+    return im
+
+
+def car_wreck(rnd):
+    """위에서 본 녹슨 폐차 (바퀴 하나 빠지고 앞유리 깨짐)"""
+    im, d = obj_canvas(48, 26)
+    for wx, wy in ((8, 1), (34, 1), (8, 21)):
+        d.rectangle([wx, wy, wx + 6, wy + 3], fill=C('D0'))
+    d.rounded_rectangle([3, 4, 45, 21], 5, fill=C('RUSTD'))
+    d.rounded_rectangle([5, 5, 43, 20], 4, fill=C(rnd.choice(['GRAYD', 'RUSTD'])))
+    d.rectangle([14, 7, 32, 18], fill=C('D2'))          # 지붕 (찌그러짐)
+    d.polygon([(32, 7), (38, 9), (38, 16), (32, 18)], fill=C('GLASS'))  # 앞유리
+    d.line([33, 9, 37, 15], fill=C('D0')); d.line([35, 8, 34, 17], fill=C('D0'))
+    d.polygon([(9, 8), (14, 7), (14, 18), (9, 17)], fill=C('D0'))      # 뒷유리 없음
+    for _ in range(14):
+        d.point((rnd.randint(5, 43), rnd.randint(5, 20)), fill=C(rnd.choice(['RUST', 'RUSTL'])))
+    d.line([18, 12, 28, 12], fill=C('D1'))
+    return outline(im)
+
+
+def crate(rnd):
+    im, d = obj_canvas(13, 12)
+    d.rectangle([1, 1, 11, 10], fill=C('WOOD')); d.rectangle([1, 1, 11, 1], fill=C('WOODL'))
+    d.line([1, 1, 11, 10], fill=C('WOODL')); d.line([1, 5, 11, 5], fill=C('D1'))
+    d.rectangle([7, 6, 11, 10], fill=C('D1'))  # 부서진 모서리
+    return outline(im)
+
+
+def tire():
+    im, d = obj_canvas(10, 10)
+    d.ellipse([0, 0, 9, 9], fill=C('D0')); d.ellipse([3, 3, 6, 6], fill=C('D3')); d.arc([0, 0, 9, 9], 200, 290, fill=C('GRAYD'))
+    return im
+
+
+def barrel(rnd):
+    im, d = obj_canvas(10, 12)
+    col = rnd.choice(['RUSTD', 'CYAND', 'GRAYD'])
+    d.rectangle([1, 1, 8, 10], fill=C(col)); d.line([1, 4, 8, 4], fill=C('D0')); d.line([1, 8, 8, 8], fill=C('D0'))
+    d.ellipse([1, 0, 8, 3], fill=C('D2')); d.point((4, 1), fill=C('LIME'))  # 새는 액체가 살짝 빛남
+    return outline(im)
+
+
+def rubble(rnd):
+    im, d = obj_canvas(26, 16)
+    for _ in range(9):
+        x, y = rnd.randint(1, 20), rnd.randint(3, 12)
+        s = rnd.randint(2, 5)
+        d.polygon([(x, y + s), (x + s // 2, y), (x + s + 1, y + 1), (x + s, y + s)], fill=C(rnd.choice(['STONE', 'STONEL', 'D4'])))
+    d.line([2, 13, 23, 14], fill=C('RUST'))  # 철근
+    return outline(im)
+
+
+def scrap_sheet(rnd):
+    im, d = obj_canvas(22, 10)
+    d.polygon([(1, 3), (19, 0), (21, 6), (3, 9)], fill=C('GRAYD'))
+    d.line([3, 4, 18, 2], fill=C('GRAY'))
+    for _ in range(5):
+        d.point((rnd.randint(3, 18), rnd.randint(2, 7)), fill=C('RUST'))
+    return outline(im)
+
+
+def neon_sign(rnd, col1, col2):
+    """바닥에 떨어진 네온 간판: 검은 틀 + 끊긴 네온관(글자 대신 추상 무늬) + 튀는 불꽃"""
+    im, d = obj_canvas(40, 18)
+    d.rectangle([0, 0, 39, 17], fill=C('D0'), outline=C('GRAYD'))
+    x = 4
+    for k in range(5):  # 추상 기호 5개 (읽히는 글자 없음)
+        col = col1 if k % 2 == 0 else col2
+        shape = rnd.choice(['ring', 'bar', 'zig', 'tri'])
+        if shape == 'ring':
+            d.ellipse([x, 4, x + 5, 12], outline=C(col))
+        elif shape == 'bar':
+            d.line([x + 2, 3, x + 2, 13], fill=C(col)); d.line([x, 3, x + 5, 3], fill=C(col))
+        elif shape == 'zig':
+            d.line([(x, 4), (x + 5, 4), (x, 13), (x + 5, 13)], fill=C(col))
+        else:
+            d.polygon([(x, 13), (x + 3, 4), (x + 6, 13)], outline=C(col))
+        if rnd.random() < 0.4:  # 깨진 관: 일부를 끊음
+            d.line([x + 1, 8, x + 4, 8], fill=C('D0'))
+        x += 7
+    d.line([28, 0, 36, 17], fill=C('D1'))  # 틀이 깨진 금
+    return im
+
+
+def add_debris_and_neon(img, rnd, density=1.0):
+    """바탕 타일 위에 빛 번짐 → 떨어진 네온사인 → 잔해를 올린다"""
+    spots, signs = [], []
+    for _ in range(3):
+        x, y = rnd.randrange(N), rnd.randrange(N)
+        c1, c2 = rnd.choice([('MAG', 'CYAN'), ('CYAN', 'MAG'), ('MAG', 'YEL')])
+        signs.append((x, y, c1, c2))
+        spots.append((x + 20, y + 9, 46, 26, c1, 90))
+    for _ in range(4):  # 화면 밖 간판이 비추는 빛 웅덩이
+        spots.append((rnd.randrange(N), rnd.randrange(N), rnd.randint(40, 70), rnd.randint(22, 36), rnd.choice(['MAG', 'CYAN', 'MAGM']), 45))
+    img.alpha_composite(glow_layer(spots))
+    for x, y, c1, c2 in signs:
+        stamp(img, neon_sign(rnd, c1, c2), x, y)
+        d = ImageDraw.Draw(img)
+        for _ in range(4):  # 튀는 불꽃
+            d.point(((x + rnd.randint(-4, 44)) % N, (y + rnd.randint(-4, 22)) % N), fill=C('YEL'))
+    makers = [(car_wreck, 2), (crate, 6), (tire, 5), (barrel, 4), (rubble, 6), (scrap_sheet, 5)]
+    for fn, n in makers:
+        for _ in range(int(n * density)):
+            obj = fn(rnd) if fn not in (tire,) else fn()
+            stamp(img, obj, rnd.randrange(N), rnd.randrange(N))
+    return img
+
+
+def skyline(width=1024, height=150, seed=7):
+    """화면 위쪽에 깔 먼 고층 빌딩 실루엣 (가로로 이음새 없이 반복, 아래로 갈수록 안개 속으로 사라짐)"""
+    rnd = random.Random(seed)
+    im = Image.new('RGBA', (width, height), (0, 0, 0, 0))
+    sky = np.zeros((height, width, 4), dtype=np.uint8)
+    for y in range(height):  # 하늘: 위는 짙은 남색, 지평선은 마젠타 빛 안개
+        k = y / height
+        sky[y, :, :3] = (np.array(C('BG')[:3]) * (1 - k) + np.array(C('MAGD')[:3]) * k * 0.55 + np.array(C('D2')[:3]) * k * 0.45).astype(np.uint8)
+        sky[y, :, 3] = int(255 * min(1, 1.6 - k * 1.2) if k > 0.5 else 255)
+    im = Image.fromarray(sky, 'RGBA')
+    d = ImageDraw.Draw(im)
+    def towers(base_col, win_cols, hmin, hmax, wmin, wmax, gap, ground):
+        x = rnd.randint(-20, 0)
+        while x < width:
+            w, h = rnd.randint(wmin, wmax), rnd.randint(hmin, hmax)
+            top = ground - h
+            shape = rnd.random()
+            for ox in (0, width, -width):  # 가로 반복 이음새
+                X = x + ox
+                d.rectangle([X, top, X + w, ground], fill=C(base_col))
+                if shape < 0.3:  # 계단식 꼭대기
+                    d.rectangle([X + w // 4, top - h // 6, X + 3 * w // 4, top], fill=C(base_col))
+                if shape > 0.75:  # 안테나 + 경고등
+                    d.line([X + w // 2, top - 14, X + w // 2, top], fill=C(base_col)); d.point((X + w // 2, top - 15), fill=C('RED'))
+            # 창문 불빛
+            for wy in range(top + 3, ground - 2, 4):
+                for wx in range(x + 2, x + w - 1, 3):
+                    if rnd.random() < 0.18:
+                        col = C(rnd.choice(win_cols), 200)
+                        for ox in (0, width, -width):
+                            d.point((wx + ox, wy), fill=col)
+            # 홀로그램 광고판
+            if rnd.random() < 0.25 and w > 16:
+                bx, by = x + 2, top + rnd.randint(6, max(7, h // 2))
+                col = rnd.choice(['MAG', 'CYAN'])
+                for ox in (0, width, -width):
+                    d.rectangle([bx + ox, by, bx + w - 4 + ox, by + 7], fill=C(col, 150))
+                    d.line([bx + 1 + ox, by + 3, bx + w - 6 + ox, by + 3], fill=C('WHITE', 160) if 'WHITE' in PAL else C('#e8f7ff', 160))
+            x += w + rnd.randint(0, gap)
+    towers('D2', ['CYAND', 'MAGD', 'D5'], 40, 95, 14, 34, 6, height - 20)       # 먼 층 (흐림)
+    towers('D0', ['CYAN', 'MAG', 'YEL', 'CYANM'], 55, 120, 18, 40, 10, height - 6)  # 가까운 층
+    # 아래쪽 안개로 사라짐
+    arr = np.array(im).astype(float)
+    fade = np.clip((height - np.arange(height)) / 40, 0, 1)[:, None]
+    arr[..., 3] *= fade
+    # 안개 빛 띠
+    glow = Image.new('RGBA', (width, height), (0, 0, 0, 0))
+    ImageDraw.Draw(glow).rectangle([0, height - 34, width, height - 12], fill=C('MAGD', 70))
+    out = Image.fromarray(arr.astype(np.uint8), 'RGBA')
+    out.alpha_composite(glow.filter(ImageFilter.GaussianBlur(8)))
+    return out
+
+
+def build_v2(out):
+    for name, fn, seed in (('A', ground_a, 101), ('B', ground_b, 202), ('C', ground_c, 303)):
+        img = fn()
+        add_debris_and_neon(img, random.Random(seed), density=0.8 if name == 'C' else 1.0)
+        img.save(os.path.join(out, f'ground_ch1_{name}2.png'))
+    skyline().save(os.path.join(out, 'skyline_ch1.png'))
