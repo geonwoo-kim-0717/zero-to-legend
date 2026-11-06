@@ -17,10 +17,9 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: 22, cache: npm }
       - run: npm ci
-      # 저장소 Settings → Secrets and variables → Actions 의 Variables 에 넣은 값을 씀
       - run: npm run build:web
         env:
-          VITE_ADSENSE_CLIENT: ${{ vars.ADSENSE_CLIENT }}
+          # 게시자 ID는 .env.web 에 있음. 승인 후 저장소 Variables 에 AD_TEST=0 을 넣으면 실제 광고
           VITE_AD_TEST: ${{ vars.AD_TEST || '1' }}
       - uses: actions/upload-pages-artifact@v3
         with: { path: dist }

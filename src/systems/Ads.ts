@@ -69,7 +69,9 @@ export const Ads = {
         window.adBreak = window.adConfig = (o) => window.adsbygoogle!.push(o);
         const attrs: Record<string, string> = { 'data-ad-client': client, crossorigin: 'anonymous' };
         if (TEST) attrs['data-adbreak-test'] = 'on';
-        await loadScript(`https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${client}`, attrs);
+        // 웹 빌드는 index.html 에 이미 태그가 있으므로 다시 넣지 않는다
+        if (!document.querySelector('script[src*="adsbygoogle.js"]')) await loadScript(`https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${client}`, attrs);
+        else if (TEST) document.documentElement.setAttribute('data-adbreak-test', 'on');
         window.adConfig?.({ preloadAdBreaks: 'on', sound: 'on' });
         ready = true;
       } else if (PROVIDER === 'crazygames') {
