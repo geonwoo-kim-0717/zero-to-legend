@@ -368,7 +368,7 @@
   },
   "neural": {
    "name": "Neural Accelerator",
-   "desc": "Attack cooldown -{v}%"
+   "desc": "Attack speed +{v}%"
   },
   "dermal": {
    "name": "Subdermal Armor",
@@ -728,7 +728,7 @@
    },
    "cloak": {
     "name": "Optical Camo",
-    "desc": "Enemies lose track of you and stop shooting (not bosses)"
+    "desc": "Every enemy, bosses included, loses track of you; no damage while cloaked"
    },
    "orbital": {
     "name": "Orbital Strike",
@@ -759,6 +759,10 @@
    "5": {
     "name": "Emergency Reboot",
     "desc": "Revive once at 50% HP"
+   },
+   "6": {
+    "name": "Sim Chip",
+    "desc": "Start card picks {v}"
    }
   },
   "contracts": {
@@ -821,7 +825,21 @@
   },
   "zones": {
    "0": {
-    "name": "Lower Slums"
+    "name": "Lower Slums",
+    "intro": {
+     "0": {
+      "text": "Got a job for you, {runner}. Take out Redbite, the gang boss squeezing the Lower Slums."
+     },
+     "1": {
+      "text": "His thugs and Arconan security drones are in every alley. Grab any useful gear you find and bolt it on."
+     },
+     "2": {
+      "text": "Not a bad first step for a nameless merc becoming a legend."
+     },
+     "3": {
+      "text": "Hold out about ten minutes and Redbite will show up himself. Good luck."
+     }
+    }
    },
    "1": {
     "name": "Industrial Zone",
@@ -834,10 +852,16 @@
       "text": "Next job. Arconan is stamping out combat mechs in an Industrial Zone factory. Shut the line down."
      },
      "2": {
-      "text": "Have my pay ready. A lot of it."
+      "text": "Problem is, no weapons are allowed inside that factory. Pass the checkpoint and your combat cyberware gets locked too."
      },
      "3": {
-      "text": "Watch the floor conveyors. The ground will drag you around."
+      "text": "You want me to walk into a mech factory empty-handed?"
+     },
+     "4": {
+      "text": "My inside contact will smuggle in your main weapon and one piece of gear you really need. Find the rest in there."
+     },
+     "5": {
+      "text": "And watch the floor conveyors. The ground will drag you around."
      }
     }
    },
@@ -852,9 +876,15 @@
       "text": "This is it. The Arconan Core at the top of the tower. Shut it down and your name becomes a legend in this city."
      },
      "2": {
-      "text": "So I'm not ending this as a nameless merc."
+      "text": "The tower lobby scan is even worse than the factory. Weapons get confiscated and all combat cyberware gets locked."
      },
      "3": {
+      "text": "Starting from scratch again, then."
+     },
+     "4": {
+      "text": "My contact will get your main weapon and one piece of gear inside again. Choose carefully what you bring."
+     },
+     "5": {
       "text": "Security laser grids sweep the tower. When red lines blink, get out of the way."
      }
     }
@@ -906,7 +936,7 @@
    },
    "1": {
     "name": "Cooling Core",
-    "desc": "Attack cooldown -{v}%"
+    "desc": "Attack speed +{v}%"
    },
    "2": {
     "name": "Reinforced Frame",

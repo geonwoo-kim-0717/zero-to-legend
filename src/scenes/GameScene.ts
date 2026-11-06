@@ -24,7 +24,7 @@ import type { Wave } from '../systems/Spawner';
 import { Save, type Runner, type RunnerId, type SpecialId, type RunStats } from '../systems/Save';
 import { rollChoices, computeStats, passiveAmount, type Choice, type PassiveId, type PassiveState } from '../systems/Progression';
 import { LevelUpUI } from '../ui/LevelUpUI';
-import { Sound, type SfxKey } from '../systems/Sound';
+import { Sound, type SfxKey, type MusicKey } from '../systems/Sound';
 import { addMuteToggle, addFxToggle, addFullscreenToggle } from '../ui/MuteToggle';
 import { isTouch } from '../systems/Fullscreen';
 import { Settings } from '../systems/Settings';
@@ -48,6 +48,12 @@ type Phase2 = { at: number; chargeCount: number; aimTime: number; chargeTime: nu
 const OD = gameData.overdrive;
 const SP = meta.specials;
 const TEXT = { ...BASE_TEXT, fontSize: '12px', color: '#e8f7ff' };
+/** 이름 뒤 조사: 받침이 있으면 a(이), 없으면 b(가). 한글이 아니면 b */
+function josa(name: string, a: string, b: string): string {
+  const c = name.charCodeAt(name.length - 1);
+  if (c < 0xac00 || c > 0xd7a3) return b;
+  return (c - 0xac00) % 28 ? a : b;
+}
 
 export class GameScene extends Phaser.Scene implements GameContext {
   // GameContext
@@ -170,6 +176,12 @@ export class GameScene extends Phaser.Scene implements GameContext {
     shadow: Phaser.GameObjects.Ellipse;
     markers: { x: number; y: number }[];
   } | null = null;
+  /** 픽서 진의 휴대폰 문자 (보스·진압대 등장 예고): 화면 오른쪽 아래, 한 번에 하나씩 */
+  private phoneQueue: string[] = [];
+  private phoneBox: Phaser.GameObjects.Container | null = null;
+  /** 이미 예고한 보스(구역-순번)와 진압대 습격 시각 */
+  private warnedBoss = '';
+  private warnedRaid = -1;
   /** 작은 반복 강화로 쌓인 수치 */
   private overflow: Record<string, number> = {};
   private mergeT = 0;
@@ -234,9 +246,15 @@ export class GameScene extends Phaser.Scene implements GameContext {
     this.counterT = 0;
     this.counterSeen = new Set();
     this.carryUi = [];
-    this.weaponPool = Array.from(new Set([...meta.market.starter, ...Save.data.market, this.runner.startWeapon])) as WeaponId[];
+    // 블랙마켓에서 산 무기 중 꺼 둔 것은 빼고 (러너 시작 무기는 항상 포함)
+    const marketOn = Save.data.market.filter((id) => !Save.data.marketOff.includes(id));
+    this.weaponPool = Array.from(new Set([...meta.market.starter, ...marketOn, this.runner.startWeapon])) as WeaponId[];
     this.odGauge = this.odTime = this.ghostTimer = 0;
     this.ghosts = [];
+    this.phoneQueue = [];
+    this.phoneBox = null;
+    this.warnedBoss = '';
+    this.warnedRaid = -1;
     this.boss = null;
     this.bossDef = null;
     this.bossesSpawned = 0;
@@ -292,8 +310,12 @@ export class GameScene extends Phaser.Scene implements GameContext {
 
     this.addWeapon(this.runner.startWeapon as WeaponId);
     this.bindKeys();
+    // 리퍼닥 '전투 시뮬레이션 칩': 판 시작 때 레벨업 카드를 미리 고른다 (첫 대화가 끝난 뒤 열림)
+    this.pendingLevels += Save.clinicValue('startPick');
     Sound.duck(1);
-    Sound.music('battle');
+    Sound.slowWorld(false);
+    Sound.music(this.zoneMusic);
+    Sound.lazyLoad(this);
     // 아래쪽 설정 버튼: 글자 길이가 언어마다 달라서 앞 버튼 폭만큼 띄워 놓는다
     const muteBtn = addMuteToggle(this, 8, VIEW_H - 18, 0);
     const fxBtn = addFxToggle(this, muteBtn.x + muteBtn.width + 12, VIEW_H - 18, 0);
@@ -311,10 +333,13 @@ export class GameScene extends Phaser.Scene implements GameContext {
         if (this.state === 'play') this.togglePause();
       });
     }
+    // 1챕터 의뢰 브리핑
+    this.startDialog((ZONES[0] as Zone & { intro?: Line[] }).intro ?? [], () => undefined);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.game.events.off(Phaser.Core.Events.BLUR, this.onBlur, this);
       this.levelUi.hide();
       Sound.musicRate(1);
+      Sound.slowWorld(false);
       Ads.setPlaying(false);
       if (this.carryKeys) this.input.keyboard?.off('keydown', this.carryKeys);
       for (const w of this.weapons) w.destroy();
@@ -544,14 +569,17 @@ export class GameScene extends Phaser.Scene implements GameContext {
     } else if (c.kind === 'passive') {
       const id = c.id as PassiveId;
       const st = this.passives.get(id) ?? { level: 0, total: 0, special: false };
-      st.level++;
+      // 최대 레벨 특수 능력 카드는 레벨·수치는 그대로 두고 능력만 받는다
+      if (!c.maxed) st.level++;
       if (c.ability) {
         this.keepables.push({ kind: 'passive', id, abilityId: c.ability.id, rarity: c.rarity.id });
         st.special = true;
         if (id === 'neural') this.player.dashCooldownMax = PLAYER.dashCooldown - 1;
       }
-      const amt = passiveAmount(id, c.rarity);
+      const amt = c.maxed ? 0 : passiveAmount(id, c.rarity);
       st.total += amt;
+      // 공격 속도는 곱연산으로 쌓는다
+      if (passivesData[id].stat === 'cooldownMul') st.speedMul = (st.speedMul ?? 1) * (1 + amt / 100);
       this.passives.set(id, st);
       const oldMax = this.player.maxHp;
       this.recalcStats();
@@ -562,6 +590,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
       if (o.stat === 'heal') this.heal(o.amount);
       else {
         this.overflow[o.id] = (this.overflow[o.id] ?? 0) + o.amount;
+        if (o.stat === 'cooldownMul') this.overflow.cdMul = (this.overflow.cdMul ?? 1) * (1 + o.amount / 100);
         const oldMax = this.player.maxHp;
         this.recalcStats();
         if (o.stat === 'maxHp') this.player.hp += this.player.maxHp - oldMax;
@@ -632,7 +661,8 @@ export class GameScene extends Phaser.Scene implements GameContext {
       Sound.musicRate(0.55 + 0.45 * k * k);
       if (this.slowmo <= 0) {
         Sound.musicRate(1);
-        Sound.play('slowmo_out');
+        // 올라가는 소리는 오버클럭이 끝날 때 낸다 (발동 중에는 계속 느린 소리)
+        if (!this.overdrive) Sound.play('slowmo_out');
       }
     }
     const dt = realDt * timeScale;
@@ -712,6 +742,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
 
     const zt = this.elapsed - this.zoneStart;
     const nextBoss = gameData.bosses.filter((b) => b.zone === this.zone.id)[this.bossesSpawned];
+    this.fixerWarnings(nextBoss, zt);
     if (nextBoss && !this.boss && !this.raid && this.transitionT <= 0 && zt >= nextBoss.time) this.spawnBoss(nextBoss);
     if (this.transitionT <= 0) this.updateRaid(dt);
     this.drawArena(dt);
@@ -877,7 +908,8 @@ export class GameScene extends Phaser.Scene implements GameContext {
 
   private hurtPlayer(dmg: number): void {
     const p = this.player;
-    if (this.god) return;
+    // 투명(광학 위장·고스트 대시) 중에는 어떤 공격도 통하지 않는다
+    if (this.god || this.untracked) return;
     dmg *= 1 + this.heat * meta.heat.damagePer;
     // 순간 재부팅 쉴드가 먼저 피해를 흡수
     if (p.shieldT > 0 && p.shield > 0) {
@@ -1021,7 +1053,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
         this.dropPickup('heal', e.x + 14, e.y, gameData.healAmount * 2);
         // 엘리트 보스 보상: 전설·신화 확정 카드
         this.bossRewards++;
-        Sound.music('battle', 1500);
+        Sound.music(this.zoneMusic, 1500);
       }
       return;
     }
@@ -1134,6 +1166,10 @@ export class GameScene extends Phaser.Scene implements GameContext {
         }
       } else if (this.specialId === 'orbital') this.updateOrbital(dt);
       if (this.odTime <= 0) {
+        if (this.overdrive) {
+          Sound.slowWorld(false);
+          Sound.play('slowmo_out');
+        }
         this.specialOn = this.overdrive = false;
         this.odGauge = 0;
         this.odOverlay.setVisible(false);
@@ -1168,6 +1204,8 @@ export class GameScene extends Phaser.Scene implements GameContext {
       this.slowmo = OD.slowmoTime;
       // 슬로우 모션: 깊게 떨어지는 '우우웅' + 음악도 같이 느려짐
       Sound.play('slowmo');
+      // 발동 내내 배경음악·효과음이 느리고 낮게 (산데비스탄 느낌)
+      Sound.slowWorld(true);
       this.shockwaves.push({ r: 0, life: 0.6 }, { r: -40, life: 0.8 });
       const fx = this.cameras.main.postFX;
       if (fx && !Settings.reducedFx) {
@@ -1262,6 +1300,11 @@ export class GameScene extends Phaser.Scene implements GameContext {
     return ZONES[this.zoneIdx];
   }
 
+  /** 지금 챕터의 전투 음악 (1 하층가 · 2 공장 · 3 기업 타워) */
+  private get zoneMusic(): MusicKey {
+    return (this.zone.music ?? 'battle') as MusicKey;
+  }
+
   /** 지금 구역의 바닥·비·규칙을 적용하고 구역 이름을 띄운다 */
   private applyZone(fanfare: boolean): void {
     const z = this.zone;
@@ -1311,7 +1354,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
     this.raidsInZone = 0;
     this.nextRaid = this.elapsed + this.zone.raidStart + Math.random() * gameData.raid.firstDelayMax;
     this.applyZone(true);
-    Sound.music('battle', 1200);
+    Sound.music(this.zoneMusic, 1200);
     this.startCarryOver();
   }
 
@@ -1440,7 +1483,8 @@ export class GameScene extends Phaser.Scene implements GameContext {
         w.addAbility(keep.abilityId);
       } else {
         const id = keep.id as PassiveId;
-        this.passives.set(id, { level: 1, total: passiveAmount(id, rarity), special: true });
+        const amt = passiveAmount(id, rarity);
+        this.passives.set(id, { level: 1, total: amt, special: true, speedMul: passivesData[id].stat === 'cooldownMul' ? 1 + amt / 100 : undefined });
         if (id === 'neural') this.player.dashCooldownMax = PLAYER.dashCooldown - 1;
       }
     }
@@ -1640,6 +1684,9 @@ export class GameScene extends Phaser.Scene implements GameContext {
       e.t = S.aim;
       e.dirX = dx / d;
       e.dirY = dy / d;
+    } else if (e.state === 'wind' && hidden) {
+      e.state = 'walk';
+      e.t = 0.6;
     } else if (e.state === 'wind') {
       e.dirX = dx / d;
       e.dirY = dy / d;
@@ -1698,7 +1745,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
       if (!b.active) continue;
       b.update(dt * slow);
       if (!b.active) continue;
-      if (p.invuln <= 0 && (b.x - p.x) ** 2 + (b.y - p.y) ** 2 < (p.radius + b.radius) ** 2) {
+      if (p.invuln <= 0 && !this.untracked && (b.x - p.x) ** 2 + (b.y - p.y) ** 2 < (p.radius + b.radius) ** 2) {
         b.kill();
         this.hurtPlayer(b.damage);
       }
@@ -1791,6 +1838,70 @@ export class GameScene extends Phaser.Scene implements GameContext {
     if (this.onScreen(e.x, e.y)) Sound.play('dash');
   }
 
+  // ───────────────────────────── 픽서의 휴대폰 문자 ─────────────────────────────
+  /** 중간 보스·구역 보스·블랙 실드가 나타나기 몇 초 전에 픽서 진이 문자로 알려 준다 */
+  private fixerWarnings(nextBoss: BossDef | undefined, zt: number): void {
+    const lead = gameData.fixerWarnLead;
+    if (this.transitionT > 0) return;
+    const key = `${this.zoneIdx}-${this.bossesSpawned}`;
+    if (nextBoss && !this.boss && this.warnedBoss !== key && zt >= nextBoss.time - lead) {
+      this.warnedBoss = key;
+      const name = enemiesData[nextBoss.id as EnemyId].name;
+      this.phoneText(tr(nextBoss.final ? 'phone.boss' : 'phone.midboss', { name, ga: josa(name, '이', '가') }));
+    }
+    if (!this.raid && !this.boss && this.warnedRaid !== this.nextRaid && this.elapsed >= this.nextRaid - lead) {
+      // 보스가 곧 나올 차례면 습격은 미뤄지므로 그때는 알리지 않는다
+      const bossSoon = nextBoss && zt >= nextBoss.time - lead;
+      if (!bossSoon) {
+        this.warnedRaid = this.nextRaid;
+        this.phoneText(tr('phone.raid'));
+      }
+    }
+  }
+
+  private phoneText(msg: string): void {
+    this.phoneQueue.push(msg);
+    if (!this.phoneBox) this.showNextPhone();
+  }
+
+  private showNextPhone(): void {
+    const msg = this.phoneQueue.shift();
+    if (msg === undefined) {
+      this.phoneBox = null;
+      return;
+    }
+    const w = 196;
+    const x = VIEW_W - w - 8;
+    const y = VIEW_H - 182;
+    const box = this.add.container(x + w + 20, y).setScrollFactor(0).setDepth(125);
+    const text = this.add.text(12, 34, msg, { ...TEXT, fontSize: '11px', color: '#e8f7ff', wordWrap: { width: w - 24, useAdvancedWrap: true }, lineSpacing: 2 });
+    const h = Math.max(62, text.height + 46);
+    box.add(this.add.rectangle(0, 0, w, h, 0x0d0820, 0.94).setOrigin(0).setStrokeStyle(2, COLORS.magenta));
+    box.add(this.add.rectangle(4, 4, w - 8, 20, 0x2a1050, 1).setOrigin(0));
+    box.add(this.add.image(16, 14, zonesData.client.texture).setScale(0.5));
+    box.add(this.add.text(30, 7, `✉ ${zonesData.client.name}`, { ...TEXT, fontSize: '11px', color: '#ff2bd6' }));
+    box.add(this.add.text(w - 8, 8, tr('phone.now'), { ...TEXT, fontSize: '9px', color: '#8a7aa8' }).setOrigin(1, 0));
+    box.add(this.add.rectangle(8, 29, text.width + 8, text.height + 8, 0x1a1040, 1).setOrigin(0).setStrokeStyle(1, 0x3a2466));
+    box.add(text);
+    box.setY(y + 62 - h);
+    this.phoneBox = box;
+    Sound.play('phone');
+    this.tweens.add({ targets: box, x, duration: 260, ease: 'Back.out' });
+    this.tweens.add({ targets: box, x: x - 2, duration: 40, yoyo: true, repeat: 3, delay: 260 });
+    this.time.delayedCall(gameData.fixerWarnShow * 1000, () => {
+      this.tweens.add({
+        targets: box,
+        x: VIEW_W + 20,
+        alpha: 0,
+        duration: 260,
+        onComplete: () => {
+          box.destroy();
+          this.showNextPhone();
+        },
+      });
+    });
+  }
+
   // ───────────────────────────── 블랙 실드 진압대 습격 ─────────────────────────────
   private updateRaid(dt: number): void {
     const R = gameData.raid;
@@ -1817,7 +1928,8 @@ export class GameScene extends Phaser.Scene implements GameContext {
         .setScrollFactor(0)
         .setDepth(120);
       this.tweens.add({ targets: warn, alpha: 0.2, duration: 220, yoyo: true, repeat: 5, onComplete: () => warn.destroy() });
-      Sound.play('bosswarn');
+      // 블랙 실드 출동 경보: 오르내리는 사이렌
+      Sound.play('raidsiren');
       return;
     }
     const r = this.raid;
@@ -1878,6 +1990,10 @@ export class GameScene extends Phaser.Scene implements GameContext {
       e.state = 'wind';
       e.t = S.aim;
       Sound.play('lungewarn');
+    } else if (e.state === 'wind' && this.untracked) {
+      // 조준 중에 투명해지면 표적을 놓친다
+      e.state = 'walk';
+      e.t = 0.6;
     } else if (e.state === 'wind') {
       setV(0, 0);
       if (e.t > S.lock) {
@@ -1898,7 +2014,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
   /** 해커: 탱커 뒤에 숨어 있다가 초록 해킹 빔으로 플레이어를 느리게 하고 대시를 막는다 */
   private hackerAi(e: Enemy, dt: number, dx: number, dy: number, d: number, slow: number, setV: (x: number, y: number) => void): void {
     const H = gameData.squadAi.hacker;
-    const p = this.player;
+    const p = this.untracked ? this.decoy : this.player;
     const tank = this.enemyPool.items.find((o) => o.active && o.id === 'trooper_tank');
     let tx: number;
     let ty: number;
@@ -1921,6 +2037,9 @@ export class GameScene extends Phaser.Scene implements GameContext {
       e.state = 'wind';
       e.t = H.cast;
       Sound.play('glitch');
+    } else if (e.state === 'wind' && this.untracked) {
+      e.state = 'walk';
+      e.t = 0.6;
     } else if (e.state === 'wind') {
       // 지지직거리는 초록 빔 예고
       const steps = 7;
@@ -1937,11 +2056,12 @@ export class GameScene extends Phaser.Scene implements GameContext {
         e.state = 'walk';
         e.t = H.interval * Phaser.Math.FloatBetween(0.8, 1.2);
         if (d < H.reach * 1.2) {
-          p.hackT = H.duration;
+          const pl = this.player;
+          pl.hackT = H.duration;
           Sound.play('glitch');
           this.screenFlash(0x39ff88, 0.15, 300);
           const t = this.add
-            .text(p.x, p.y - 26, 'HACKED', { ...TEXT, fontSize: '11px', color: '#39ff88' })
+            .text(pl.x, pl.y - 26, 'HACKED', { ...TEXT, fontSize: '11px', color: '#39ff88' })
             .setOrigin(0.5)
             .setDepth(90);
           this.tweens.add({ targets: t, y: t.y - 14, alpha: 0, duration: 1200, onComplete: () => t.destroy() });
@@ -2030,8 +2150,10 @@ export class GameScene extends Phaser.Scene implements GameContext {
     const def = this.bossDef!;
     const p = this.player;
     const slow = this.overdrive ? OD.enemySpeedMul : 1;
-    const dx = p.x - b.x;
-    const dy = p.y - b.y;
+    // 투명 중에는 보스도 마지막으로 본 자리를 노린다
+    const tg = this.untracked ? this.decoy : p;
+    const dx = tg.x - b.x;
+    const dy = tg.y - b.y;
     const d = Math.hypot(dx, dy) || 1;
     this.bossTimer -= dt;
     const ph = (def as { phase2?: Phase2 }).phase2;
@@ -2114,9 +2236,10 @@ export class GameScene extends Phaser.Scene implements GameContext {
     }
     this.animateBoss(b, def);
     // 보스가 화면에서 너무 멀어지면 다시 가까이
-    if (!this.arena && d > 520) {
-      b.x = p.x - (dx / d) * 300;
-      b.y = p.y - (dy / d) * 300;
+    const pd = Math.hypot(p.x - b.x, p.y - b.y) || 1;
+    if (!this.arena && pd > 520) {
+      b.x = p.x - ((p.x - b.x) / pd) * 300;
+      b.y = p.y - ((p.y - b.y) / pd) * 300;
     }
   }
 

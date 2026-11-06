@@ -38,6 +38,8 @@ export interface SaveData {
   heatMax: number;
   /** 블랙마켓에서 산 무기 */
   market: string[];
+  /** 산 무기 중 꺼 둔 것 (레벨업 카드에 나오지 않음) */
+  marketOff: string[];
 }
 
 /** 한 판에서 얻은 기록. 결과 화면에서 저장에 더한다 */
@@ -70,6 +72,7 @@ function fresh(): SaveData {
     heat: 0,
     heatMax: 0,
     market: [],
+    marketOff: [],
     stats: { runs: 0, totalKills: 0, droneKills: 0, meleeKills: 0, trooperKills: 0, midbossKills: 0, bossKills: 0, hexKills: 0, coreKills: 0, marketBuys: 0, totalTime: 0, bestTime: 0, bestLevel: 0 },
   };
 }
@@ -89,6 +92,7 @@ function normalize(raw: unknown): SaveData {
     equipped: { ...(r.equipped ?? {}) },
     claimed: [...(r.claimed ?? [])],
     market: [...(r.market ?? [])],
+    marketOff: [...(r.marketOff ?? [])],
     stats: { ...d.stats, ...(r.stats ?? {}) },
   };
 }

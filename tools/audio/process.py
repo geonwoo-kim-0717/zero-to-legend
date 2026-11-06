@@ -40,6 +40,9 @@ MUSIC = {
     'title':  'm_calm/calm.mp3',
     'battle': 'm_spacecity/spacecity.ogg',
     'boss':   'm_moonlight/moonlight.mp3',
+    # https://opengameart.org/content/t-t-free-cyberpunk-pack-2
+    'battle2': 'm_tt2/new_factory_129bpm.ogg',
+    'battle3': 'm_tt2/ai_fight_120bpm.ogg',
 }
 
 def run(args):

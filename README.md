@@ -34,7 +34,8 @@ npm run build    # dist/ 에 정적 파일 생성
 - 시안 이미지: `art/concepts/` (러너 4, 적 4, 배경 4), 스타일 시트: `art/style-sheet.png`
 
 ## 사운드
-- 배경음악 3곡과 효과음 25종: `public/audio/` (모두 CC0, 출처는 `public/audio/CREDITS.txt`)
+- 배경음악 5곡(타이틀, 챕터 1·2·3 전투곡, 보스)과 효과음 29종: `public/audio/` (모두 CC0, 출처는 `public/audio/CREDITS.txt`). 챕터 2·3 곡은 첫 로딩을 늘리지 않게 전투가 시작된 뒤 내려받음
+- 블랙 실드 사이렌·픽서 문자 알림음 다시 만들기: `python3 tools/audio/synth_alerts.py`
 - 볼륨·최소 간격·음높이 흔들림: `src/data/audio.json` 에서 조절
 - 원본에서 다시 만들기: `python3 tools/audio/process.py <다운로드 폴더>` (ffmpeg 필요)
 - M 키 또는 화면 구석 ♪ 버튼으로 소리 켜기/끄기 (브라우저에 기억됨)

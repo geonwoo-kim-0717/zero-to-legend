@@ -168,7 +168,7 @@ export class HideoutScene extends Phaser.Scene {
   private drawClinic(): void {
     this.title(tr('clinic.title'), tr('clinic.sub'));
     meta.clinic.forEach((c, i) => {
-      const y = PY + 34 + i * 25;
+      const y = PY + 30 + i * 22;
       const pipX = this.clinicPipX();
       const lv = Save.clinicLevel(c.id as ClinicId);
       const max = c.costs.length;
@@ -367,11 +367,14 @@ export class HideoutScene extends Phaser.Scene {
       const row = Math.floor(i / 2);
       const x = PX + 10 + col * 232;
       const y = PY + 30 + row * 57;
-      this.panel.add(this.add.rectangle(x, y, 226, 54, have ? 0x1a1040 : 0x140c2a, 1).setOrigin(0).setStrokeStyle(1, have ? COLORS.cyan : 0x3a2466));
-      this.panel.add(this.add.image(x + 18, y + 27, `icon_${id}`).setScale(2));
-      this.panel.add(this.add.text(x + 36, y + 5, w.name, T(12, have ? '#00f0ff' : '#ffffff')));
-      this.panel.add(this.add.text(x + 36, y + 22, w.desc, { ...T(10, '#c8b8e8'), wordWrap: { width: 182, useAdvancedWrap: true } }));
-      if (have) this.panel.add(this.add.text(x + 220, y + 6, tr('market.owned'), T(11, '#39ff88')).setOrigin(1, 0));
+      const off = have && Save.data.marketOff.includes(id);
+      this.panel.add(this.add.rectangle(x, y, 226, 54, have && !off ? 0x1a1040 : 0x140c2a, 1).setOrigin(0).setStrokeStyle(1, have && !off ? COLORS.cyan : 0x3a2466));
+      this.panel.add(this.add.image(x + 18, y + 27, `icon_${id}`).setScale(2).setAlpha(off ? 0.35 : 1));
+      this.panel.add(this.add.text(x + 36, y + 5, w.name, T(12, off ? '#6a5a88' : have ? '#00f0ff' : '#ffffff')));
+      this.panel.add(this.add.text(x + 36, y + 22, w.desc, { ...T(10, off ? '#6a5a88' : '#c8b8e8'), wordWrap: { width: 182, useAdvancedWrap: true } }));
+      if (have)
+        // 산 무기는 켜고 끌 수 있다: 꺼 두면 레벨업 카드에 나오지 않음
+        this.button(x + 220, y + 4, 66, off ? tr('market.off') : tr('market.on'), true, () => this.toggleMarket(id), off ? 0x8a7aa8 : COLORS.green);
       else
         this.button(x + 220, y + 4, 66, `₵ ${fmt(prices[id])}`, Save.data.credits >= prices[id], () => {
           if (!Save.spend(prices[id])) return;
@@ -382,6 +385,16 @@ export class HideoutScene extends Phaser.Scene {
           this.refresh();
         });
     });
+  }
+
+  private toggleMarket(id: string): void {
+    const off = Save.data.marketOff;
+    const i = off.indexOf(id);
+    if (i >= 0) off.splice(i, 1);
+    else off.push(id);
+    Save.write();
+    Sound.play(i >= 0 ? 'select' : 'hover');
+    this.refresh();
   }
 
   // ───────────────────────────── 저장 코드 · 출격 ─────────────────────────────

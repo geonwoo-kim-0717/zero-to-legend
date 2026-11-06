@@ -18,6 +18,8 @@ export interface PassiveState {
   total: number;
   /** 전설·신화로 특수 능력을 받았는지 */
   special: boolean;
+  /** 공격 속도 사이버웨어: 고를 때마다 곱해진 배율 (곱연산) */
+  speedMul?: number;
 }
 
 export interface Ability {
@@ -34,9 +36,14 @@ export interface Choice {
   levelLabel: string;
   /** 아직 없는 무기·사이버웨어 (신규) */
   isNew?: boolean;
+  /** 최대 레벨인데 특수 능력만 받는 카드 (레벨은 오르지 않음) */
+  maxed?: boolean;
   desc: string;
   ability?: Ability;
 }
+
+/** 공격 간격이 원래의 25%보다 짧아지지는 않게 (공격 속도 4배까지) */
+const MIN_COOLDOWN_MUL = 0.25;
 
 const rarityById = (id: string) => gameData.rarity.find((r) => r.id === id)!;
 
@@ -108,6 +115,12 @@ export function rollChoices(
       if (!ability) continue;
       out.push({ ...c, rarity, ability, desc: describe(c, rarity, owned) });
     }
+    // 보스 보상: 최대 레벨이라 카드 풀에 없는 무기·사이버웨어도 특수 능력 후보에 넣는다
+    while (out.length < 3) {
+      const m = maxedAbilityCard(owned, ownedPassives, opts.pool, true, out.map((o) => o.id));
+      if (!m) break;
+      out.push(m);
+    }
     if (out.length > 0) return out;
     // 받을 수 있는 특수 능력이 하나도 없으면 일반 레벨업으로 대체
   }
@@ -133,6 +146,12 @@ export function rollChoices(
     }
     return { ...c, rarity, desc: describe(c, rarity, owned), ability };
   });
+  // 최대 레벨이어도 전설·신화 능력이 비어 있으면 가끔 특수 능력 카드로 나온다
+  const maxed = maxedAbilityCard(owned, ownedPassives, opts.pool);
+  if (maxed) {
+    if (out.length < 3) out.push(maxed);
+    else out[Math.floor(Math.random() * out.length)] = maxed;
+  }
   // 올릴 것이 3개보다 적으면 반복해서 고를 수 있는 작은 강화로 채운다
   const left = Phaser.Utils.Array.Shuffle(gameData.overflow.slice());
   while (out.length < 3 && left.length) {
@@ -140,6 +159,25 @@ export function rollChoices(
     out.push({ kind: 'overflow', id: o.id, rarity: gameData.rarity[0], title: o.name, levelLabel: t('lvl.overflow'), desc: o.desc.replace('{v}', String(o.amount)) });
   }
   return out;
+}
+
+/** 최대 레벨 무기·사이버웨어 중 특수 능력이 비어 있는 것 하나를 확률로 전설·신화 카드로 만든다 */
+function maxedAbilityCard(owned: WeaponBase[], ownedPassives: Map<PassiveId, PassiveState>, pool?: readonly WeaponId[], force = false, skip: string[] = []): Choice | undefined {
+  if (!force && Math.random() >= gameData.maxedAbilityChance) return undefined;
+  const leg = rarityById('legendary');
+  const myth = rarityById('mythic');
+  const cands: { kind: 'weapon' | 'passive'; id: string; title: string }[] = [];
+  for (const w of owned) if (w.level >= WEAPON_MAX_LEVEL && (!pool || pool.includes(w.id))) cands.push({ kind: 'weapon', id: w.id, title: w.name });
+  for (const [id, st] of ownedPassives) if (st.level >= passives[id].maxLevel && !st.special) cands.push({ kind: 'passive', id, title: passives[id].name });
+  for (const c of Phaser.Utils.Array.Shuffle(cands)) {
+    if (skip.includes(c.id)) continue;
+    const first = Math.random() * (leg.weight + myth.weight) < myth.weight ? myth : leg;
+    for (const rarity of [first, first === myth ? leg : myth]) {
+      const ability = abilityFor(c, rarity.id, owned, ownedPassives);
+      if (ability) return { ...c, rarity, ability, maxed: true, levelLabel: 'MAX', desc: t('lvl.maxed') };
+    }
+  }
+  return undefined;
 }
 
 function describe(c: { kind: string; id: string }, rarity: Rarity, owned: WeaponBase[]): string {
@@ -158,9 +196,11 @@ function describe(c: { kind: string; id: string }, rarity: Rarity, owned: Weapon
 export function computeStats(ps: Map<PassiveId, PassiveState>, overflow: Record<string, number> = {}): Stats {
   const t = (id: PassiveId) => ps.get(id)?.total ?? 0;
   const o = (id: string) => overflow[id] ?? 0;
+  // 공격 속도는 곱연산: 카드마다 (1 + x%)를 곱하고, 공격 간격은 그 역수
+  const speed = (ps.get('neural')?.speedMul ?? 1) * (overflow.cdMul ?? 1);
   return {
     damageMul: 1 + (t('muscle') + o('dmg')) / 100,
-    cooldownMul: Math.max(0.4, 1 - (t('neural') + o('cd')) / 100),
+    cooldownMul: Math.max(MIN_COOLDOWN_MUL, 1 / speed),
     areaMul: 1,
     pickupMul: 1 + (t('magnet') + o('pick')) / 100,
     maxHpBonus: t('dermal') + o('hp'),

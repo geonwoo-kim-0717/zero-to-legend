@@ -25,3 +25,10 @@ SOUND EFFECTS
   -> glitch, hover, select, reroll
 
 slowmo.mp3, slowmo_out.mp3: 이 게임용으로 직접 합성 (tools 없이 Python 사인파 합성, CC0)
+
+MUSIC (added in Version 18)
+- battle2.mp3 : "New Factory" (129 bpm) by tricksntraps, "T & T Free Cyberpunk Pack 2" - chapter 2 (Industrial Zone)
+- battle3.mp3 : "AI Fight" (120 bpm) by tricksntraps, "T & T Free Cyberpunk Pack 2" - chapter 3 (Corporate Tower)
+               https://opengameart.org/content/t-t-free-cyberpunk-pack-2  (CC0)
+
+raidsiren.mp3, phone.mp3: 이 게임용으로 직접 합성 (tools/audio/synth_alerts.py, CC0)

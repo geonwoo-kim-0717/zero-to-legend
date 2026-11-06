@@ -5,17 +5,32 @@
     "title": {
       "file": "music/title.mp3",
       "volume": 1.0,
-      "name": "Calm Ambient 2 (Synthwave 15k)"
+      "name": "Calm Ambient 2 (Synthwave 15k)",
+      "lazy": false
     },
     "battle": {
       "file": "music/battle.mp3",
       "volume": 0.9,
-      "name": "Space City"
+      "name": "Space City",
+      "lazy": false
     },
     "boss": {
       "file": "music/boss.mp3",
       "volume": 1.0,
-      "name": "Cyberpunk Moonlight Sonata"
+      "name": "Cyberpunk Moonlight Sonata",
+      "lazy": false
+    },
+    "battle2": {
+      "file": "music/battle2.mp3",
+      "volume": 0.9,
+      "name": "New Factory (T&T Free Cyberpunk Pack 2)",
+      "lazy": true
+    },
+    "battle3": {
+      "file": "music/battle3.mp3",
+      "volume": 0.9,
+      "name": "AI Fight (T&T Free Cyberpunk Pack 2)",
+      "lazy": true
     }
   },
   "sfx": {
@@ -153,10 +168,24 @@
       "volume": 0.5,
       "minGap": 300,
       "detune": 0
+    },
+    "raidsiren": {
+      "volume": 0.75,
+      "minGap": 1500,
+      "detune": 0
+    },
+    "phone": {
+      "volume": 0.7,
+      "minGap": 300,
+      "detune": 0
     }
   },
   "slowmoDuck": {
     "ms": 1500,
     "factor": 0.5
+  },
+  "overclockAudio": {
+    "musicRate": 0.7,
+    "sfxRate": 0.7
   }
 }

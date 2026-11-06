@@ -298,7 +298,7 @@
     {
       "id": "cd",
       "name": "냉각 코어",
-      "desc": "공격 쿨다운 -{v}%",
+      "desc": "공격 속도 +{v}%",
       "stat": "cooldownMul",
       "amount": 2
     },
@@ -468,5 +468,8 @@
   },
   "carryOver": {
     "title": "CHAPTER CARRY-OVER"
-  }
+  },
+  "fixerWarnLead": 5,
+  "fixerWarnShow": 4.5,
+  "maxedAbilityChance": 0.15
 }

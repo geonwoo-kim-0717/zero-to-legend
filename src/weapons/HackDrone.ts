@@ -4,7 +4,8 @@ import { COLORS } from '../config';
 import type { Enemy } from '../entities/Enemy';
 
 const BASE_ORBIT = 40;
-const HIT_R = 7;
+/** 드론 판정 반경 (그림 8px보다 조금 넉넉하게) */
+const HIT_R = 8;
 
 interface Zap {
   x1: number;
@@ -18,7 +19,12 @@ export class HackDrone extends WeaponBase {
   protected readonly tag = 'electric' as const;
   private angle = 0;
   private sprites: Phaser.GameObjects.Image[] = [];
-  private readonly hitThisTick = new Set<Enemy>();
+  /** 적마다 다음에 맞을 수 있는 시각. 드론이 닿는 순간 바로 맞고, 같은 적은 공격 간격마다 한 번 */
+  private readonly nextHit = new Map<Enemy, number>();
+  private clock = 0;
+  private pruneT = 2;
+  /** 지난 프레임의 드론 위치 (빠르게 돌 때 사이를 건너뛰지 않도록 이어서 검사) */
+  private prev: { x: number; y: number }[] = [];
   private readonly spreadBuf: Enemy[] = [];
   private zaps: Zap[] = [];
   private seekT = 1.5;
@@ -46,12 +52,17 @@ export class HackDrone extends WeaponBase {
     const n = this.droneCount;
     const dmg = this.damage;
 
-    this.timer -= dt;
-    const tick = this.timer <= 0;
-    if (tick) {
-      this.timer = this.interval;
-      this.hitThisTick.clear();
+    this.clock += dt;
+    const gap = this.interval;
+    if ((this.pruneT -= dt) <= 0) {
+      this.pruneT = 2;
+      for (const [e, t] of this.nextHit) if (!e.active || t < this.clock) this.nextHit.delete(e);
     }
+    const canHit = (e: Enemy) => {
+      if ((this.nextHit.get(e) ?? -1) > this.clock) return false;
+      this.nextHit.set(e, this.clock + gap);
+      return true;
+    };
     // 전설 방어 궤도: 드론 궤도를 따라 방어막을 펼친다 (탄 차단 + 닿은 적 밀어내기)
     if (this.has('defenseOrbit')) {
       const pulse = 0.25 + Math.sin(this.angle * 3) * 0.08;
@@ -67,11 +78,14 @@ export class HackDrone extends WeaponBase {
         }
       }
     }
+    if (this.prev.length !== n) this.prev = [];
     for (let i = 0; i < n; i++) {
       const a = this.angle + (i / n) * Math.PI * 2;
       const x = p.x + Math.cos(a) * orbit;
       const y = p.y + Math.sin(a) * orbit;
       this.sprites[i].setPosition(x, y).setRotation(a * 2);
+      const pv = this.prev[i] ?? { x, y };
+      this.prev[i] = { x, y };
       // 해킹 방벽 드론 근처에서는 드론이 먹통
       const jam = this.ctx.jammed(x, y);
       if (jam) this.sprites[i].setTint(0x39ff88);
@@ -79,13 +93,14 @@ export class HackDrone extends WeaponBase {
       if (jam) continue;
       // 전설: 방어 궤도 — 드론이 적 탄을 막음
       if (this.has('defenseOrbit')) this.ctx.blockEnemyBullets(x, y, HIT_R + 3);
-      if (!tick) continue;
-      this.hitCircle(
-        x,
-        y,
+      // 지난 위치에서 지금 위치까지 몇 군데를 나눠 검사 (빠르게 돌아도 지나친 적을 놓치지 않음)
+      const steps = Math.min(4, Math.max(1, Math.ceil(Math.hypot(x - pv.x, y - pv.y) / HIT_R)));
+      for (let k = 1; k <= steps; k++) this.hitCircle(
+        pv.x + ((x - pv.x) * k) / steps,
+        pv.y + ((y - pv.y) * k) / steps,
         HIT_R,
         dmg,
-        (e) => !this.hitThisTick.has(e) && !!this.hitThisTick.add(e),
+        canHit,
         (e, killed) => {
           // 전설: 방어 궤도 — 바깥으로 밀어냄
           if (this.has('defenseOrbit') && !killed && !e.isBoss) {
