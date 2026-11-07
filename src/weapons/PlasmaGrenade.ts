@@ -161,6 +161,7 @@ export class PlasmaGrenade extends WeaponBase {
         break;
       }
     }
+    this.ctx.player.attackPose(tx, 0.2);
     const r = BASE_R * this.area;
     if (orbital) {
       this.grenades.push({ sx: tx, sy: ty, tx, ty, t: 0, fuse: 0.6, r: r * 3, dmg: this.damage, mini: false, orbital: true, sprite: null });

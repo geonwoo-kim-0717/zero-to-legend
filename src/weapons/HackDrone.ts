@@ -44,6 +44,8 @@ export class HackDrone extends WeaponBase {
     }
   }
 
+  private poseCd = 0;
+
   update(dt: number): void {
     if (this.sprites.length < this.droneCount) this.syncSprites();
     const { player: p, fx } = this.ctx;
@@ -51,6 +53,17 @@ export class HackDrone extends WeaponBase {
     const orbit = BASE_ORBIT * this.area;
     const n = this.droneCount;
     const dmg = this.damage;
+    // 러너 공격 자세: 드론 궤도 안에 적이 있으면 0.9초마다 잠깐 공격 그림
+    if ((this.poseCd -= dt) <= 0) {
+      const reach = (orbit + 8) ** 2;
+      for (const e of this.ctx.enemies) {
+        if (e.active && (e.x - p.x) ** 2 + (e.y - p.y) ** 2 < reach) {
+          p.attackPose(p.x + Math.cos(this.angle) * orbit, 0.2);
+          this.poseCd = 0.9;
+          break;
+        }
+      }
+    }
 
     this.clock += dt;
     const gap = this.interval;

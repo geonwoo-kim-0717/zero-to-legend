@@ -36,6 +36,8 @@ export class Enemy {
   dodgeVX = 0;
   dodgeVY = 0;
   ghostT = 0;
+  /** 공격 프레임(_aim)을 보여줄 남은 시간 (사격·순간이동 직후) */
+  atkT = 0;
   readonly sprite: Phaser.GameObjects.Image;
 
   constructor(scene: Phaser.Scene) {
@@ -57,6 +59,7 @@ export class Enemy {
     this.flash = 0;
     this.stun = 0;
     this.slowT = 0;
+    this.atkT = 0;
     this.charmT = 0;
     this.dodgeT = 0;
     this.dodgeCd = 3 + Math.random() * 3;

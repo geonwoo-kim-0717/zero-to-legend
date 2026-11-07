@@ -32,6 +32,9 @@ import { Ads } from '../systems/Ads';
 import type { RunResult } from './ResultScene';
 import { t as tr } from '../i18n';
 
+/** 공격 상태가 없는 접촉형 적: 플레이어에게 붙으면 공격 그림 */
+const CONTACT_POSE = new Set<string>(['trooper_tank', 'thug', 'sec_bot', 'drone', 'rat_bot']);
+
 type State = 'play' | 'levelup' | 'paused' | 'over' | 'dialog' | 'carry';
 /** 이번 판에 얻은 전설·신화 능력 (챕터 이월 후보) */
 type Keep = { kind: 'weapon' | 'passive'; id: string; abilityId: string; rarity: string };
@@ -887,6 +890,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
           e.cd -= dt;
           if (e.cd <= 0 && !hidden && d < rg.range * 1.15 && this.onScreen(e.x, e.y)) {
             e.cd = rg.interval * Phaser.Math.FloatBetween(0.8, 1.2);
+            e.atkT = 0.25;
             const shots = rg.shots ?? 1;
             for (let k = 0; k < shots; k++) {
               const off = shots > 1 ? (k / (shots - 1) - 0.5) * 2 * (rg.spread ?? 0) : 0;
@@ -949,6 +953,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
         else if (e.id === 'trooper_hacker') this.hackerAi(e, dt, dx, dy, d, slow, (x, y) => ((vx = x), (vy = y)));
         // 그림이 오른쪽을 보고 있으므로 플레이어가 왼쪽에 있으면 뒤집는다 (드론은 대칭이라 그대로)
         if (e.id !== 'drone') e.sprite.setFlipX(dx < 0);
+        this.animateEnemy(e, dt, d);
         // 주변 적과 겹치지 않도록 밀어냄
         for (const o of this.grid.query(e.x, e.y, e.radius * 2, this.near)) {
           if (o === e) continue;
@@ -1844,6 +1849,23 @@ export class GameScene extends Phaser.Scene implements GameContext {
     }
   }
 
+  /**
+   * 일반 적·진압대 프레임: <id>_w2 그림이 있으면 걷기 두 장을 번갈아 쓰고,
+   * 공격 중(예고·돌진, 사격·순간이동 직후, 접촉형은 26px 안)에는 <id>_aim 그림을 쓴다.
+   * 저격 터렛은 조준선 동안이 아니라 발사하는 순간에만 공격 그림.
+   */
+  private animateEnemy(e: Enemy, dt: number, d: number): void {
+    if (!this.textures.exists(`${e.id}_w2`)) return;
+    e.atkT = Math.max(0, e.atkT - dt);
+    const attacking =
+      e.atkT > 0 ||
+      (e.state !== 'walk' && e.id !== 'sniper_turret') ||
+      (CONTACT_POSE.has(e.id) && d < 26);
+    const key = attacking ? `${e.id}_aim` : Math.floor(this.elapsed * 4 + e.x * 0.01) % 2 ? e.id : `${e.id}_w2`;
+    const tex = this.textures.exists(key) ? key : e.id;
+    if (e.sprite.texture.key !== tex) e.sprite.setTexture(tex);
+  }
+
   /** 보스 모션: 걷기 2프레임, 돌진 예고(떨림), 돌진 자세, 코어는 둥실 떠 있음 */
   private animateBoss(b: Enemy, def: BossDef): void {
     const ph = this.bossPhase;
@@ -1889,6 +1911,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
       if (e.t <= 0) {
         this.enemyBullets.acquire().fire(e.x, e.y, Math.atan2(e.dirY, e.dirX), S.bulletSpeed, S.bulletDamage, S.bulletLife, 1.3);
         Sound.play('enemyshot');
+        e.atkT = 0.25;
         e.state = 'walk';
         e.t = S.interval * Phaser.Math.FloatBetween(0.8, 1.2);
       }
@@ -1909,6 +1932,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
     e.x = p.x + Math.cos(a) * r;
     e.y = p.y + Math.sin(a) * r;
     this.burst(e.x, e.y, COLORS.cyan, 6);
+    e.atkT = 0.3;
     if (this.onScreen(e.x, e.y)) Sound.play('glitch');
   }
 

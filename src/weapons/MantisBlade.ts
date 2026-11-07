@@ -42,6 +42,7 @@ export class MantisBlade extends WeaponBase {
       const half = whirl ? Math.PI : HALF_ARC;
       const sides = whirl ? 1 : this.s.count;
       const reaper = this.has('reaperHarvest');
+      p.attackPose(p.x + Math.cos(base) * 10, 0.18);
       this.ctx.sfx('slash');
       for (let i = 0; i < sides; i++) {
         const a = base + i * Math.PI;

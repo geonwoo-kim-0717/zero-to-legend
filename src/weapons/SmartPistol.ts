@@ -58,6 +58,7 @@ export class SmartPistol extends WeaponBase {
     }
     if (this.targets.length === 0) return;
     this.timer = this.interval;
+    p.attackPose(this.targets[0].x, 0.15);
     this.ctx.sfx('shoot');
 
     // 전설: 표적 고정 — 같은 적을 계속 노리면 피해 누적 증가

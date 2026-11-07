@@ -27,6 +27,10 @@ export class Player {
   private readonly baseTex: string;
   private readonly walkTex: [string, string] | null;
   private walkT = 0;
+  /** 공격 그림(<러너>_atk)이 있으면 공격하는 순간 잠깐 보여준다 */
+  private readonly atkTex: string | null;
+  private atkT = 0;
+  private atkX = 0;
   readonly glow: Phaser.GameObjects.Image;
 
   constructor(scene: Phaser.Scene, texture = 'player') {
@@ -34,6 +38,13 @@ export class Player {
     this.sprite = scene.add.image(0, 0, texture).setDepth(20);
     this.baseTex = texture;
     this.walkTex = scene.textures.exists(`${texture}_w1`) ? [`${texture}_w1`, `${texture}_w2`] : null;
+    this.atkTex = scene.textures.exists(`${texture}_atk`) ? `${texture}_atk` : null;
+  }
+
+  /** 무기가 공격한 순간: 공격 그림을 seconds 동안 보여주고 targetX 쪽을 바라본다 */
+  attackPose(targetX: number, seconds = 0.15): void {
+    this.atkT = Math.max(this.atkT, seconds);
+    this.atkX = targetX;
   }
 
   get dashing(): boolean {
@@ -82,10 +93,15 @@ export class Player {
     this.sprite.setAlpha(this.invuln > 0 && !this.dashing ? (Math.floor(this.invuln * 20) % 2 ? 0.3 : 1) : 1);
     if (Math.abs(mx) > 0.01) this.sprite.setFlipX(mx < 0);
     // 걷기 애니메이션 (초당 약 8프레임)
+    this.atkT = Math.max(0, this.atkT - dt);
     if (this.walkTex) {
       const moving = len > 0.1 && !this.dashing;
       this.walkT = moving ? this.walkT + dt : 0;
-      const key = moving ? this.walkTex[Math.floor(this.walkT * 8) % 2] : this.baseTex;
+      let key = moving ? this.walkTex[Math.floor(this.walkT * 8) % 2] : this.baseTex;
+      if (this.atkT > 0 && this.atkTex) {
+        key = this.atkTex;
+        this.sprite.setFlipX(this.atkX < this.x);
+      }
       if (this.sprite.texture.key !== key) this.sprite.setTexture(key);
     }
   }
