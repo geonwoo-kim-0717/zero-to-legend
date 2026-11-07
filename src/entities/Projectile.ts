@@ -14,6 +14,8 @@ export interface BulletOpts {
   /** 적을 맞힐 때마다 (죽었는지와 함께) */
   onHit?: (e: Enemy, killed: boolean) => void;
   tag?: DamageTag;
+  /** 적을 맞힌 자리에 재생할 이펙트 (fx_<이름>_N) */
+  hitFx?: string;
 }
 
 export class Projectile {
@@ -33,6 +35,7 @@ export class Projectile {
   onKill: ((e: Enemy) => void) | null = null;
   tag: DamageTag | undefined = undefined;
   onHit: ((e: Enemy, killed: boolean) => void) | null = null;
+  hitFx: string | undefined = undefined;
   readonly hits: Enemy[] = [];
   readonly sprite: Phaser.GameObjects.Image;
 
@@ -56,6 +59,7 @@ export class Projectile {
     this.onKill = o.onKill ?? null;
     this.tag = o.tag;
     this.onHit = o.onHit ?? null;
+    this.hitFx = o.hitFx;
     const tex = o.texture ?? 'bullet';
     this.radius = tex === 'wave' ? 9 : 3;
     this.hits.length = 0;

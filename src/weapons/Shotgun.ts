@@ -38,10 +38,12 @@ export class Shotgun extends WeaponBase {
     const shrapnel = this.has('shrapnel');
     const dmg = this.damage;
     this.ctx.sfx('shoot');
+    this.ctx.playFx('shotgun_blast', p.x + Math.cos(angle) * 6, p.y + Math.sin(angle) * 6, { angle, originX: 0 });
     for (let i = 0; i < n; i++) {
       const a = ring ? angle + (i / n) * Math.PI * 2 : angle + (n > 1 ? (i / (n - 1) - 0.5) * SPREAD : 0) + (Math.random() - 0.5) * 0.06;
       this.ctx.fireBullet(p.x, p.y, a, this.s.speed * (0.9 + Math.random() * 0.2), dmg, {
         pierce: this.s.pierce,
+        texture: 'fx_shotgun_pellet_1',
         life: 0.5,
         turnRate: 0,
         onHit:

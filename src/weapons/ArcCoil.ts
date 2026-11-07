@@ -88,6 +88,7 @@ export class ArcCoil extends WeaponBase {
       chain.push(cur);
       this.bolts.push({ pts: this.zigzag(from.x, from.y, cur.x, cur.y), life: 0.15 });
       // 전설: 과전류 (연쇄될수록 10%씩 강해짐)
+      this.ctx.playFx('arcCoil_hit', cur.x, cur.y);
       const killed = this.ctx.damage(cur, this.damage * (over ? 1 + 0.1 * i : 1), this.tag);
       if (!killed && i > 0 && this.has('staticShock') && Math.random() < 0.25) this.ctx.stun(cur, 0.5);
       // 절연 유닛: 연쇄 번개가 여기서 끊긴다

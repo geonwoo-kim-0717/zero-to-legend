@@ -115,6 +115,7 @@ export class HackDrone extends WeaponBase {
         dmg,
         canHit,
         (e, killed) => {
+          this.ctx.playFx('hackDrone_zap', e.x, e.y);
           // 전설: 방어 궤도 — 바깥으로 밀어냄
           if (this.has('defenseOrbit') && !killed && !e.isBoss) {
             const d = Math.hypot(e.x - p.x, e.y - p.y) || 1;

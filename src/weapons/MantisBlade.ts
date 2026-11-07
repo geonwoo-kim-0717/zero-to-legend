@@ -63,6 +63,8 @@ export class MantisBlade extends WeaponBase {
           },
         );
         this.slashes.push({ angle: a, half, r, life: 0.15 });
+        // 칼날 궤적 그림 (회전 칼날은 네 방향)
+        for (let q = 0; q < (whirl ? 4 : 1); q++) this.ctx.playFx('mantisBlade_slash', p.x, p.y, { angle: a + (q * Math.PI) / 2, originX: 8 / 48, scale: r / 40, frameTime: 0.035 });
         // 전설: 검기
         if (this.has('swordWave')) {
           this.ctx.fireBullet(p.x, p.y, a, 320, dmg * 0.6, { pierce: 999, texture: 'wave', life: 0.8, turnRate: 0, tag: 'melee' });
@@ -73,10 +75,10 @@ export class MantisBlade extends WeaponBase {
     for (const s of this.slashes) {
       s.life -= dt;
       const t = Math.max(0, s.life / 0.15);
-      fx.fillStyle(COLORS.cyan, 0.35 * t);
+      fx.fillStyle(COLORS.cyan, 0.12 * t);
       if (s.half >= Math.PI) fx.fillCircle(p.x, p.y, s.r);
       else fx.slice(p.x, p.y, s.r, s.angle - s.half, s.angle + s.half, false).fillPath();
-      fx.lineStyle(2, 0xffffff, 0.9 * t);
+      fx.lineStyle(1, 0xffffff, 0.35 * t);
       fx.beginPath();
       fx.arc(p.x, p.y, s.r, s.angle - s.half, s.angle + s.half, false);
       fx.strokePath();

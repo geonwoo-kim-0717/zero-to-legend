@@ -111,6 +111,7 @@ export class ProxMine extends WeaponBase {
     // 전설: 파편 지뢰 (사방으로 파편 6개)
     if (this.has('fragMine')) for (let k = 0; k < 6; k++) this.ctx.fireBullet(m.x, m.y, (k / 6) * Math.PI * 2, 280, this.damage * 0.5, { life: 0.35, turnRate: 0 });
     if (this.blasts.length < 30) this.blasts.push({ x: m.x, y: m.y, r, life: 0.3 });
+    this.ctx.playFx('proxMine_boom', m.x, m.y, { scale: (r * 1.5) / 48, frameTime: 0.06, alpha: 0.9 });
     this.ctx.burst(m.x, m.y, COLORS.orange, 8);
     this.ctx.sfx('explode');
     // 전설: 연쇄 기폭

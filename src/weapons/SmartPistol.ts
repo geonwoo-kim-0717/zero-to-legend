@@ -20,7 +20,7 @@ export class SmartPistol extends WeaponBase {
       this.stormT = 5;
       this.ctx.sfx('shoot');
       for (let i = 0; i < 24; i++) {
-        this.ctx.fireBullet(p.x, p.y, (i / 24) * Math.PI * 2, this.s.speed, this.damage, { pierce: this.s.pierce + 1, chain });
+        this.ctx.fireBullet(p.x, p.y, (i / 24) * Math.PI * 2, this.s.speed, this.damage, { pierce: this.s.pierce + 1, chain, texture: 'fx_smartPistol_tracer_1', hitFx: 'smartPistol_hit' });
       }
     }
     // 신화: 데드아이
@@ -30,7 +30,7 @@ export class SmartPistol extends WeaponBase {
       let n = 0;
       for (const e of this.ctx.enemies) {
         if (!e.active || !this.ctx.onScreen(e.x, e.y)) continue;
-        this.ctx.fireBullet(p.x, p.y, Math.atan2(e.y - p.y, e.x - p.x), this.s.speed * 1.4, this.damage, { target: e, turnRate: 14 });
+        this.ctx.fireBullet(p.x, p.y, Math.atan2(e.y - p.y, e.x - p.x), this.s.speed * 1.4, this.damage, { target: e, turnRate: 14, texture: 'fx_smartPistol_tracer_1', hitFx: 'smartPistol_hit' });
         if (++n >= 60) break;
       }
     }
@@ -70,11 +70,13 @@ export class SmartPistol extends WeaponBase {
       mul = 1 + 0.1 * this.lockStack;
     }
 
+    const ma = Math.atan2(this.targets[0].y - p.y, this.targets[0].x - p.x);
+    this.ctx.playFx('smartPistol_muzzle', p.x + Math.cos(ma) * 6, p.y + Math.sin(ma) * 6, { angle: ma, originX: 0 });
     for (let i = 0; i < count; i++) {
       const t = this.targets[i % this.targets.length];
       const spread = i >= this.targets.length ? (i - this.targets.length + 1) * 0.25 : 0;
       const a = Math.atan2(t.y - p.y, t.x - p.x) + spread;
-      this.ctx.fireBullet(p.x, p.y, a, this.s.speed, this.damage * mul, { pierce: this.s.pierce, target: t, chain });
+      this.ctx.fireBullet(p.x, p.y, a, this.s.speed, this.damage * mul, { pierce: this.s.pierce, target: t, chain, texture: 'fx_smartPistol_tracer_1', hitFx: 'smartPistol_hit' });
     }
   }
 }

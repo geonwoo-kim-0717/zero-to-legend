@@ -106,7 +106,7 @@ export class PlasmaGrenade extends WeaponBase {
       b.life -= dt;
       const t = Math.max(0, b.life / 0.25);
       // 큰 폭발일수록 채우기를 옅게 해서 화면이 가려지지 않게
-      fx.fillStyle(COLORS.magenta, 0.25 * t * Math.min(1, 60 / b.r)).fillCircle(b.x, b.y, b.r * (1.1 - t * 0.3));
+      fx.fillStyle(COLORS.magenta, 0.08 * t * Math.min(1, 60 / b.r)).fillCircle(b.x, b.y, b.r * (1.1 - t * 0.3));
       fx.lineStyle(2, COLORS.yellow, t).strokeCircle(b.x, b.y, b.r * (1.1 - t * 0.3));
     }
     this.blasts = this.blasts.filter((b) => b.life > 0);
@@ -129,6 +129,7 @@ export class PlasmaGrenade extends WeaponBase {
       }
     });
     this.blasts.push({ x, y, r, life: 0.25 });
+    this.ctx.playFx('plasmaGrenade_boom', x, y, { scale: (r * 1.8) / 64, frameTime: 0.05 });
     this.ctx.sfx('explode');
     this.ctx.burst(x, y, COLORS.yellow, primary ? 10 : 5);
     if (!primary) return;

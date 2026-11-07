@@ -67,11 +67,33 @@ export class Railgun extends WeaponBase {
     for (const b of this.beams) {
       b.life -= dt;
       const a = Math.max(0, b.life / 0.25);
-      fx.lineStyle(b.w * 2 + 4, COLORS.cyan, a * 0.35).lineBetween(b.x1, b.y1, b.x2, b.y2);
-      fx.lineStyle(Math.max(1, b.w * 0.6), 0xffffff, a).lineBetween(b.x1, b.y1, b.x2, b.y2);
+      fx.lineStyle(b.w * 2 + 4, COLORS.cyan, a * 0.18).lineBetween(b.x1, b.y1, b.x2, b.y2);
     }
     this.beams = this.beams.filter((b) => b.life > 0);
     this.tickEffects(dt, COLORS.orange);
+  }
+
+  /** 빔 그림: 가로로 이어지는 빔 조각을 길게 깔고 0.25초 동안 가늘어지며 사라진다 */
+  private beamSprite(x: number, y: number, angle: number, len: number, w: number): void {
+    const sc = this.ctx.phaser;
+    if (!sc.textures.exists('fx_railgun_beam_1')) return;
+    const b = sc.add.tileSprite(x, y, len, 10, 'fx_railgun_beam_1').setOrigin(0, 0.5).setRotation(angle).setDepth(18).setBlendMode(1);
+    b.setScale(1, Math.max(0.6, w / 6));
+    let t = 0;
+    const ev = sc.time.addEvent({
+      delay: 40,
+      repeat: 6,
+      callback: () => {
+        t++;
+        b.setTexture(t % 2 ? 'fx_railgun_beam_2' : 'fx_railgun_beam_1');
+        b.setScale(1, Math.max(0.2, (w / 6) * (1 - t / 7)));
+        b.tilePositionX -= 6;
+        if (t >= 7) {
+          b.destroy();
+          ev.remove();
+        }
+      },
+    });
   }
 
   /** 빔 한 줄과 신화 십자 포화 */
@@ -88,12 +110,14 @@ export class Railgun extends WeaponBase {
     const amp = this.has('piercingAmp');
     const weak = this.has('weakSpot');
     this.hitLine(p.x, p.y, x2, y2, w, (e: Enemy, n) => {
+      this.ctx.playFx('railgun_impact', e.x, e.y, { angle });
       let d = this.damage * mul * (amp ? Math.min(2, 1 + 0.15 * n) : 1);
       // 전설: 약점 저격
       if (weak && e.hp >= e.maxHp * 0.5) d *= 1.5;
       return d;
     });
     this.beams.push({ x1: p.x, y1: p.y, x2, y2, w, life: 0.25 });
+    this.beamSprite(p.x, p.y, angle, 700, w);
     // 전설: 과열 잔상 (2초 동안 타는 선)
     if (this.has('heatTrail')) this.addZone(p.x, p.y, x2, y2, Math.max(3, w * 0.6), 2, this.damage * 0.2, COLORS.orange);
   }

@@ -1,3 +1,4 @@
+import type Phaser from 'phaser';
 import { WeaponBase } from './WeaponBase';
 import { COLORS, MAX_ENEMY_RADIUS } from '../config';
 import type { Enemy } from '../entities/Enemy';
@@ -18,6 +19,9 @@ export class EmpField extends WeaponBase {
   /** 시스템 셧다운: 적마다 장 안에 머문 시간 */
   private readonly inside = new Map<Enemy, number>();
   private readonly buf: Enemy[] = [];
+  /** 전기장 테두리 그림 (플레이어 장, 이동 폭풍 장) */
+  private rings: Phaser.GameObjects.Image[] = [];
+  private ringIdx = 0;
 
   update(dt: number): void {
     const { player: p, fx } = this.ctx;
@@ -54,8 +58,10 @@ export class EmpField extends WeaponBase {
       this.ctx.sfx('netcrash');
       this.boom = 0.35;
     }
+    this.ringIdx = 0;
     this.draw(p.x, p.y, r);
     if (this.roam) this.draw(this.roam.x, this.roam.y, r);
+    for (let i = this.ringIdx; i < this.rings.length; i++) this.rings[i].setVisible(false);
     if (this.boom > 0) {
       this.boom -= dt;
       fx.lineStyle(3, COLORS.cyan, this.boom / 0.35).strokeCircle(p.x, p.y, r * 3 * (1 - (this.boom / 0.35) * 0.5));
@@ -72,6 +78,7 @@ export class EmpField extends WeaponBase {
       dmg *= 1 + Math.min(0.5, n * 0.05);
     }
     this.hitCircle(x, y, r, dmg, undefined, (e, killed) => {
+      if (Math.random() < 0.35) this.ctx.playFx('empField_arc', e.x, e.y, { angle: Math.random() * 6.28 });
       if (killed) return;
       this.ctx.slow(e, 0.6);
       if (over) this.ctx.stun(e, 0.8);
@@ -111,9 +118,23 @@ export class EmpField extends WeaponBase {
   private draw(x: number, y: number, r: number): void {
     const fx = this.ctx.fx;
     const wob = Math.sin(this.pulse * 6) * 2;
-    fx.fillStyle(COLORS.cyan, 0.06).fillCircle(x, y, r);
-    fx.lineStyle(1, COLORS.cyan, 0.45).strokeCircle(x, y, r + wob);
+    fx.fillStyle(COLORS.cyan, 0.05).fillCircle(x, y, r);
+    const sc = this.ctx.phaser;
+    if (sc.textures.exists('fx_empField_ring_1')) {
+      let img = this.rings[this.ringIdx];
+      if (!img) {
+        img = sc.add.image(x, y, 'fx_empField_ring_1').setDepth(17).setBlendMode(1);
+        this.rings.push(img);
+      }
+      this.ringIdx++;
+      img.setTexture(Math.floor(this.pulse * 10) % 2 ? 'fx_empField_ring_2' : 'fx_empField_ring_1');
+      img.setPosition(x, y).setScale(((r + wob) * 2) / 116).setAlpha(0.85).setVisible(true);
+    } else fx.lineStyle(1, COLORS.cyan, 0.45).strokeCircle(x, y, r + wob);
     const k = (this.pulse * 1.5) % 1;
     fx.lineStyle(1, COLORS.cyan, 0.3 * (1 - k)).strokeCircle(x, y, r * k);
+  }
+
+  destroy(): void {
+    for (const r of this.rings) r.destroy();
   }
 }

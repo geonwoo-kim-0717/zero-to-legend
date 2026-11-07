@@ -70,7 +70,7 @@ export class MicroMissile extends WeaponBase {
     const a = Math.atan2(e.y - p.y, e.x - p.x) + (from ? 0 : (Math.random() - 0.5) * 2.2);
     this.ctx.fireBullet(p.x, p.y, a, big ? this.s.speed * 0.7 : this.s.speed, 0, {
       target: e,
-      texture: 'missile',
+      texture: 'fx_microMissile_missile_1',
       life: 2.5,
       turnRate: 5,
       onHit: (hit) => {
@@ -82,6 +82,7 @@ export class MicroMissile extends WeaponBase {
           }
         });
         if (this.blasts.length < 40) this.blasts.push({ x: hit.x, y: hit.y, r, life: big ? 0.45 : 0.25 });
+        this.ctx.playFx('microMissile_boom', hit.x, hit.y, { scale: (r * 1.5) / 40, frameTime: big ? 0.08 : 0.05, alpha: 0.9 });
         if (big) {
           this.ctx.screenFlash(0xff8a1f, 0.18, 220);
           this.ctx.burst(hit.x, hit.y, COLORS.orange, 24);

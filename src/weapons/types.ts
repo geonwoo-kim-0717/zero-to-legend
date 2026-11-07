@@ -19,6 +19,17 @@ export interface Stats {
 }
 
 /** 피해 종류: 러너 특성 배율과 카운터 몬스터의 저항에 쓰인다 */
+export interface FxOpts {
+  angle?: number;
+  scale?: number;
+  /** 프레임 한 장 시간 (초) */
+  frameTime?: number;
+  originX?: number;
+  originY?: number;
+  alpha?: number;
+  depth?: number;
+}
+
 export type DamageTag = 'melee' | 'explosive' | 'electric' | 'beam' | 'bullet';
 
 /** 무기가 게임 세계와 상호작용할 때 쓰는 창구 (GameScene이 구현) */
@@ -52,6 +63,8 @@ export interface GameContext {
   charm(e: Enemy, seconds: number): void;
   /** 이번 프레임에 끝난 대시 경로 (없으면 null) */
   readonly dashPath: { x1: number; y1: number; x2: number; y2: number } | null;
+  /** 이펙트 그림(fx_<name>_1..N)을 한 번 재생 */
+  playFx(name: string, x: number, y: number, o?: FxOpts): void;
   /** 지금 화면에 보이는 월드 영역 */
   view(): { x: number; y: number; width: number; height: number };
 }

@@ -16,7 +16,7 @@ import { SpatialGrid } from '../systems/SpatialGrid';
 import { Spawner, hpScaleAt } from '../systems/Spawner';
 import { InputController } from '../systems/InputController';
 import { createWeapon, type WeaponBase, type WeaponId } from '../weapons';
-import type { GameContext, Stats, DamageTag } from '../weapons/types';
+import type { GameContext, Stats, DamageTag, FxOpts } from '../weapons/types';
 import meta from '../data/meta.json';
 import zonesData from '../data/zones.json';
 import wavesData from '../data/waves.json';
@@ -470,6 +470,44 @@ export class GameScene extends Phaser.Scene implements GameContext {
     return false;
   }
 
+  // ───────────── 무기 이펙트 그림 (fx_<이름>_1..N, 아트 세션 제작) ─────────────
+  private fxLive: { img: Phaser.GameObjects.Image; name: string; n: number; t: number; ft: number }[] = [];
+  private fxFree: Phaser.GameObjects.Image[] = [];
+  private fxFrames = new Map<string, number>();
+
+  playFx(name: string, x: number, y: number, o: FxOpts = {}): void {
+    let n = this.fxFrames.get(name);
+    if (n === undefined) {
+      n = 0;
+      while (this.textures.exists(`fx_${name}_${n + 1}`)) n++;
+      this.fxFrames.set(name, n);
+    }
+    if (!n || this.fxLive.length >= 160) return;
+    const img = this.fxFree.pop() ?? this.add.image(0, 0, `fx_${name}_1`).setBlendMode(Phaser.BlendModes.ADD);
+    img
+      .setTexture(`fx_${name}_1`)
+      .setPosition(x, y)
+      .setRotation(o.angle ?? 0)
+      .setScale(o.scale ?? 1)
+      .setOrigin(o.originX ?? 0.5, o.originY ?? 0.5)
+      .setAlpha(o.alpha ?? 1)
+      .setDepth(o.depth ?? 19)
+      .setVisible(true);
+    this.fxLive.push({ img, name, n, t: 0, ft: o.frameTime ?? 0.05 });
+  }
+
+  private updateFx(dt: number): void {
+    for (const f of this.fxLive) {
+      f.t += dt;
+      const k = Math.floor(f.t / f.ft);
+      if (k >= f.n) {
+        f.img.setVisible(false);
+        this.fxFree.push(f.img);
+      } else f.img.setTexture(`fx_${f.name}_${k + 1}`);
+    }
+    this.fxLive = this.fxLive.filter((f) => f.img.visible);
+  }
+
   fireBullet(x: number, y: number, angle: number, speed: number, damage: number, opts?: BulletOpts): void {
     this.bullets.acquire().fire(x, y, angle, speed, damage, opts);
   }
@@ -888,6 +926,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
     for (const w of this.weapons) w.update(dt);
     this.updateBullets(dt);
     this.updateEnemyBullets(dt);
+    this.updateFx(dt);
     this.drawOverclockFx(realDt);
     this.updatePickups(dt);
     this.updateHud();
@@ -1166,6 +1205,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
           }
           if (killed) b.onKill?.(e);
           b.onHit?.(e, killed);
+          if (b.hitFx) this.playFx(b.hitFx, e.x, e.y);
           if (b.chain > 0) this.chainFrom(b, e);
           if (b.hits.length > b.pierce) {
             b.kill();

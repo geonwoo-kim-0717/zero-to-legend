@@ -87,6 +87,7 @@ export class Monowire extends WeaponBase {
     const y2 = p.y + Math.sin(angle) * len;
     const dmg = this.damage * mul;
     this.hitLine(p.x, p.y, x2, y2, 6, dmg, (e: Enemy, killed) => {
+      this.ctx.playFx('monowire_hit', e.x, e.y);
       // Lv.4부터: 맞은 자리 주변 적 2명에게 확산 피해 (맞힌 피해의 50%)
       if (this.level >= 4) {
         let n = 0;

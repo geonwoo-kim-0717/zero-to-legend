@@ -69,7 +69,10 @@ export class Turret extends WeaponBase {
           t.img.setRotation(a);
           // 기본 2발 (블랙마켓 상향), 센트리 네트워크는 3갈래 × 2발
           const dirs = sentry ? [-0.2, 0, 0.2] : [0];
-          for (const s of dirs) for (const k of [-0.06, 0.06]) this.ctx.fireBullet(t.x, t.y, a + s + k, 340, this.damage, { life: 0.6, turnRate: 0 });
+          for (const s of dirs) {
+            this.ctx.playFx('turret_muzzle', t.x + Math.cos(a + s) * 7, t.y + Math.sin(a + s) * 7, { angle: a + s, originX: 0 });
+            for (const k of [-0.06, 0.06]) this.ctx.fireBullet(t.x, t.y, a + s + k, 340, this.damage, { life: 0.6, turnRate: 0 });
+          }
           // 전설: 로켓 포탑 (3발마다 폭발 로켓)
           if (this.has('rocketPost') && t.shots % 3 === 0) {
             const r = 30 * this.area;
