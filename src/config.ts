@@ -27,7 +27,7 @@ export const COLORS = {
 };
 
 /** 공간 분할 질의 시 여유 반경 (가장 큰 적인 보스 반지름 이상) */
-export const MAX_ENEMY_RADIUS = 28;
+export const MAX_ENEMY_RADIUS = 30;
 
 /** 실제 캔버스는 논리 해상도의 2배로 그려 글자를 선명하게 한다 */
 export const ZOOM = 2;
