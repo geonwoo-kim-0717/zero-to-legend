@@ -163,7 +163,8 @@
         "damage": 10,
         "homingDist": 500,
         "count": 4,
-        "spread": 0.4
+        "spread": 0.7,
+        "straight": 0.5
       }
     },
     {

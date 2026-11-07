@@ -18,6 +18,8 @@ export class EnemyBullet {
   radius = 3;
   /** 유도: 남은 추적 거리 (0이면 직진) */
   homeDist = 0;
+  /** 추적을 시작하기 전 직진하는 시간 (부채꼴로 퍼져 보이게) */
+  homeDelay = 0;
 
   fire(x: number, y: number, angle: number, speed: number, damage: number, life: number, scale = 1, texture = 'ebullet'): void {
     this.active = true;
@@ -29,6 +31,7 @@ export class EnemyBullet {
     this.life = life;
     this.radius = 3 * scale;
     this.homeDist = 0;
+    this.homeDelay = 0;
     if (this.sprite.texture.key !== texture) this.sprite.setTexture(texture).setBlendMode(texture === 'ebullet' ? Phaser.BlendModes.ADD : Phaser.BlendModes.NORMAL);
     this.sprite.setPosition(x, y).setVisible(true).setRotation(angle).setScale(scale);
     if (texture !== 'ebullet') this.radius = Math.max(this.radius, 4);
@@ -46,7 +49,17 @@ export class EnemyBullet {
     this.homeDist -= sp * dt;
   }
 
+  /** 2프레임 그림(이름_2)이 있으면 불꽃이 깜빡이게 번갈아 보여준다 */
+  private flick = 0;
+
   update(dt: number): void {
+    const key = this.sprite.texture.key;
+    if (key !== 'ebullet' && (this.flick += dt) >= 0.08) {
+      this.flick = 0;
+      const base = key.endsWith('_2') ? key.slice(0, -2) : key;
+      const alt = `${base}_2`;
+      if (this.sprite.scene.textures.exists(alt)) this.sprite.setTexture(key === alt ? base : alt);
+    }
     this.x += this.vx * dt;
     this.y += this.vy * dt;
     this.life -= dt;

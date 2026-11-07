@@ -1975,7 +1975,10 @@ export class GameScene extends Phaser.Scene implements GameContext {
     const slow = this.overdrive ? OD.enemySpeedMul : 1;
     for (const b of this.enemyBullets.items) {
       if (!b.active) continue;
-      if (b.homeDist > 0) b.steer(p.x, p.y, dt * slow);
+      if (b.homeDist > 0) {
+        if (b.homeDelay > 0) b.homeDelay -= dt * slow;
+        else b.steer(p.x, p.y, dt * slow);
+      }
       b.update(dt * slow);
       if (!b.active) continue;
       if (p.invuln <= 0 && !this.untracked && (b.x - p.x) ** 2 + (b.y - p.y) ** 2 < (p.radius + b.radius) ** 2) {
@@ -2434,9 +2437,14 @@ export class GameScene extends Phaser.Scene implements GameContext {
       const look = this.textures.exists('boss_missile') ? 'boss_missile' : undefined;
       for (let i = 0; i < n; i++) {
         const a = base + (n > 1 ? (i / (n - 1) - 0.5) * 2 * (ms.spread ?? 0.4) : 0);
+        // 포드 4곳에서 퍼져 나가 잠깐 직진한 뒤 추적
+        const side = n > 1 ? i / (n - 1) - 0.5 : 0;
+        const ox = Math.cos(base + Math.PI / 2) * side * b.radius * 1.2;
+        const oy = Math.sin(base + Math.PI / 2) * side * b.radius * 1.2;
         const bl = this.enemyBullets.acquire();
-        bl.fire(b.x, b.y - b.radius * 0.4, a, ms.speed, ms.damage, ms.homingDist / ms.speed + 1.5, look ? 1 : 1.8, look);
+        bl.fire(b.x + ox, b.y - b.radius * 0.4 + oy, a, ms.speed, ms.damage, ms.homingDist / ms.speed + 1.5, look ? 1 : 1.8, look);
         bl.homeDist = ms.homingDist;
+        bl.homeDelay = (ms as { straight?: number }).straight ?? 0.5;
       }
       Sound.play('enemyshot');
     }
