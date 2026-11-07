@@ -1,7 +1,7 @@
 import { WeaponBase } from './WeaponBase';
 import type { Enemy } from '../entities/Enemy';
 
-const RANGE = 260;
+const RANGE = 230;
 
 export class SmartPistol extends WeaponBase {
   private readonly targets: Enemy[] = [];

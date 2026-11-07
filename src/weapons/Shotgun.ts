@@ -2,7 +2,7 @@ import { WeaponBase } from './WeaponBase';
 import type { Enemy } from '../entities/Enemy';
 import { COLORS } from '../config';
 
-const RANGE = 180;
+const RANGE = 200;
 const SPREAD = 0.6;
 /** 근거리 사냥 거리 */
 const CLOSE = 60;

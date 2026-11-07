@@ -178,6 +178,9 @@ export class GameScene extends Phaser.Scene implements GameContext {
   private bossVolley = 0;
   private volleyRot = 0;
   private bossShieldT = 0;
+  /** 보충형 소환: 첫 소환 때 체력 배율, 지금 살아 있는 부하 */
+  private bossMinionHp = 0;
+  private bossMinions: { e: Enemy; id: string }[] = [];
   private bossMissile = 2;
   /** 최종 보스전의 붉은 홀로그램 경계 (월드 좌표) */
   private arena: { x: number; y: number; w: number; h: number; t: number } | null = null;
@@ -2369,6 +2372,8 @@ export class GameScene extends Phaser.Scene implements GameContext {
     this.bossPhase2 = false;
     this.bossShieldT = 0;
     this.bossMissile = 2;
+    this.bossMinionHp = 0;
+    this.bossMinions = [];
     this.bossCharges = 0;
     this.bossVolley = 2;
     this.bossPhase = 'walk';
@@ -2482,11 +2487,19 @@ export class GameScene extends Phaser.Scene implements GameContext {
       this.bossSummon = def.summonEvery;
       this.bossPulse(b);
       // 소환 목록: summons가 있으면 여러 종류, 없으면 summon × summonCount
-      const list = ((def as { summons?: { id: string; count: number }[] }).summons ?? [{ id: def.summon, count: def.summonCount }]).flatMap((s) => Array<string>(s.count).fill(s.id));
+      const refill = !!(def as { refill?: boolean }).refill;
+      // 보충형(아르코난 코어): 체력은 첫 소환 때 값으로 고정, 살아 있는 부하는 빼고 모자란 만큼만 소환
+      if (!refill || this.bossMinionHp <= 0) this.bossMinionHp = hpScaleAt(this.elapsed - this.zoneStart) * this.zone.hpMul;
+      if (refill) this.bossMinions = this.bossMinions.filter((m) => m.e.active && m.e.id === m.id);
+      const list = ((def as { summons?: { id: string; count: number }[] }).summons ?? [{ id: def.summon, count: def.summonCount }]).flatMap((s) => {
+        const alive = refill ? this.bossMinions.filter((m) => m.id === s.id).length : 0;
+        return Array<string>(Math.max(0, s.count - alive)).fill(s.id);
+      });
       const n = list.length;
       list.forEach((id, i) => {
         const a = (i / n) * Math.PI * 2;
-        this.spawnEnemy(id as EnemyId, b.x + Math.cos(a) * 40, b.y + Math.sin(a) * 40, hpScaleAt(this.elapsed - this.zoneStart) * this.zone.hpMul);
+        const e = this.spawnEnemy(id as EnemyId, b.x + Math.cos(a) * 40, b.y + Math.sin(a) * 40, this.bossMinionHp);
+        if (refill && e) this.bossMinions.push({ e, id });
       });
     }
     this.animateBoss(b, def);
