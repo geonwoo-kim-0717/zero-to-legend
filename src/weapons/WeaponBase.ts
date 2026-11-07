@@ -165,6 +165,53 @@ export abstract class WeaponBase {
     return null;
   }
 
+  // ── 지속 피해(출혈·화상)와 남는 장판(불길·타는 선): 특수 능력이 함께 쓴다 ──
+  private dots: { e: Enemy; t: number; dps: number; acc: number }[] = [];
+  private zones: { x1: number; y1: number; x2: number; y2: number; r: number; t: number; dmg: number; acc: number; color: number }[] = [];
+
+  /** 적에게 seconds 동안 초당 dps 피해 (이미 걸려 있으면 시간·세기 갱신) */
+  protected addDot(e: Enemy, seconds: number, dps: number): void {
+    const d = this.dots.find((o) => o.e === e);
+    if (d) {
+      d.t = Math.max(d.t, seconds);
+      d.dps = Math.max(d.dps, dps);
+    } else if (this.dots.length < 120) this.dots.push({ e, t: seconds, dps, acc: 0 });
+  }
+
+  /** 원(x2=x1) 또는 선 모양 장판: seconds 동안 0.4초마다 dmg */
+  protected addZone(x1: number, y1: number, x2: number, y2: number, r: number, seconds: number, dmg: number, color: number): void {
+    if (this.zones.length < 40) this.zones.push({ x1, y1, x2, y2, r, t: seconds, dmg, acc: 0.4, color });
+  }
+
+  /** 출혈·화상·장판을 진행 (쓰는 무기가 update에서 부름) */
+  protected tickEffects(dt: number, dotColor: number): void {
+    const fx = this.ctx.fx;
+    for (const d of this.dots) {
+      d.t -= dt;
+      d.acc += dt;
+      if (!d.e.active) d.t = 0;
+      else if (d.acc >= 0.5) {
+        d.acc -= 0.5;
+        this.ctx.damage(d.e, d.dps * 0.5, this.tag);
+        this.ctx.burst(d.e.x, d.e.y - 4, dotColor, 1);
+      }
+    }
+    this.dots = this.dots.filter((d) => d.t > 0 && d.e.active);
+    for (const z of this.zones) {
+      z.t -= dt;
+      z.acc += dt;
+      const a = Math.min(1, z.t) * 0.35;
+      if (z.x1 === z.x2 && z.y1 === z.y2) fx.fillStyle(z.color, a).fillCircle(z.x1, z.y1, z.r);
+      else fx.lineStyle(z.r * 2, z.color, a).lineBetween(z.x1, z.y1, z.x2, z.y2);
+      if (z.acc >= 0.4) {
+        z.acc -= 0.4;
+        if (z.x1 === z.x2 && z.y1 === z.y2) this.hitCircle(z.x1, z.y1, z.r, z.dmg);
+        else this.hitLine(z.x1, z.y1, z.x2, z.y2, z.r, z.dmg);
+      }
+    }
+    this.zones = this.zones.filter((z) => z.t > 0);
+  }
+
   /** 매 프레임 호출. ctx.fx는 프레임마다 지워지므로 이펙트는 여기서 다시 그린다 */
   abstract update(dt: number): void;
   destroy(): void {}

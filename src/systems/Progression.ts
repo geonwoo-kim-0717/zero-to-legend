@@ -18,6 +18,8 @@ export interface PassiveState {
   total: number;
   /** 전설·신화로 특수 능력을 받았는지 */
   special: boolean;
+  /** 받은 특수 능력 id (전설 1개·신화 1개까지) */
+  abilities?: string[];
   /** 공격 속도 사이버웨어: 고를 때마다 곱해진 배율 (곱연산) */
   speedMul?: number;
 }
@@ -47,12 +49,16 @@ const MIN_COOLDOWN_MUL = 0.25;
 
 const rarityById = (id: string) => gameData.rarity.find((r) => r.id === id)!;
 
+/** 자기 수집기 신화 '행운 회로': 영웅 이상 카드 확률 2배 */
+let luck = false;
+
 function rollRarity(forced?: string): Rarity {
   if (forced) return rarityById(forced);
-  const total = gameData.rarity.reduce((s, r) => s + r.weight, 0);
+  const wt = (r: Rarity) => r.weight * (luck && (r.id === 'epic' || r.ability) ? 2 : 1);
+  const total = gameData.rarity.reduce((s, r) => s + wt(r), 0);
   let n = Math.random() * total;
   for (const r of gameData.rarity) {
-    n -= r.weight;
+    n -= wt(r);
     if (n < 0) return r;
   }
   return gameData.rarity[0];
@@ -70,7 +76,21 @@ function abilityFor(c: { kind: string; id: string }, tier: string, owned: Weapon
     return list.length ? Phaser.Utils.Array.GetRandom(list) : undefined;
   }
   const id = c.id as PassiveId;
-  return ownedPassives.get(id)?.special ? undefined : abilities.passives[id];
+  const list = passiveAbilities(id, tier as AbilityTier, ownedPassives.get(id));
+  return list.length ? Phaser.Utils.Array.GetRandom(list) : undefined;
+}
+
+/** 사이버웨어가 이 등급에서 아직 받을 수 있는 특수 능력 (등급당 1개까지) */
+export function passiveAbilities(id: PassiveId, tier: AbilityTier, st?: PassiveState): Ability[] {
+  const list = abilities.passives[id][tier] as Ability[];
+  if (st?.abilities?.some((a) => list.some((x) => x.id === a))) return [];
+  return list;
+}
+
+/** 사이버웨어 특수 능력 정의 찾기 */
+export function passiveAbility(id: PassiveId, abilityId: string): Ability | undefined {
+  const l = abilities.passives[id];
+  return ([...l.legendary, ...l.mythic] as Ability[]).find((a) => a.id === abilityId);
 }
 
 /**
@@ -81,8 +101,9 @@ export function rollChoices(
   owned: WeaponBase[],
   ownedPassives: Map<PassiveId, PassiveState>,
   mode?: string,
-  opts: { guaranteeWeapon?: boolean; pool?: readonly WeaponId[] } = {},
+  opts: { guaranteeWeapon?: boolean; pool?: readonly WeaponId[]; luck?: boolean } = {},
 ): Choice[] {
+  luck = !!opts.luck;
   const forcedRarity = mode === 'boss' ? undefined : mode;
   const pool: Omit<Choice, 'rarity' | 'desc'>[] = [];
   for (const id of WEAPON_IDS) {
@@ -168,7 +189,7 @@ function maxedAbilityCard(owned: WeaponBase[], ownedPassives: Map<PassiveId, Pas
   const myth = rarityById('mythic');
   const cands: { kind: 'weapon' | 'passive'; id: string; title: string }[] = [];
   for (const w of owned) if (w.level >= WEAPON_MAX_LEVEL && (!pool || pool.includes(w.id))) cands.push({ kind: 'weapon', id: w.id, title: w.name });
-  for (const [id, st] of ownedPassives) if (st.level >= passives[id].maxLevel && !st.special) cands.push({ kind: 'passive', id, title: passives[id].name });
+  for (const [id, st] of ownedPassives) if (st.level >= passives[id].maxLevel && (st.abilities?.length ?? 0) < 2) cands.push({ kind: 'passive', id, title: passives[id].name });
   for (const c of Phaser.Utils.Array.Shuffle(cands)) {
     if (skip.includes(c.id)) continue;
     const first = Math.random() * (leg.weight + myth.weight) < myth.weight ? myth : leg;

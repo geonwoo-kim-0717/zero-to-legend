@@ -1,31 +1,71 @@
 import { WeaponBase } from './WeaponBase';
 import { COLORS } from '../config';
+import type { Enemy } from '../entities/Enemy';
 
 const BASE_LEN = 110;
+/** 가까운 적을 찾는 거리 (없으면 이동 방향으로 휘두름) */
+const AIM_RANGE = 260;
 
-/** 모노와이어: 이동 방향(과 반대·옆)으로 긴 채찍. 줄 위의 적을 모두 벤다 */
+/** 모노와이어: 가장 가까운 적 방향(과 반대·옆)으로 긴 채찍. 줄 위의 적을 모두 베고 잠깐 느리게 */
 export class Monowire extends WeaponBase {
   protected readonly tag = 'melee' as const;
   private lashes: { x1: number; y1: number; x2: number; y2: number; life: number; wide: boolean }[] = [];
   private netT = 4;
+  /** 되감기: 잠시 뒤 같은 방향으로 한 번 더 */
+  private rewinds: { angle: number; t: number }[] = [];
+  /** 절단 폭풍 */
+  private stormT = 6;
+  private spin = -1;
+  private spinA = 0;
+  private spinStep = 0;
+  /** 실 인형: 다음 휘두르기에 맞은 적을 조종 */
+  private puppetT = 8;
+  private puppetLeft = 0;
 
   update(dt: number): void {
     const { player: p, fx } = this.ctx;
     this.timer -= dt;
     if (this.timer <= 0) {
       this.timer = this.interval;
-      const base = Math.atan2(p.dirY, p.dirX);
+      const t = this.nearest(p.x, p.y, AIM_RANGE);
+      const base = t ? Math.atan2(t.y - p.y, t.x - p.x) : Math.atan2(p.dirY, p.dirX);
       // count 1: 앞, 2: 앞뒤, 4: 네 방향
       const n = this.s.count >= 4 ? 4 : this.s.count;
       const step = n === 4 ? Math.PI / 2 : Math.PI;
-      for (let i = 0; i < n; i++) this.lash(base + i * step, 1);
+      if (this.has('puppet') && (this.puppetT -= this.interval) <= 0) {
+        this.puppetT = 8;
+        this.puppetLeft = 5;
+      }
+      for (let i = 0; i < n; i++) {
+        this.lash(base + i * step, 1);
+        if (this.has('rewind')) this.rewinds.push({ angle: base + i * step, t: 0.16 });
+      }
+      this.puppetLeft = 0;
       this.ctx.sfx('slash');
     }
+    for (const r of this.rewinds) if ((r.t -= dt) <= 0) this.lash(r.angle, 0.8);
+    this.rewinds = this.rewinds.filter((r) => r.t > 0);
     // 신화: 레이저 그물
     if (this.has('laserNet') && (this.netT -= dt) <= 0) {
       this.netT = 4;
       for (let i = 0; i < 8; i++) this.lash((i / 8) * Math.PI * 2, 1.5, true);
       this.ctx.sfx('slash');
+    }
+    // 신화: 절단 폭풍 (0.9초 동안 세 바퀴)
+    if (this.has('cutStorm') && this.spin < 0 && (this.stormT -= dt) <= 0) {
+      this.stormT = 6;
+      this.spin = 0.9;
+      this.spinStep = 0;
+      this.ctx.sfx('slash');
+    }
+    if (this.spin >= 0) {
+      this.spin -= dt;
+      this.spinA += ((Math.PI * 6) / 0.9) * dt;
+      if ((this.spinStep -= dt) <= 0) {
+        this.spinStep = 0.05;
+        this.lash(this.spinA, 0.7, true);
+      }
+      if (this.spin < 0) this.spin = -1;
     }
     for (const l of this.lashes) {
       l.life -= dt;
@@ -34,17 +74,25 @@ export class Monowire extends WeaponBase {
       fx.lineStyle(1, 0xffffff, a).lineBetween(l.x1, l.y1, l.x2, l.y2);
     }
     this.lashes = this.lashes.filter((l) => l.life > 0);
+    this.tickEffects(dt, COLORS.magenta);
   }
 
   private lash(angle: number, mul: number, wide = false): void {
     const p = this.ctx.player;
     const len = BASE_LEN * this.area;
-    // 살짝 휘어지는 느낌: 끝을 조금 비튼다
     const x2 = p.x + Math.cos(angle) * len;
     const y2 = p.y + Math.sin(angle) * len;
-    this.hitLine(p.x, p.y, x2, y2, 6, this.damage * mul, (e, killed) => {
-      if (!killed && this.has('entangle')) this.ctx.stun(e, 0.5);
+    const dmg = this.damage * mul;
+    this.hitLine(p.x, p.y, x2, y2, 6, dmg, (e: Enemy, killed) => {
+      if (killed) return;
+      this.ctx.slow(e, 0.5);
+      if (this.has('entangle')) this.ctx.stun(e, 0.5);
+      if (this.has('bleed')) this.addDot(e, 3, this.damage * 0.3);
+      if (this.puppetLeft > 0 && !e.isBoss) {
+        this.puppetLeft--;
+        this.ctx.charm(e, 3);
+      }
     });
-    this.lashes.push({ x1: p.x, y1: p.y, x2, y2, life: 0.18, wide });
+    if (this.lashes.length < 60) this.lashes.push({ x1: p.x, y1: p.y, x2, y2, life: 0.18, wide });
   }
 }

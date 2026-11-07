@@ -27,6 +27,9 @@ export class Enemy {
   cd = 0;
   /** EMP 필드 등으로 느려진 남은 시간 */
   slowT = 0;
+  /** 실 인형에 조종당한 남은 시간 (다른 적을 공격) */
+  charmT = 0;
+  charmCd = 0;
   /** 진압대 회피 기동: 남은 시간, 다음 회피까지, 회피 속도 */
   dodgeT = 0;
   dodgeCd = 0;
@@ -54,6 +57,7 @@ export class Enemy {
     this.flash = 0;
     this.stun = 0;
     this.slowT = 0;
+    this.charmT = 0;
     this.dodgeT = 0;
     this.dodgeCd = 3 + Math.random() * 3;
     this.state = 'walk';

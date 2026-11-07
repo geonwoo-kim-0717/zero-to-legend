@@ -122,7 +122,7 @@
   },
   "monowire": {
    "name": "Monowire",
-   "desc": "Lashes a long wire in your move direction",
+   "desc": "Lashes a long wire at the nearest enemy, cutting and briefly slowing everything on the line",
    "levels": {
     "0": {
      "desc": "Acquired"
@@ -212,7 +212,7 @@
   },
   "shotgun": {
    "name": "Scatter Shotgun",
-   "desc": "Fires 5 pellets in a cone at a nearby enemy",
+   "desc": "Fires 7 piercing pellets in a cone at a nearby enemy",
    "levels": {
     "0": {
      "desc": "Acquired"
@@ -242,7 +242,7 @@
   },
   "turret": {
    "name": "Deploy Turret",
-   "desc": "Drops an auto turret for 6 seconds",
+   "desc": "Drops an auto turret for 8 seconds (2 bullets per shot)",
    "levels": {
     "0": {
      "desc": "Acquired"
@@ -332,7 +332,7 @@
   },
   "proxMine": {
    "name": "Proximity Mine",
-   "desc": "Drops mines that blow up when stepped on",
+   "desc": "Drops 2 mines that blow up when stepped on",
    "levels": {
     "0": {
      "desc": "Acquired"
@@ -347,7 +347,7 @@
      "desc": "Blast area +20%"
     },
     "4": {
-     "desc": "2 mines at once"
+     "desc": "Mines +1"
     },
     "5": {
      "desc": "Damage +20"
@@ -478,12 +478,28 @@
      "0": {
       "name": "Entangle",
       "desc": "Stuns enemies hit for 0.5s"
+     },
+     "1": {
+      "name": "Bleeding Wire",
+      "desc": "Hit enemies take 30% of wire damage per second for 3s"
+     },
+     "2": {
+      "name": "Rewind",
+      "desc": "The wire snaps back and slashes once more"
      }
     },
     "mythic": {
      "0": {
       "name": "Laser Net",
       "desc": "Every 4s, wires lash in 8 directions, damage x1.5"
+     },
+     "1": {
+      "name": "Cutting Storm",
+      "desc": "Every 6s, whips 360° around you three times"
+     },
+     "2": {
+      "name": "Puppet Strings",
+      "desc": "Every 8s, takes control of 5 hit enemies for 3s to fight other enemies"
      }
     }
    },
@@ -492,12 +508,28 @@
      "0": {
       "name": "Overcharge",
       "desc": "Every 6th tick stuns enemies in the field for 0.8s"
+     },
+     "1": {
+      "name": "Magnetic Shield",
+      "desc": "Erases enemy bullets that enter the field"
+     },
+     "2": {
+      "name": "Current Amp",
+      "desc": "+5% damage per enemy inside the field (max +50%)"
      }
     },
     "mythic": {
      "0": {
       "name": "Blackout",
       "desc": "Every 8s, a huge blast at 3x range (damage x10) that also clears enemy bullets"
+     },
+     "1": {
+      "name": "Roaming Storm",
+      "desc": "A second field follows the biggest enemy crowd"
+     },
+     "2": {
+      "name": "System Shutdown",
+      "desc": "Normal enemies inside the field for over 5s die instantly; bosses take heavy damage"
      }
     }
    },
@@ -506,12 +538,28 @@
      "0": {
       "name": "Piercing Amp",
       "desc": "+15% damage per enemy pierced (max x2)"
+     },
+     "1": {
+      "name": "Heat Trail",
+      "desc": "Beams leave a burning line for 2s"
+     },
+     "2": {
+      "name": "Weak Spot",
+      "desc": "x1.5 damage to enemies above 50% HP"
      }
     },
     "mythic": {
      "0": {
       "name": "Crossfire",
       "desc": "Each shot also fires 3 extra beams rotated by 90°"
+     },
+     "1": {
+      "name": "Orbital Rail",
+      "desc": "Every 5s, 3 giant beams sweep across the screen"
+     },
+     "2": {
+      "name": "Charge Shot",
+      "desc": "Charges for 1s, then fires a 3x-wide beam with x3 damage"
      }
     }
    },
@@ -520,26 +568,54 @@
      "0": {
       "name": "Knockback Slug",
       "desc": "Pellets push enemies back"
+     },
+     "1": {
+      "name": "Dragon's Breath",
+      "desc": "Pellets set enemies on fire for 2s"
+     },
+     "2": {
+      "name": "Close Hunt",
+      "desc": "x1.6 damage to enemies within 60px"
      }
     },
     "mythic": {
      "0": {
       "name": "Double Tap",
       "desc": "Fires the same volley again 0.2s later"
+     },
+     "1": {
+      "name": "Flechette Storm",
+      "desc": "Pellets fly out in all 360°"
+     },
+     "2": {
+      "name": "Shrapnel Split",
+      "desc": "Pellets that hit split into 3 small fragments"
      }
     }
    },
    "turret": {
     "legendary": {
      "0": {
-      "name": "Self-Destruct Protocol",
-      "desc": "Turrets explode when they expire (damage x6)"
+      "name": "Repair Post",
+      "desc": "Heal 1 HP per second near a turret"
+     },
+     "1": {
+      "name": "Rocket Post",
+      "desc": "Every 3rd shot is a small explosive rocket"
      }
     },
     "mythic": {
      "0": {
       "name": "Sentry Network",
       "desc": "Turrets fire 3-way and last twice as long"
+     },
+     "1": {
+      "name": "Turret Fortress",
+      "desc": "+2 turrets at once, linked by lasers that damage enemies on the line"
+     },
+     "2": {
+      "name": "Mobile Turret",
+      "desc": "Turrets follow you instead of standing still"
      }
     }
    },
@@ -548,12 +624,28 @@
      "0": {
       "name": "Spread Warhead",
       "desc": "Blast area x1.6"
+     },
+     "1": {
+      "name": "Incendiary Warhead",
+      "desc": "Blasts leave fire for 2s"
+     },
+     "2": {
+      "name": "Retarget",
+      "desc": "Missiles that hit fly on to one more nearby enemy"
      }
     },
     "mythic": {
      "0": {
       "name": "Missile Storm",
-      "desc": "Every 6s, launches a 20-missile salvo"
+      "desc": "Every 6s, pours 20 missiles over 1 second"
+     },
+     "1": {
+      "name": "Big Warhead",
+      "desc": "Every 10s, one big missile: 4x area, x10 damage"
+     },
+     "2": {
+      "name": "Infinite Reload",
+      "desc": "Each missile kill instantly fires one more missile"
      }
     }
    },
@@ -562,12 +654,28 @@
      "0": {
       "name": "Static Shock",
       "desc": "Chained hits have a 25% chance to stun for 0.5s"
+     },
+     "1": {
+      "name": "Overcurrent",
+      "desc": "Chain damage grows 10% per hop instead of fading"
+     },
+     "2": {
+      "name": "Lightning Rod",
+      "desc": "Every 3s, discharges into every nearby enemy"
      }
     },
     "mythic": {
      "0": {
       "name": "Thunderstorm",
       "desc": "Every 5s, lightning hits 12 random on-screen enemies (damage x4)"
+     },
+     "1": {
+      "name": "Tesla Cage",
+      "desc": "Electric fences link chained enemies for 2s"
+     },
+     "2": {
+      "name": "Bolt Dash",
+      "desc": "Every dash strikes all enemies along the path"
      }
     }
    },
@@ -576,32 +684,152 @@
      "0": {
       "name": "Chain Detonation",
       "desc": "Blasts also set off nearby mines"
+     },
+     "1": {
+      "name": "Sticky Mine",
+      "desc": "Mines fly to nearby enemies and stick"
+     },
+     "2": {
+      "name": "Frag Mine",
+      "desc": "Explosions throw 6 fragments in all directions"
      }
     },
     "mythic": {
      "0": {
       "name": "Claymore Wall",
       "desc": "Every 7s, instantly places 8 mines in a ring around you"
+     },
+     "1": {
+      "name": "Mine Rain",
+      "desc": "Every 8s, drops mines on 12 random spots on screen"
+     },
+     "2": {
+      "name": "Black Hole Mine",
+      "desc": "Pulls nearby enemies in before a big blast"
      }
     }
    }
   },
   "passives": {
    "muscle": {
-    "name": "Critical Hit",
-    "desc": "All attacks have a 10% chance to deal 2x damage"
+    "legendary": {
+     "0": {
+      "name": "Critical Hit",
+      "desc": "All attacks have a 10% chance to deal 2x damage"
+     },
+     "1": {
+      "name": "Executioner",
+      "desc": "Hitting a normal enemy at 15% HP or less kills it"
+     },
+     "2": {
+      "name": "Rage",
+      "desc": "The lower your HP, the more damage (up to +40%)"
+     }
+    },
+    "mythic": {
+     "0": {
+      "name": "Critical Frenzy",
+      "desc": "25% crit chance, crits deal 3x"
+     },
+     "1": {
+      "name": "Titan",
+      "desc": "Damage +50%, move speed -10%"
+     },
+     "2": {
+      "name": "Kill Streak",
+      "desc": "Each kill: +2% damage for 3s (max +40%)"
+     }
+    }
    },
    "neural": {
-    "name": "Quick Reboot",
-    "desc": "Dash cooldown -1s; gain a 20 shield for 1s after dashing"
+    "legendary": {
+     "0": {
+      "name": "Quick Reboot",
+      "desc": "Dash cooldown -1s; gain a 20 shield for 1s after dashing"
+     },
+     "1": {
+      "name": "Reflex",
+      "desc": "20% chance to dodge enemy bullets"
+     },
+     "2": {
+      "name": "Kill Rush",
+      "desc": "Each kill: +20% attack speed for 1s"
+     }
+    },
+    "mythic": {
+     "0": {
+      "name": "Time Warp",
+      "desc": "Dashing slows nearby enemies and their bullets for 1.5s"
+     },
+     "1": {
+      "name": "Overload Core",
+      "desc": "Attack speed +50%, max HP -20%"
+     },
+     "2": {
+      "name": "Blade Dash",
+      "desc": "Dash cooldown 1s; dashing damages enemies you pass"
+     }
+    }
    },
    "dermal": {
-    "name": "Counter Pulse",
-    "desc": "When hit, pushes back and damages nearby enemies"
+    "legendary": {
+     "0": {
+      "name": "Counter Pulse",
+      "desc": "When hit, pushes back and damages nearby enemies"
+     },
+     "1": {
+      "name": "Nano Regen",
+      "desc": "After 3s without being hit, heal 2 HP per second"
+     },
+     "2": {
+      "name": "Steel Skin",
+      "desc": "Damage taken -15%"
+     }
+    },
+    "mythic": {
+     "0": {
+      "name": "Undying",
+      "desc": "A fatal hit leaves you at 1 HP with 3s invulnerability (once per chapter)"
+     },
+     "1": {
+      "name": "Thorn Armor",
+      "desc": "Enemies that touch you take 3x the damage you took"
+     },
+     "2": {
+      "name": "Bulk",
+      "desc": "Max HP +100; pushes away normal enemies that touch you"
+     }
+    }
    },
    "magnet": {
-    "name": "Data Siphon",
-    "desc": "Every 30s, pulls in every XP shard on screen"
+    "legendary": {
+     "0": {
+      "name": "Data Siphon",
+      "desc": "Every 30s, pulls in every XP shard on screen"
+     },
+     "1": {
+      "name": "Credit Magnet",
+      "desc": "Credits this run +20%"
+     },
+     "2": {
+      "name": "Healing Harvest",
+      "desc": "Heal 5 HP every 50 XP shards"
+     }
+    },
+    "mythic": {
+     "0": {
+      "name": "Data Gorge",
+      "desc": "XP +30%"
+     },
+     "1": {
+      "name": "Singularity",
+      "desc": "Every 15s, pulls on-screen enemies to one point, then explodes"
+     },
+     "2": {
+      "name": "Luck Circuit",
+      "desc": "Double chance of epic/legendary/mythic level-up cards"
+     }
+    }
    }
   }
  },

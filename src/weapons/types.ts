@@ -48,4 +48,10 @@ export interface GameContext {
   slow(e: Enemy, seconds: number): void;
   /** (x,y)가 해킹 방벽 드론의 방해 범위 안인지 (포탑·해킹 드론이 먹통) */
   jammed(x: number, y: number): boolean;
+  /** 적을 잠깐 조종해 다른 적과 싸우게 (보스 제외) */
+  charm(e: Enemy, seconds: number): void;
+  /** 이번 프레임에 끝난 대시 경로 (없으면 null) */
+  readonly dashPath: { x1: number; y1: number; x2: number; y2: number } | null;
+  /** 지금 화면에 보이는 월드 영역 */
+  view(): { x: number; y: number; width: number; height: number };
 }

@@ -471,5 +471,6 @@
   },
   "fixerWarnLead": 5,
   "fixerWarnShow": 4.5,
-  "maxedAbilityChance": 0.15
+  "maxedAbilityChance": 0.15,
+  "enemyDamageGrowthPerMin": 0.04
 }
