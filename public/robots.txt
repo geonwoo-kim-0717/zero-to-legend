@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://geonwoo-kim-0717.github.io/zero-to-legend/sitemap.xml
