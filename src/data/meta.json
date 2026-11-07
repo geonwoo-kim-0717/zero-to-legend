@@ -1,10 +1,10 @@
 {
   "credits": {
-    "perKill": 0.5,
-    "perSecond": 0.1667,
-    "victoryBonus": 500,
-    "midbossBonus": 60,
-    "zoneBossBonus": 150
+    "perKill": 0.25,
+    "perSecond": 0.0833,
+    "victoryBonus": 250,
+    "midbossBonus": 30,
+    "zoneBossBonus": 75
   },
   "runners": [
     {
@@ -204,7 +204,7 @@
       "desc": "의뢰를 1번 수행",
       "stat": "runs",
       "goal": 1,
-      "reward": 100
+      "reward": 50
     },
     {
       "id": "drones",
@@ -212,7 +212,7 @@
       "desc": "보안 드론 1,000대 처치",
       "stat": "droneKills",
       "goal": 1000,
-      "reward": 300
+      "reward": 150
     },
     {
       "id": "kills",
@@ -220,7 +220,7 @@
       "desc": "적 5,000명 처치 (누적)",
       "stat": "totalKills",
       "goal": 5000,
-      "reward": 400
+      "reward": 200
     },
     {
       "id": "midboss",
@@ -228,7 +228,7 @@
       "desc": "중간 보스 스크랩 브루트 처치",
       "stat": "midbossKills",
       "goal": 1,
-      "reward": 300
+      "reward": 150
     },
     {
       "id": "raiders",
@@ -236,7 +236,7 @@
       "desc": "진압대원 20명 처치 (누적)",
       "stat": "trooperKills",
       "goal": 20,
-      "reward": 400
+      "reward": 200
     },
     {
       "id": "level",
@@ -244,7 +244,7 @@
       "desc": "한 판에서 레벨 30 달성",
       "stat": "bestLevel",
       "goal": 30,
-      "reward": 300
+      "reward": 150
     },
     {
       "id": "melee",
@@ -252,7 +252,7 @@
       "desc": "근접 무기로 5,000킬 → 바이퍼 해금",
       "stat": "meleeKills",
       "goal": 5000,
-      "reward": 500
+      "reward": 250
     },
     {
       "id": "survive",
@@ -260,7 +260,7 @@
       "desc": "한 판에서 20분 생존 → 노바 해금",
       "stat": "bestTime",
       "goal": 1200,
-      "reward": 300
+      "reward": 150
     },
     {
       "id": "boss",
@@ -268,7 +268,7 @@
       "desc": "1구역 보스 처치 → 고스트 해금",
       "stat": "bossKills",
       "goal": 1,
-      "reward": 800
+      "reward": 400
     },
     {
       "id": "hex",
@@ -276,7 +276,7 @@
       "desc": "2구역 보스 헥사워드 처치",
       "stat": "hexKills",
       "goal": 1,
-      "reward": 1000
+      "reward": 500
     },
     {
       "id": "core",
@@ -284,7 +284,7 @@
       "desc": "아르코난 코어 처치 (최종 클리어)",
       "stat": "coreKills",
       "goal": 1,
-      "reward": 2000
+      "reward": 1000
     },
     {
       "id": "market",
@@ -292,7 +292,7 @@
       "desc": "블랙마켓에서 무기 4종 구매",
       "stat": "marketBuys",
       "goal": 4,
-      "reward": 500
+      "reward": 250
     }
   ],
   "heat": {
