@@ -11,6 +11,8 @@ let game: Phaser.Game | null = null;
 const lastPlayed = new Map<string, number>();
 let current: { key: MusicKey; sound: Vol } | null = null;
 let pending: MusicKey | null = null;
+/** 소리 잠금이 풀리길 기다리는 곡 시작 함수 (항상 하나만 — 여러 장면이 부르면 곡이 겹쳐 재생되던 문제 방지) */
+let unlockHook: (() => void) | null = null;
 let duckFactor = 1;
 /** 사용자가 끈 소리 / 포털(CrazyGames)이 끈 소리 — 둘 중 하나라도 켜져 있으면 음소거 */
 let userMuted = false;
@@ -129,6 +131,11 @@ export const Sound = {
     if (!key) return;
     const start = () => {
       if (pending !== key || !game || !game.cache.audio.exists(`music-${key}`)) return;
+      if (current?.key === key) return;
+      if (current) {
+        const prev = current;
+        fade(prev.sound, prev.sound.volume, 0, fadeMs, () => prev.sound.destroy());
+      }
       const s = game.sound.add(`music-${key}`, { loop: true, volume: 0 }) as Vol;
       s.play();
       current = { key, sound: s };
@@ -136,8 +143,15 @@ export const Sound = {
       fade(s, 0, target(key), fadeMs);
     };
     // 브라우저는 사용자가 한 번 누르기 전까지 소리를 막으므로, 그 뒤에 시작
-    if (game.sound.locked) game.sound.once(Phaser.Sound.Events.UNLOCKED, start);
-    else start();
+    if (unlockHook) game.sound.off(Phaser.Sound.Events.UNLOCKED, unlockHook);
+    unlockHook = null;
+    if (game.sound.locked) {
+      unlockHook = () => {
+        unlockHook = null;
+        start();
+      };
+      game.sound.once(Phaser.Sound.Events.UNLOCKED, unlockHook);
+    } else start();
   },
 
   /** 배경음악 재생 속도 (슬로우 모션 때 음악도 느려지며 음이 내려감). 1 = 원래 속도 */
