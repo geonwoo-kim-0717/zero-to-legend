@@ -54,7 +54,7 @@ let luck = false;
 
 function rollRarity(forced?: string): Rarity {
   if (forced) return rarityById(forced);
-  const wt = (r: Rarity) => r.weight * (luck && (r.id === 'epic' || r.ability) ? 2 : 1);
+  const wt = (r: Rarity) => r.weight * (luck && (r.id === 'epic' || r.ability) ? 1.5 : 1);
   const total = gameData.rarity.reduce((s, r) => s + wt(r), 0);
   let n = Math.random() * total;
   for (const r of gameData.rarity) {

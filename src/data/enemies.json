@@ -28,7 +28,7 @@
   },
   "psycho": {
     "name": "사이버 사이코",
-    "hp": 120,
+    "hp": 200,
     "speed": 48,
     "damage": 18,
     "radius": 10,
@@ -57,7 +57,7 @@
     "name": "진압대 탱커",
     "hp": 6400,
     "speed": 36,
-    "damage": 7,
+    "damage": 20,
     "radius": 11,
     "xp": 15,
     "texture": "trooper_tank"
@@ -66,7 +66,7 @@
     "name": "진압대 근접 공격수",
     "hp": 4000,
     "speed": 52,
-    "damage": 7,
+    "damage": 15,
     "radius": 10,
     "xp": 15,
     "texture": "trooper_melee"
@@ -75,7 +75,7 @@
     "name": "진압대 해커",
     "hp": 3200,
     "speed": 46,
-    "damage": 7,
+    "damage": 15,
     "radius": 10,
     "xp": 15,
     "texture": "trooper_hacker"
@@ -84,7 +84,7 @@
     "name": "진압대 저격수",
     "hp": 2400,
     "speed": 44,
-    "damage": 7,
+    "damage": 15,
     "radius": 10,
     "xp": 15,
     "texture": "trooper_sniper"
@@ -175,7 +175,7 @@
   },
   "rat_bot": {
     "name": "쥐떼 봇",
-    "hp": 8,
+    "hp": 18,
     "speed": 95,
     "damage": 5,
     "radius": 4,

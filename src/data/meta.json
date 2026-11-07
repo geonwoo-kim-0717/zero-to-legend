@@ -80,7 +80,8 @@
       "label": "NEURAL OVERCLOCK",
       "color": "#ff2bd6",
       "desc": "공격속도 2배, 적과 적 탄 속도 0.5배",
-      "cost": 1000
+      "cost": 1000,
+      "duration": 5
     },
     "berserk": {
       "name": "광전사 모드",

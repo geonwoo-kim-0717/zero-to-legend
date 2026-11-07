@@ -133,21 +133,15 @@
       "final": true,
       "title": "기업 전투메크 헥사워드",
       "chargeSpeed": 300,
-      "summon": "kamikaze",
-      "summonCount": 8,
-      "summonEvery": 7,
+      "summon": "sec_bot",
+      "summonCount": 5,
+      "summonEvery": 6,
       "rewardXp": 0,
       "firstWalk": 3,
       "walkTime": 4,
       "aimTime": 0.9,
       "chargeTime": 0.6,
       "firstSummon": 5,
-      "volley": {
-        "volleyEvery": 4,
-        "volleyCount": 12,
-        "bulletSpeed": 110,
-        "bulletDamage": 12
-      },
       "phase2": {
         "at": 0.5,
         "chargeCount": 3,
@@ -162,6 +156,12 @@
       "arena": {
         "w": 560,
         "h": 300
+      },
+      "missile": {
+        "every": 4,
+        "speed": 100,
+        "damage": 10,
+        "homingDist": 500
       }
     },
     {
@@ -185,7 +185,17 @@
         "volleyCount": 10,
         "bulletSpeed": 110,
         "bulletDamage": 12
-      }
+      },
+      "summons": [
+        {
+          "id": "corrupt_cop",
+          "count": 5
+        },
+        {
+          "id": "sec_bot",
+          "count": 2
+        }
+      ]
     },
     {
       "id": "boss3",
@@ -218,12 +228,31 @@
         "volleyEvery": 1.2,
         "volleyCount": 22,
         "bulletSpeed": 120,
-        "bulletDamage": 15
+        "bulletDamage": 15,
+        "shield": 4
       },
       "arena": {
         "w": 560,
         "h": 300
-      }
+      },
+      "summons": [
+        {
+          "id": "trooper_tank",
+          "count": 1
+        },
+        {
+          "id": "trooper_melee",
+          "count": 1
+        },
+        {
+          "id": "trooper_hacker",
+          "count": 1
+        },
+        {
+          "id": "trooper_sniper",
+          "count": 1
+        }
+      ]
     }
   ],
   "hpGrowthPerMin": 0.05,
@@ -248,7 +277,7 @@
       "range": 280,
       "interval": 3.5,
       "aim": 0.8,
-      "bulletSpeed": 260,
+      "bulletSpeed": 400,
       "bulletDamage": 14,
       "bulletLife": 2
     }
@@ -355,8 +384,8 @@
       "interval": 3.5,
       "aim": 1.0,
       "lock": 0.3,
-      "bulletSpeed": 340,
-      "bulletDamage": 15,
+      "bulletSpeed": 700,
+      "bulletDamage": 20,
       "bulletLife": 2
     },
     "hacker": {
@@ -399,8 +428,8 @@
   },
   "glitch": {
     "every": 3.5,
-    "min": 50,
-    "max": 90
+    "min": 90,
+    "max": 120
   },
   "counters": {
     "startZone": 1,

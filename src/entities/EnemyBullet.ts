@@ -16,6 +16,8 @@ export class EnemyBullet {
   }
 
   radius = 3;
+  /** 유도: 남은 추적 거리 (0이면 직진) */
+  homeDist = 0;
 
   fire(x: number, y: number, angle: number, speed: number, damage: number, life: number, scale = 1): void {
     this.active = true;
@@ -26,7 +28,20 @@ export class EnemyBullet {
     this.damage = damage;
     this.life = life;
     this.radius = 3 * scale;
+    this.homeDist = 0;
     this.sprite.setPosition(x, y).setVisible(true).setRotation(angle).setScale(scale);
+  }
+
+  /** 목표 쪽으로 방향을 튼다 (속도는 그대로). 추적 거리를 다 쓰면 직진 */
+  steer(tx: number, ty: number, dt: number): void {
+    const sp = Math.hypot(this.vx, this.vy) || 1;
+    const cur = Math.atan2(this.vy, this.vx);
+    const want = Math.atan2(ty - this.y, tx - this.x);
+    const a = cur + Phaser.Math.Clamp(Phaser.Math.Angle.Wrap(want - cur), -3 * dt, 3 * dt);
+    this.vx = Math.cos(a) * sp;
+    this.vy = Math.sin(a) * sp;
+    this.sprite.setRotation(a);
+    this.homeDist -= sp * dt;
   }
 
   update(dt: number): void {

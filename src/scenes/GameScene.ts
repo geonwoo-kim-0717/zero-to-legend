@@ -177,6 +177,8 @@ export class GameScene extends Phaser.Scene implements GameContext {
   private bossCharges = 0;
   private bossVolley = 0;
   private volleyRot = 0;
+  private bossShieldT = 0;
+  private bossMissile = 2;
   /** 최종 보스전의 붉은 홀로그램 경계 (월드 좌표) */
   private arena: { x: number; y: number; w: number; h: number; t: number } | null = null;
   private arenaG!: Phaser.GameObjects.Graphics;
@@ -436,6 +438,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
   // ───────────────────────────── GameContext ─────────────────────────────
   damage(e: Enemy, amount: number, tag?: DamageTag): boolean {
     if (!e.active) return false;
+    if (e === this.boss && this.bossShieldT > 0) return false;
     // 회피 기동 중인 진압대는 피해를 받지 않음
     if (e.dodgeT > 0) return false;
     const DG = gameData.squadAi.dodge;
@@ -1334,7 +1337,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
     if (!this.specialOn && this.odGauge >= 100) this.activateSpecial();
     if (this.specialOn) {
       this.odTime -= dt;
-      this.odGauge = (this.odTime / OD.duration) * 100;
+      this.odGauge = (this.odTime / this.specialDuration) * 100;
       if (this.overdrive) {
         this.odOverlay.setAlpha(0.06 + Math.sin(this.elapsed * 12) * 0.03);
         // 잔상 효과
@@ -1375,11 +1378,16 @@ export class GameScene extends Phaser.Scene implements GameContext {
   }
 
   /** 게이지가 가득 차면 장착한 특수 능력을 10초간 켠다 */
+  /** 특수 능력 지속 시간 (능력마다 따로 정할 수 있음, 없으면 공통값) */
+  private get specialDuration(): number {
+    return (SP[this.specialId] as { duration?: number }).duration ?? OD.duration;
+  }
+
   private activateSpecial(): void {
     const def = SP[this.specialId];
     const color = Phaser.Display.Color.HexStringToColor(def.color).color;
     this.specialOn = true;
-    this.odTime = OD.duration;
+    this.odTime = this.specialDuration;
     this.screenFlash(color, 0.3, 350);
     Sound.play('overclock');
     if (this.specialId === 'neural') {
@@ -1962,6 +1970,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
     const slow = this.overdrive ? OD.enemySpeedMul : 1;
     for (const b of this.enemyBullets.items) {
       if (!b.active) continue;
+      if (b.homeDist > 0) b.steer(p.x, p.y, dt * slow);
       b.update(dt * slow);
       if (!b.active) continue;
       if (p.invuln <= 0 && !this.untracked && (b.x - p.x) ** 2 + (b.y - p.y) ** 2 < (p.radius + b.radius) ** 2) {
@@ -2358,6 +2367,8 @@ export class GameScene extends Phaser.Scene implements GameContext {
       this.boss = this.spawnEnemy(id, bx, p.y, 1);
     }
     this.bossPhase2 = false;
+    this.bossShieldT = 0;
+    this.bossMissile = 2;
     this.bossCharges = 0;
     this.bossVolley = 2;
     this.bossPhase = 'walk';
@@ -2394,6 +2405,24 @@ export class GameScene extends Phaser.Scene implements GameContext {
       this.screenFlash(0xff2a3a, 0.25, 400);
       this.shake(300, 0.01);
       this.bossVolley = 1;
+      // 아르코난 코어: 2페이즈에 들어가면 방어벽을 세워 잠깐 무적
+      this.bossShieldT = (ph as { shield?: number }).shield ?? 0;
+    }
+    if (this.bossShieldT > 0) {
+      this.bossShieldT -= dt;
+      const k = 0.5 + Math.sin(this.elapsed * 14) * 0.25;
+      this.fx.lineStyle(3, 0x00f0ff, k).strokeCircle(b.x, b.y, b.radius + 14);
+      this.fx.fillStyle(0x00f0ff, 0.12).fillCircle(b.x, b.y, b.radius + 14);
+    }
+    // 헥사워드: 플레이어를 일정 거리만큼 쫓아가는 유도 미사일
+    const ms = (def as { missile?: { every: number; speed: number; damage: number; homingDist: number } }).missile;
+    if (ms && (this.bossMissile -= dt) <= 0) {
+      this.bossMissile = ms.every;
+      this.bossPulse(b);
+      const bl = this.enemyBullets.acquire();
+      bl.fire(b.x, b.y, Math.atan2(tg.y - b.y, tg.x - b.x), ms.speed, ms.damage, ms.homingDist / ms.speed + 1.5, 1.8);
+      bl.homeDist = ms.homingDist;
+      Sound.play('enemyshot');
     }
     const p2 = this.bossPhase2 && ph ? ph : null;
 
@@ -2452,11 +2481,13 @@ export class GameScene extends Phaser.Scene implements GameContext {
     if (this.bossSummon <= 0) {
       this.bossSummon = def.summonEvery;
       this.bossPulse(b);
-      const n = def.summonCount;
-      for (let i = 0; i < n; i++) {
+      // 소환 목록: summons가 있으면 여러 종류, 없으면 summon × summonCount
+      const list = ((def as { summons?: { id: string; count: number }[] }).summons ?? [{ id: def.summon, count: def.summonCount }]).flatMap((s) => Array<string>(s.count).fill(s.id));
+      const n = list.length;
+      list.forEach((id, i) => {
         const a = (i / n) * Math.PI * 2;
-        this.spawnEnemy(def.summon as EnemyId, b.x + Math.cos(a) * 40, b.y + Math.sin(a) * 40, hpScaleAt(this.elapsed - this.zoneStart) * this.zone.hpMul);
-      }
+        this.spawnEnemy(id as EnemyId, b.x + Math.cos(a) * 40, b.y + Math.sin(a) * 40, hpScaleAt(this.elapsed - this.zoneStart) * this.zone.hpMul);
+      });
     }
     this.animateBoss(b, def);
     // 보스가 화면에서 너무 멀어지면 다시 가까이

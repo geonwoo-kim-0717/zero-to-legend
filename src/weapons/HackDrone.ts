@@ -28,7 +28,7 @@ export class HackDrone extends WeaponBase {
   private readonly spreadBuf: Enemy[] = [];
   private zaps: Zap[] = [];
   private seekT = 1.5;
-  private crashT = 15;
+  private crashT = 10;
 
   private get droneCount(): number {
     return this.s.count * (this.has('swarm') ? 2 : 1);
@@ -141,7 +141,7 @@ export class HackDrone extends WeaponBase {
     }
     // 신화: 넷 붕괴
     if (this.has('netCrash') && (this.crashT -= dt) <= 0) {
-      this.crashT = 15;
+      this.crashT = 10;
       this.ctx.sfx('netcrash');
       this.ctx.screenFlash(0x00f0ff, 0.25, 250);
       for (const e of this.ctx.enemies) {

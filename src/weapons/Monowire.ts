@@ -77,6 +77,8 @@ export class Monowire extends WeaponBase {
     this.tickEffects(dt, COLORS.magenta);
   }
 
+  private readonly near: Enemy[] = [];
+
   private lash(angle: number, mul: number, wide = false): void {
     const p = this.ctx.player;
     const len = BASE_LEN * this.area;
@@ -84,9 +86,23 @@ export class Monowire extends WeaponBase {
     const y2 = p.y + Math.sin(angle) * len;
     const dmg = this.damage * mul;
     this.hitLine(p.x, p.y, x2, y2, 6, dmg, (e: Enemy, killed) => {
+      // Lv.4부터: 맞은 자리 주변 적 2명에게 확산 피해 (맞힌 피해의 50%)
+      if (this.level >= 4) {
+        let n = 0;
+        for (const o of this.ctx.grid.query(e.x, e.y, 50, this.near)) {
+          if (o === e || !o.active || (o.x - e.x) ** 2 + (o.y - e.y) ** 2 > 50 * 50) continue;
+          this.ctx.damage(o, dmg * 0.5, this.tag);
+          if (++n >= 2) break;
+        }
+      }
       if (killed) return;
       this.ctx.slow(e, 0.5);
-      if (this.has('entangle')) this.ctx.stun(e, 0.5);
+      // 맞은 일반 적은 1초 동안 아군이 되어 다른 적과 싸움
+      if (!e.isBoss) this.ctx.charm(e, 1);
+      if (this.has('entangle')) {
+        this.ctx.stun(e, 0.5);
+        for (const o of this.ctx.grid.query(e.x, e.y, 40, this.near)) if (o.active && (o.x - e.x) ** 2 + (o.y - e.y) ** 2 < 40 * 40) this.ctx.stun(o, 0.5);
+      }
       if (this.has('bleed')) this.addDot(e, 3, this.damage * 0.3);
       if (this.puppetLeft > 0 && !e.isBoss) {
         this.puppetLeft--;

@@ -57,7 +57,8 @@ export class PlasmaGrenade extends WeaponBase {
     this.chainBudget = Math.min(25, this.chainBudget + 25 * dt);
     this.timer -= dt;
     if (this.timer <= 0) {
-      this.timer = this.interval;
+      // 궤도 폭격: 유탄 대신 3초마다 하늘에서 폭격
+      this.timer = this.has('orbitalStrike') ? 3 : this.interval;
       for (let i = 0; i < this.s.count; i++) this.throwOne(p.x, p.y);
     }
 
@@ -164,7 +165,7 @@ export class PlasmaGrenade extends WeaponBase {
     this.ctx.player.attackPose(tx, 0.2);
     const r = BASE_R * this.area;
     if (orbital) {
-      this.grenades.push({ sx: tx, sy: ty, tx, ty, t: 0, fuse: 0.6, r: r * 3, dmg: this.damage, mini: false, orbital: true, sprite: null });
+      this.grenades.push({ sx: tx, sy: ty, tx, ty, t: 0, fuse: 0.6, r: r * 2, dmg: this.damage, mini: false, orbital: true, sprite: null });
     } else {
       this.launch(px, py, tx, ty, r, this.damage, false);
     }
