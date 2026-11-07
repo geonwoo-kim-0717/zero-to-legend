@@ -161,7 +161,9 @@
         "every": 4,
         "speed": 100,
         "damage": 10,
-        "homingDist": 500
+        "homingDist": 500,
+        "count": 4,
+        "spread": 0.4
       }
     },
     {

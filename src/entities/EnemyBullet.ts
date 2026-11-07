@@ -19,7 +19,7 @@ export class EnemyBullet {
   /** 유도: 남은 추적 거리 (0이면 직진) */
   homeDist = 0;
 
-  fire(x: number, y: number, angle: number, speed: number, damage: number, life: number, scale = 1): void {
+  fire(x: number, y: number, angle: number, speed: number, damage: number, life: number, scale = 1, texture = 'ebullet'): void {
     this.active = true;
     this.x = x;
     this.y = y;
@@ -29,7 +29,9 @@ export class EnemyBullet {
     this.life = life;
     this.radius = 3 * scale;
     this.homeDist = 0;
+    if (this.sprite.texture.key !== texture) this.sprite.setTexture(texture).setBlendMode(texture === 'ebullet' ? Phaser.BlendModes.ADD : Phaser.BlendModes.NORMAL);
     this.sprite.setPosition(x, y).setVisible(true).setRotation(angle).setScale(scale);
+    if (texture !== 'ebullet') this.radius = Math.max(this.radius, 4);
   }
 
   /** 목표 쪽으로 방향을 튼다 (속도는 그대로). 추적 거리를 다 쓰면 직진 */

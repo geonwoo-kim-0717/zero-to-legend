@@ -182,6 +182,8 @@ export class GameScene extends Phaser.Scene implements GameContext {
   private bossMinionHp = 0;
   private bossMinions: { e: Enemy; id: string }[] = [];
   private bossMissile = 2;
+  /** 보스 공격 모션을 보여줄 남은 시간 */
+  private bossAtkT = 0;
   /** 최종 보스전의 붉은 홀로그램 경계 (월드 좌표) */
   private arena: { x: number; y: number; w: number; h: number; t: number } | null = null;
   private arenaG!: Phaser.GameObjects.Graphics;
@@ -1880,7 +1882,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
   /** 보스 모션: 걷기 2프레임, 돌진 예고(떨림), 돌진 자세, 코어는 둥실 떠 있음 */
   private animateBoss(b: Enemy, def: BossDef): void {
     const ph = this.bossPhase;
-    const f = ph === 'aim' ? 'aim' : ph === 'charge' ? 'charge' : Math.floor(this.elapsed * 4) % 2 ? 'w1' : 'w2';
+    const f = ph === 'aim' || this.bossAtkT > 0 ? 'aim' : ph === 'charge' ? 'charge' : Math.floor(this.elapsed * 4) % 2 ? 'w1' : 'w2';
     const key = `${def.id}_${f}`;
     if (this.textures.exists(key) && b.sprite.texture.key !== key) b.sprite.setTexture(key);
     const core = def.id === 'boss3';
@@ -2372,6 +2374,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
     this.bossPhase2 = false;
     this.bossShieldT = 0;
     this.bossMissile = 2;
+    this.bossAtkT = 0;
     this.bossMinionHp = 0;
     this.bossMinions = [];
     this.bossCharges = 0;
@@ -2420,15 +2423,24 @@ export class GameScene extends Phaser.Scene implements GameContext {
       this.fx.fillStyle(0x00f0ff, 0.12).fillCircle(b.x, b.y, b.radius + 14);
     }
     // 헥사워드: 플레이어를 일정 거리만큼 쫓아가는 유도 미사일
-    const ms = (def as { missile?: { every: number; speed: number; damage: number; homingDist: number } }).missile;
+    const ms = (def as { missile?: { every: number; count?: number; spread?: number; speed: number; damage: number; homingDist: number } }).missile;
     if (ms && (this.bossMissile -= dt) <= 0) {
       this.bossMissile = ms.every;
       this.bossPulse(b);
-      const bl = this.enemyBullets.acquire();
-      bl.fire(b.x, b.y, Math.atan2(tg.y - b.y, tg.x - b.x), ms.speed, ms.damage, ms.homingDist / ms.speed + 1.5, 1.8);
-      bl.homeDist = ms.homingDist;
+      // 발사 순간 공격 모션(어깨 미사일 포드가 열린 프레임)을 잠깐 보여준다
+      this.bossAtkT = 0.45;
+      const n = ms.count ?? 1;
+      const base = Math.atan2(tg.y - b.y, tg.x - b.x);
+      const look = this.textures.exists('boss_missile') ? 'boss_missile' : undefined;
+      for (let i = 0; i < n; i++) {
+        const a = base + (n > 1 ? (i / (n - 1) - 0.5) * 2 * (ms.spread ?? 0.4) : 0);
+        const bl = this.enemyBullets.acquire();
+        bl.fire(b.x, b.y - b.radius * 0.4, a, ms.speed, ms.damage, ms.homingDist / ms.speed + 1.5, look ? 1 : 1.8, look);
+        bl.homeDist = ms.homingDist;
+      }
       Sound.play('enemyshot');
     }
+    if (this.bossAtkT > 0) this.bossAtkT -= dt;
     const p2 = this.bossPhase2 && ph ? ph : null;
 
     if (this.bossPhase === 'walk') {
