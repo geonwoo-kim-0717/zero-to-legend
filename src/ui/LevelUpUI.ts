@@ -35,7 +35,7 @@ export class LevelUpUI {
     );
 
     const cw = 176;
-    const ch = 214;
+    const ch = 232;
     const gap = 16;
     const x0 = VIEW_W / 2 - (choices.length * cw + (choices.length - 1) * gap) / 2;
     choices.forEach((c, i) => {
@@ -58,15 +58,22 @@ export class LevelUpUI {
           .setOrigin(1, 0),
       );
       const kind = t(c.kind === 'weapon' ? 'lvl.kind.weapon' : c.kind === 'passive' ? 'lvl.kind.passive' : 'lvl.kind.overflow');
-      add(s.add.text(x + cw / 2, y + 34, kind, { ...BASE_TEXT, fontSize: '11px', color: '#8a7aa8' }).setOrigin(0.5));
+      add(s.add.text(x + cw / 2, y + 8, kind, { ...BASE_TEXT, fontSize: '11px', color: '#8a7aa8' }).setOrigin(0.5, 0));
+      // 무기·사이버웨어 그림: 카드용 큰 그림(card_<id>)이 있으면 그것, 없으면 아이콘을 키워서
+      const img = s.textures.exists(`card_${c.id}`) ? `card_${c.id}` : s.textures.exists(`icon_${c.id}`) ? `icon_${c.id}` : null;
+      add(s.add.rectangle(x + cw / 2, y + 50, 56, 56, 0x07060f, 0.9).setStrokeStyle(1, col, 0.7));
+      if (img) {
+        const pic = add(s.add.image(x + cw / 2, y + 50, img));
+        pic.setScale(Math.min(48 / pic.width, 48 / pic.height));
+      }
       add(
         s.add
-          .text(x + cw / 2, y + 54, c.title, { ...BASE_TEXT, fontSize: '16px', color: c.rarity.color })
+          .text(x + cw / 2, y + 92, c.title, { ...BASE_TEXT, fontSize: '16px', color: c.rarity.color })
           .setOrigin(0.5),
       );
       add(
         s.add
-          .text(x + cw / 2, y + 76, c.levelLabel, {
+          .text(x + cw / 2, y + 112, c.levelLabel, {
             ...BASE_TEXT,
             fontSize: '11px',
             color: c.isNew ? '#fff23a' : '#39ff88',
@@ -75,7 +82,7 @@ export class LevelUpUI {
       );
       add(
         s.add
-          .text(x + cw / 2, y + 100, c.desc, {
+          .text(x + cw / 2, y + 128, c.desc, {
             ...BASE_TEXT,
             fontSize: '12px',
             color: '#e8f7ff',
@@ -86,10 +93,10 @@ export class LevelUpUI {
       );
       // 전설·신화: 특수 능력
       if (c.ability) {
-        add(s.add.rectangle(x + 10, y + 140, cw - 20, 1, col, 0.6).setOrigin(0));
+        add(s.add.rectangle(x + 10, y + 166, cw - 20, 1, col, 0.6).setOrigin(0));
         add(
           s.add
-            .text(x + cw / 2, y + 148, `★ ${c.ability.name}\n${c.ability.desc}`, {
+            .text(x + cw / 2, y + 172, `★ ${c.ability.name}\n${c.ability.desc}`, {
               ...BASE_TEXT,
               fontSize: '11px',
               color: c.rarity.color,
@@ -105,7 +112,7 @@ export class LevelUpUI {
     if (rerolls > 0) {
       const btn = add(
         s.add
-          .text(VIEW_W / 2, 314, t('lvl.reroll', { n: rerolls }), {
+          .text(VIEW_W / 2, 318, t('lvl.reroll', { n: rerolls }), {
             ...BASE_TEXT,
             fontSize: '12px',
             color: '#00f0ff',

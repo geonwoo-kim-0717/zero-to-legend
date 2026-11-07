@@ -591,6 +591,51 @@ export class GameScene extends Phaser.Scene implements GameContext {
     this.state = this.state === 'play' ? 'paused' : 'play';
     Sound.duck(this.state === 'paused' ? 0.3 : 1);
     this.hud.center.setText(this.state === 'paused' ? (isTouch() ? tr('pause.touch') : tr('pause.desktop')) : '').setVisible(this.state === 'paused');
+    this.showPauseMenu(this.state === 'paused');
+  }
+
+  private pauseUi: Phaser.GameObjects.GameObject[] = [];
+
+  /** 일시정지 화면의 '임무 포기' 버튼 (누르면 한 번 더 묻고, 포기하면 패배로 결과 화면) */
+  private showPauseMenu(on: boolean): void {
+    for (const o of this.pauseUi) o.destroy();
+    this.pauseUi = [];
+    if (!on) return;
+    // 뒤를 어둡게 해서 글자가 잘 보이게
+    this.pauseUi.push(this.add.rectangle(0, 0, VIEW_W, VIEW_H, 0x000000, 0.5).setOrigin(0).setScrollFactor(0).setDepth(99));
+    const btn = (x: number, y: number, label: string, color: string, onClick: () => void) => {
+      const b = this.add
+        .text(x, y, label, { ...TEXT, fontSize: '13px', color, backgroundColor: '#120a24', padding: { x: 12, y: 6 } })
+        .setOrigin(0.5)
+        .setScrollFactor(0)
+        .setDepth(130)
+        .setInteractive({ useHandCursor: true });
+      b.on('pointerup', () => onClick());
+      this.pauseUi.push(b);
+      return b;
+    };
+    btn(VIEW_W / 2, VIEW_H / 2 + 52, tr('pause.abandon'), '#ff5a6a', () => {
+      for (const o of this.pauseUi.slice(1)) o.destroy();
+      this.pauseUi = this.pauseUi.slice(0, 1);
+      this.hud.center.setVisible(false);
+      const ask = this.add
+        .text(VIEW_W / 2, VIEW_H / 2 + 20, tr('pause.abandonAsk'), { ...TEXT, fontSize: '12px', color: '#e8f7ff', align: 'center' })
+        .setOrigin(0.5)
+        .setScrollFactor(0)
+        .setDepth(130);
+      this.pauseUi.push(ask);
+      btn(VIEW_W / 2 - 50, VIEW_H / 2 + 76, tr('pause.yes'), '#ff5a6a', () => {
+        this.showPauseMenu(false);
+        this.hud.center.setVisible(false);
+        this.state = 'play';
+        Sound.duck(1);
+        this.endRun(false);
+      });
+      btn(VIEW_W / 2 + 50, VIEW_H / 2 + 76, tr('pause.no'), '#00f0ff', () => {
+        this.hud.center.setVisible(this.state === 'paused');
+        this.showPauseMenu(true);
+      });
+    });
   }
 
   private openLevelUp(): void {
