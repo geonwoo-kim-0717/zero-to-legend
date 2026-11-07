@@ -35,14 +35,17 @@ export class LevelUpUI {
     );
 
     const cw = 176;
-    const ch = 232;
+    const ch = 236;
     const gap = 16;
+    const cards: Phaser.GameObjects.Rectangle[] = [];
+    let bottom = 0;
     const x0 = VIEW_W / 2 - (choices.length * cw + (choices.length - 1) * gap) / 2;
     choices.forEach((c, i) => {
       const x = x0 + i * (cw + gap);
-      const y = 64;
+      const y = 60;
       const col = Phaser.Display.Color.HexStringToColor(c.rarity.color).color;
       const card = add(s.add.rectangle(x, y, cw, ch, 0x120a24, 0.95).setOrigin(0).setStrokeStyle(2, col));
+      cards.push(card);
       card.setInteractive({ useHandCursor: true });
       card.on('pointerover', () => {
         card.setFillStyle(0x23123f, 0.95);
@@ -80,7 +83,7 @@ export class LevelUpUI {
           })
           .setOrigin(0.5),
       );
-      add(
+      const descText = add(
         s.add
           .text(x + cw / 2, y + 128, c.desc, {
             ...BASE_TEXT,
@@ -93,26 +96,35 @@ export class LevelUpUI {
       );
       // 전설·신화: 특수 능력
       if (c.ability) {
-        add(s.add.rectangle(x + 10, y + 166, cw - 20, 1, col, 0.6).setOrigin(0));
+        // 설명이 길면 특수 능력 칸을 그만큼 아래로
+        const sepY = Math.max(y + 160, descText.y + descText.height + 6);
+        add(s.add.rectangle(x + 10, sepY, cw - 20, 1, col, 0.6).setOrigin(0));
         add(
           s.add
-            .text(x + cw / 2, y + 172, `★ ${c.ability.name}\n${c.ability.desc}`, {
+            .text(x + cw / 2, sepY + 6, `★ ${c.ability.name}\n${c.ability.desc}`, {
               ...BASE_TEXT,
               fontSize: '11px',
               color: c.rarity.color,
               align: 'center',
-              lineSpacing: 2,
+              lineSpacing: 1,
               wordWrap: { width: cw - 16, useAdvancedWrap: true },
             })
             .setOrigin(0.5, 0),
         );
+        const ab = this.objs[this.objs.length - 1] as Phaser.GameObjects.Text;
+        bottom = Math.max(bottom, ab.y + ab.height);
       }
+      bottom = Math.max(bottom, descText.y + descText.height);
     });
 
+    // 글이 긴 카드가 있으면 모든 카드를 같은 높이로 늘린다
+    const cardBottom = Math.max(60 + ch, bottom + 8);
+    for (const c of cards) c.height = cardBottom - c.y;
+    for (const c of cards) c.setSize(c.width, cardBottom - c.y);
     if (rerolls > 0) {
       const btn = add(
         s.add
-          .text(VIEW_W / 2, 318, t('lvl.reroll', { n: rerolls }), {
+          .text(VIEW_W / 2, Math.min(VIEW_H - 18, cardBottom + 20), t('lvl.reroll', { n: rerolls }), {
             ...BASE_TEXT,
             fontSize: '12px',
             color: '#00f0ff',
