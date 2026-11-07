@@ -1,5 +1,9 @@
 import Phaser from 'phaser';
 import enemies from '../data/enemies.json';
+import gameData from '../data/game.json';
+
+/** 보스 그림·판정 크기 배율 (game.json bossScale) */
+export const BOSS_SCALE = (gameData as { bossScale?: number }).bossScale ?? 1;
 
 export type EnemyId = keyof typeof enemies;
 export type EnemyDef = (typeof enemies)[EnemyId];
@@ -54,7 +58,7 @@ export class Enemy {
     this.hp = this.maxHp = def.hp * hpScale;
     this.speed = def.speed * (this.isBoss ? 1 : Phaser.Math.FloatBetween(0.9, 1.1));
     this.damage = def.damage;
-    this.radius = def.radius;
+    this.radius = def.radius * (this.isBoss ? BOSS_SCALE : 1);
     this.xp = def.xp;
     this.flash = 0;
     this.stun = 0;
@@ -66,7 +70,7 @@ export class Enemy {
     this.state = 'walk';
     this.t = 2 + Math.random() * 2;
     this.cd = 1 + Math.random() * 1.5;
-    this.sprite.setTexture(def.texture).setPosition(x, y).setVisible(true).clearTint().setFlipX(false).setScale(1).setAlpha(1).setDepth(this.isBoss ? 12 : 10);
+    this.sprite.setTexture(def.texture).setPosition(x, y).setVisible(true).clearTint().setFlipX(false).setScale(this.isBoss ? BOSS_SCALE : 1).setAlpha(1).setDepth(this.isBoss ? 12 : 10);
   }
 
   /** 피해를 주고, 죽었으면 true */

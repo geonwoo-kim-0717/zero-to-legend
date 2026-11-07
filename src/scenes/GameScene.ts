@@ -7,7 +7,7 @@ import abilitiesData from '../data/abilities.json';
 import weaponsData from '../data/weapons.json';
 import enemiesData from '../data/enemies.json';
 import { Player } from '../entities/Player';
-import { Enemy, type EnemyId } from '../entities/Enemy';
+import { Enemy, BOSS_SCALE, type EnemyId } from '../entities/Enemy';
 import { Projectile, type BulletOpts } from '../entities/Projectile';
 import { Pickup, type PickupKind } from '../entities/Pickup';
 import { EnemyBullet } from '../entities/EnemyBullet';
@@ -1899,8 +1899,8 @@ export class GameScene extends Phaser.Scene implements GameContext {
   /** 소환·탄막 때 보스가 한 번 들썩인다 */
   private bossPulse(b: Enemy): void {
     this.tweens.killTweensOf(b.sprite);
-    b.sprite.setScale(1);
-    this.tweens.add({ targets: b.sprite, scaleX: 1.15, scaleY: 0.88, duration: 90, yoyo: true });
+    b.sprite.setScale(BOSS_SCALE);
+    this.tweens.add({ targets: b.sprite, scaleX: 1.15 * BOSS_SCALE, scaleY: 0.88 * BOSS_SCALE, duration: 90, yoyo: true });
   }
 
   /** 저격 터렛: 제자리에서 조준선을 0.8초 보여준 뒤 강한 한 발 */
