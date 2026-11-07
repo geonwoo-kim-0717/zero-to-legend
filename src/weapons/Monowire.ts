@@ -25,7 +25,8 @@ export class Monowire extends WeaponBase {
   update(dt: number): void {
     const { player: p, fx } = this.ctx;
     this.timer -= dt;
-    if (this.timer <= 0) {
+    // 채찍 길이 안에 적이 있을 때만 휘두름
+    if (this.timer <= 0 && this.nearest(p.x, p.y, BASE_LEN * this.area + 8)) {
       this.timer = this.interval;
       const t = this.nearest(p.x, p.y, AIM_RANGE);
       const base = t ? Math.atan2(t.y - p.y, t.x - p.x) : Math.atan2(p.dirY, p.dirX);

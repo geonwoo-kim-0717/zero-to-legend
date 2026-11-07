@@ -20,7 +20,9 @@ export class MantisBlade extends WeaponBase {
     const { player: p, fx } = this.ctx;
     const whirl = this.has('whirlwind');
     this.timer -= dt;
-    if (this.timer <= 0) {
+    // 베기 범위(검기가 있으면 검기 사거리) 안에 적이 있을 때만 벰
+    const reach = this.has('swordWave') ? 260 : BASE_R * this.area * (whirl ? 1.15 : 1) + 8;
+    if (this.timer <= 0 && this.nearest(p.x, p.y, reach)) {
       this.timer = this.interval * (whirl ? 0.6 : 1);
       // 전설: 반격 자세 — 대시 직후 강화
       const counter = this.has('counterStance') && p.sinceDash < 0.5 ? 2 : 1;
