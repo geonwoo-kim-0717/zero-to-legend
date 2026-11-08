@@ -911,9 +911,6 @@
     },
     "c_firewall": {
       "name": "Firewall Drone"
-    },
-    "gun_drone": {
-      "name": "Security Gun Drone"
     }
   },
   "meta": {

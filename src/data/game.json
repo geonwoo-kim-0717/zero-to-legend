@@ -174,7 +174,7 @@
       "final": false,
       "title": "보안 집행관 프리즘",
       "chargeSpeed": 340,
-      "summon": "gun_drone",
+      "summon": "gunner",
       "summonCount": 5,
       "summonEvery": 8,
       "rewardXp": 80,
@@ -191,7 +191,7 @@
       },
       "summons": [
         {
-          "id": "gun_drone",
+          "id": "corrupt_cop",
           "count": 5
         },
         {
@@ -207,7 +207,7 @@
       "final": true,
       "title": "최종 AI 아르코난 코어",
       "chargeSpeed": 260,
-      "summon": "gun_drone",
+      "summon": "gunner",
       "summonCount": 6,
       "summonEvery": 8,
       "rewardXp": 0,
@@ -284,13 +284,6 @@
       "bulletSpeed": 400,
       "bulletDamage": 14,
       "bulletLife": 2
-    },
-    "gun_drone": {
-      "range": 180,
-      "interval": 2.6,
-      "bulletSpeed": 150,
-      "bulletDamage": 10,
-      "bulletLife": 3
     }
   },
   "spawn": {

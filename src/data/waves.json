@@ -163,7 +163,7 @@
       "count": 4,
       "weights": {
         "drone": 1,
-        "gun_drone": 1.5,
+        "gunner": 1.5,
         "kamikaze": 1,
         "glitch_ghost": 0.5
       }
@@ -175,9 +175,9 @@
       "count": 5,
       "weights": {
         "drone": 1,
-        "gun_drone": 1.5,
+        "gunner": 1.5,
         "kamikaze": 1,
-        "sec_bot": 0.3,
+        "psycho": 0.3,
         "glitch_ghost": 0.6,
         "sniper_turret": 0.3
       }
@@ -188,12 +188,14 @@
       "interval": 0.55,
       "count": 6,
       "weights": {
-        "drone": 1,
-        "gun_drone": 2.0,
+        "thug": 1,
+        "gunner": 1.5,
         "kamikaze": 1,
-        "sec_bot": 0.8,
+        "psycho": 0.4,
         "glitch_ghost": 0.7,
-        "sniper_turret": 0.3
+        "sniper_turret": 0.3,
+        "sec_bot": 0.4,
+        "corrupt_cop": 0.5
       }
     },
     {
@@ -203,11 +205,13 @@
       "count": 8,
       "weights": {
         "drone": 1,
-        "gun_drone": 2.1,
+        "gunner": 1.5,
         "kamikaze": 1.2,
-        "sec_bot": 0.9,
+        "psycho": 0.4,
         "glitch_ghost": 0.8,
-        "sniper_turret": 0.35
+        "sniper_turret": 0.35,
+        "sec_bot": 0.5,
+        "corrupt_cop": 0.6
       }
     },
     {
@@ -216,12 +220,16 @@
       "interval": 0.38,
       "count": 10,
       "weights": {
-        "drone": 2.3,
-        "gun_drone": 2.1,
+        "drone": 1,
+        "thug": 1,
+        "gunner": 1.5,
         "kamikaze": 1.2,
-        "sec_bot": 1.1,
+        "psycho": 0.5,
         "glitch_ghost": 0.9,
-        "sniper_turret": 0.4
+        "sniper_turret": 0.4,
+        "sec_bot": 0.6,
+        "corrupt_cop": 0.6,
+        "rat_bot": 0.3
       }
     },
     {
@@ -230,7 +238,7 @@
       "interval": 0.9,
       "count": 4,
       "weights": {
-        "gun_drone": 1,
+        "gunner": 1,
         "kamikaze": 1
       }
     }

@@ -1104,7 +1104,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
         const d = Math.hypot(dx, dy) || 1;
         let vx = (dx / d) * e.speed * slow;
         let vy = (dy / d) * e.speed * slow;
-        if (e.id === 'gunner' || e.id === 'corrupt_cop' || e.id === 'gun_drone') {
+        if (e.id === 'gunner' || e.id === 'corrupt_cop') {
           // 사거리 안쪽을 유지하며 옆으로 돌다가 플레이어를 향해 사격 (부패 경찰은 3발 부채꼴)
           const rg = gameData.ranged[e.id] as { range: number; interval: number; bulletSpeed: number; bulletDamage: number; bulletLife: number; spread?: number; shots?: number };
           if (d < rg.range * 0.6) {
@@ -1179,7 +1179,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
         if (e.id === 'trooper_sniper') this.sniperAi(e, dt, dx, dy, d, slow, (x, y) => ((vx = x), (vy = y)));
         else if (e.id === 'trooper_hacker') this.hackerAi(e, dt, dx, dy, d, slow, (x, y) => ((vx = x), (vy = y)));
         // 그림이 오른쪽을 보고 있으므로 플레이어가 왼쪽에 있으면 뒤집는다 (드론은 대칭이라 그대로)
-        if (e.id !== 'drone' && e.id !== 'gun_drone') e.sprite.setFlipX(dx < 0);
+        if (e.id !== 'drone') e.sprite.setFlipX(dx < 0);
         this.animateEnemy(e, dt, d);
         // 주변 적과 겹치지 않도록 밀어냄
         for (const o of this.grid.query(e.x, e.y, e.radius * 2, this.near)) {
@@ -1480,7 +1480,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
       this.streakT = 3;
     }
     if (this.pHas('killRush')) this.rushT = 1;
-    if (e.id === 'drone' || e.id === 'gun_drone') this.run.droneKills++;
+    if (e.id === 'drone') this.run.droneKills++;
     else if (e.id.startsWith('trooper')) this.run.trooperKills++;
     e.kill();
   }

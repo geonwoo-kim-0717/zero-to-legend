@@ -8,15 +8,6 @@
     "xp": 1,
     "texture": "drone"
   },
-  "gun_drone": {
-    "name": "보안 사격 드론",
-    "hp": 55,
-    "speed": 42,
-    "damage": 8,
-    "radius": 7,
-    "xp": 3,
-    "texture": "drone"
-  },
   "thug": {
     "name": "거리 갱단",
     "hp": 55,
