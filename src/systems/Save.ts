@@ -40,6 +40,10 @@ export interface SaveData {
   market: string[];
   /** 산 무기 중 꺼 둔 것 (레벨업 카드에 나오지 않음) */
   marketOff: string[];
+  /** 2챕터 첫 도달 때 픽서에게 받은 시공간 가속 모듈 (2배속) */
+  speedUnlocked: boolean;
+  /** 마지막으로 고른 배속 (켜 두면 다음 판도 2배속으로 시작) */
+  speed2: boolean;
 }
 
 /** 한 판에서 얻은 기록. 결과 화면에서 저장에 더한다 */
@@ -73,6 +77,8 @@ function fresh(): SaveData {
     heatMax: 0,
     market: [],
     marketOff: [],
+    speedUnlocked: false,
+    speed2: false,
     stats: { runs: 0, totalKills: 0, droneKills: 0, meleeKills: 0, trooperKills: 0, midbossKills: 0, bossKills: 0, hexKills: 0, coreKills: 0, marketBuys: 0, totalTime: 0, bestTime: 0, bestLevel: 0 },
   };
 }

@@ -283,6 +283,10 @@ export class GameScene extends Phaser.Scene implements GameContext {
     this.odGauge = this.odTime = this.ghostTimer = 0;
     this.ghosts = [];
     this.phoneQueue = [];
+    // 이전 판의 이펙트·말풍선은 장면이 끝날 때 이미 지워졌으므로 목록도 비운다
+    this.fxLive = [];
+    this.fxFree = [];
+    this.shouts = [];
     this.phoneBox = null;
     this.warnedBoss = '';
     this.warnedRaid = -1;
@@ -351,19 +355,21 @@ export class GameScene extends Phaser.Scene implements GameContext {
     const muteBtn = addMuteToggle(this, 8, VIEW_H - 18, 0);
     const fxBtn = addFxToggle(this, muteBtn.x + muteBtn.width + 12, VIEW_H - 18, 0);
     addFullscreenToggle(this, fxBtn.x + fxBtn.width + 12, VIEW_H - 18, 0);
-    if (isTouch()) {
-      // 터치 기기에는 Esc가 없으므로 일시정지 버튼을 둔다
-      const pb = this.add
-        .text(VIEW_W - 8, 30, 'Ⅱ', { ...TEXT, fontSize: '16px', color: '#e8f7ff', backgroundColor: '#1a1030', padding: { x: 8, y: 2 } })
-        .setOrigin(1, 0)
-        .setScrollFactor(0)
-        .setDepth(160)
-        .setInteractive();
-      pb.on('pointerdown', (_p: Phaser.Input.Pointer, _x: number, _y: number, e: Phaser.Types.Input.EventData) => {
-        e.stopPropagation();
-        if (this.state === 'play') this.togglePause();
-      });
-    }
+    // 일시정지 버튼 (터치 기기에는 Esc가 없고, PC에서도 눌러서 멈출 수 있게)
+    const pb = this.add
+      .text(VIEW_W - 8, 42, 'Ⅱ', { ...TEXT, fontSize: '14px', color: '#e8f7ff', backgroundColor: '#1a1030', padding: { x: 8, y: 2 } })
+      .setOrigin(1, 0)
+      .setScrollFactor(0)
+      .setDepth(160)
+      .setInteractive({ useHandCursor: true });
+    pb.on('pointerdown', (_p: Phaser.Input.Pointer, _x: number, _y: number, e: Phaser.Types.Input.EventData) => {
+      e.stopPropagation();
+      if (this.state === 'play') this.togglePause();
+    });
+    this.pauseBtn = pb;
+    this.speedBtn = null;
+    this.gameSpeed = Save.data.speedUnlocked && Save.data.speed2 ? 2 : 1;
+    if (Save.data.speedUnlocked) this.makeSpeedBtn();
     // 1챕터 의뢰 브리핑
     this.startDialog((ZONES[0] as Zone & { intro?: Line[] }).intro ?? [], () => undefined);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
@@ -659,6 +665,62 @@ export class GameScene extends Phaser.Scene implements GameContext {
   }
 
   private pauseUi: Phaser.GameObjects.GameObject[] = [];
+  private pauseBtn!: Phaser.GameObjects.Text;
+  /** 시공간 가속 모듈: 1배속 / 2배속 (2챕터 첫 도달 때 영구 해금) */
+  private speedBtn: Phaser.GameObjects.Container | null = null;
+  private gameSpeed = 1;
+
+  /** 일시정지 버튼 왼쪽의 배속 버튼 (▶ 1X / ▶▶ 2X, 삼각형은 글꼴 대신 직접 그림) */
+  private makeSpeedBtn(): void {
+    const h = this.pauseBtn.height;
+    const w = 48;
+    const b = this.add
+      .container(this.pauseBtn.x - this.pauseBtn.width - 4 - w, this.pauseBtn.y)
+      .setScrollFactor(0)
+      .setDepth(160)
+      .setSize(w, h)
+      .setInteractive();
+    b.add(this.add.rectangle(0, 0, w, h, 0x1a1030).setOrigin(0));
+    b.add(this.add.graphics());
+    b.add(this.add.text(w - 6, h / 2, '', { ...TEXT, fontSize: '12px' }).setOrigin(1, 0.5));
+    if (b.input) b.input.cursor = 'pointer';
+    b.on('pointerdown', (_p: Phaser.Input.Pointer, _x: number, _y: number, e: Phaser.Types.Input.EventData) => {
+      e.stopPropagation();
+      if (this.state !== 'play') return;
+      this.setSpeed(this.gameSpeed === 2 ? 1 : 2);
+      Sound.play('select');
+    });
+    this.speedBtn = b;
+    this.setSpeed(this.gameSpeed);
+  }
+
+  private setSpeed(v: number): void {
+    this.gameSpeed = v;
+    if (Save.data.speed2 !== (v === 2)) {
+      Save.data.speed2 = v === 2;
+      Save.write();
+    }
+    const b = this.speedBtn;
+    if (!b) return;
+    const [bg, g, label] = b.list as [Phaser.GameObjects.Rectangle, Phaser.GameObjects.Graphics, Phaser.GameObjects.Text];
+    const on = v === 2;
+    bg.setFillStyle(on ? COLORS.cyan : 0x1a1030);
+    const ink = on ? 0x07060f : 0xe8f7ff;
+    label.setText(on ? '2X' : '1X').setColor(on ? '#07060f' : '#e8f7ff');
+    const cy = b.height / 2;
+    g.clear().fillStyle(ink);
+    for (let i = 0; i < v; i++) g.fillTriangle(7 + i * 8, cy - 5, 7 + i * 8, cy + 5, 14 + i * 8, cy);
+  }
+
+  /** 2챕터 첫 도달: 픽서가 넘겨 준 가속 모듈 제어 코드로 배속 버튼이 열린다 */
+  private unlockSpeed(): void {
+    if (Save.data.speedUnlocked) return;
+    Save.data.speedUnlocked = true;
+    Save.write();
+    this.makeSpeedBtn();
+    const b = this.speedBtn!;
+    this.tweens.add({ targets: b, alpha: 0.25, duration: 200, yoyo: true, repeat: 4, ease: 'Sine.inOut' });
+  }
 
   /** 일시정지 화면의 '임무 포기' 버튼 (누르면 한 번 더 묻고, 포기하면 패배로 결과 화면) */
   private showPauseMenu(on: boolean): void {
@@ -826,7 +888,14 @@ export class GameScene extends Phaser.Scene implements GameContext {
     // 포털에 '지금 조작 중인지' 알림 (레벨업·대화·일시정지·이월 화면은 플레이 아님)
     Ads.setPlaying(this.state === 'play');
     if (this.state !== 'play') return;
-    const realDt = Math.min(deltaMs / 1000, 0.05);
+    // 2배속은 한 번에 큰 걸음 대신 작은 걸음 여러 번 (빠른 탄이 적을 뚫고 지나가지 않게)
+    const total = Math.min(deltaMs / 1000, 0.05) * this.gameSpeed;
+    const steps = this.gameSpeed > 1 ? Math.ceil(total / 0.034) : 1;
+    for (let i = 0; i < steps && this.state === 'play'; i++) this.step(total / steps);
+  }
+
+  /** 게임 시간 한 걸음 (realDt: 오버클럭 감속 전의 시간) */
+  private step(realDt: number): void {
     // 뉴럴 오버클럭 발동 직후: 시간이 느려졌다가 원래 속도로 돌아온다
     let timeScale = 1;
     if (this.slowmo > 0) {
@@ -1668,7 +1737,14 @@ export class GameScene extends Phaser.Scene implements GameContext {
 
   private startZoneDialog(): void {
     const next = ZONES[this.zoneIdx + 1] as Zone & { intro?: Line[] };
-    this.startDialog(next.intro ?? [], () => this.enterNextZone());
+    const lines = [...(next.intro ?? [])];
+    // 2챕터 첫 도달: 픽서가 시공간 가속 모듈 제어 코드를 넘겨 준다
+    const gift = this.zoneIdx === 0 && !Save.data.speedUnlocked;
+    if (gift) lines.push({ who: 'client', text: tr('speed.gift1') }, { who: 'client', text: tr('speed.gift2') }, { who: 'runner', text: tr('speed.gift3') });
+    this.startDialog(lines, () => {
+      this.enterNextZone();
+      if (gift) this.unlockSpeed();
+    });
   }
 
   private enterNextZone(): void {
