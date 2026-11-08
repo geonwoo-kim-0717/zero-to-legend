@@ -18,8 +18,10 @@ def nobg(a, step=7, minv=120, sat=0.14, holes=14):
             if 0<=ny<h and 0<=nx<w and not bg[ny,nx] and ok[ny,nx] and abs(a[ny,nx]-a[y,x]).max()<=step: bg[ny,nx]=1; q.append((ny,nx))
     if holes: ref=np.median(a[bg],0); bg|=ok&(np.abs(a-ref).max(2)<holes)
     return np.dstack([a,np.where(bg,0,255)]).astype(np.uint8)
-def card(src, out, S=48, pad=1):
+ROT={"railgun":32,"shotgun":32,"mantisBlade":20}   # long side-on weapons: tilt to use the square card box
+def card(src, out, S=48, pad=1, rot=0):
     a=nobg(np.asarray(Image.open(src).convert("RGB")))
+    if rot: a=np.asarray(Image.fromarray(a,"RGBA").rotate(rot,resample=Image.BICUBIC,expand=True))
     ys,xs=np.where(a[...,3]>0); a=a[ys.min():ys.max()+1, xs.min():xs.max()+1]
     h,w=a.shape[:2]; n=S-2*pad; cs=max(h,w)/n; gw,gh=round(w/cs),round(h/cs)
     g=np.full((gh,gw),-1)
@@ -42,4 +44,4 @@ def card(src, out, S=48, pad=1):
 if __name__=="__main__":
     os.makedirs("out",exist_ok=True)
     for f in sorted(os.listdir("src")):
-        k=f[:-4]; card(f"src/{f}", f"out/card_{k}.png"); print(k)
+        k=f[:-4]; card(f"src/{f}", f"out/card_{k}.png", rot=ROT.get(k,0)); print(k)
