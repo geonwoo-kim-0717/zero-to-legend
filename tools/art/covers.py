@@ -11,10 +11,9 @@ FONT = sys.argv[1]
 def scene(zoom):
     return A.scene_slum().resize((A.SW * zoom, A.SH * zoom), Image.NEAREST)
 
-def title(img, cx, cy, size):
+def title(img, cx, cy, size, text='ZERO TO LEGEND'):
     d = ImageDraw.Draw(img)
     f = ImageFont.truetype(FONT, size)
-    text = 'ZERO TO LEGEND'
     w = d.textlength(text, font=f)
     glow = Image.new('RGBA', img.size, (0, 0, 0, 0))
     ImageDraw.Draw(glow).text((cx - w / 2, cy), text, font=f, fill=(255, 43, 214, 255))
@@ -44,7 +43,9 @@ x0 = (base.width - 800) // 2
 port = base.crop((x0, 0, x0 + 800, 1200)) if base.height >= 1200 else base.crop((x0, 0, x0 + 800, base.height)).resize((800, 1200), Image.NEAREST)
 darken(port, 110)
 hero(port, 400, 760, 9)
-title(port, 400, 170, 92)
+# 세로는 폭이 좁아 두 줄로 (가장자리에 붙지 않게)
+title(port, 400, 150, 120, 'ZERO TO')
+title(port, 400, 290, 120, 'LEGEND')
 port.convert('RGB').save(os.path.join(OUT, 'cover-portrait-800x1200.png'))
 
 # 정사각 800x800
@@ -52,7 +53,8 @@ sq = scene(3).convert('RGBA')
 x0 = (sq.width - 800) // 2
 sq = sq.crop((x0, 0, x0 + 800, 800)) if sq.height >= 800 else sq.crop((x0, 0, x0 + 800, sq.height)).resize((800, 800), Image.NEAREST)
 darken(sq, 100)
-hero(sq, 400, 520, 7)
+# 장면 속 작은 러너를 큰 러너가 덮도록 가운데에
+hero(sq, 400, 430, 7)
 title(sq, 400, 120, 82)
 sq.convert('RGB').save(os.path.join(OUT, 'cover-square-800x800.png'))
 print('ok')
