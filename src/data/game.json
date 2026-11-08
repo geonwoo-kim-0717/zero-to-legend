@@ -503,7 +503,7 @@
     "title": "CHAPTER CARRY-OVER"
   },
   "fixerWarnLead": 5,
-  "fixerWarnShow": 4.5,
+  "fixerWarnShow": 3.3,
   "maxedAbilityChance": 0.15,
   "enemyDamageGrowthPerMin": 0.04,
   "bossScale": 1.3

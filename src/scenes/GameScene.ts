@@ -1090,7 +1090,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
 
   /** 처음 만나는 적이면 진이 문자로 정체와 주의할 점을 알려 준다 (저장해서 다음 판부터는 생략) */
   private introduceUnit(e: Enemy): void {
-    if (e.isBoss || Save.data.seenUnits.includes(e.tex)) return;
+    if (e.isBoss || e.id.startsWith('trooper_') || Save.data.seenUnits.includes(e.tex)) return; // 블랙 실드는 출동 알림만
     const guide = this.skin(e.id)?.guide ?? (enemiesData[e.id] as { guide?: string }).guide;
     if (!guide) return;
     Save.data.seenUnits.push(e.tex);
@@ -1817,7 +1817,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
       .setDepth(120)
       .setShadow(0, 0, '#00f0ff', 10, true, true);
     const hint = this.add.text(VIEW_W / 2, VIEW_H / 2 - 18, z.ruleHint, { ...TEXT, fontSize: '12px', color: '#fff23a' }).setOrigin(0.5).setScrollFactor(0).setDepth(120);
-    this.tweens.add({ targets: [t, hint], alpha: 0, delay: fanfare ? 2600 : 1600, duration: 700, onComplete: () => (t.destroy(), hint.destroy()) });
+    this.tweens.add({ targets: [t, hint], alpha: 0, delay: fanfare ? 2000 : 1200, duration: 600, onComplete: () => (t.destroy(), hint.destroy()) });
   }
 
   /** 구역 보스 처치 직후: 화면의 일반 적을 터뜨리고 탄을 지우며 경험치를 모두 끌어온다 */
@@ -1886,7 +1886,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
           .setOrigin(0.5, 0)
           .setScrollFactor(0)
           .setDepth(120);
-        this.tweens.add({ targets: t, alpha: 0, delay: 3500, duration: 600, onComplete: () => t.destroy() });
+        this.tweens.add({ targets: t, alpha: 0, delay: 2400, duration: 500, onComplete: () => t.destroy() });
         Sound.play('bosswarn');
       }
     }
@@ -2036,7 +2036,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
       .setOrigin(0.5)
       .setScrollFactor(0)
       .setDepth(120);
-    this.tweens.add({ targets: t, alpha: 0, delay: 2200, duration: 600, onComplete: () => t.destroy() });
+    this.tweens.add({ targets: t, alpha: 0, delay: 1600, duration: 500, onComplete: () => t.destroy() });
   }
 
   // ───────────────────────────── 의뢰인 대화 ─────────────────────────────
@@ -2500,7 +2500,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
         .setOrigin(0.5)
         .setScrollFactor(0)
         .setDepth(120);
-      this.tweens.add({ targets: warn, alpha: 0.2, duration: 220, yoyo: true, repeat: 5, onComplete: () => warn.destroy() });
+      this.tweens.add({ targets: warn, alpha: 0.2, duration: 200, yoyo: true, repeat: 3, onComplete: () => warn.destroy() });
       // 블랙 실드 출동 경보: 오르내리는 사이렌
       Sound.play('raidsiren');
       return;
