@@ -18,8 +18,10 @@ def nobg(a, step=7, minv=120, sat=0.14, holes=14):
             if 0<=ny<h and 0<=nx<w and not bg[ny,nx] and ok[ny,nx] and abs(a[ny,nx]-a[y,x]).max()<=step: bg[ny,nx]=1; q.append((ny,nx))
     if holes: ref=np.median(a[bg],0); bg|=ok&(np.abs(a-ref).max(2)<holes)
     return np.dstack([a,np.where(bg,0,255)]).astype(np.uint8)
-def card(src, out, S=48, pad=1):
+ROT={"railgun":32,"shotgun":32,"mantisBlade":20}   # long side-on weapons: tilt to use the square card box
+def card(src, out, S=48, pad=1, rot=0, mute=0.0):
     a=nobg(np.asarray(Image.open(src).convert("RGB")))
+    if rot: a=np.asarray(Image.fromarray(a,"RGBA").rotate(rot,resample=Image.BICUBIC,expand=True))
     ys,xs=np.where(a[...,3]>0); a=a[ys.min():ys.max()+1, xs.min():xs.max()+1]
     h,w=a.shape[:2]; n=S-2*pad; cs=max(h,w)/n; gw,gh=round(w/cs),round(h/cs)
     g=np.full((gh,gw),-1)
@@ -29,9 +31,12 @@ def card(src, out, S=48, pad=1):
             if not len(sol): continue
             f=[cls(c) for c in sol]; nf=sum(v is not None for v in f)
             if len(sol)<0.4*len(cell) and not (len(sol)>=0.15*len(cell) and nf>=0.6*len(sol)): continue
-            best=next((k for k in (10,11,13,8,6,14) if f.count(k)>=0.3*len(sol)),None)
+            keep=(10,11,13,8,6,14) if not mute else (10,11,13)          # muted: only real light sources stay as glows
+            best=next((k for k in keep if f.count(k)>=(0.3 if not mute else 0.5)*len(sol)),None)
             if best is None and f.count(5)>=0.3*len(sol): best=5
-            g[y,x]=best if best is not None else near(sol.mean(0))
+            m=sol.mean(0)
+            if mute: lum=m@[0.3,0.59,0.11]; m=m+(lum-m)*mute; m=m*(1-0.18*mute)   # pull rim-light neon toward grey, a bit darker
+            g[y,x]=best if best is not None else near(m)
     img=np.zeros((S,S,4),np.uint8); oy,ox=(S-gh)//2,(S-gw)//2
     full=np.full((S,S),-1); full[oy:oy+gh,ox:ox+gw]=g
     for y in range(S):
@@ -40,6 +45,7 @@ def card(src, out, S=48, pad=1):
             elif any(0<=y+dy<S and 0<=x+dx<S and full[y+dy,x+dx]>=0 for dy,dx in((1,0),(-1,0),(0,1),(0,-1))): img[y,x]=[7,6,15,255]
     Image.fromarray(img,"RGBA").save(out)
 if __name__=="__main__":
-    os.makedirs("out",exist_ok=True)
+    mute=float(sys.argv[1]) if len(sys.argv)>1 else 0.0; od=sys.argv[2] if len(sys.argv)>2 else "out"
+    os.makedirs(od,exist_ok=True)
     for f in sorted(os.listdir("src")):
-        k=f[:-4]; card(f"src/{f}", f"out/card_{k}.png"); print(k)
+        k=f[:-4]; card(f"src/{f}", f"{od}/card_{k}.png", rot=ROT.get(k,0), mute=mute); print(k)
