@@ -694,7 +694,8 @@ export class GameScene extends Phaser.Scene implements GameContext {
       .setScrollFactor(0)
       .setDepth(160)
       .setSize(w, h)
-      .setInteractive();
+      // 컨테이너의 판정 영역은 가운데 기준이라 (w/2, h/2)만큼 옮겨 그림과 맞추고, 손가락용으로 위·아래·왼쪽을 넉넉히 넓힌다
+      .setInteractive(new Phaser.Geom.Rectangle(w / 2 - 10, h / 2 - 8, w + 12, h + 16), Phaser.Geom.Rectangle.Contains);
     b.add(this.add.rectangle(0, 0, w, h, 0x1a1030).setOrigin(0));
     b.add(this.add.graphics());
     b.add(this.add.text(w - 6, h / 2, '', { ...TEXT, fontSize: '12px' }).setOrigin(1, 0.5));

@@ -6,6 +6,23 @@ import { toggleFullscreen, notify } from '../systems/Fullscreen';
 import { t as tr, I18n } from '../i18n';
 import { Ads } from '../systems/Ads';
 
+/** 작은 글자 버튼도 손가락으로 누르기 쉽게 판정 영역을 좌우 6px·위아래 10px 넓힌다 (라벨이 바뀌면 다시 맞춤) */
+function padHit(t: Phaser.GameObjects.Text, px = 6, py = 10): Phaser.GameObjects.Text {
+  const fit = () => {
+    const r = new Phaser.Geom.Rectangle(-px, -py, t.width + px * 2, t.height + py * 2);
+    if (t.input) t.input.hitArea = r;
+    else t.setInteractive({ hitArea: r, hitAreaCallback: Phaser.Geom.Rectangle.Contains, useHandCursor: true });
+  };
+  fit();
+  const setText = t.setText.bind(t);
+  t.setText = ((v: string | string[]) => {
+    setText(v);
+    fit();
+    return t;
+  }) as typeof t.setText;
+  return t;
+}
+
 const label = () => (Sound.muted ? tr('ui.sound.off') : tr('ui.sound.on'));
 
 /** 화면 구석의 소리 켜기/끄기 버튼 + M 키. 클릭·탭·키 모두 지원 */
@@ -14,8 +31,8 @@ export function addMuteToggle(scene: Phaser.Scene, x: number, y: number, originX
     .text(x, y, label(), { ...BASE_TEXT, fontSize: '11px', color: '#8a7aa8' })
     .setOrigin(originX, 0)
     .setScrollFactor(0)
-    .setDepth(160)
-    .setInteractive({ useHandCursor: true });
+    .setDepth(160);
+  padHit(t);
   const toggle = () => {
     Sound.toggleMute();
     t.setText(label()).setColor(Sound.muted ? '#5a4a78' : '#8a7aa8');
@@ -37,8 +54,8 @@ export function addFxToggle(scene: Phaser.Scene, x: number, y: number, originX =
     .text(x, y, fxLabel(), { ...BASE_TEXT, fontSize: '11px', color: '#8a7aa8' })
     .setOrigin(originX, 0)
     .setScrollFactor(0)
-    .setDepth(160)
-    .setInteractive({ useHandCursor: true });
+    .setDepth(160);
+  padHit(t);
   const toggle = () => {
     Settings.toggleReducedFx();
     t.setText(fxLabel());
@@ -59,8 +76,8 @@ export function addFullscreenToggle(scene: Phaser.Scene, x: number, y: number, o
     .text(x, y, label(), { ...BASE_TEXT, fontSize: '11px', color: '#8a7aa8' })
     .setOrigin(originX, 0)
     .setScrollFactor(0)
-    .setDepth(160)
-    .setInteractive({ useHandCursor: true });
+    .setDepth(160);
+  padHit(t);
   // CrazyGames는 게임 안 전체화면 버튼을 금지한다 (포털이 제공)
   if (Ads.provider === 'crazygames') return t.setVisible(false).disableInteractive();
   t.on('pointerup', (_p: Phaser.Input.Pointer, _x: number, _y: number, e: Phaser.Types.Input.EventData) => {
@@ -91,8 +108,8 @@ export function addLangToggle(scene: Phaser.Scene, x: number, y: number, originX
     .text(x, y, tr('ui.lang'), { ...BASE_TEXT, fontSize: '11px', color: '#8a7aa8' })
     .setOrigin(originX, 0)
     .setScrollFactor(0)
-    .setDepth(160)
-    .setInteractive({ useHandCursor: true });
+    .setDepth(160);
+  padHit(t);
   const toggle = () => {
     I18n.toggle();
     scene.scene.restart();
