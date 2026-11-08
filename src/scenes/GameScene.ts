@@ -213,6 +213,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
   private warnedBoss = '';
   private warnedRaid = -1;
   private bountySent = false;
+  private chatterT = 15;
   /** 작은 반복 강화로 쌓인 수치 */
   private overflow: Record<string, number> = {};
   private mergeT = 0;
@@ -298,6 +299,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
     this.warnedBoss = '';
     this.warnedRaid = -1;
     this.bountySent = false;
+    this.chatterT = 15;
     this.boss = null;
     this.bossDef = null;
     this.bossesSpawned = 0;
@@ -1064,6 +1066,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
     this.updateEnemyBullets(dt);
     this.updateFx(dt);
     this.updateShouts(dt);
+    this.updateChatter(dt);
     this.drawOverclockFx(realDt);
     this.updatePickups(dt);
     this.updateHud();
@@ -1081,12 +1084,38 @@ export class GameScene extends Phaser.Scene implements GameContext {
       e.tex = sk.texture;
       e.sprite.setTexture(sk.texture);
     }
+    this.introduceUnit(e);
     return e;
   }
 
+  /** 처음 만나는 적이면 진이 문자로 정체와 주의할 점을 알려 준다 (저장해서 다음 판부터는 생략) */
+  private introduceUnit(e: Enemy): void {
+    if (e.isBoss || Save.data.seenUnits.includes(e.tex)) return;
+    const guide = this.skin(e.id)?.guide ?? (enemiesData[e.id] as { guide?: string }).guide;
+    if (!guide) return;
+    Save.data.seenUnits.push(e.tex);
+    Save.write();
+    this.phoneText(guide);
+  }
+
+  /** 일반 적이 아주 가끔 한마디 (화면 안에 있는 적 중 하나, 12~20초마다) */
+  private updateChatter(dt: number): void {
+    if ((this.chatterT -= dt) > 0) return;
+    this.chatterT = Phaser.Math.FloatBetween(12, 20);
+    const pick: { e: Enemy; lines: string[] }[] = [];
+    for (const e of this.enemyPool.items) {
+      if (!e.active || e.isBoss || !this.onScreen(e.x, e.y)) continue;
+      const lines = this.skin(e.id)?.lines ?? (enemiesData[e.id] as { lines?: string[] }).lines;
+      if (lines?.length) pick.push({ e, lines });
+    }
+    if (!pick.length) return;
+    const c = pick[Math.floor(Math.random() * pick.length)];
+    this.shout(c.e, c.lines[Math.floor(Math.random() * c.lines.length)], 0);
+  }
+
   /** 구역별 겉모습: 같은 능력치의 적을 그 구역에 어울리는 그림·이름으로 (예: 기업 타워의 보안 요원). 그림이 없으면 원래대로 */
-  private skin(id: string): { texture: string; name: string } | null {
-    const s = (this.zone as { skins?: Record<string, { texture: string; name: string }> }).skins?.[id];
+  private skin(id: string): { texture: string; name: string; guide?: string; lines?: string[] } | null {
+    const s = (this.zone as { skins?: Record<string, { texture: string; name: string; guide?: string; lines?: string[] }> }).skins?.[id];
     return s && this.textures.exists(s.texture) ? s : null;
   }
 

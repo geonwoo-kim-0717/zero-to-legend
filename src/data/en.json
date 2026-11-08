@@ -835,16 +835,36 @@
   },
   "enemies": {
     "drone": {
-      "name": "Security Drone"
+      "name": "Security Drone",
+      "guide": "Security drones. CENSUS's eyes. Weak, but they swarm. Keep moving.",
+      "lines": {
+        "0": "Unregistered mod detected.",
+        "1": "Citizen score 0. Tracking."
+      }
     },
     "thug": {
-      "name": "Street Thug"
+      "name": "Street Thug",
+      "guide": "Basili's crew. They smell the bounty. They hurt up close, so keep your distance.",
+      "lines": {
+        "0": "That bounty is mine!",
+        "1": "Let's raise my score!"
+      }
     },
     "gunner": {
-      "name": "Gang Gunner"
+      "name": "Gang Gunner",
+      "guide": "Gunners. They shoot from range. The rounds are slow, so sidestep and take them out first.",
+      "lines": {
+        "0": "Hit the zero!",
+        "1": "The boss is watching!"
+      }
     },
     "psycho": {
-      "name": "Cyberpsycho"
+      "name": "Cyberpsycho",
+      "guide": "Psychos. Chrome-crazed, they bite anyone. When one pauses it lunges, so dash sideways.",
+      "lines": {
+        "0": "Chrome... more...",
+        "1": "My head is so loud!"
+      }
     },
     "boss": {
       "name": "Carlo 'Red' Basili"
@@ -853,19 +873,28 @@
       "name": "Kovac 'The Butcher'"
     },
     "trooper_tank": {
-      "name": "Riot Tank"
+      "name": "Riot Tank",
+      "guide": "Black Shield tank. Pushes in behind a shield. Toughest of the squad; save it for last."
     },
     "trooper_melee": {
-      "name": "Riot Striker"
+      "name": "Riot Striker",
+      "guide": "Squad melee. When the red line shows, it charges. Get off the line."
     },
     "trooper_hacker": {
-      "name": "Riot Hacker"
+      "name": "Riot Hacker",
+      "guide": "Squad hacker. Hides behind the tank and slows you down. Cut it off first."
     },
     "trooper_sniper": {
-      "name": "Riot Sniper"
+      "name": "Riot Sniper",
+      "guide": "Squad sniper. One heavy shot from far away. When the aim line shows, move."
     },
     "kamikaze": {
-      "name": "Kamikaze Drone"
+      "name": "Kamikaze Drone",
+      "guide": "Suicide drones. They blink, then blow. When one starts blinking, get away.",
+      "lines": {
+        "0": "Closing on target.",
+        "1": "Arming."
+      }
     },
     "midboss2": {
       "name": "GRP-7 Grappler"
@@ -880,37 +909,86 @@
       "name": "CENSUS"
     },
     "sniper_turret": {
-      "name": "Sniper Turret"
+      "name": "Sniper Turret",
+      "guide": "Sniper turrets. When the red line shows, a shot is coming. Step off the line.",
+      "lines": {
+        "0": "Target locked.",
+        "1": "Fire authorized."
+      }
     },
     "corrupt_cop": {
-      "name": "Corrupt Cop"
+      "name": "Corrupt Cop",
+      "guide": "Dirty cops on Basili's payroll. They fire three shells in a fan. Don't stand in front.",
+      "lines": {
+        "0": "Cops get the bounty first.",
+        "1": "I'll file it as self-defense."
+      }
     },
     "sec_bot": {
-      "name": "Security Bot"
+      "name": "Security Bot",
+      "guide": "Factory security bots. Slow, tough, hit hard. Don't get close; whittle them down.",
+      "lines": {
+        "0": "No access.",
+        "1": "Protecting the line."
+      }
     },
     "glitch_ghost": {
-      "name": "Glitch Ghost AI"
+      "name": "Glitch Ghost AI",
+      "guide": "A phantom CENSUS projects. It teleports behind you. When it vanishes, look around.",
+      "lines": {
+        "0": "You're not in the records.",
+        "1": "Recalculating score..."
+      }
     },
     "rat_bot": {
-      "name": "Rat Bot"
+      "name": "Rat Bot",
+      "guide": "Scrap collectors. They're here to strip your secondhand chrome. Fast but fragile.",
+      "lines": {
+        "0": "Recovery target found.",
+        "1": "Chrome return overdue."
+      }
     },
     "c_mirror": {
-      "name": "Mirror Trooper"
+      "name": "Mirror Trooper",
+      "guide": "Mirror trooper. CENSUS learned your gunplay. Bullets barely work; use something else.",
+      "lines": {
+        "0": "Already learned that round."
+      }
     },
     "c_insulator": {
-      "name": "Insulator Unit"
+      "name": "Insulator Unit",
+      "guide": "Insulator. Electricity won't pass, and chain lightning stops here.",
+      "lines": {
+        "0": "Current blocked."
+      }
     },
     "c_dampener": {
-      "name": "Blast Dampener"
+      "name": "Blast Dampener",
+      "guide": "Dampener. It eats explosions. Hit it with something else.",
+      "lines": {
+        "0": "Impact absorbed."
+      }
     },
     "c_thorn": {
-      "name": "Thorn Knight"
+      "name": "Thorn Knight",
+      "guide": "Thorn trooper. Cut it and you get cut. Deal with it from range.",
+      "lines": {
+        "0": "Cut me, bleed."
+      }
     },
     "c_prism": {
-      "name": "Refraction Prism"
+      "name": "Refraction Prism",
+      "guide": "Prism. Bends beams and EMP. Even the railgun stops here.",
+      "lines": {
+        "0": "Beam deflected."
+      }
     },
     "c_firewall": {
-      "name": "Firewall Drone"
+      "name": "Firewall Drone",
+      "guide": "Firewall drone. Jams nearby turrets and hack drones. Break it first.",
+      "lines": {
+        "0": "Link severed."
+      }
     }
   },
   "meta": {
@@ -1124,19 +1202,44 @@
         },
         "skins": {
           "thug": {
-            "name": "Tower Guard"
+            "name": "Tower Guard",
+            "guide": "Tower guards. Arconan wage-earners with batons. Keep your distance.",
+            "lines": {
+              "0": "Not on my shift.",
+              "1": "No lobby access!"
+            }
           },
           "gunner": {
-            "name": "Security Officer"
+            "name": "Security Officer",
+            "guide": "Security officers. Rifles from range. Sidestep and take them out first.",
+            "lines": {
+              "0": "What's a zero doing here?",
+              "1": "Report to the Director!"
+            }
           },
           "corrupt_cop": {
-            "name": "Security Shotgunner"
+            "name": "Security Shotgunner",
+            "guide": "Shotgunners. Three shells in a fan. Don't stand in front.",
+            "lines": {
+              "0": "I'm billing overtime.",
+              "1": "Cleaning the lobby."
+            }
           },
           "psycho": {
-            "name": "Augmented Security Officer"
+            "name": "Augmented Security Officer",
+            "guide": "Augmented officers. Bodies rebuilt on company money. When one pauses it charges. Dash sideways.",
+            "lines": {
+              "0": "The company paid for this body.",
+              "1": "Field test!"
+            }
           },
           "rat_bot": {
-            "name": "Quadruped Bot"
+            "name": "Quadruped Bot",
+            "guide": "Quadruped bots. Tower patrols that come in packs. Fast but fragile.",
+            "lines": {
+              "0": "Patrol deviation.",
+              "1": "Intruder surrounded."
+            }
           }
         }
       }

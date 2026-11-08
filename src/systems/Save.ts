@@ -44,6 +44,8 @@ export interface SaveData {
   speedUnlocked: boolean;
   /** 마지막으로 고른 배속 (켜 두면 다음 판도 2배속으로 시작) */
   speed2: boolean;
+  /** 진이 문자로 소개해 준 적 (그림 키). 처음 만날 때 한 번만 안내 */
+  seenUnits: string[];
 }
 
 /** 한 판에서 얻은 기록. 결과 화면에서 저장에 더한다 */
@@ -79,6 +81,7 @@ function fresh(): SaveData {
     marketOff: [],
     speedUnlocked: false,
     speed2: false,
+    seenUnits: [],
     stats: { runs: 0, totalKills: 0, droneKills: 0, meleeKills: 0, trooperKills: 0, midbossKills: 0, bossKills: 0, hexKills: 0, coreKills: 0, marketBuys: 0, totalTime: 0, bestTime: 0, bestLevel: 0 },
   };
 }
@@ -99,6 +102,7 @@ function normalize(raw: unknown): SaveData {
     claimed: [...(r.claimed ?? [])],
     market: [...(r.market ?? [])],
     marketOff: [...(r.marketOff ?? [])],
+    seenUnits: [...(r.seenUnits ?? [])],
     stats: { ...d.stats, ...(r.stats ?? {}) },
   };
 }
