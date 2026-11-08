@@ -1909,6 +1909,15 @@ export class GameScene extends Phaser.Scene implements GameContext {
   private carryMarks: Phaser.GameObjects.Rectangle[] = [];
 
   private startCarryOver(): void {
+    // 같은 카드(같은 무기·패시브의 같은 능력)는 한 장으로 합친다. 등급은 높은 쪽을 남긴다
+    const rank = (r: string) => gameData.rarity.findIndex((o) => o.id === r);
+    const uniq = new Map<string, Keep>();
+    for (const k of this.keepables) {
+      const key = `${k.kind}:${k.id}:${k.abilityId}`;
+      const cur = uniq.get(key);
+      if (!cur || rank(k.rarity) > rank(cur.rarity)) uniq.set(key, k);
+    }
+    this.keepables = [...uniq.values()];
     const list = this.keepables;
     this.carryPicks = this.zoneIdx >= 2 ? 2 : 1;
     if (list.length <= this.carryPicks) {
