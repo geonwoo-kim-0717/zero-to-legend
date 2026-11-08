@@ -2304,11 +2304,17 @@ export class GameScene extends Phaser.Scene implements GameContext {
         this.raidCount++;
         this.raidsInZone++;
         const lines = [1, 2, 3, 4].sort(() => Math.random() - 0.5);
+        // 말풍선은 한 번에 1~2명만 (누가 말할지는 무작위)
+        const talkers = new Set([0, 1, 2, 3].sort(() => Math.random() - 0.5).slice(0, Math.random() < 0.5 ? 1 : 2));
+        let said = 0;
         r.markers.forEach((m, i) => {
           const e = this.spawnEnemy(R.squad[i] as EnemyId, m.x, m.y, hpMul);
           if (e) e.t = 1.5 + Math.random();
           // 말풍선: 반반 확률로 역할 대사 또는 '사이코를 제압하라' 대사
-          if (e) this.shout(e, tr((Math.random() < 0.5 ? `squad.${e.id}` : `squad.psycho.${lines[i]}`) as Parameters<typeof tr>[0]), i * 0.35, i % 2 === 1);
+          if (e && talkers.has(i)) {
+            this.shout(e, tr((Math.random() < 0.5 ? `squad.${e.id}` : `squad.psycho.${lines[i]}`) as Parameters<typeof tr>[0]), said * 0.5, said === 1);
+            said++;
+          }
           this.burst(m.x, m.y, 0xff2a3a, 10);
         });
         Sound.play('explode');
