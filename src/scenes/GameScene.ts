@@ -470,6 +470,32 @@ export class GameScene extends Phaser.Scene implements GameContext {
     return false;
   }
 
+  // ───────────── 적 말풍선 (블랙 실드 출동 대사) ─────────────
+  private shouts: { e: Enemy; box: Phaser.GameObjects.Text; t: number; delay: number; below: boolean }[] = [];
+
+  private shout(e: Enemy, text: string, delay: number, below = false): void {
+    const box = this.add
+      .text(e.x, e.y, text, { ...TEXT, fontSize: '9px', color: '#ffffff', backgroundColor: '#3a0a12', padding: { x: 5, y: 3 }, strokeThickness: 0 })
+      .setOrigin(0.5, below ? 0 : 1)
+      .setDepth(96)
+      .setVisible(false);
+    this.shouts.push({ e, box, t: 0, delay, below });
+  }
+
+  private updateShouts(dt: number): void {
+    for (const s of this.shouts) {
+      s.t += dt;
+      const live = s.t - s.delay;
+      if (!s.e.active || live > 2.6) {
+        s.box.destroy();
+        continue;
+      }
+      if (live < 0) continue;
+      s.box.setVisible(true).setPosition(s.e.x, s.below ? s.e.y + s.e.radius + 8 : s.e.y - s.e.radius - 10).setAlpha(live > 2.2 ? (2.6 - live) / 0.4 : 1);
+    }
+    this.shouts = this.shouts.filter((s) => s.box.active);
+  }
+
   // ───────────── 무기 이펙트 그림 (fx_<이름>_1..N, 아트 세션 제작) ─────────────
   private fxLive: { img: Phaser.GameObjects.Image; name: string; n: number; t: number; ft: number }[] = [];
   private fxFree: Phaser.GameObjects.Image[] = [];
@@ -927,6 +953,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
     this.updateBullets(dt);
     this.updateEnemyBullets(dt);
     this.updateFx(dt);
+    this.updateShouts(dt);
     this.drawOverclockFx(realDt);
     this.updatePickups(dt);
     this.updateHud();
@@ -2276,9 +2303,12 @@ export class GameScene extends Phaser.Scene implements GameContext {
         const hpMul = this.zone.raidHpMul * Math.pow(R.hpGrowthPerRaid, this.raidsInZone);
         this.raidCount++;
         this.raidsInZone++;
+        const lines = [1, 2, 3, 4].sort(() => Math.random() - 0.5);
         r.markers.forEach((m, i) => {
           const e = this.spawnEnemy(R.squad[i] as EnemyId, m.x, m.y, hpMul);
           if (e) e.t = 1.5 + Math.random();
+          // 말풍선: 반반 확률로 역할 대사 또는 '사이코를 제압하라' 대사
+          if (e) this.shout(e, tr((Math.random() < 0.5 ? `squad.${e.id}` : `squad.psycho.${lines[i]}`) as Parameters<typeof tr>[0]), i * 0.35, i % 2 === 1);
           this.burst(m.x, m.y, 0xff2a3a, 10);
         });
         Sound.play('explode');

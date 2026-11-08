@@ -170,8 +170,8 @@
       "detune": 0
     },
     "raidsiren": {
-      "volume": 0.75,
-      "minGap": 1500,
+      "volume": 0.9,
+      "minGap": 3000,
       "detune": 0
     },
     "phone": {
