@@ -65,47 +65,51 @@ def write_stereo(name, lr):
     print(name)
 
 
-def siren_epic(dur=3.6, seed=3):
+def siren_epic(dur=4.0, seed=3):
     """웅장한 출동 경보 (v2): 첫 박자에 낮은 금관 '브라암' + 땅울림, 그 위로 좌우 두 대의 공습 사이렌이
     천천히 차오르다 내려가고, 큰 공간 잔향으로 마무리"""
     rng = np.random.default_rng(seed)
     n = int(SR * dur)
     t = np.arange(n) / SR
     # 1) 땅울림: 55Hz에서 30Hz로 떨어지는 저음 + 짧은 잡음 타격
-    f_sub = 30 + 25 * np.exp(-t * 3)
-    sub = np.sin(2 * np.pi * np.cumsum(f_sub) / SR) * np.exp(-t * 1.6)
+    f_sub = 26 + 30 * np.exp(-t * 2.5)
+    sub = np.sin(2 * np.pi * np.cumsum(f_sub) / SR) * np.exp(-t * 0.9)
+    # 두 번째 쿵 (1.6초): 사이렌이 꼭대기에 닿을 때 한 번 더 내려찍음
+    t2 = np.maximum(0, t - 1.6)
+    sub += np.sin(2 * np.pi * np.cumsum(24 + 22 * np.exp(-t2 * 3)) / SR) * np.exp(-t2 * 1.4) * (t >= 1.6) * 0.8
     hit = rng.standard_normal(n) * np.exp(-t * 18) * 0.5
     # 2) 금관 '브라암': 라(A) 화음 톱니파 여러 겹을 낮은 필터로 뭉갬, 0.15초에 차오르고 길게 이어짐
     brass = np.zeros(n)
-    for f, a in ((55, 1.0), (82.4, 0.7), (110, 0.6), (164.8, 0.35)):
+    for f, a in ((36.7, 1.1), (55, 1.0), (82.4, 0.6), (110, 0.4)):
         for det in (-0.6, 0.0, 0.6):
             ph = 2 * np.pi * (f + det) * t
             brass += a * (2 * ((ph / (2 * np.pi)) % 1) - 1)
-    k = 0.035  # 한 극 저역 필터 (금관처럼 둥글게)
+    k = 0.022  # 한 극 저역 필터 (더 어둡고 무겁게)
     out = np.empty(n); acc = 0.0
     for i in range(n):
         acc += k * (brass[i] - acc); out[i] = acc
-    brass = out * np.minimum(1, t / 0.15) * np.exp(-np.maximum(0, t - 0.4) * 0.9)
+    brass = np.tanh(out * 2.2) * np.minimum(1, t / 0.12) * np.exp(-np.maximum(0, t - 1.2) * 0.6)
     # 3) 공습 사이렌 두 대: 0.9초에 걸쳐 차오르고(330→760Hz) 잠깐 머문 뒤 내려감, 서로 5도 차이로 좌우에
     def wail(base, top, delay, pan):
         tt = np.maximum(0, t - delay)
-        rise = np.clip(tt / 0.9, 0, 1)
+        rise = np.clip(tt / 1.3, 0, 1)
         fall = np.clip((tt - 2.0) / 1.2, 0, 1)
         f = base + (top - base) * (1 - (1 - rise) ** 2) * (1 - fall ** 1.5) + 6 * np.sin(2 * np.pi * 5.2 * tt)
         ph = 2 * np.pi * np.cumsum(f) / SR
-        v = np.sin(ph) + 0.45 * np.sin(2 * ph) + 0.2 * np.sin(3 * ph)
+        v = np.tanh((np.sin(ph) + 0.5 * np.sin(2 * ph) + 0.25 * np.sin(3 * ph)) * 1.6)
         env = np.clip(tt / 0.25, 0, 1) * np.clip((dur - t) / 0.5, 0, 1) * (t >= delay)
         v *= env
         return np.stack([v * (1 - pan), v * (1 + pan)], 1)
-    sirens = wail(330, 760, 0.12, -0.45) + wail(495, 1140, 0.22, 0.45) * 0.7
-    mono = sub * 1.4 + hit + brass * 0.9
-    dry = np.stack([mono, mono], 1) + sirens * 0.55
+    sirens = wail(200, 520, 0.12, -0.45) + wail(300, 780, 0.22, 0.45) * 0.6
+    mono = sub * 2.0 + hit * 0.8 + brass * 1.3
+    dry = np.stack([mono, mono], 1) + sirens * 0.42
     # 4) 큰 홀 잔향: 지수로 줄어드는 잡음 임펄스(좌우 다르게)를 FFT로 합성곱
     ir_n = int(SR * 1.8)
     ti = np.arange(ir_n) / SR
     wet = np.zeros((n + ir_n - 1, 2))
     for c in range(2):
-        ir = rng.standard_normal(ir_n) * np.exp(-ti * 3.2)
+        ir = rng.standard_normal(ir_n) * np.exp(-ti * 2.4)
+        ir = np.convolve(ir, np.ones(6) / 6, mode='same')  # 고음을 깎아 어두운 잔향
         ir[: int(SR * 0.02)] *= np.linspace(0, 1, int(SR * 0.02))
         m = 1 << int(np.ceil(np.log2(n + ir_n)))
         wet[:, c] = np.fft.irfft(np.fft.rfft(dry[:, c], m) * np.fft.rfft(ir, m), m)[: n + ir_n - 1]
