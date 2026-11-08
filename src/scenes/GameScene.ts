@@ -855,6 +855,8 @@ export class GameScene extends Phaser.Scene implements GameContext {
       Save.write();
     }
     Sound.play('select');
+    // 전설·신화를 고르면 화면 가운데 큰 글자와 팡파르
+    LevelUpUI.celebrate(this, c);
     if (c.kind === 'weapon') {
       const id = c.id as WeaponId;
       const owned = this.weapons.find((o) => o.id === id);

@@ -1,4 +1,4 @@
-"""블랙 실드 출동 사이렌(raidsiren)과 픽서 문자 알림음(phone)을 직접 합성한다 (CC0).
+"""블랙 실드 사이렌(raidsiren), 픽서 문자(phone), 전설·신화 카드 등장음(legendary·mythic)과 고를 때 팡파르(jackpot)를 직접 합성한다 (CC0).
 사용: python3 tools/audio/synth_alerts.py  → public/audio/sfx/raidsiren.mp3, phone.mp3 (ffmpeg 필요)"""
 import math, os, struct, subprocess, tempfile, wave
 import numpy as np
@@ -121,6 +121,84 @@ def siren_epic(dur=4.0, seed=3):
     return mix * fade
 
 
+def tone(f, t, kind='tri'):
+    ph = 2 * math.pi * f * t
+    if kind == 'sq':
+        return 0.6 if math.sin(ph) >= 0 else -0.6
+    if kind == 'tri':
+        return 2 / math.pi * math.asin(math.sin(ph))
+    return math.sin(ph)
+
+
+def mix(dur, notes):
+    """notes: (start, freq, length, kind, vol)"""
+    out = [0.0] * int(SR * dur)
+    for st, f, ln, kind, vol in notes:
+        a = int(SR * st)
+        for i in range(int(SR * ln)):
+            if a + i >= len(out):
+                break
+            t = i / SR
+            env = min(1, t / 0.005) * math.exp(-t * 3.2 / ln)
+            out[a + i] += tone(f, t, kind) * env * vol
+    return out
+
+
+def legendary():
+    """전설 카드 등장: 반짝이며 올라가는 금빛 아르페지오 + 끝의 화음"""
+    C = 523.25
+    notes = []
+    for k, m in enumerate([1, 1.26, 1.5, 2, 2.52, 3, 4]):
+        notes.append((k * 0.055, C * m, 0.35, 'sq', 0.35))
+        notes.append((k * 0.055, C * m * 2, 0.25, 'sin', 0.15))
+    for m in (2, 2.52, 3, 4):
+        notes.append((0.42, C * m, 0.9, 'tri', 0.35))
+    out = mix(1.4, notes)
+    # 반짝이 (짧고 높은 핑)
+    import random
+    random.seed(3)
+    for _ in range(18):
+        st = 0.35 + random.random() * 0.9
+        f = random.choice([3136, 3520, 4186, 4699])
+        a = int(SR * st)
+        for i in range(int(SR * 0.06)):
+            if a + i < len(out):
+                out[a + i] += math.sin(2 * math.pi * f * i / SR) * math.exp(-i / SR * 60) * 0.2
+    return out
+
+
+def mythic():
+    """신화 카드 등장: 낮게 쿵 + 빨려 올라가는 소리 + 웅장한 화음"""
+    n = int(SR * 2.0)
+    out = [0.0] * n
+    for i in range(int(SR * 0.6)):
+        t = i / SR
+        f = 70 * math.exp(-t * 3)
+        out[i] += math.sin(2 * math.pi * f * t + 3 * t) * math.exp(-t * 4) * 1.0
+    ph = 0.0
+    for i in range(int(SR * 0.55)):
+        t = i / SR
+        ph += 2 * math.pi * (200 + 1400 * (t / 0.55) ** 2) / SR
+        a = int(SR * 0.15) + i
+        out[a] += math.sin(ph) * 0.25 * (t / 0.55)
+    A = 220.0
+    chord = mix(1.4, [(0, A * m, 1.4, kind, v) for m, kind, v in ((1, 'sq', 0.25), (1.19, 'tri', 0.3), (1.5, 'tri', 0.3), (2, 'sq', 0.2), (2.38, 'sin', 0.2), (3, 'sin', 0.15), (4, 'sin', 0.12))])
+    a = int(SR * 0.6)
+    for i, v in enumerate(chord):
+        if a + i < n:
+            out[a + i] += v * (1 + 0.15 * math.sin(2 * math.pi * 5 * i / SR))
+    return out
+
+
+def jackpot():
+    """전설·신화 카드를 골랐을 때: 짧은 팡파르"""
+    G = 783.99
+    return mix(0.9, [(0, G, 0.12, 'sq', 0.35), (0.1, G * 1.26, 0.12, 'sq', 0.35), (0.2, G * 1.5, 0.6, 'sq', 0.35), (0.2, G * 2, 0.6, 'tri', 0.3), (0.2, G * 0.5, 0.6, 'tri', 0.3)])
+
+
 os.makedirs(OUT, exist_ok=True)
+write('legendary', legendary())
+write('mythic', mythic())
+write('jackpot', jackpot())
 write_stereo('raidsiren', siren_epic())
 write('phone', phone())

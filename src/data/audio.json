@@ -54,7 +54,11 @@
       "minGap": 45,
       "detune": 250
     },
-    "pickup": {"volume": 0.2, "minGap": 70, "detune": 0},
+    "pickup": {
+      "volume": 0.2,
+      "minGap": 70,
+      "detune": 0
+    },
     "heal": {
       "volume": 0.7,
       "minGap": 200,
@@ -172,6 +176,21 @@
     },
     "phone": {
       "volume": 0.7,
+      "minGap": 300,
+      "detune": 0
+    },
+    "legendary": {
+      "volume": 0.8,
+      "minGap": 300,
+      "detune": 0
+    },
+    "mythic": {
+      "volume": 0.9,
+      "minGap": 300,
+      "detune": 0
+    },
+    "jackpot": {
+      "volume": 0.8,
       "minGap": 300,
       "detune": 0
     }
