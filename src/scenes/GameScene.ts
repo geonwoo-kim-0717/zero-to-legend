@@ -506,12 +506,12 @@ export class GameScene extends Phaser.Scene implements GameContext {
     for (const s of this.shouts) {
       s.t += dt;
       const live = s.t - s.delay;
-      if (!s.e.active || live > 2.6) {
+      if (!s.e.active || live > 1.5) {
         s.box.destroy();
         continue;
       }
       if (live < 0) continue;
-      s.box.setVisible(true).setPosition(s.e.x, s.below ? s.e.y + s.e.radius + 8 : s.e.y - s.e.radius - 10).setAlpha(live > 2.2 ? (2.6 - live) / 0.4 : 1);
+      s.box.setVisible(true).setPosition(s.e.x, s.below ? s.e.y + s.e.radius + 8 : s.e.y - s.e.radius - 10).setAlpha(live > 1.2 ? (1.5 - live) / 0.3 : 1);
     }
     this.shouts = this.shouts.filter((s) => s.box.active);
   }
