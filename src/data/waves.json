@@ -165,7 +165,7 @@
         "drone": 1,
         "gunner": 1.5,
         "kamikaze": 1,
-        "glitch_ghost": 0.5
+        "glitch_ghost": 0.15
       }
     },
     {
@@ -178,7 +178,7 @@
         "gunner": 1.5,
         "kamikaze": 1,
         "psycho": 0.3,
-        "glitch_ghost": 0.6,
+        "glitch_ghost": 0.25,
         "sniper_turret": 0.3
       }
     },

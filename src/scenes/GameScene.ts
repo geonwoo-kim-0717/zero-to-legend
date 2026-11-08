@@ -1903,13 +1903,20 @@ export class GameScene extends Phaser.Scene implements GameContext {
     return { title: passivesData[k.id as PassiveId].name, ability: passiveAbility(k.id as PassiveId, k.abilityId)!, rarity };
   }
 
-  /** 다음 챕터 시작: 얻었던 전설·신화 카드 중 1장을 골라 가져가고 나머지 빌드는 초기화 */
+  /** 다음 챕터 시작: 얻었던 전설·신화 카드 중 1장(3챕터는 2장)을 골라 가져가고 나머지 빌드는 초기화 */
+  private carryPicks = 1;
+  private carrySel: number[] = [];
+  private carryMarks: Phaser.GameObjects.Rectangle[] = [];
+
   private startCarryOver(): void {
     const list = this.keepables;
-    if (!list.length) {
-      this.resetBuild(null);
+    this.carryPicks = this.zoneIdx >= 2 ? 2 : 1;
+    if (list.length <= this.carryPicks) {
+      this.resetBuild([...list]);
       return;
     }
+    this.carrySel = [];
+    this.carryMarks = [];
     this.state = 'carry';
     Sound.duck(0.5);
     const add = <T extends Phaser.GameObjects.GameObject & Phaser.GameObjects.Components.ScrollFactor & Phaser.GameObjects.Components.Depth>(o: T): T => {
@@ -1919,7 +1926,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
     };
     add(this.add.rectangle(0, 0, VIEW_W, VIEW_H, 0x000000, 0.72).setOrigin(0));
     add(this.add.text(VIEW_W / 2, 30, gameData.carryOver.title, { ...TEXT, fontSize: '20px', color: '#fff23a' }).setOrigin(0.5).setShadow(0, 0, '#fff23a', 8, true, true));
-    add(this.add.text(VIEW_W / 2, 52, tr('carry.sub'), { ...TEXT, fontSize: '11px', color: '#c8b8e8' }).setOrigin(0.5));
+    add(this.add.text(VIEW_W / 2, 52, tr('carry.sub', { n: this.carryPicks }), { ...TEXT, fontSize: '11px', color: '#c8b8e8' }).setOrigin(0.5));
     const desc = add(this.add.text(VIEW_W / 2, 318, '', { ...TEXT, fontSize: '12px', color: '#e8f7ff', align: 'center', wordWrap: { width: 560 } }).setOrigin(0.5, 0));
     const cols = Math.min(4, list.length);
     const cw = 144;
@@ -1932,6 +1939,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
       const y = 72 + Math.floor(i / cols) * (ch + gap);
       const col = Phaser.Display.Color.HexStringToColor(info.rarity.color).color;
       const card = add(this.add.rectangle(x, y, cw, ch, 0x120a24, 0.95).setOrigin(0).setStrokeStyle(2, col));
+      this.carryMarks.push(card);
       add(this.add.text(x + 6, y + 5, `${i < 9 ? `[${i + 1}] ` : ''}${info.rarity.label} · ${info.title}`, { ...TEXT, fontSize: '11px', color: info.rarity.color }));
       add(this.add.text(x + 6, y + 25, `★ ${info.ability.name}`, { ...TEXT, fontSize: '12px', color: '#ffffff' }));
       card.setInteractive({ useHandCursor: true });
@@ -1940,7 +1948,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
         desc.setText(`${info.title} · ${info.ability.name}: ${info.ability.desc}`);
         Sound.play('hover');
       });
-      card.on('pointerout', () => card.setFillStyle(0x120a24, 0.95));
+      card.on('pointerout', () => card.setFillStyle(this.carrySel.includes(i) ? 0x3a1f66 : 0x120a24, 0.95));
       card.on('pointerup', () => this.chooseCarry(i));
     });
     desc.setText(isTouch() ? tr('carry.hint.touch') : tr('carry.hint.desktop'));
@@ -1953,7 +1961,21 @@ export class GameScene extends Phaser.Scene implements GameContext {
 
   private chooseCarry(i: number): void {
     if (this.state !== 'carry') return;
-    const keep = this.keepables[i];
+    const at = this.carrySel.indexOf(i);
+    if (at >= 0) {
+      this.carrySel.splice(at, 1);
+      this.carryMarks[i]?.setFillStyle(0x120a24, 0.95);
+      Sound.play('hover');
+      return;
+    }
+    this.carrySel.push(i);
+    this.carryMarks[i]?.setFillStyle(0x3a1f66, 0.95);
+    if (this.carrySel.length < this.carryPicks) {
+      Sound.play('hover');
+      return;
+    }
+    const keep = this.carrySel.map((n) => this.keepables[n]);
+    this.carryMarks = [];
     for (const o of this.carryUi) o.destroy();
     this.carryUi = [];
     if (this.carryKeys) this.input.keyboard?.off('keydown', this.carryKeys);
@@ -1964,8 +1986,8 @@ export class GameScene extends Phaser.Scene implements GameContext {
     this.state = 'play';
   }
 
-  /** 빌드 초기화: 러너 시작 무기 Lv.1 + 고른 카드 1장만 남긴다 */
-  private resetBuild(keep: Keep | null): void {
+  /** 빌드 초기화: 러너 시작 무기 Lv.1 + 고른 카드만 남긴다 */
+  private resetBuild(keeps: Keep[]): void {
     for (const w of this.weapons) w.destroy();
     this.weapons = [];
     this.passives = new Map();
@@ -1979,24 +2001,29 @@ export class GameScene extends Phaser.Scene implements GameContext {
     this.undyingUsed = false;
     this.streak = this.rushT = 0;
     this.addWeapon(this.runner.startWeapon as WeaponId);
-    if (keep) {
+    for (const keep of keeps) {
       const rarity = gameData.rarity.find((r) => r.id === keep.rarity)!;
       if (keep.kind === 'weapon') {
         const w = this.weapons.find((o) => o.id === keep.id) ?? this.addWeapon(keep.id as WeaponId);
-        w.bonus = rarity.weaponBonus;
+        w.bonus = Math.max(w.bonus, rarity.weaponBonus);
         w.addAbility(keep.abilityId);
       } else {
         const id = keep.id as PassiveId;
         const amt = passiveAmount(id, rarity);
-        this.passives.set(id, { level: 1, total: amt, special: true, abilities: [keep.abilityId], speedMul: passivesData[id].stat === 'cooldownMul' ? 1 + amt / 100 : undefined });
+        const cur = this.passives.get(id);
+        if (cur) {
+          cur.total += amt;
+          cur.abilities = [...(cur.abilities ?? []), keep.abilityId];
+          if (passivesData[id].stat === 'cooldownMul') cur.speedMul = 1 + cur.total / 100;
+        } else this.passives.set(id, { level: 1, total: amt, special: true, abilities: [keep.abilityId], speedMul: passivesData[id].stat === 'cooldownMul' ? 1 + amt / 100 : undefined });
       }
     }
-    this.keepables = keep ? [keep] : [];
+    this.keepables = [...keeps];
     this.recalcStats();
     this.player.hp = this.player.maxHp;
-    const name = keep ? this.keepInfo(keep).ability.name : '';
+    const name = keeps.map((k) => this.keepInfo(k).ability.name).join(', ');
     const t = this.add
-      .text(VIEW_W / 2, VIEW_H / 2 + 10, keep ? tr('carry.keep', { name }) : tr('carry.reset'), { ...TEXT, fontSize: '13px', color: '#fff23a' })
+      .text(VIEW_W / 2, VIEW_H / 2 + 10, keeps.length ? tr('carry.keep', { name }) : tr('carry.reset'), { ...TEXT, fontSize: '13px', color: '#fff23a' })
       .setOrigin(0.5)
       .setScrollFactor(0)
       .setDepth(120);
