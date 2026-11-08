@@ -106,7 +106,7 @@ export const Sound = {
   },
 
   /** 효과음. 같은 소리가 minGap(ms) 안에 다시 오면 무시해서 겹쳐 시끄러워지지 않게 한다 */
-  play(key: SfxKey): void {
+  play(key: SfxKey, detune?: number): void {
     if (!game || game.sound.mute) return;
     const def = audio.sfx[key];
     const now = performance.now();
@@ -117,7 +117,7 @@ export const Sound = {
     const duck = key !== 'slowmo' && now < sfxDuckUntil ? audio.slowmoDuck.factor : 1;
     // 슬로우 모션 전용 소리는 원래 속도로, 나머지는 오버클럭 중이면 느리고 낮게
     const rate = key === 'slowmo' || key === 'slowmo_out' ? 1 : sfxRate;
-    game.sound.play(`sfx-${key}`, { volume: def.volume * audio.sfxVolume * duck, detune: (Math.random() * 2 - 1) * def.detune, rate });
+    game.sound.play(`sfx-${key}`, { volume: def.volume * audio.sfxVolume * duck, detune: detune ?? (Math.random() * 2 - 1) * def.detune, rate });
   },
 
   /** 배경음악 교체 (교차 페이드). null이면 끈다 */

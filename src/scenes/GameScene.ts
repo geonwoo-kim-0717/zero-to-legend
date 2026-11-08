@@ -676,6 +676,8 @@ export class GameScene extends Phaser.Scene implements GameContext {
 
   private pauseUi: Phaser.GameObjects.GameObject[] = [];
   private lastHit: HitSrc | null = null;
+  private pickupStep = 0;
+  private pickupAt = -1e9;
   /** 화면 아래 설정 버튼 (소리·화면 효과·전체화면): 일시정지 때만 보인다 */
   private settingUi: Phaser.GameObjects.Text[] = [];
   private pauseBtn!: Phaser.GameObjects.Text;
@@ -1514,7 +1516,11 @@ export class GameScene extends Phaser.Scene implements GameContext {
           Sound.play('heal');
         } else {
           this.gainXp(k.value);
-          Sound.play('pickup');
+          // 연달아 주우면 음이 한 칸씩 올라간다 (무작위 음정 대신 계단처럼). 잠깐 쉬면 처음 음으로
+          const now = this.time.now;
+          this.pickupStep = now - this.pickupAt > 400 ? 0 : Math.min(this.pickupStep + 1, 12);
+          this.pickupAt = now;
+          Sound.play('pickup', this.pickupStep * 50);
           // 회복 수집: 조각 50개마다 체력 5
           if (this.pHas('healCollect') && ++this.shardCount >= 50) {
             this.shardCount = 0;

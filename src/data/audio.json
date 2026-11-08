@@ -54,11 +54,7 @@
       "minGap": 45,
       "detune": 250
     },
-    "pickup": {
-      "volume": 0.22,
-      "minGap": 50,
-      "detune": 300
-    },
+    "pickup": {"volume": 0.2, "minGap": 70, "detune": 0},
     "heal": {
       "volume": 0.7,
       "minGap": 200,
