@@ -46,6 +46,8 @@ export interface SaveData {
   speed2: boolean;
   /** 진이 문자로 소개해 준 적 (그림 키). 처음 만날 때 한 번만 안내 */
   seenUnits: string[];
+  /** 첫 판 세 번째 레벨업의 확정 신화 카드를 이미 받았는지 */
+  firstMythicDone: boolean;
 }
 
 /** 한 판에서 얻은 기록. 결과 화면에서 저장에 더한다 */
@@ -82,6 +84,7 @@ function fresh(): SaveData {
     speedUnlocked: false,
     speed2: false,
     seenUnits: [],
+    firstMythicDone: false,
     stats: { runs: 0, totalKills: 0, droneKills: 0, meleeKills: 0, trooperKills: 0, midbossKills: 0, bossKills: 0, hexKills: 0, coreKills: 0, marketBuys: 0, totalTime: 0, bestTime: 0, bestLevel: 0 },
   };
 }

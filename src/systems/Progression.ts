@@ -182,6 +182,22 @@ export function rollChoices(
   return out;
 }
 
+/** 첫 판 선물: 지금 고를 수 있는 무기 중 하나를 무작위로 골라 신화 카드로 만든다 */
+export function mythicWeaponCard(owned: WeaponBase[], pool?: readonly WeaponId[]): Choice | undefined {
+  const myth = rarityById('mythic');
+  for (const id of Phaser.Utils.Array.Shuffle(WEAPON_IDS.slice())) {
+    if (pool && !pool.includes(id)) continue;
+    const w = owned.find((o) => o.id === id);
+    if (!w && owned.length >= gameData.maxWeapons) continue;
+    const ability = abilityFor({ kind: 'weapon', id }, myth.id, owned, new Map());
+    if (!ability) continue;
+    const maxed = !!w && w.level >= WEAPON_MAX_LEVEL;
+    const c = { kind: 'weapon' as const, id, title: w ? w.name : weapons[id].name, levelLabel: maxed ? 'MAX' : w ? `Lv.${w.level + 1}` : t('lvl.new'), isNew: !w, maxed: maxed || undefined };
+    return { ...c, rarity: myth, ability, desc: maxed ? t('lvl.maxed') : describe(c, myth, owned) };
+  }
+  return undefined;
+}
+
 /** 최대 레벨 무기·사이버웨어 중 특수 능력이 비어 있는 것 하나를 확률로 전설·신화 카드로 만든다 */
 function maxedAbilityCard(owned: WeaponBase[], ownedPassives: Map<PassiveId, PassiveState>, pool?: readonly WeaponId[], force = false, skip: string[] = []): Choice | undefined {
   if (!force && Math.random() >= gameData.maxedAbilityChance) return undefined;
