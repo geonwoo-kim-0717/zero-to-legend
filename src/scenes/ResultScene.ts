@@ -18,6 +18,9 @@ export interface RunResult {
   runner: string;
   zone: string;
   heat: number;
+  /** 사인과 픽서의 한마디 (패배했을 때만) */
+  cause?: string;
+  remark?: string;
   /** 이미 저장에 더했는지 (같은 결과로 두 번 저장하지 않게) */
   saved?: boolean;
   /** 보상형 광고로 크레딧 2배를 이미 받았는지 */
@@ -42,13 +45,22 @@ export class ResultScene extends Phaser.Scene {
       .text(VIEW_W / 2, 56, r.victory ? 'CONTRACT COMPLETE' : 'FLATLINED', { ...BASE_TEXT, fontSize: '28px', color })
       .setOrigin(0.5)
       .setShadow(0, 0, color, 12, true, true);
-    this.add
-      .text(VIEW_W / 2, 86, r.victory ? t('result.win') : t('result.lose'), {
-        ...BASE_TEXT,
-        fontSize: '12px',
-        color: '#e8f7ff',
-      })
-      .setOrigin(0.5);
+    if (r.cause) {
+      // 사인: 의료 모니터의 사망 기록처럼 붉은 띠 위에
+      const line = this.add
+        .text(VIEW_W / 2, 86, `${t('death.label')} · ${r.cause}`, { ...BASE_TEXT, fontSize: '12px', color: '#ffd0d6' })
+        .setOrigin(0.5);
+      this.add.rectangle(VIEW_W / 2, 86, line.width + 24, 18, 0x5a0a1c, 0.85).setStrokeStyle(1, 0xff2a3a).setDepth(0.5);
+      line.setDepth(1);
+    } else {
+      this.add
+        .text(VIEW_W / 2, 86, r.victory ? t('result.win') : t('result.lose'), {
+          ...BASE_TEXT,
+          fontSize: '12px',
+          color: '#e8f7ff',
+        })
+        .setOrigin(0.5);
+    }
 
     const m = Math.floor(r.time / 60);
     const s = String(Math.floor(r.time % 60)).padStart(2, '0');
@@ -61,11 +73,11 @@ export class ResultScene extends Phaser.Scene {
       [t('result.credits'), t('result.creditsVal', { n: r.credits, total: Save.data.credits })],
     ];
     rows.forEach(([k, v], i) => {
-      this.add.text(190, 102 + i * 20, k, { ...BASE_TEXT, fontSize: '13px', color: '#8a7aa8' });
-      this.add.text(450, 102 + i * 20, v, { ...BASE_TEXT, fontSize: '13px', color: '#ffffff' }).setOrigin(1, 0);
+      this.add.text(190, 106 + i * 18, k, { ...BASE_TEXT, fontSize: '13px', color: '#8a7aa8' });
+      this.add.text(450, 106 + i * 18, v, { ...BASE_TEXT, fontSize: '13px', color: '#ffffff' }).setOrigin(1, 0);
     });
     this.add
-      .text(VIEW_W / 2, 230, r.weapons.map((w) => `${w.name} Lv.${w.level}`).join('   '), {
+      .text(VIEW_W / 2, 220, r.weapons.map((w) => `${w.name} Lv.${w.level}`).join('   '), {
         ...BASE_TEXT,
         fontSize: '11px',
         color: '#00f0ff',
@@ -73,19 +85,24 @@ export class ResultScene extends Phaser.Scene {
         wordWrap: { width: 560 },
       })
       .setOrigin(0.5, 0);
+    if (r.remark) {
+      this.add
+        .text(VIEW_W / 2, 252, `✉ ${r.remark}`, { ...BASE_TEXT, fontSize: '11px', color: '#ff2bd6', align: 'center', wordWrap: { width: 560, useAdvancedWrap: true } })
+        .setOrigin(0.5, 0);
+    }
     const notes: string[] = unlocked.map((n) => t('result.unlock', { name: n }));
     if (Save.data.heatMax > heatBefore) notes.push(t('result.heat', { n: Save.data.heatMax }));
     const ready = Save.claimable();
     if (ready > 0) notes.push(t('result.claim', { n: ready }));
     this.add
-      .text(VIEW_W / 2, 264, notes.join('   ·   ') || t('result.tip'), {
+      .text(VIEW_W / 2, 280, notes.join('   ·   ') || t('result.tip'), {
         ...BASE_TEXT,
         fontSize: notes.length ? '12px' : '11px',
         color: notes.length ? '#fff23a' : '#8a7aa8',
       })
       .setOrigin(0.5);
 
-    const again = this.add.text(VIEW_W / 2, 300, t('result.back'), { ...BASE_TEXT, fontSize: '14px', color: '#ffffff' }).setOrigin(0.5);
+    const again = this.add.text(VIEW_W / 2, 304, t('result.back'), { ...BASE_TEXT, fontSize: '14px', color: '#ffffff' }).setOrigin(0.5);
     this.tweens.add({ targets: again, alpha: 0.3, duration: 700, yoyo: true, repeat: -1 });
     this.add.tileSprite(0, 0, VIEW_W, VIEW_H, 'scan').setOrigin(0);
     Sound.music('title', 1200);
@@ -101,7 +118,7 @@ export class ResultScene extends Phaser.Scene {
       void Ads.prepareRewarded().then((ok) => {
         if (!ok || leaving || !this.scene.isActive()) return;
         adBtn = this.add
-          .text(VIEW_W / 2, 330, t('result.ad', { n: r.credits }), { ...BASE_TEXT, fontSize: '12px', color: '#07060f', backgroundColor: '#fff23a', padding: { x: 10, y: 4 }, strokeThickness: 0 })
+          .text(VIEW_W / 2, 334, t('result.ad', { n: r.credits }), { ...BASE_TEXT, fontSize: '12px', color: '#07060f', backgroundColor: '#fff23a', padding: { x: 10, y: 4 }, strokeThickness: 0 })
           .setOrigin(0.5)
           .setInteractive({ useHandCursor: true });
         adBtn.on('pointerup', async () => {

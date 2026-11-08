@@ -41,9 +41,13 @@ type Keep = { kind: 'weapon' | 'passive'; id: string; abilityId: string; rarity:
 const CT = gameData.counters;
 type Zone = (typeof zonesData.zones)[number];
 type Line = { who: string; text: string };
+/** 플레이어를 때린 것 (게임오버 화면의 사인 표시용) */
+type HitSrc = { kind: 'contact' | 'boss' | 'bullet' | 'missile' | 'blast' | 'laser' | 'thorn'; id: string };
 type Volley = { volleyEvery: number; volleyCount: number; bulletSpeed: number; bulletDamage: number };
 const ZONES = zonesData.zones;
 const ZR = gameData.zoneRules;
+/** 왼쪽 위 체력바 폭 */
+const HP_W = 120;
 type BossPhase = 'walk' | 'aim' | 'charge';
 type BossDef = (typeof gameData.bosses)[number];
 type MeleeDef = { range: number; interval: number; windup: number; lungeTime: number; lungeSpeed: number };
@@ -220,6 +224,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
     time: Phaser.GameObjects.Text;
     kills: Phaser.GameObjects.Text;
     level: Phaser.GameObjects.Text;
+    hp: Phaser.GameObjects.Text;
     debug: Phaser.GameObjects.Text;
     center: Phaser.GameObjects.Text;
     od: Phaser.GameObjects.Text;
@@ -286,6 +291,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
     // 이전 판의 이펙트·말풍선은 장면이 끝날 때 이미 지워졌으므로 목록도 비운다
     this.fxLive = [];
     this.fxFree = [];
+    this.lastHit = null;
     this.shouts = [];
     this.phoneBox = null;
     this.warnedBoss = '';
@@ -354,7 +360,10 @@ export class GameScene extends Phaser.Scene implements GameContext {
     // 아래쪽 설정 버튼: 글자 길이가 언어마다 달라서 앞 버튼 폭만큼 띄워 놓는다
     const muteBtn = addMuteToggle(this, 8, VIEW_H - 18, 0);
     const fxBtn = addFxToggle(this, muteBtn.x + muteBtn.width + 12, VIEW_H - 18, 0);
-    addFullscreenToggle(this, fxBtn.x + fxBtn.width + 12, VIEW_H - 18, 0);
+    const fsBtn = addFullscreenToggle(this, fxBtn.x + fxBtn.width + 12, VIEW_H - 18, 0);
+    // 전투 중에는 숨기고 일시정지 화면에서만 보여준다 (M·V·F 키는 언제나 동작)
+    this.settingUi = [muteBtn, fxBtn, ...(fsBtn.input?.enabled ? [fsBtn] : [])];
+    for (const b of this.settingUi) b.setVisible(false);
     // 일시정지 버튼 (터치 기기에는 Esc가 없고, PC에서도 눌러서 멈출 수 있게)
     const pb = this.add
       .text(VIEW_W - 8, 42, 'Ⅱ', { ...TEXT, fontSize: '14px', color: '#e8f7ff', backgroundColor: '#1a1030', padding: { x: 8, y: 2 } })
@@ -432,7 +441,8 @@ export class GameScene extends Phaser.Scene implements GameContext {
     this.hud = {
       bars: this.add.graphics().setScrollFactor(0).setDepth(100),
       time: fixed(this.add.text(VIEW_W / 2, 10, '00:00', { ...TEXT, fontSize: '16px' }).setOrigin(0.5, 0)),
-      level: fixed(this.add.text(8, 10, 'LV 1', TEXT)),
+      level: fixed(this.add.text(HP_W + 14, 6, 'LV 1', TEXT)),
+      hp: fixed(this.add.text(8 + HP_W / 2, 6, '', { ...TEXT, fontSize: '10px', strokeThickness: 3 }).setOrigin(0.5, 0)),
       kills: fixed(this.add.text(VIEW_W - 8, 10, '0', TEXT).setOrigin(1, 0)),
       debug: fixed(this.add.text(VIEW_W - 8, 42, '', { ...TEXT, fontSize: '11px', color: '#39ff88', align: 'right' }).setOrigin(1, 0)),
       od: fixed(this.add.text(VIEW_W / 2, VIEW_H - 22, SP[this.specialId].label, { ...TEXT, fontSize: '11px', color: SP[this.specialId].color }).setOrigin(0.5, 1)),
@@ -593,7 +603,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
   private thornReflect(): void {
     if (this.thornT > 0 || this.player.invuln > 0) return;
     this.thornT = CT.thornGap;
-    this.hurtPlayer(CT.thornReflect);
+    this.hurtPlayer(CT.thornReflect, { kind: 'thorn', id: 'c_thorn' });
   }
 
   blockEnemyBullets(x: number, y: number, r: number): number {
@@ -665,6 +675,9 @@ export class GameScene extends Phaser.Scene implements GameContext {
   }
 
   private pauseUi: Phaser.GameObjects.GameObject[] = [];
+  private lastHit: HitSrc | null = null;
+  /** 화면 아래 설정 버튼 (소리·화면 효과·전체화면): 일시정지 때만 보인다 */
+  private settingUi: Phaser.GameObjects.Text[] = [];
   private pauseBtn!: Phaser.GameObjects.Text;
   /** 시공간 가속 모듈: 1배속 / 2배속 (2챕터 첫 도달 때 영구 해금) */
   private speedBtn: Phaser.GameObjects.Container | null = null;
@@ -726,6 +739,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
   private showPauseMenu(on: boolean): void {
     for (const o of this.pauseUi) o.destroy();
     this.pauseUi = [];
+    for (const b of this.settingUi) b.setVisible(on);
     if (!on) return;
     // 뒤를 어둡게 해서 글자가 잘 보이게
     this.pauseUi.push(this.add.rectangle(0, 0, VIEW_W, VIEW_H, 0x000000, 0.5).setOrigin(0).setScrollFactor(0).setDepth(99));
@@ -762,6 +776,27 @@ export class GameScene extends Phaser.Scene implements GameContext {
         this.showPauseMenu(true);
       });
     });
+  }
+
+  /** 게임오버 화면에 띄울 사인과 픽서의 한마디 */
+  private deathCause(): { cause: string; remark: string } {
+    const h = this.lastHit;
+    const p = this.player;
+    const name = h && h.id in enemiesData ? enemiesData[h.id as EnemyId].name : '';
+    let near = 0;
+    for (const e of this.enemyPool.items) if (e.active && (e.x - p.x) ** 2 + (e.y - p.y) ** 2 < 80 * 80) near++;
+    const key = (k: string) => k as Parameters<typeof tr>[0];
+    let cause = tr('death.unknown');
+    if (h && (name || h.kind === 'laser')) cause = tr(key(`death.${h.kind}`), { name });
+    if (h?.kind === 'contact' && near >= 12) cause = tr('death.swarm', { n: near });
+    let tip = 'default';
+    if (this.zoneIdx > 0 && this.elapsed - this.zoneStart < 150) tip = 'zone';
+    else if (this.boss) tip = 'boss';
+    else if (h?.id.startsWith('trooper')) tip = 'raid';
+    else if (near >= 12) tip = 'swarm';
+    else if (h?.kind === 'bullet' || h?.kind === 'missile') tip = 'bullet';
+    const bossName = this.boss ? enemiesData[this.boss.id as EnemyId].name : '';
+    return { cause, remark: `${zonesData.client.name}: "${tr(key(`death.tip.${tip}`), { name: bossName })}"` };
   }
 
   private openLevelUp(): void {
@@ -870,6 +905,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
       zone: `${this.zone.label} ${this.zone.name}`,
       heat: this.heat,
       runner: this.runner.name,
+      ...(victory ? {} : this.deathCause()),
     };
     this.clearArena();
     if (!victory) {
@@ -1082,7 +1118,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
             const shots = rg.shots ?? 1;
             for (let k = 0; k < shots; k++) {
               const off = shots > 1 ? (k / (shots - 1) - 0.5) * 2 * (rg.spread ?? 0) : 0;
-              this.enemyBullets.acquire().fire(e.x, e.y, Math.atan2(dy, dx) + off, rg.bulletSpeed, rg.bulletDamage, rg.bulletLife);
+              this.eShot(e.id).fire(e.x, e.y, Math.atan2(dy, dx) + off, rg.bulletSpeed, rg.bulletDamage, rg.bulletLife);
             }
             Sound.play('enemyshot');
           }
@@ -1177,7 +1213,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
       const rr = p.radius + e.radius;
       if (e.charmT <= 0 && p.invuln <= 0 && (p.x - e.x) ** 2 + (p.y - e.y) ** 2 < rr * rr) {
         const hp0 = p.hp;
-        this.hurtPlayer(e.damage);
+        this.hurtPlayer(e.damage, { kind: e.isBoss ? 'boss' : 'contact', id: e.id });
         // 가시 갑주: 받은 피해의 3배를 돌려줌 · 거구: 일반 적을 밀어냄
         if (this.pHas('thornArmor') && hp0 > p.hp) this.damage(e, (hp0 - p.hp) * 3, 'melee');
         if (this.pHas('bulk') && e.active && !e.isBoss) {
@@ -1213,10 +1249,19 @@ export class GameScene extends Phaser.Scene implements GameContext {
     this.fx.lineStyle(1, COLORS.magenta, 0.6).lineBetween(e.x, e.y - e.radius - 4, e.x, e.y - e.radius - 10);
   }
 
-  private hurtPlayer(dmg: number): void {
+  /** 적 탄 하나를 꺼내며 쏜 적을 적어 둔다 (게임오버 화면의 사인) */
+  private eShot(src: string, kind: 'bullet' | 'missile' = 'bullet'): EnemyBullet {
+    const b = this.enemyBullets.acquire();
+    b.src = src;
+    b.srcKind = kind;
+    return b;
+  }
+
+  private hurtPlayer(dmg: number, src?: HitSrc): void {
     const p = this.player;
     // 투명(광학 위장·고스트 대시) 중에는 어떤 공격도 통하지 않는다
     if (this.god || this.untracked) return;
+    if (src) this.lastHit = src;
     dmg *= 1 + this.heat * meta.heat.damagePer;
     // 적 공격력도 챕터 안에서 분마다 조금씩 오른다 (챕터마다 0부터)
     dmg *= 1 + ((this.elapsed - this.zoneStart) / 60) * gameData.enemyDamageGrowthPerMin;
@@ -2040,7 +2085,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
         const dist = y1 === y2 ? Math.abs(p.y - y1) : Math.abs(p.x - x1);
         if (!z.hit && p.invuln <= 0 && dist < L.width + p.radius) {
           z.hit = true;
-          this.hurtPlayer(L.damage);
+          this.hurtPlayer(L.damage, { kind: 'laser', id: '' });
         }
       }
       if (z.t <= 0) {
@@ -2110,7 +2155,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
       e.dirY = dy / d;
       this.fx.lineStyle(1, 0xff2a3a, 0.4 + (1 - e.t / S.aim) * 0.5).lineBetween(e.x, e.y, e.x + e.dirX * 300, e.y + e.dirY * 300);
       if (e.t <= 0) {
-        this.enemyBullets.acquire().fire(e.x, e.y, Math.atan2(e.dirY, e.dirX), S.bulletSpeed, S.bulletDamage, S.bulletLife, 1.3);
+        this.eShot(e.id).fire(e.x, e.y, Math.atan2(e.dirY, e.dirX), S.bulletSpeed, S.bulletDamage, S.bulletLife, 1.3);
         Sound.play('enemyshot');
         e.atkT = 0.25;
         e.state = 'walk';
@@ -2153,7 +2198,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
     this.fx.lineStyle(2, COLORS.orange, 0.8).strokeCircle(e.x, e.y, K.blastRadius);
     this.burst(e.x, e.y, COLORS.orange, 14);
     if (this.onScreen(e.x, e.y)) Sound.play('explode');
-    if (p.invuln <= 0 && (p.x - e.x) ** 2 + (p.y - e.y) ** 2 < K.blastRadius ** 2) this.hurtPlayer(K.blast);
+    if (p.invuln <= 0 && (p.x - e.x) ** 2 + (p.y - e.y) ** 2 < K.blastRadius ** 2) this.hurtPlayer(K.blast, { kind: 'blast', id: e.id });
     e.kill();
     return true;
   }
@@ -2176,7 +2221,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
           this.burst(p.x, p.y, COLORS.cyan, 4);
           continue;
         }
-        this.hurtPlayer(b.damage);
+        this.hurtPlayer(b.damage, { kind: b.srcKind, id: b.src });
       }
     }
   }
@@ -2441,7 +2486,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
       const locked = e.t <= S.lock;
       this.fx.lineStyle(locked ? 2 : 1, 0xff2a3a, locked ? 0.95 : 0.5).lineBetween(e.x, e.y, e.x + e.dirX * 420, e.y + e.dirY * 420);
       if (e.t <= 0) {
-        this.enemyBullets.acquire().fire(e.x, e.y, Math.atan2(e.dirY, e.dirX), S.bulletSpeed, S.bulletDamage, S.bulletLife, 1.6);
+        this.eShot(e.id).fire(e.x, e.y, Math.atan2(e.dirY, e.dirX), S.bulletSpeed, S.bulletDamage, S.bulletLife, 1.6);
         Sound.play('enemyshot');
         e.state = 'walk';
         e.t = S.interval * Phaser.Math.FloatBetween(0.8, 1.2);
@@ -2638,7 +2683,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
         const side = n > 1 ? i / (n - 1) - 0.5 : 0;
         const ox = Math.cos(base + Math.PI / 2) * side * b.radius * 1.2;
         const oy = Math.sin(base + Math.PI / 2) * side * b.radius * 1.2;
-        const bl = this.enemyBullets.acquire();
+        const bl = this.eShot(b.id, 'missile');
         bl.fire(b.x + ox, b.y - b.radius * 0.4 + oy, a, ms.speed, ms.damage, ms.homingDist / ms.speed + 1.5, look ? 1 : 1.8, look);
         bl.homeDist = ms.homingDist;
         bl.homeDelay = (ms as { straight?: number }).straight ?? 0.5;
@@ -2689,7 +2734,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
       this.bossPulse(b);
       for (let i = 0; i < vol.volleyCount; i++) {
         const a = this.volleyRot + (i / vol.volleyCount) * Math.PI * 2;
-        this.enemyBullets.acquire().fire(b.x, b.y, a, vol.bulletSpeed, vol.bulletDamage, 5);
+        this.eShot(b.id).fire(b.x, b.y, a, vol.bulletSpeed, vol.bulletDamage, 5);
       }
       Sound.play('enemyshot');
     }
@@ -2760,7 +2805,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
         this.icons.push(ic);
       }
       const x = 8 + it.col * 22;
-      const y = 28 + it.row * 22;
+      const y = 30 + it.row * 22;
       ic.img.setTexture(it.key).setPosition(x, y).setVisible(true);
       ic.lvl.setPosition(x + 18, y + 19).setText(String(it.lvl));
       ic.star.setPosition(x + 19, y - 4).setText('★'.repeat(it.stars));
@@ -2770,6 +2815,15 @@ export class GameScene extends Phaser.Scene implements GameContext {
     g.clear();
     g.fillStyle(0x1a1030).fillRect(0, 0, VIEW_W, 4);
     g.fillStyle(COLORS.green).fillRect(0, 0, (VIEW_W * this.xp) / this.xpToNext(), 4);
+
+    // 왼쪽 위 큰 체력바 (30% 아래로 떨어지면 빨갛게 깜빡임)
+    const hpK = Math.max(0, p.hp) / p.maxHp;
+    const low = hpK < 0.3;
+    g.fillStyle(0x07060f, 0.85).fillRect(6, 6, HP_W + 4, 15);
+    g.fillStyle(0x300010).fillRect(8, 8, HP_W, 11);
+    g.fillStyle(low && Math.floor(this.elapsed * 6) % 2 ? 0xffffff : low ? 0xff2a3a : COLORS.magenta).fillRect(8, 8, HP_W * hpK, 11);
+    if (p.shieldT > 0 && p.shield > 0) g.fillStyle(COLORS.cyan, 0.8).fillRect(8, 17, Math.min(HP_W, (HP_W * p.shield) / p.maxHp), 2);
+    this.hud.hp.setText(`${Math.ceil(Math.max(0, p.hp))} / ${p.maxHp}`);
 
     // 오버드라이브 게이지
     const ow = 160;

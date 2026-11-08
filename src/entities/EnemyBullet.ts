@@ -20,6 +20,9 @@ export class EnemyBullet {
   homeDist = 0;
   /** 추적을 시작하기 전 직진하는 시간 (부채꼴로 퍼져 보이게) */
   homeDelay = 0;
+  /** 쏜 적의 id와 탄 종류 (게임오버 화면의 사인 표시용) */
+  src = '';
+  srcKind: 'bullet' | 'missile' = 'bullet';
 
   fire(x: number, y: number, angle: number, speed: number, damage: number, life: number, scale = 1, texture = 'ebullet'): void {
     this.active = true;
