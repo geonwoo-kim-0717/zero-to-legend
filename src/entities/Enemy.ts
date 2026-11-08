@@ -11,6 +11,8 @@ export type EnemyDef = (typeof enemies)[EnemyId];
 export class Enemy {
   active = false;
   id: EnemyId = 'drone';
+  /** 기본 그림 키 (구역별 겉모습이 있으면 그 키). 걷기·공격 프레임은 <tex>_w2, <tex>_aim */
+  tex = 'drone';
   isBoss = false;
   x = 0;
   y = 0;
@@ -52,6 +54,7 @@ export class Enemy {
     const def = enemies[id];
     this.active = true;
     this.id = id;
+    this.tex = def.texture;
     this.isBoss = id.startsWith('boss') || id.startsWith('midboss');
     this.x = x;
     this.y = y;

@@ -1115,6 +1115,23 @@
           "5": {
             "text": "Security laser grids sweep the tower. When red lines blink, get out of the way."
           }
+        },
+        "skins": {
+          "thug": {
+            "name": "Tower Guard"
+          },
+          "gunner": {
+            "name": "Security Officer"
+          },
+          "corrupt_cop": {
+            "name": "Security Shotgunner"
+          },
+          "psycho": {
+            "name": "Augmented Security Officer"
+          },
+          "rat_bot": {
+            "name": "Quadruped Bot"
+          }
         }
       }
     }

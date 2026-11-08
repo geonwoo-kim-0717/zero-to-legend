@@ -114,6 +114,28 @@
         }
       ],
       "hpMul": 2.2,
+      "skins": {
+        "thug": {
+          "texture": "guard_baton",
+          "name": "타워 경비원"
+        },
+        "gunner": {
+          "texture": "guard_rifle",
+          "name": "보안 요원"
+        },
+        "corrupt_cop": {
+          "texture": "guard_shotgun",
+          "name": "보안 요원 산탄수"
+        },
+        "psycho": {
+          "texture": "guard_charger",
+          "name": "강화 보안 요원"
+        },
+        "rat_bot": {
+          "texture": "spider_bot",
+          "name": "4족 보행 봇"
+        }
+      },
       "music": "battle3"
     }
   ]

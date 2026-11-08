@@ -785,7 +785,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
   private deathCause(): { cause: string; remark: string } {
     const h = this.lastHit;
     const p = this.player;
-    const name = h && h.id in enemiesData ? enemiesData[h.id as EnemyId].name : '';
+    const name = h ? this.enemyName(h.id) : '';
     let near = 0;
     for (const e of this.enemyPool.items) if (e.active && (e.x - p.x) ** 2 + (e.y - p.y) ** 2 < 80 * 80) near++;
     const key = (k: string) => k as Parameters<typeof tr>[0];
@@ -1074,7 +1074,22 @@ export class GameScene extends Phaser.Scene implements GameContext {
     if (this.enemyPool.countActive() >= gameData.spawn.maxEnemies) return null;
     const e = this.enemyPool.acquire();
     e.spawn(id, x, y, hpScale * (1 + this.heat * meta.heat.hpPer));
+    const sk = this.skin(id);
+    if (sk) {
+      e.tex = sk.texture;
+      e.sprite.setTexture(sk.texture);
+    }
     return e;
+  }
+
+  /** 구역별 겉모습: 같은 능력치의 적을 그 구역에 어울리는 그림·이름으로 (예: 기업 타워의 보안 요원). 그림이 없으면 원래대로 */
+  private skin(id: string): { texture: string; name: string } | null {
+    const s = (this.zone as { skins?: Record<string, { texture: string; name: string }> }).skins?.[id];
+    return s && this.textures.exists(s.texture) ? s : null;
+  }
+
+  private enemyName(id: string): string {
+    return this.skin(id)?.name ?? (id in enemiesData ? enemiesData[id as EnemyId].name : '');
   }
 
   private updateEnemies(dt: number): void {
@@ -2108,14 +2123,15 @@ export class GameScene extends Phaser.Scene implements GameContext {
    * 저격 터렛은 조준선 동안이 아니라 발사하는 순간에만 공격 그림.
    */
   private animateEnemy(e: Enemy, dt: number, d: number): void {
-    if (!this.textures.exists(`${e.id}_w2`)) return;
+    const base = e.tex;
+    if (!this.textures.exists(`${base}_w2`)) return;
     e.atkT = Math.max(0, e.atkT - dt);
     const attacking =
       e.atkT > 0 ||
       (e.state !== 'walk' && e.id !== 'sniper_turret') ||
       (CONTACT_POSE.has(e.id) && d < 26);
-    const key = attacking ? `${e.id}_aim` : Math.floor(this.elapsed * 4 + e.x * 0.01) % 2 ? e.id : `${e.id}_w2`;
-    const tex = this.textures.exists(key) ? key : e.id;
+    const key = attacking ? `${base}_aim` : Math.floor(this.elapsed * 4 + e.x * 0.01) % 2 ? base : `${base}_w2`;
+    const tex = this.textures.exists(key) ? key : base;
     if (e.sprite.texture.key !== tex) e.sprite.setTexture(tex);
   }
 
