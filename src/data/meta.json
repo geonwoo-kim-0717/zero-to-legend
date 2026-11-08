@@ -52,7 +52,7 @@
       "unlock": {
         "stat": "bossKills",
         "goal": 1,
-        "desc": "1구역 보스 레드바이트 처치"
+        "desc": "1구역 보스 바실리 처치"
       }
     },
     {
@@ -226,7 +226,7 @@
     {
       "id": "midboss",
       "name": "행동대장 제거",
-      "desc": "중간 보스 스크랩 브루트 처치",
+      "desc": "중간 보스 '도살자' 코박 처치",
       "stat": "midbossKills",
       "goal": 1,
       "reward": 150
@@ -265,7 +265,7 @@
     },
     {
       "id": "boss",
-      "name": "레드바이트 처치",
+      "name": "바실리 처치",
       "desc": "1구역 보스 처치 → 고스트 해금",
       "stat": "bossKills",
       "goal": 1,
@@ -274,7 +274,7 @@
     {
       "id": "hex",
       "name": "메크 해체",
-      "desc": "2구역 보스 헥사워드 처치",
+      "desc": "2구역 보스 XM-4 스웜하운드 처치",
       "stat": "hexKills",
       "goal": 1,
       "reward": 500
@@ -282,7 +282,7 @@
     {
       "id": "core",
       "name": "제로 투 레전드",
-      "desc": "아르코난 코어 처치 (최종 클리어)",
+      "desc": "도시 관리 AI 센서스 정지 (최종 클리어)",
       "stat": "coreKills",
       "goal": 1,
       "reward": 1000

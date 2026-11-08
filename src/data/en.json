@@ -847,10 +847,10 @@
       "name": "Cyberpsycho"
     },
     "boss": {
-      "name": "Redbite"
+      "name": "Carlo 'Red' Basili"
     },
     "midboss": {
-      "name": "Scrap Brute"
+      "name": "Kovac 'The Butcher'"
     },
     "trooper_tank": {
       "name": "Riot Tank"
@@ -868,16 +868,16 @@
       "name": "Kamikaze Drone"
     },
     "midboss2": {
-      "name": "Rivet Crusher"
+      "name": "GRP-7 Grappler"
     },
     "boss2": {
-      "name": "Hexaward"
+      "name": "XM-4 Swarmhound"
     },
     "midboss3": {
-      "name": "Enforcer Prism"
+      "name": "Nora Vail"
     },
     "boss3": {
-      "name": "Arconan Core"
+      "name": "CENSUS"
     },
     "sniper_turret": {
       "name": "Sniper Turret"
@@ -933,7 +933,7 @@
         "concept": "Stealth netrunner",
         "trait": "Invisible for 1s\nafter dashing",
         "unlock": {
-          "desc": "Defeat Zone 1 boss Redbite"
+          "desc": "Defeat Basili, the Zone 1 boss"
         }
       },
       "3": {
@@ -1008,7 +1008,7 @@
       },
       "3": {
         "name": "Lieutenant Down",
-        "desc": "Defeat mid-boss Scrap Brute"
+        "desc": "Defeat midboss Kovac 'The Butcher'"
       },
       "4": {
         "name": "Black Shield Hunt",
@@ -1027,16 +1027,16 @@
         "desc": "Survive 20 min in a run → Nova"
       },
       "8": {
-        "name": "Redbite Down",
+        "name": "Basili Down",
         "desc": "Beat the Zone 1 boss → Ghost"
       },
       "9": {
         "name": "Mech Teardown",
-        "desc": "Defeat Zone 2 boss Hexaward"
+        "desc": "Defeat XM-4 Swarmhound, the Zone 2 boss"
       },
       "10": {
         "name": "Zero to Legend",
-        "desc": "Defeat the Arconan Core"
+        "desc": "Shut down CENSUS (final clear)"
       },
       "11": {
         "name": "Market Regular",
@@ -1056,16 +1056,19 @@
         "name": "Lower Slums",
         "intro": {
           "0": {
-            "text": "Got a job for you, {runner}. Take out Redbite, the gang boss squeezing the Lower Slums."
+            "text": "{runner}, you got the ripperdoc's reminder, right? Miss the interest this week and he takes that arm back."
           },
           "1": {
-            "text": "His thugs and Arconan security drones are in every alley. Grab any useful gear you find and bolt it on."
+            "text": "Nobody hires a zero-point citizen. Nobody but me."
           },
           "2": {
-            "text": "Not a bad first step for a nameless merc becoming a legend."
+            "text": "Here's the job. Carlo Basili, gang boss of the Lower Slums. He sells protection in the blocks CENSUS gave up on. Take him out."
           },
           "3": {
-            "text": "Hold out about ten minutes and Redbite will show up himself. Good luck."
+            "text": "And the debt?"
+          },
+          "4": {
+            "text": "Finish the whole job and it's gone. Hold out about ten minutes and Basili will come for you himself."
           }
         }
       },
@@ -1074,22 +1077,22 @@
         "ruleHint": "Floor conveyors drag you along",
         "intro": {
           "0": {
-            "text": "Redbite's down? The slums will be quiet for a while. Nice work, {runner}."
+            "text": "Basili's down. Seen the news? \"Slum security vacuum, AI management failure.\" You're tonight's headline."
           },
           "1": {
-            "text": "Next job. Arconan is stamping out combat mechs in an Industrial Zone factory. Shut the line down."
+            "text": "I'm keeping his ledger. Call it a hobby."
           },
           "2": {
-            "text": "Problem is, no weapons are allowed inside that factory. Pass the checkpoint and your combat cyberware gets locked too."
+            "text": "Next job. The Industrial Zone factory is building XM-4 war mechs for Black Shield. Stop the line."
           },
           "3": {
-            "text": "You want me to walk into a mech factory empty-handed?"
+            "text": "Past the factory checkpoint your weapons get confiscated and your mods get locked. My inside man will slip in your main weapon and one piece of gear."
           },
           "4": {
-            "text": "My inside contact will smuggle in your main weapon and one piece of gear you really need. Find the rest in there."
+            "text": "You want me to walk into a mech factory empty-handed?"
           },
           "5": {
-            "text": "And watch the floor conveyors. The ground will drag you around."
+            "text": "Close to it. And watch the floor conveyors. They'll drag you along."
           }
         }
       },
@@ -1098,22 +1101,25 @@
         "ruleHint": "When red lines blink, security lasers sweep through",
         "intro": {
           "0": {
-            "text": "Hexaward's scrap metal now. The corporate network is going haywire."
+            "text": "The XM-4 is scrap. Tonight's headline: \"Arconan factory accident, AI security failure.\" The council is getting loud."
           },
           "1": {
-            "text": "This is it. The Arconan Core at the top of the tower. Shut it down and your name becomes a legend in this city."
+            "text": "You sure care about headlines."
           },
           "2": {
-            "text": "The tower lobby scan is even worse than the factory. Weapons get confiscated and all combat cyberware gets locked."
+            "text": "Occupational habit."
           },
           "3": {
-            "text": "Starting from scratch again, then."
+            "text": "Last one. The city management AI at the top of the corporate tower. CENSUS. Shut it down."
           },
           "4": {
-            "text": "My contact will get your main weapon and one piece of gear inside again. Choose carefully what you bring."
+            "text": "Security Director Nora Vail runs the lobby. The checkpoint is worse than the factory's. Same deal: main weapon and one piece of gear."
           },
           "5": {
-            "text": "Security laser grids sweep the tower. When red lines blink, get out of the way."
+            "text": "And this chip. The moment CENSUS goes dark, plug it in. Don't ask."
+          },
+          "6": {
+            "text": "Laser grids sweep the tower. When the red lines flash, move."
           }
         },
         "skins": {
@@ -1133,6 +1139,29 @@
             "name": "Quadruped Bot"
           }
         }
+      }
+    },
+    "ending": {
+      "0": {
+        "text": "CENSUS is dark. You plugged the chip in? ...Good."
+      },
+      "1": {
+        "text": "What was that chip?"
+      },
+      "2": {
+        "text": "Northridge Holdings' install key for the new AI. Tomorrow morning the council signs an emergency contract."
+      },
+      "3": {
+        "text": "Your debt's settled, like I promised. Good work, {runner}."
+      },
+      "4": {
+        "text": "The city always belongs to someone. This time it's my company."
+      },
+      "5": {
+        "text": "And the slums on the new scoreboard?"
+      },
+      "6": {
+        "text": "At the bottom. Same as always."
       }
     }
   },
@@ -1156,22 +1185,22 @@
     },
     "bosses": {
       "0": {
-        "title": "Gang Lieutenant Scrap Brute"
+        "title": "Basili Crew Enforcer Kovac 'The Butcher'"
       },
       "1": {
-        "title": "Gang Boss Redbite"
+        "title": "Gang Boss Carlo 'Red' Basili"
       },
       "2": {
-        "title": "Factory Guard Bot Rivet Crusher"
+        "title": "Factory Guard Bot GRP-7 Grappler"
       },
       "3": {
-        "title": "Corporate War Mech Hexaward"
+        "title": "Black Shield War Mech XM-4 Swarmhound"
       },
       "4": {
-        "title": "Security Enforcer Prism"
+        "title": "Tower Security Director Nora Vail"
       },
       "5": {
-        "title": "Final AI Arconan Core"
+        "title": "City Management AI CENSUS"
       }
     },
     "overflow": {

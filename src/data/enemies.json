@@ -36,7 +36,7 @@
     "texture": "psycho"
   },
   "boss": {
-    "name": "레드바이트",
+    "name": "카를로 '레드' 바실리",
     "hp": 20000,
     "speed": 42,
     "damage": 25,
@@ -45,7 +45,7 @@
     "texture": "boss_w1"
   },
   "midboss": {
-    "name": "스크랩 브루트",
+    "name": "'도살자' 코박",
     "hp": 8000,
     "speed": 48,
     "damage": 20,
@@ -102,7 +102,7 @@
     "fuse": 0.5
   },
   "midboss2": {
-    "name": "리벳 크러셔",
+    "name": "GRP-7 그래플러",
     "hp": 13000,
     "speed": 46,
     "damage": 24,
@@ -111,7 +111,7 @@
     "texture": "midboss2_w1"
   },
   "boss2": {
-    "name": "헥사워드",
+    "name": "XM-4 스웜하운드",
     "hp": 35000,
     "speed": 36,
     "damage": 30,
@@ -120,7 +120,7 @@
     "texture": "boss2_w1"
   },
   "midboss3": {
-    "name": "보안 집행관 프리즘",
+    "name": "노라 베일",
     "hp": 18000,
     "speed": 50,
     "damage": 28,
@@ -129,7 +129,7 @@
     "texture": "midboss3_w1"
   },
   "boss3": {
-    "name": "아르코난 코어",
+    "name": "센서스",
     "hp": 55000,
     "speed": 24,
     "damage": 35,

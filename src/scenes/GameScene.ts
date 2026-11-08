@@ -212,6 +212,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
   /** 이미 예고한 보스(구역-순번)와 진압대 습격 시각 */
   private warnedBoss = '';
   private warnedRaid = -1;
+  private bountySent = false;
   /** 작은 반복 강화로 쌓인 수치 */
   private overflow: Record<string, number> = {};
   private mergeT = 0;
@@ -296,6 +297,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
     this.phoneBox = null;
     this.warnedBoss = '';
     this.warnedRaid = -1;
+    this.bountySent = false;
     this.boss = null;
     this.bossDef = null;
     this.bossesSpawned = 0;
@@ -1470,10 +1472,14 @@ export class GameScene extends Phaser.Scene implements GameContext {
         const t = this.add.text(VIEW_W / 2, VIEW_H / 2 - 40, 'ZONE CLEAR', { ...TEXT, fontSize: '24px', color: '#39ff88' }).setOrigin(0.5).setScrollFactor(0).setDepth(120).setShadow(0, 0, '#39ff88', 10, true, true);
         this.tweens.add({ targets: t, alpha: 0, delay: 900, duration: 600, onComplete: () => t.destroy() });
       } else if (def.final) {
+        // 센서스 정지: 주변을 정리하고 진과의 마지막 대화 뒤 결과 화면
         this.clearArena();
+        this.clearField();
         Sound.music(null, 400);
         this.time.delayedCall(700, () => Sound.play('victory'));
-        this.endRun(true);
+        this.time.delayedCall(1600, () => {
+          if (this.state === 'play') this.startDialog((zonesData as { ending?: Line[] }).ending ?? [], () => this.endRun(true));
+        });
       } else {
         // 중간 보스 보상: 큰 경험치 덩어리와 회복
         this.dropPickup('xp', e.x, e.y, def.rewardXp);
@@ -2340,6 +2346,11 @@ export class GameScene extends Phaser.Scene implements GameContext {
   private fixerWarnings(nextBoss: BossDef | undefined, zt: number): void {
     const lead = gameData.fixerWarnLead;
     if (this.transitionT > 0) return;
+    // 1구역 75초: 센서스가 러너에게 현상금을 걸었다 (갱단·부패 경찰이 노리는 이유)
+    if (!this.bountySent && this.zoneIdx === 0 && zt >= 75) {
+      this.bountySent = true;
+      this.phoneText(tr('phone.bounty'));
+    }
     const key = `${this.zoneIdx}-${this.bossesSpawned}`;
     if (nextBoss && !this.boss && this.warnedBoss !== key && zt >= nextBoss.time - lead) {
       this.warnedBoss = key;
