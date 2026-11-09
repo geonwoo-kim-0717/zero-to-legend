@@ -51,7 +51,7 @@ const rarityById = (id: string) => gameData.rarity.find((r) => r.id === id)!;
 
 /** 자기 수집기 신화 '행운 회로': 영웅 이상 카드 확률 2배 */
 let luck = false;
-/** 첫 판 튜토리얼: 영웅(보라) 등급 가중치 배율 */
+/** 첫 판 튜토리얼: 영웅(보라) 등급 가중치 배율 (favor 항목에만) */
 let epicMul = 1;
 
 function rollRarity(forced?: string): Rarity {
@@ -106,7 +106,7 @@ export function rollChoices(
   opts: { guaranteeWeapon?: boolean; pool?: readonly WeaponId[]; luck?: boolean; favor?: string; favorChance?: number; epicMul?: number } = {},
 ): Choice[] {
   luck = !!opts.luck;
-  epicMul = opts.epicMul ?? 1;
+  epicMul = 1;
   const forcedRarity = mode === 'boss' ? undefined : mode;
   const pool: Omit<Choice, 'rarity' | 'desc'>[] = [];
   for (const id of WEAPON_IDS) {
@@ -168,6 +168,7 @@ export function rollChoices(
     }
   }
   const out: Choice[] = picks.map((c) => {
+    epicMul = opts.favor && c.id === opts.favor ? opts.epicMul ?? 1 : 1;
     let rarity = rollRarity(forcedRarity);
     let ability: Ability | undefined;
 
