@@ -329,6 +329,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
     this.shockwaves = [];
     this.glitch = this.add.graphics().setScrollFactor(0).setDepth(146).setBlendMode(Phaser.BlendModes.ADD);
     this.cameras.main.postFX?.clear();
+    this.odFxOn = false;
     this.grid = new SpatialGrid<Enemy>(GRID_CELL);
     this.spawner = new Spawner((id, x, y, s) => this.spawnEnemy(id, x, y, s));
     this.controls = new InputController(this);
@@ -951,11 +952,13 @@ export class GameScene extends Phaser.Scene implements GameContext {
   update(_time: number, deltaMs: number): void {
     // 포털에 '지금 조작 중인지' 알림 (레벨업·대화·일시정지·이월 화면은 플레이 아님)
     Ads.setPlaying(this.state === 'play');
+    this.syncOdFx();
     if (this.state !== 'play') return;
     // 2배속은 한 번에 큰 걸음 대신 작은 걸음 여러 번 (빠른 탄이 적을 뚫고 지나가지 않게)
     const total = Math.min(deltaMs / 1000, 0.05) * this.gameSpeed;
     const steps = this.gameSpeed > 1 ? Math.ceil(total / 0.034) : 1;
     for (let i = 0; i < steps && this.state === 'play'; i++) this.step(total / steps);
+    this.syncOdFx();
   }
 
   /** 게임 시간 한 걸음 (realDt: 오버클럭 감속 전의 시간) */
@@ -1671,6 +1674,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
         this.odGauge = 0;
         this.odOverlay.setVisible(false);
         this.cameras.main.postFX?.clear();
+        this.odFxOn = false;
         this.glitch.clear();
         if (this.berserk) {
           this.berserk = false;
@@ -1690,6 +1694,28 @@ export class GameScene extends Phaser.Scene implements GameContext {
   /** 특수 능력 지속 시간 (능력마다 따로 정할 수 있음, 없으면 공통값) */
   private get specialDuration(): number {
     return (SP[this.specialId] as { duration?: number }).duration ?? OD.duration;
+  }
+
+  /**
+   * 오버클럭 색감(비네트·색 변환)과 화면 덧칠은 전투 중에만.
+   * 레벨업 카드·대화·일시정지 화면에서는 꺼서 카드 색이 원래대로 보이게 한다
+   */
+  private odFxOn = false;
+  private syncOdFx(): void {
+    const play = this.state === 'play';
+    if (this.specialOn && (this.overdrive || this.berserk)) this.odOverlay.setVisible(play);
+    const want = play && this.overdrive && !Settings.reducedFx;
+    if (want === this.odFxOn) return;
+    this.odFxOn = want;
+    const fx = this.cameras.main.postFX;
+    if (!fx) return;
+    fx.clear();
+    if (want) {
+      fx.addVignette(0.5, 0.5, 0.95, 0.35);
+      const cm = fx.addColorMatrix();
+      cm.saturate(0.5);
+      cm.hue(-25, true);
+    }
   }
 
   /** 특수 능력 게이지 이름: 한국어 화면은 한글 이름, 영어는 대문자 라벨 */
@@ -1715,13 +1741,8 @@ export class GameScene extends Phaser.Scene implements GameContext {
       // 발동 내내 배경음악·효과음이 느리고 낮게 (산데비스탄 느낌)
       Sound.slowWorld(true);
       this.shockwaves.push({ r: 0, life: 0.6 }, { r: -40, life: 0.8 });
-      const fx = this.cameras.main.postFX;
-      if (fx && !Settings.reducedFx) {
-        fx.addVignette(0.5, 0.5, 0.95, 0.35);
-        const cm = fx.addColorMatrix();
-        cm.saturate(0.5);
-        cm.hue(-25, true);
-      }
+      this.odFxOn = false;
+      this.syncOdFx();
     } else if (this.specialId === 'berserk') {
       this.berserk = true;
       this.recalcStats();
