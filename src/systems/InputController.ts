@@ -1,5 +1,7 @@
 import Phaser from 'phaser';
 import { VIEW_W, VIEW_H, COLORS, ZOOM } from '../config';
+import { BASE_TEXT } from '../ui/text';
+import { t } from '../i18n';
 
 /** 키보드와 터치(가상 조이스틱 + 대시 버튼)를 하나의 이동 벡터로 합친다 */
 export class InputController {
@@ -15,6 +17,8 @@ export class InputController {
   private readonly stickR = 36;
   private readonly dashBtn = { x: VIEW_W - 52, y: VIEW_H - 52, r: 28 };
   private gfx: Phaser.GameObjects.Graphics;
+  /** 대시 버튼 글자 (반투명) */
+  private dashLabel: Phaser.GameObjects.Text;
   private touchUsed = false;
 
   constructor(private readonly scene: Phaser.Scene) {
@@ -23,6 +27,12 @@ export class InputController {
     kb.on('keydown-SPACE', () => (this.dashQueued = true));
     scene.input.addPointer(2);
     this.gfx = scene.add.graphics().setScrollFactor(0).setDepth(200);
+    this.dashLabel = scene.add
+      .text(this.dashBtn.x, this.dashBtn.y, t('ui.dash'), { ...BASE_TEXT, fontSize: '11px', color: '#ffffff', strokeThickness: 2 })
+      .setOrigin(0.5)
+      .setScrollFactor(0)
+      .setDepth(201)
+      .setVisible(false);
 
     scene.input.on('pointerdown', (p: Phaser.Input.Pointer) => {
       if (!p.wasTouch) return;
@@ -83,7 +93,9 @@ export class InputController {
   private draw(dashReady: number): void {
     const g = this.gfx;
     g.clear();
+    this.dashLabel.setVisible(this.touchUsed);
     if (!this.touchUsed) return;
+    this.dashLabel.setAlpha(dashReady >= 1 ? 0.6 : 0.3);
     if (this.stickId !== null) {
       g.lineStyle(2, COLORS.cyan, 0.5).strokeCircle(this.stickBaseX, this.stickBaseY, this.stickR);
       g.fillStyle(COLORS.cyan, 0.6).fillCircle(
