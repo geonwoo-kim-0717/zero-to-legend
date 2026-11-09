@@ -224,7 +224,7 @@
           "desc": "Damage +4"
         },
         "3": {
-          "desc": "Cooldown -12%"
+          "desc": "Attack speed +25%"
         },
         "4": {
           "desc": "Pierce +1"
@@ -236,7 +236,7 @@
           "desc": "Damage +5"
         },
         "7": {
-          "desc": "Cooldown -15%, Pellets +3"
+          "desc": "Attack speed +25%, Pellets +3"
         }
       }
     },

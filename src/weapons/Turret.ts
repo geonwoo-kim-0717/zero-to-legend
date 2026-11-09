@@ -1,6 +1,7 @@
 import type Phaser from 'phaser';
 import { WeaponBase } from './WeaponBase';
 import { COLORS } from '../config';
+import gameData from '../data/game.json';
 
 /** 포탑 유지 시간 (블랙마켓 상향: 6 → 8초) */
 const LIFE = 10;
@@ -64,7 +65,8 @@ export class Turret extends WeaponBase {
       if (t.fire <= 0 && !jam) {
         const e = this.nearest(t.x, t.y, range);
         if (e) {
-          t.fire = FIRE;
+          // 발사 간격에도 공격속도(신경 가속기·냉각 코어)와 오버클럭이 적용된다
+          t.fire = FIRE * this.ctx.stats.cooldownMul * (this.ctx.overdrive ? 1 / gameData.overdrive.fireRateMul : 1);
           t.shots++;
           const a = Math.atan2(e.y - t.y, e.x - t.x);
           t.img.setRotation(a);
