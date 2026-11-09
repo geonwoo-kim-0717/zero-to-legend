@@ -19,6 +19,16 @@ const game = new Phaser.Game({
   scene: [BootScene, TitleScene, HideoutScene, GameScene, ResultScene],
 });
 
+// 화면 크기가 바뀌면 (회전, 아이폰 홈 화면 실행 직후 주소창·상태바 변화) 조금 기다렸다가 다시 맞춘다
+const refit = () => {
+  for (const ms of [50, 300, 800]) setTimeout(() => game.scale.refresh(), ms);
+};
+window.addEventListener('resize', refit);
+window.addEventListener('orientationchange', refit);
+window.visualViewport?.addEventListener('resize', refit);
+window.addEventListener('pageshow', refit);
+refit();
+
 I18n.init();
 void Ads.init();
 
