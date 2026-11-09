@@ -32,7 +32,7 @@
     },
     "mantisBlade": {
       "name": "Mantis Blade",
-      "desc": "Wide slash toward the nearest enemy",
+      "desc": "Wide slash in the facing direction",
       "levels": {
         "0": {
           "desc": "Acquired"

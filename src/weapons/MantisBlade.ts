@@ -22,15 +22,13 @@ export class MantisBlade extends WeaponBase {
     this.timer -= dt;
     // 베기 범위(검기가 있으면 검기 사거리) 안에 적이 있을 때만 벰
     const reach = this.has('swordWave') ? 260 : BASE_R * this.area * (whirl ? 1.15 : 1) + 8;
-    const target = this.timer <= 0 ? this.nearest(p.x, p.y, reach) : null;
-    if (target) {
+    if (this.timer <= 0 && this.nearest(p.x, p.y, reach)) {
       this.timer = this.interval * (whirl ? 0.6 : 1);
       // 전설: 반격 자세 — 대시 직후 강화
       const counter = this.has('counterStance') && p.sinceDash < 0.5 ? 2 : 1;
       const r = BASE_R * this.area * counter * (whirl ? 1.15 : 1);
       const dmg = this.damage * counter;
-      // 베기를 일으킨 가장 가까운 적 쪽으로 벤다 (뒤나 옆에 붙은 드론도 맞도록)
-      let base = Math.atan2(target.y - p.y, target.x - p.x);
+      let base = Math.atan2(p.dirY, p.dirX);
       // 전설 검기: 바라보는 방향 대신 가장 가까운 적 쪽으로 벤다
       if (this.has('swordWave')) {
         let best = 260 * 260;
@@ -55,14 +53,7 @@ export class MantisBlade extends WeaponBase {
           p.y,
           r,
           dmg,
-          whirl
-            ? undefined
-            : (e) => {
-                // 부채꼴 가장자리에 몸이 걸친 적도 맞게, 적 몸 크기만큼 각도 여유
-                const d = Math.hypot(e.x - p.x, e.y - p.y) || 1;
-                const pad = Math.asin(Math.min(1, e.radius / d));
-                return Math.abs(Phaser.Math.Angle.Wrap(Math.atan2(e.y - p.y, e.x - p.x) - a)) <= half + pad;
-              },
+          whirl ? undefined : (e) => Math.abs(Phaser.Math.Angle.Wrap(Math.atan2(e.y - p.y, e.x - p.x) - a)) <= half,
           (_e, killed) => {
             // 신화: 사신의 수확
             if (killed && reaper) {

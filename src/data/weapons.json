@@ -47,7 +47,7 @@
   },
   "mantisBlade": {
     "name": "맨티스 블레이드",
-    "desc": "가장 가까운 적 쪽을 넓게 베기",
+    "desc": "바라보는 방향을 넓게 베기",
     "base": {
       "damage": 25,
       "interval": 1.1,
