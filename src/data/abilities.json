@@ -55,9 +55,9 @@
     "hackDrone": {
       "legendary": [
         {
-          "id": "virusSpread",
-          "name": "바이러스 전파",
-          "desc": "드론에 맞아 죽은 적 근처 3마리에게 피해가 퍼짐"
+          "id": "kamikazeDrone",
+          "name": "자폭 드론",
+          "desc": "1초마다 드론 1기가 가장 가까운 적에게 돌진해 자폭(피해 ×5), 자폭한 드론은 다시 생김"
         },
         {
           "id": "defenseOrbit",
@@ -160,7 +160,7 @@
         {
           "id": "ampCurrent",
           "name": "전류 증폭",
-          "desc": "장 안의 적 1마리마다 피해 +5% (최대 +50%)"
+          "desc": "장 안의 적 1마리마다 피해 +5% (상한 없음)"
         }
       ],
       "mythic": [
@@ -221,8 +221,8 @@
       "legendary": [
         {
           "id": "slug",
-          "name": "넉백 슬러그",
-          "desc": "산탄이 적을 뒤로 밀어냄"
+          "name": "슬러그 탄",
+          "desc": "산탄 대신 관통하는 큰 탄 1발 발사, 피해 = 1발 피해 × 산탄 수"
         },
         {
           "id": "dragonBreath",

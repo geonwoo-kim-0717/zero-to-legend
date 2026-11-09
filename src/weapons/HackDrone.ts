@@ -29,6 +29,10 @@ export class HackDrone extends WeaponBase {
   private zaps: Zap[] = [];
   private seekT = 1.5;
   private crashT = 10;
+  /** 전설 자폭 드론: 다음 자폭까지 남은 시간, 자폭한 드론이 다시 생길 때까지 남은 시간 */
+  private boomT = 1;
+  private gone: number[] = [];
+  private boomNext = 0;
 
   private get droneCount(): number {
     return this.s.count * (this.has('swarm') ? 2 : 1);
@@ -87,7 +91,14 @@ export class HackDrone extends WeaponBase {
       const a = this.angle + (i / n) * Math.PI * 2;
       const x = p.x + Math.cos(a) * orbit;
       const y = p.y + Math.sin(a) * orbit;
-      this.sprites[i].setPosition(x, y).setRotation(a * 2);
+      // 자폭한 드론은 잠깐 비었다가 다시 생김
+      if ((this.gone[i] ?? 0) > 0) {
+        this.gone[i] -= dt;
+        this.sprites[i].setVisible(false);
+        this.prev[i] = { x, y };
+        continue;
+      }
+      this.sprites[i].setVisible(true).setPosition(x, y).setRotation(a * 2);
       const pv = this.prev[i] ?? { x, y };
       this.prev[i] = { x, y };
       // 해킹 방벽 드론 근처에서는 드론이 먹통
@@ -124,12 +135,44 @@ export class HackDrone extends WeaponBase {
             e.x += ((e.x - p.x) / d) * 14;
             e.y += ((e.y - p.y) / d) * 14;
           }
-          // 전설: 바이러스 전파
-          if (killed && this.has('virusSpread')) this.spread(e.x, e.y, dmg * 2);
         },
       );
     }
 
+    // 전설: 자폭 드론 — 1초마다 드론 1기가 가장 가까운 적에게 돌진해 자폭(피해 ×5), 0.8초 뒤 다시 생김
+    if (this.has('kamikazeDrone') && (this.boomT -= dt) <= 0) {
+      this.boomT = 1;
+      const t = this.nearest(p.x, p.y, 320);
+      if (t) {
+        let i = -1;
+        for (let k = 0; k < n; k++) {
+          const j = (this.boomNext + k) % n;
+          if ((this.gone[j] ?? 0) <= 0) {
+            i = j;
+            break;
+          }
+        }
+        if (i >= 0) {
+          this.boomNext = (i + 1) % n;
+          this.gone[i] = 0.8;
+          const a = this.angle + (i / n) * Math.PI * 2;
+          const sx = p.x + Math.cos(a) * orbit;
+          const sy = p.y + Math.sin(a) * orbit;
+          this.ctx.fireBullet(sx, sy, Math.atan2(t.y - sy, t.x - sx), 340, dmg * 5, {
+            target: t,
+            texture: 'hackdrone',
+            pierce: 0,
+            turnRate: 14,
+            life: 1.2,
+            tag: this.tag,
+            onHit: (e) => {
+              this.ctx.burst(e.x, e.y, COLORS.green, 10);
+              this.ctx.playFx('hackDrone_zap', e.x, e.y);
+            },
+          });
+        }
+      }
+    }
     // 신화: 드론 군집 — 주기적으로 먼 적에게 돌격하는 드론 발사
     if (this.has('swarm') && (this.seekT -= dt) <= 0) {
       this.seekT = 1.5;
@@ -159,17 +202,6 @@ export class HackDrone extends WeaponBase {
       fx.lineStyle(1.5, COLORS.green, Math.max(0, z.life / 0.2)).lineBetween(z.x1, z.y1, z.x2, z.y2);
     }
     this.zaps = this.zaps.filter((z) => z.life > 0);
-  }
-
-  private spread(x: number, y: number, dmg: number): void {
-    const near = this.ctx.grid.query(x, y, 60, this.spreadBuf).slice();
-    let n = 0;
-    for (const o of near) {
-      if (!o.active) continue;
-      this.zaps.push({ x1: x, y1: y, x2: o.x, y2: o.y, life: 0.2 });
-      this.ctx.damage(o, dmg, this.tag);
-      if (++n >= 3) break;
-    }
   }
 
   destroy(): void {

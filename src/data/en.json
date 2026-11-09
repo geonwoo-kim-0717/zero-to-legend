@@ -212,7 +212,7 @@
     },
     "shotgun": {
       "name": "Scatter Shotgun",
-      "desc": "Fires 7 piercing pellets in a cone at a nearby enemy",
+      "desc": "Fires 7 piercing pellets in a cone at a nearby enemy, knocking enemies back",
       "levels": {
         "0": {
           "desc": "Acquired"
@@ -428,8 +428,8 @@
       "hackDrone": {
         "legendary": {
           "0": {
-            "name": "Virus Spread",
-            "desc": "Enemies killed by drones spread damage to 3 nearby enemies"
+            "name": "Kamikaze Drone",
+            "desc": "Every 1s a drone dives into the nearest enemy and explodes (damage ×5), then respawns"
           },
           "1": {
             "name": "Defense Orbit",
@@ -515,7 +515,7 @@
           },
           "2": {
             "name": "Current Amp",
-            "desc": "+5% damage per enemy inside the field (max +50%)"
+            "desc": "+5% damage per enemy inside the field (no cap)"
           }
         },
         "mythic": {
@@ -566,8 +566,8 @@
       "shotgun": {
         "legendary": {
           "0": {
-            "name": "Knockback Slug",
-            "desc": "Pellets push enemies back"
+            "name": "Slug Round",
+            "desc": "Fires one large piercing slug instead of pellets; damage = pellet damage × pellet count"
           },
           "1": {
             "name": "Dragon's Breath",

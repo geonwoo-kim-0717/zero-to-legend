@@ -71,11 +71,11 @@ export class EmpField extends WeaponBase {
   private tick(x: number, y: number, r: number): void {
     const over = this.has('overcharge') && this.ticks % 6 === 0;
     let dmg = this.damage;
-    // 전설: 전류 증폭 (장 안의 적 1마리마다 +5%, 최대 +50%)
+    // 전설: 전류 증폭 (장 안의 적 1마리마다 +5%, 상한 없음)
     if (this.has('ampCurrent')) {
       let n = 0;
       for (const e of this.ctx.grid.query(x, y, r + MAX_ENEMY_RADIUS, this.buf)) if (e.active && (e.x - x) ** 2 + (e.y - y) ** 2 < (r + e.radius) ** 2) n++;
-      dmg *= 1 + Math.min(0.5, n * 0.05);
+      dmg *= 1 + n * 0.05;
     }
     this.hitCircle(x, y, r, dmg, undefined, (e, killed) => {
       if (Math.random() < 0.35) this.ctx.playFx('empField_arc', e.x, e.y, { angle: Math.random() * 6.28 });

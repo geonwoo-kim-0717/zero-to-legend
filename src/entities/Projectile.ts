@@ -16,6 +16,10 @@ export interface BulletOpts {
   tag?: DamageTag;
   /** 적을 맞힌 자리에 재생할 이펙트 (fx_<이름>_N) */
   hitFx?: string;
+  /** 판정 반지름 (기본 3) */
+  radius?: number;
+  /** 그림 크기 배율 (기본 1) */
+  scale?: number;
 }
 
 export class Projectile {
@@ -63,9 +67,9 @@ export class Projectile {
     this.onHit = o.onHit ?? null;
     this.hitFx = o.hitFx;
     const tex = o.texture ?? 'bullet';
-    this.radius = tex === 'wave' ? 9 : 3;
+    this.radius = o.radius ?? (tex === 'wave' ? 9 : 3);
     this.hits.length = 0;
-    this.sprite.setTexture(tex).setPosition(x, y).setVisible(true).setRotation(angle);
+    this.sprite.setTexture(tex).setPosition(x, y).setVisible(true).setRotation(angle).setScale(o.scale ?? 1);
   }
 
   update(dt: number): void {
