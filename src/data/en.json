@@ -433,7 +433,7 @@
           },
           "1": {
             "name": "Defense Orbit",
-            "desc": "Drones erase enemy bullets they touch and push enemies off the orbit"
+            "desc": "Drones erase enemy bullets and push away enemies they touch"
           }
         },
         "mythic": {
