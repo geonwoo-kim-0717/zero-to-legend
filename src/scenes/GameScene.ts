@@ -209,7 +209,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
     markers: { x: number; y: number }[];
   } | null = null;
   /** 픽서 진의 휴대폰 문자 (보스·진압대 등장 예고): 화면 오른쪽 아래, 한 번에 하나씩 */
-  private phoneQueue: string[] = [];
+  private phoneQueue: { msg: string; tex?: string }[] = [];
   private phoneBox: Phaser.GameObjects.Container | null = null;
   /** 이미 예고한 보스(구역-순번)와 진압대 습격 시각 */
   private warnedBoss = '';
@@ -1302,7 +1302,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
     if (!guide) return;
     Save.data.seenUnits.push(e.tex);
     Save.write();
-    this.phoneText(guide);
+    this.phoneText(guide, e.tex);
   }
 
   /** 일반 적이 아주 가끔 한마디 (화면 안에 있는 적 중 하나, 12~20초마다) */
@@ -2670,29 +2670,39 @@ export class GameScene extends Phaser.Scene implements GameContext {
     }
   }
 
-  private phoneText(msg: string): void {
-    this.phoneQueue.push(msg);
+  /** tex: 메시지에 붙일 그림 (처음 보는 적 소개 등) */
+  private phoneText(msg: string, tex?: string): void {
+    this.phoneQueue.push({ msg, tex: tex && this.textures.exists(tex) ? tex : undefined });
     if (!this.phoneBox) this.showNextPhone();
   }
 
   private showNextPhone(): void {
-    const msg = this.phoneQueue.shift();
-    if (msg === undefined) {
+    const item = this.phoneQueue.shift();
+    if (item === undefined) {
       this.phoneBox = null;
       return;
     }
-    const w = 196;
+    const { msg, tex } = item;
+    const pic = 40; // 적 그림 칸 (그림이 있을 때만)
+    const w = tex ? 226 : 196;
     const x = VIEW_W - w - 8;
     const y = VIEW_H - 182;
     const box = this.add.container(x + w + 20, y).setScrollFactor(0).setDepth(125);
-    const text = this.add.text(12, 34, msg, { ...TEXT, fontSize: '11px', color: '#e8f7ff', wordWrap: { width: w - 24, useAdvancedWrap: true }, lineSpacing: 2 });
-    const h = Math.max(62, text.height + 46);
+    const tx = tex ? 12 + pic + 6 : 12;
+    const text = this.add.text(tx, 34, msg, { ...TEXT, fontSize: '11px', color: '#e8f7ff', wordWrap: { width: w - tx - 12, useAdvancedWrap: true }, lineSpacing: 2 });
+    const h = Math.max(tex ? pic + 42 : 62, text.height + 46);
     box.add(this.add.rectangle(0, 0, w, h, 0x0d0820, 0.94).setOrigin(0).setStrokeStyle(2, COLORS.magenta));
     box.add(this.add.rectangle(4, 4, w - 8, 20, 0x2a1050, 1).setOrigin(0));
     box.add(this.add.image(16, 14, zonesData.client.texture).setScale(0.5));
     box.add(this.add.text(30, 7, `✉ ${zonesData.client.name}`, { ...TEXT, fontSize: '11px', color: '#ff2bd6' }));
     box.add(this.add.text(w - 8, 8, tr('phone.now'), { ...TEXT, fontSize: '9px', color: '#8a7aa8' }).setOrigin(1, 0));
-    box.add(this.add.rectangle(8, 29, text.width + 8, text.height + 8, 0x1a1040, 1).setOrigin(0).setStrokeStyle(1, 0x3a2466));
+    box.add(this.add.rectangle(tx - 4, 29, text.width + 8, text.height + 8, 0x1a1040, 1).setOrigin(0).setStrokeStyle(1, 0x3a2466));
+    if (tex) {
+      box.add(this.add.rectangle(8, 29, pic, pic, 0x1a1040, 1).setOrigin(0).setStrokeStyle(1, COLORS.magenta));
+      const img = this.add.image(8 + pic / 2, 29 + pic / 2, tex);
+      img.setScale(Math.min(3, Math.floor(((pic - 6) / Math.max(img.width, img.height)) * 4) / 4 || 0.5));
+      box.add(img);
+    }
     box.add(text);
     box.setY(y + 62 - h);
     this.phoneBox = box;
