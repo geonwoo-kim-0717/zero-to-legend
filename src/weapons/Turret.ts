@@ -3,7 +3,7 @@ import { WeaponBase } from './WeaponBase';
 import { COLORS } from '../config';
 
 /** 포탑 유지 시간 (블랙마켓 상향: 6 → 8초) */
-const LIFE = 8;
+const LIFE = 10;
 const FIRE = 0.4;
 const RANGE = 160;
 /** 수리 포탑: 이 거리 안이면 회복 */

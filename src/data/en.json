@@ -242,7 +242,7 @@
     },
     "turret": {
       "name": "Deploy Turret",
-      "desc": "Drops an auto turret for 8 seconds (2 bullets per shot)",
+      "desc": "Drops an auto turret for 10 seconds (2 bullets per shot)",
       "levels": {
         "0": {
           "desc": "Acquired"
@@ -682,14 +682,10 @@
       "proxMine": {
         "legendary": {
           "0": {
-            "name": "Chain Detonation",
-            "desc": "Blasts also set off nearby mines"
-          },
-          "1": {
             "name": "Sticky Mine",
             "desc": "Mines fly to nearby enemies and stick"
           },
-          "2": {
+          "1": {
             "name": "Frag Mine",
             "desc": "Explosions throw 6 fragments in all directions"
           }

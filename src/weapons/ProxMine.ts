@@ -115,7 +115,6 @@ export class ProxMine extends WeaponBase {
     this.ctx.burst(m.x, m.y, COLORS.orange, 8);
     this.ctx.sfx('explode');
     // 전설: 연쇄 기폭
-    if (this.has('chainDet')) for (const o of this.mines) if (o.life > 0 && (o.x - m.x) ** 2 + (o.y - m.y) ** 2 < 80 * 80) this.explode(o);
   }
 
   destroy(): void {

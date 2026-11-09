@@ -359,11 +359,6 @@
     "proxMine": {
       "legendary": [
         {
-          "id": "chainDet",
-          "name": "연쇄 기폭",
-          "desc": "폭발이 근처 지뢰도 함께 터뜨림"
-        },
-        {
           "id": "sticky",
           "name": "점착 지뢰",
           "desc": "지뢰가 가까운 적에게 날아가 붙음"
