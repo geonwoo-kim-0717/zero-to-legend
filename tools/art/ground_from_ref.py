@@ -61,16 +61,17 @@ def best_cut(a, lo, hi, length, axis):
 
 
 def slum():
-    a = load('ground1_ref.png')
-    L = 1040  # 가장자리 소품(x<75, x>1180)을 뺀 폭 안에서
-    x0, dx = best_cut(a, 76, 1178, L, 1)
-    y0, dy = best_cut(a, 2, 1252, L, 0)
+    a = load('ground1_ref.png').copy()
+    a[890:960, 890:960] = a[810:880, 890:960]  # 오른쪽 아래 생성기 워터마크(✦)를 옆 무늬로 덮는다
+    L = 980
+    x0, dx = best_cut(a, 2, 1022, L, 1)
+    y0, dy = best_cut(a, 2, 1022, L, 0)
     print('slum cut', x0, y0, round(dx, 1), round(dy, 1))
     c = a[y0:y0 + L, x0:x0 + L]
-    T = 720  # 판석 한 장 ≈ 100px (기존 바닥과 비슷), 플레이어 24px
+    T = round(L * 0.56)  # 육각 맨홀 ≈ 36px (캐릭터 24px의 1.5배)
     c = shrink(c, T, T)
-    c = feather_y(feather_x(c, 10), 10)
-    quant(c, os.path.join(OUT, 'ground.png'), 0.92)
+    c = feather_y(feather_x(c, 8), 8)
+    quant(c, os.path.join(OUT, 'ground.png'))
 
 
 def industrial():
