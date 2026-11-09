@@ -4,7 +4,7 @@ import { Sound } from '../systems/Sound';
 import { addMuteToggle, addFxToggle, addFullscreenToggle, addLangToggle } from '../ui/MuteToggle';
 import { isTouch, enterFullscreen } from '../systems/Fullscreen';
 import { VIEW_W, VIEW_H } from '../config';
-import { t } from '../i18n';
+import { t, I18n } from '../i18n';
 import { Ads } from '../systems/Ads';
 
 export class TitleScene extends Phaser.Scene {
@@ -14,16 +14,25 @@ export class TitleScene extends Phaser.Scene {
 
   create(): void {
     setupCamera(this);
-    this.add.tileSprite(0, 0, VIEW_W, VIEW_H, 'ground').setOrigin(0);
-        this.add
-      .text(VIEW_W / 2, 110, 'ZERO TO LEGEND', { ...BASE_TEXT, fontSize: '40px', color: '#ff2bd6' })
-      .setOrigin(0.5)
-      .setShadow(0, 0, '#ff2bd6', 14, true, true);
+    // 배경: 아지트(도크 9)와 같은 장면, 그 위에 언어별 로고 배너
+    this.add.image(0, 0, 'hideout').setOrigin(0).setDisplaySize(VIEW_W, VIEW_H);
+    this.add.rectangle(0, 0, VIEW_W, VIEW_H, 0x07060f, 0.35).setOrigin(0);
+    const logoKey = I18n.lang === 'ko' ? 'title_ko' : 'title_en';
+    if (this.textures.exists(logoKey)) {
+      const logo = this.add.image(VIEW_W / 2, 96, logoKey);
+      logo.setScale(Math.min(1, (VIEW_W - 40) / logo.width));
+    } else
+      this.add
+        .text(VIEW_W / 2, 110, 'ZERO TO LEGEND', { ...BASE_TEXT, fontSize: '40px', color: '#ff2bd6' })
+        .setOrigin(0.5)
+        .setShadow(0, 0, '#ff2bd6', 14, true, true);
+    // 아래쪽 글자가 배경에 묻히지 않게 어두운 띠
+    this.add.rectangle(0, 176, VIEW_W, VIEW_H - 176, 0x07060f, 0.55).setOrigin(0);
     this.add
-      .text(VIEW_W / 2, 150, t('title.tagline'), { ...BASE_TEXT, fontSize: '13px', color: '#00f0ff' })
+      .text(VIEW_W / 2, 190, t('title.tagline'), { ...BASE_TEXT, fontSize: '13px', color: '#00f0ff' })
       .setOrigin(0.5);
     const start = this.add
-      .text(VIEW_W / 2, 220, isTouch() ? t('title.start.touch') : t('title.start.desktop'), { ...BASE_TEXT, fontSize: '15px', color: '#ffffff' })
+      .text(VIEW_W / 2, 236, isTouch() ? t('title.start.touch') : t('title.start.desktop'), { ...BASE_TEXT, fontSize: '15px', color: '#ffffff' })
       .setOrigin(0.5);
     this.tweens.add({ targets: start, alpha: 0.25, duration: 700, yoyo: true, repeat: -1 });
     this.add
