@@ -38,6 +38,7 @@ export class LevelUpUI {
     const ch = 236;
     const gap = 16;
     const cards: Phaser.GameObjects.Rectangle[] = [];
+    let armed = -1;
     let bottom = 0;
     const x0 = VIEW_W / 2 - (choices.length * cw + (choices.length - 1) * gap) / 2;
     choices.forEach((c, i) => {
@@ -52,7 +53,12 @@ export class LevelUpUI {
         Sound.play('hover');
       });
       card.on('pointerout', () => card.setFillStyle(0x120a24, 0.95));
-      card.on('pointerup', () => onPick(i));
+      // 화면을 누른 채(이동 조작 중) 카드가 뜨면 손을 떼도 고르지 않는다: 카드 위에서 새로 눌렀다 떼야 선택
+      card.on('pointerdown', () => (armed = i));
+      card.on('pointerup', () => {
+        if (armed === i) onPick(i);
+        armed = -1;
+      });
 
       add(s.add.text(x + 8, y + 8, `[${i + 1}]`, { ...BASE_TEXT, fontSize: '11px', color: '#8a7aa8' }));
       add(
@@ -133,7 +139,11 @@ export class LevelUpUI {
           })
           .setOrigin(0.5),
       );
-      btn.setInteractive({ useHandCursor: true }).on('pointerup', onReroll);
+      btn.setInteractive({ useHandCursor: true }).on('pointerdown', () => (armed = 99));
+      btn.on('pointerup', () => {
+        if (armed === 99) onReroll();
+        armed = -1;
+      });
     }
 
     this.keyHandler = (e: KeyboardEvent) => {

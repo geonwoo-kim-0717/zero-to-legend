@@ -1990,6 +1990,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
     const ch = 50;
     const gap = 8;
     const x0 = VIEW_W / 2 - (cols * cw + (cols - 1) * gap) / 2;
+    let carryArmed = -1;
     list.forEach((k, i) => {
       const info = this.keepInfo(k);
       const x = x0 + (i % cols) * (cw + gap);
@@ -2006,7 +2007,11 @@ export class GameScene extends Phaser.Scene implements GameContext {
         Sound.play('hover');
       });
       card.on('pointerout', () => card.setFillStyle(this.carrySel.includes(i) ? 0x3a1f66 : 0x120a24, 0.95));
-      card.on('pointerup', () => this.chooseCarry(i));
+      card.on('pointerdown', () => (carryArmed = i));
+      card.on('pointerup', () => {
+        if (carryArmed === i) this.chooseCarry(i);
+        carryArmed = -1;
+      });
     });
     desc.setText(isTouch() ? tr('carry.hint.touch') : tr('carry.hint.desktop'));
     this.carryKeys = (e: KeyboardEvent) => {
