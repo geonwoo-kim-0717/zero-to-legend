@@ -13,10 +13,21 @@ const CLOSE = 60;
 export class Shotgun extends WeaponBase {
   private again = -1;
   private lastAngle = 0;
+  /** 넉백은 한 번 발사의 산탄이 다 도착한 뒤 적마다 한 번만 (먼저 맞은 산탄이 적을 밀어 나머지가 빗나가지 않게) */
+  private knocks: { t: number; hits: Map<Enemy, { a: number; d: number }> }[] = [];
 
   update(dt: number): void {
     this.timer -= dt;
     this.tickEffects(dt, COLORS.orange);
+    for (const k of this.knocks) {
+      if ((k.t -= dt) > 0) continue;
+      for (const [e, v] of k.hits) {
+        if (!e.active) continue;
+        e.x += Math.cos(v.a) * v.d;
+        e.y += Math.sin(v.a) * v.d;
+      }
+    }
+    this.knocks = this.knocks.filter((k) => k.t > 0);
     if (this.again > 0 && (this.again -= dt) <= 0) this.volley(this.lastAngle);
     if (this.timer > 0) return;
     const p = this.ctx.player;
@@ -37,6 +48,8 @@ export class Shotgun extends WeaponBase {
     const dmg = this.damage;
     this.ctx.sfx('shotgun');
     this.ctx.playFx('shotgun_blast', p.x + Math.cos(angle) * 6, p.y + Math.sin(angle) * 6, { angle, originX: 0 });
+    const vol = { t: 0.15, hits: new Map<Enemy, { a: number; d: number }>() };
+    this.knocks.push(vol);
     const onHit = (a: number, knock: number) => (e: Enemy, killed: boolean) => {
       // 전설: 근거리 사냥 (가까운 적에게 ×1.6)
       if (close && !killed && (e.x - p.x) ** 2 + (e.y - p.y) ** 2 < CLOSE * CLOSE) killed = this.ctx.damage(e, dmg * 0.6);
@@ -45,11 +58,8 @@ export class Shotgun extends WeaponBase {
       if (killed) return;
       // 전설: 드래곤 브레스
       if (fire) this.addDot(e, 2, dmg * 0.6);
-      // 기본 넉백 (보스 제외)
-      if (!e.isBoss) {
-        e.x += Math.cos(a) * knock;
-        e.y += Math.sin(a) * knock;
-      }
+      // 기본 넉백 (보스 제외): 발사가 끝난 뒤 한 번에
+      if (!e.isBoss && !vol.hits.has(e)) vol.hits.set(e, { a, d: knock });
     };
     // 전설: 슬러그 탄 — 산탄 대신 관통하는 큰 탄 1발 (피해 = 1발 피해 × 산탄 수)
     if (this.has('slug')) {
