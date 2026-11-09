@@ -3,7 +3,9 @@ import { WeaponBase } from './WeaponBase';
 import { COLORS } from '../config';
 
 const BASE_R = 48;
-const HALF_ARC = 1.1; // 약 63도 → 전체 126도
+const HALF_ARC = 1.1;
+/** 실제 판정 반지름 = 보이는 베기 반지름 × 1.1 */
+const HIT_MUL = 1.1; // 약 63도 → 전체 126도
 
 interface Slash {
   angle: number;
@@ -21,7 +23,8 @@ export class MantisBlade extends WeaponBase {
     const whirl = this.has('whirlwind');
     this.timer -= dt;
     // 베기 범위(검기가 있으면 검기 사거리) 안에 적이 있을 때만 벰
-    const reach = this.has('swordWave') ? 260 : BASE_R * this.area * (whirl ? 1.15 : 1) + 8;
+    // 판정은 베기 그림보다 10% 넓어서, 베기가 시작되면 범위 끝의 작은 적도 맞음
+    const reach = this.has('swordWave') ? 260 : BASE_R * this.area * (whirl ? 1.15 : 1);
     if (this.timer <= 0 && this.nearest(p.x, p.y, reach)) {
       this.timer = this.interval * (whirl ? 0.6 : 1);
       // 전설: 반격 자세 — 대시 직후 강화
@@ -51,7 +54,7 @@ export class MantisBlade extends WeaponBase {
         this.hitCircle(
           p.x,
           p.y,
-          r,
+          r * HIT_MUL,
           dmg,
           whirl ? undefined : (e) => Math.abs(Phaser.Math.Angle.Wrap(Math.atan2(e.y - p.y, e.x - p.x) - a)) <= half,
           (_e, killed) => {
