@@ -607,7 +607,7 @@
         "mythic": {
           "0": {
             "name": "Sentry Network",
-            "desc": "Turrets fire 3-way and last twice as long"
+            "desc": "No limit on how many turrets can stand at once"
           },
           "1": {
             "name": "Turret Fortress",
