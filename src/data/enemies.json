@@ -135,7 +135,7 @@
     "hp": 13000,
     "speed": 46,
     "damage": 24,
-    "radius": 16,
+    "radius": 19,
     "xp": 0,
     "texture": "midboss2_w1"
   },
