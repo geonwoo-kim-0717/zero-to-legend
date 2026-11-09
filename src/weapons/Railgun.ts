@@ -2,7 +2,6 @@ import { WeaponBase } from './WeaponBase';
 import type { Enemy } from '../entities/Enemy';
 import { COLORS } from '../config';
 
-const RANGE = 420;
 /** 기본 빔 굵기 (블랙마켓 상향: 5 → 6.5) */
 const BASE_W = 6.5;
 
@@ -122,12 +121,11 @@ export class Railgun extends WeaponBase {
     if (this.has('heatTrail')) this.addZone(p.x, p.y, x2, y2, Math.max(3, w * 0.6), 2, this.damage * 0.2, COLORS.orange);
   }
 
-  /** 사거리 안에서 체력이 가장 많은 적 n명 */
+  /** 화면 안에서 지금 체력이 가장 많은 적 n명 */
   private toughest(n: number): Enemy[] {
-    const p = this.ctx.player;
     const out: Enemy[] = [];
     for (const e of this.ctx.enemies) {
-      if (!e.active || (e.x - p.x) ** 2 + (e.y - p.y) ** 2 > RANGE * RANGE) continue;
+      if (!e.active || !this.ctx.onScreen(e.x, e.y)) continue;
       out.push(e);
     }
     out.sort((a, b) => b.hp - a.hp);

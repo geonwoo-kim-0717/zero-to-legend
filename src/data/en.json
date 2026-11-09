@@ -182,7 +182,7 @@
     },
     "railgun": {
       "name": "Railgun",
-      "desc": "Fires a screen-piercing beam at the toughest enemy",
+      "desc": "Fires a screen-piercing beam at the on-screen enemy with the most HP",
       "levels": {
         "0": {
           "desc": "Acquired"
