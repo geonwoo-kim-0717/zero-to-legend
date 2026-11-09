@@ -2,7 +2,7 @@ import { WeaponBase } from './WeaponBase';
 import { COLORS } from '../config';
 import type { Enemy } from '../entities/Enemy';
 
-const BASE_LEN = 110;
+const BASE_LEN = 118;
 /** 가까운 적을 찾는 거리 (없으면 이동 방향으로 휘두름) */
 const AIM_RANGE = 260;
 
@@ -86,7 +86,7 @@ export class Monowire extends WeaponBase {
     const x2 = p.x + Math.cos(angle) * len;
     const y2 = p.y + Math.sin(angle) * len;
     const dmg = this.damage * mul;
-    this.hitLine(p.x, p.y, x2, y2, 6, dmg, (e: Enemy, killed) => {
+    this.hitLine(p.x, p.y, x2, y2, 7, dmg, (e: Enemy, killed) => {
       this.ctx.playFx('monowire_hit', e.x, e.y);
       // Lv.4부터: 맞은 자리 주변 적 2명에게 확산 피해 (맞힌 피해의 50%)
       if (this.level >= 4) {
