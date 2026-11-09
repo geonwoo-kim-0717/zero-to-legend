@@ -22,7 +22,7 @@ import zonesData from '../data/zones.json';
 import wavesData from '../data/waves.json';
 import type { Wave } from '../systems/Spawner';
 import { Save, type Runner, type RunnerId, type SpecialId, type RunStats } from '../systems/Save';
-import { rollChoices, mythicWeaponCard, computeStats, passiveAmount, passiveAbility, type Choice, type PassiveId, type PassiveState } from '../systems/Progression';
+import { rollChoices, abilityCard, computeStats, passiveAmount, passiveAbility, type Choice, type PassiveId, type PassiveState } from '../systems/Progression';
 import { LevelUpUI } from '../ui/LevelUpUI';
 import { Sound, type SfxKey, type MusicKey } from '../systems/Sound';
 import { addMuteToggle, addFxToggle, addFullscreenToggle } from '../ui/MuteToggle';
@@ -90,7 +90,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
   private chainBuf: Enemy[] = [];
   private forcedRarity: string | undefined;
   private levelUps = 0;
-  private giftScreen = false;
+  private giftScreen: 'cluster' | 'chain' | null = null;
   private siphonT = 30;
   /** 가속 연쇄가 덮어쓰기 전의 공격 간격 배율 */
   private baseCooldownMul = 1;
@@ -254,7 +254,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
     this.passives = new Map();
     this.forcedRarity = undefined;
     this.levelUps = 0;
-    this.giftScreen = false;
+    this.giftScreen = null;
     this.siphonT = 30;
     this.streak = this.streakT = this.rushT = this.sinceHurt = this.shardCount = 0;
     this.singT = 15;
@@ -989,16 +989,19 @@ export class GameScene extends Phaser.Scene implements GameContext {
     this.rewardOpen = this.bossRewards > 0;
     if (!reroll && !this.rewardOpen) {
       this.levelUps++;
-      // 첫 판 세 번째 레벨업: 무기 신화 카드 1장 확정 (저장당 한 번)
-      this.giftScreen = this.levelUps === 3 && !Save.data.firstMythicDone && Save.data.stats.runs === 0;
+      // 첫 판 튜토리얼: 네 번째 레벨업에 플라즈마 유탄 전설 '집속탄', 3분이 지난 뒤 첫 레벨업에 신화 '연쇄 폭발'
+      const first = Save.data.stats.runs === 0;
+      this.giftScreen = null;
+      if (first && !Save.data.tutCluster && this.levelUps === 4) this.giftScreen = 'cluster';
+      else if (first && !Save.data.tutChain && this.elapsed >= 180) this.giftScreen = 'chain';
     }
     this.choices = rollChoices(this.weapons, this.passives, this.rewardOpen ? 'boss' : this.forcedRarity, {
       guaranteeWeapon: this.weapons.length < gameData.guaranteeWeaponUntil,
       pool: this.weaponPool,
       luck: this.pHas('luckCircuit'),
     });
-    if (this.giftScreen && !this.rewardOpen && !this.choices.some((c) => c.rarity.id === 'mythic' && c.kind === 'weapon')) {
-      const gift = mythicWeaponCard(this.weapons, this.weaponPool);
+    if (this.giftScreen && !this.rewardOpen) {
+      const gift = this.giftScreen === 'cluster' ? abilityCard(this.weapons, 'plasmaGrenade', 'legendary', 'cluster') : abilityCard(this.weapons, 'plasmaGrenade', 'mythic', 'chainReaction');
       if (gift) {
         const same = this.choices.findIndex((c) => c.id === gift.id);
         this.choices[same >= 0 ? same : Math.floor(Math.random() * this.choices.length)] = gift;
@@ -1022,8 +1025,9 @@ export class GameScene extends Phaser.Scene implements GameContext {
     const c = this.choices[i];
     if (!c || this.state !== 'levelup') return;
     if (this.giftScreen && !this.rewardOpen) {
-      this.giftScreen = false;
-      Save.data.firstMythicDone = true;
+      if (this.giftScreen === 'cluster') Save.data.tutCluster = true;
+      else Save.data.tutChain = true;
+      this.giftScreen = null;
       Save.write();
     }
     Sound.play('select');

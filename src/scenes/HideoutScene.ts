@@ -11,6 +11,11 @@ import { t as tr, I18n } from '../i18n';
 import { Ads } from '../systems/Ads';
 
 type Tab = 'clinic' | 'bar' | 'board' | 'market';
+type Who = 'jin' | 'doc';
+interface DLine {
+  who: Who;
+  text: string;
+}
 const TABS: Tab[] = ['clinic', 'bar', 'board', 'market'];
 const T = (size: number, color = '#e8f7ff') => ({ ...BASE_TEXT, fontSize: `${size}px`, color });
 const PX = 156;
@@ -30,6 +35,8 @@ export class HideoutScene extends Phaser.Scene {
   private credits!: Phaser.GameObjects.Text;
   private summary!: Phaser.GameObjects.Container;
   private hint!: Phaser.GameObjects.Text;
+  /** 아지트 대화창 (튜토리얼 · 리퍼닥 제안 · 초기화 확인) */
+  private dlg: { lines: DLine[]; i: number; box: Phaser.GameObjects.Container; choices?: [string, () => void][]; done: () => void } | null = null;
 
   constructor() {
     super('Hideout');
@@ -54,6 +61,7 @@ export class HideoutScene extends Phaser.Scene {
     addFullscreenToggle(this, 12, 325, 0);
     this.textButton(12, 340, tr('hideout.export'), () => this.exportSave());
     this.textButton(I18n.lang === 'ko' ? 104 : 110, 340, tr('hideout.import'), () => this.importSave());
+    this.textButton(I18n.lang === 'ko' ? 104 : 110, 325, tr('hideout.reset'), () => this.askReset());
     const go = this.add.rectangle(VIEW_W - 12, VIEW_H - 10, 132, 36, COLORS.magenta, 0.9).setOrigin(1, 1).setStrokeStyle(2, 0xffffff);
     this.add.text(VIEW_W - 78, VIEW_H - 33, tr('hideout.deploy'), T(16, '#ffffff')).setOrigin(0.5);
     this.add.text(VIEW_W - 78, VIEW_H - 17, 'ENTER', T(10, '#ffd6f6')).setOrigin(0.5);
@@ -63,17 +71,178 @@ export class HideoutScene extends Phaser.Scene {
     this.add.tileSprite(0, 0, VIEW_W, VIEW_H, 'scan').setOrigin(0).setDepth(300);
 
     const kb = this.input.keyboard!;
-    kb.on('keydown-ENTER', () => this.deploy());
+    kb.on('keydown-ENTER', () => (this.dlg ? this.dlgNext() : this.deploy()));
+    kb.on('keydown-SPACE', () => this.dlg && this.dlgNext());
     if (Ads.provider !== 'crazygames') kb.on('keydown-ESC', () => this.scene.start('Title'));
-    TABS.forEach((id, i) => kb.on(`keydown-${['ONE', 'TWO', 'THREE', 'FOUR'][i]}`, () => this.setTab(id)));
-    kb.on('keydown-LEFT', () => this.tab === 'bar' && this.cycleRunner(-1));
-    kb.on('keydown-RIGHT', () => this.tab === 'bar' && this.cycleRunner(1));
+    TABS.forEach((id, i) => kb.on(`keydown-${['ONE', 'TWO', 'THREE', 'FOUR'][i]}`, () => !this.dlg && this.setTab(id)));
+    kb.on('keydown-LEFT', () => !this.dlg && this.tab === 'bar' && this.cycleRunner(-1));
+    kb.on('keydown-RIGHT', () => !this.dlg && this.tab === 'bar' && this.cycleRunner(1));
 
     Sound.duck(1);
     Sound.music('title', 800);
     // 받을 보상이 있으면 의뢰 보드부터 보여준다
     this.tab = Save.claimable() > 0 ? 'board' : 'bar';
+    this.dlg = null;
     this.refresh();
+    this.time.delayedCall(300, () => this.tutorial());
+  }
+
+  // ───────────────────────────── 대화창 · 튜토리얼 ─────────────────────────────
+  /** 아래쪽 대화창. 탭·ENTER로 넘기고, 마지막 줄에 선택지가 있으면 버튼으로 고른다 */
+  private talk(lines: DLine[], done: () => void = () => undefined, choices?: [string, () => void][]): void {
+    const box = this.add.container(0, 0).setDepth(250);
+    const dim = this.add.rectangle(0, 0, VIEW_W, VIEW_H, 0x000000, 0.45).setOrigin(0).setInteractive();
+    dim.on('pointerup', () => this.dlgNext());
+    box.add(dim);
+    this.dlg = { lines, i: -1, box, choices, done };
+    this.dlgNext();
+  }
+
+  private dlgNext(): void {
+    const d = this.dlg;
+    if (!d) return;
+    const last = d.i === d.lines.length - 1;
+    if (last && d.choices) return; // 선택지는 버튼으로만
+    d.i++;
+    d.box.list.slice(1).forEach((o) => o.destroy());
+    if (d.i >= d.lines.length) {
+      d.box.destroy();
+      this.dlg = null;
+      d.done();
+      return;
+    }
+    const line = d.lines[d.i];
+    const jin = line.who === 'jin';
+    const col = jin ? COLORS.magenta : COLORS.green;
+    const y = VIEW_H - 112;
+    d.box.add(this.add.rectangle(24, y, VIEW_W - 48, 92, 0x0d0820, 0.96).setOrigin(0).setStrokeStyle(2, col));
+    d.box.add(this.add.rectangle(34, y + 10, 72, 72, 0x140c2a).setOrigin(0).setStrokeStyle(1, col));
+    const tex = jin ? 'client' : this.textures.exists('ripperdoc') ? 'ripperdoc' : 'client';
+    const img = this.add.image(70, y + 46, tex).setScale(2);
+    if (!jin && tex === 'client') img.setTint(0x66ff99);
+    d.box.add(img);
+    d.box.add(this.add.text(118, y + 8, jin ? tr('npc.jin') : tr('npc.doc'), T(13, jin ? '#ff2bd6' : '#39ff88')));
+    d.box.add(this.add.text(118, y + 28, line.text, { ...T(12), wordWrap: { width: VIEW_W - 170, useAdvancedWrap: true }, lineSpacing: 3 }));
+    Sound.play('select');
+    if (d.i === d.lines.length - 1 && d.choices) {
+      d.choices.forEach(([label, fn], k) => {
+        const bx = VIEW_W - 40 - k * 104;
+        const bg = this.add.rectangle(bx, y + 66, 96, 20, k === 0 ? COLORS.yellow : 0x2a2040, 1).setOrigin(1, 0).setInteractive({ useHandCursor: true });
+        const tx = this.add.text(bx - 48, y + 76, label, T(11, k === 0 ? '#07060f' : '#e8f7ff')).setOrigin(0.5).setStroke('#000000', 0);
+        bg.on('pointerup', () => {
+          d.box.destroy();
+          this.dlg = null;
+          fn();
+        });
+        d.box.add([bg, tx]);
+      });
+    } else {
+      d.box.add(this.add.text(VIEW_W - 34, y + 74, `${d.i + 1}/${d.lines.length}  ▶`, T(10, '#8a7aa8')).setOrigin(1, 0));
+    }
+  }
+
+  /** 첫 게임오버 뒤 진·리퍼닥 안내 (모든 저장에 한 번) */
+  private tutorial(): void {
+    const d = Save.data;
+    if (this.dlg || d.stats.runs < 1) return;
+    const runner = Save.runner().name;
+    const L = (who: Who, key: Parameters<typeof tr>[0]): DLine => ({ who, text: tr(key, { runner }) });
+    if (d.tut === 0) {
+      const own = d.market.includes('monowire');
+      const price = (meta.market.prices as Record<string, number>).monowire;
+      const topup = !own && d.credits < price && !d.tutTopup;
+      const lines = [L('jin', 'tut.a1'), L('jin', 'tut.a2'), L('jin', 'tut.a3')];
+      if (topup) lines.push(L('doc', 'tut.a4'));
+      if (!own) lines.push(L('jin', 'tut.a5'));
+      this.talk(lines, () => {
+        if (topup) {
+          d.credits = price;
+          d.tutTopup = true;
+        }
+        d.tut = own ? 2 : 1;
+        Save.write();
+        if (own) this.tutorialB();
+        else {
+          this.tab = 'market';
+          this.refresh();
+        }
+      });
+      return;
+    }
+    if (d.tut === 1) {
+      if (d.market.includes('monowire')) this.tutorialB();
+      return;
+    }
+    if (d.tut === 2) {
+      if (d.specials.includes('berserk')) {
+        d.tut = 3;
+        Save.write();
+        return;
+      }
+      const cost = meta.specials.berserk.cost;
+      if (d.credits < cost) return;
+      this.tab = 'clinic';
+      this.refresh();
+      this.talk([L('doc', 'tut.c1'), L('doc', 'tut.c2')], () => undefined, [
+        [
+          tr('tut.c.buy'),
+          () => {
+            if (Save.spend(cost)) {
+              d.specials.push('berserk');
+              Sound.play('levelup');
+            }
+            d.tut = 3;
+            Save.write();
+            this.refresh();
+            this.talk([L('doc', 'tut.c.yes')]);
+          },
+        ],
+        [
+          tr('tut.c.no'),
+          () => {
+            d.tut = 3;
+            Save.write();
+            this.talk([L('doc', 'tut.c.no.reply')]);
+          },
+        ],
+      ]);
+    }
+  }
+
+  /** 모노와이어를 산 뒤: 진이 리퍼닥으로 보내고, 리퍼닥이 시뮬레이션 칩 팁 */
+  private tutorialB(): void {
+    const runner = Save.runner().name;
+    this.talk([{ who: 'jin', text: tr('tut.b1', { runner }) }], () => {
+      this.tab = 'clinic';
+      this.refresh();
+      this.talk(
+        [
+          { who: 'doc', text: tr('tut.b2', { runner }) },
+          { who: 'doc', text: tr('tut.b3', { runner }) },
+        ],
+        () => {
+          Save.data.tut = 2;
+          Save.write();
+          this.refresh();
+          this.tutorial();
+        },
+      );
+    });
+  }
+
+  private askReset(): void {
+    if (this.dlg) return;
+    this.talk([{ who: 'jin', text: tr('reset.ask') }], () => undefined, [
+      [
+        tr('reset.yes'),
+        () => {
+          Save.reset();
+          Sound.play('select');
+          this.scene.start('Title');
+        },
+      ],
+      [tr('reset.no'), () => undefined],
+    ]);
   }
 
   // ───────────────────────────── 공통 ─────────────────────────────
@@ -173,7 +342,9 @@ export class HideoutScene extends Phaser.Scene {
       const lv = Save.clinicLevel(c.id as ClinicId);
       const max = c.costs.length;
       const v = (n: number) => String(Math.round(n * c.per * 10) / 10);
-      this.panel.add(this.add.text(PX + 10, y, c.name, T(12)));
+      const guide = Save.data.tut === 2 && c.id === 'startPick' && lv === 0;
+      this.panel.add(this.add.text(PX + 10, y, c.name, T(12, guide ? '#ff2bd6' : '#e8f7ff')));
+      if (guide) this.hint.setText(tr('tut.hint.clinic'));
       for (let k = 0; k < max; k++) {
         this.panel.add(this.add.rectangle(pipX + k * 13, y + 4, 10, 9, k < lv ? COLORS.cyan : 0x2a2040).setOrigin(0).setStrokeStyle(1, 0x3a2466));
       }
@@ -349,6 +520,7 @@ export class HideoutScene extends Phaser.Scene {
           if (Save.claim(c.id)) {
             Sound.play('levelup');
             this.refresh();
+            this.tutorial();
           }
         });
     });
@@ -368,7 +540,9 @@ export class HideoutScene extends Phaser.Scene {
       const x = PX + 10 + col * 232;
       const y = PY + 30 + row * 57;
       const off = have && Save.data.marketOff.includes(id);
-      this.panel.add(this.add.rectangle(x, y, 226, 54, have && !off ? 0x1a1040 : 0x140c2a, 1).setOrigin(0).setStrokeStyle(1, have && !off ? COLORS.cyan : 0x3a2466));
+      const guide = Save.data.tut === 1 && id === 'monowire' && !have;
+      this.panel.add(this.add.rectangle(x, y, 226, 54, have && !off ? 0x1a1040 : 0x140c2a, 1).setOrigin(0).setStrokeStyle(guide ? 2 : 1, guide ? COLORS.magenta : have && !off ? COLORS.cyan : 0x3a2466));
+      if (guide) this.panel.add(this.add.text(x + 220 - 70, y + 6, '▶', T(11, '#ff2bd6')).setOrigin(1, 0));
       this.panel.add(this.add.image(x + 18, y + 27, `icon_${id}`).setScale(2).setAlpha(off ? 0.35 : 1));
       this.panel.add(this.add.text(x + 36, y + 5, w.name, T(12, off ? '#6a5a88' : have ? '#00f0ff' : '#ffffff')));
       this.panel.add(this.add.text(x + 36, y + 22, w.desc, { ...T(10, off ? '#6a5a88' : '#c8b8e8'), wordWrap: { width: 182, useAdvancedWrap: true } }));
@@ -383,6 +557,7 @@ export class HideoutScene extends Phaser.Scene {
           Save.write();
           Sound.play('levelup');
           this.refresh();
+          this.tutorial();
         });
     });
   }

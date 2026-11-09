@@ -182,20 +182,16 @@ export function rollChoices(
   return out;
 }
 
-/** 첫 판 선물: 지금 고를 수 있는 무기 중 하나를 무작위로 골라 신화 카드로 만든다 */
-export function mythicWeaponCard(owned: WeaponBase[], pool?: readonly WeaponId[]): Choice | undefined {
-  const myth = rarityById('mythic');
-  for (const id of Phaser.Utils.Array.Shuffle(WEAPON_IDS.slice())) {
-    if (pool && !pool.includes(id)) continue;
-    const w = owned.find((o) => o.id === id);
-    if (!w && owned.length >= gameData.maxWeapons) continue;
-    const ability = abilityFor({ kind: 'weapon', id }, myth.id, owned, new Map());
-    if (!ability) continue;
-    const maxed = !!w && w.level >= WEAPON_MAX_LEVEL;
-    const c = { kind: 'weapon' as const, id, title: w ? w.name : weapons[id].name, levelLabel: maxed ? 'MAX' : w ? `Lv.${w.level + 1}` : t('lvl.new'), isNew: !w, maxed: maxed || undefined };
-    return { ...c, rarity: myth, ability, desc: maxed ? t('lvl.maxed') : describe(c, myth, owned) };
-  }
-  return undefined;
+/** 튜토리얼: 정해진 무기의 정해진 특수 능력 카드 (이미 가졌거나 무기 칸이 꽉 찼으면 없음) */
+export function abilityCard(owned: WeaponBase[], id: WeaponId, tier: AbilityTier, abilityId: string): Choice | undefined {
+  const rarity = rarityById(tier);
+  const w = owned.find((o) => o.id === id);
+  if (!w && owned.length >= gameData.maxWeapons) return undefined;
+  const ability = WeaponBase.availableAbilities(id, tier, w).find((a) => a.id === abilityId) as Ability | undefined;
+  if (!ability) return undefined;
+  const maxed = !!w && w.level >= WEAPON_MAX_LEVEL;
+  const c = { kind: 'weapon' as const, id, title: w ? w.name : weapons[id].name, levelLabel: maxed ? 'MAX' : w ? `Lv.${w.level + 1}` : t('lvl.new'), isNew: !w, maxed: maxed || undefined };
+  return { ...c, rarity, ability, desc: maxed ? t('lvl.maxed') : describe(c, rarity, owned) };
 }
 
 /** 최대 레벨 무기·사이버웨어 중 특수 능력이 비어 있는 것 하나를 확률로 전설·신화 카드로 만든다 */

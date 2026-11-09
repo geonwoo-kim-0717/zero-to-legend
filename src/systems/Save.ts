@@ -46,8 +46,15 @@ export interface SaveData {
   speed2: boolean;
   /** 진이 문자로 소개해 준 적 (그림 키). 처음 만날 때 한 번만 안내 */
   seenUnits: string[];
-  /** 첫 판 세 번째 레벨업의 확정 신화 카드를 이미 받았는지 */
+  /** 첫 판 세 번째 레벨업의 확정 신화 카드를 이미 받았는지 (예전 튜토리얼, 지금은 쓰지 않음) */
   firstMythicDone: boolean;
+  /** 첫 판 튜토리얼 카드: 4번째 레벨업 집속탄, 3분 뒤 연쇄 폭발 */
+  tutCluster: boolean;
+  tutChain: boolean;
+  /** 아지트 튜토리얼 단계: 0 시작 전 · 1 모노와이어 구매 대기 · 2 기본 안내 끝 · 3 광전사 칩 제안까지 끝 */
+  tut: number;
+  /** 리퍼닥이 모노와이어 값을 채워 줬는지 */
+  tutTopup: boolean;
 }
 
 /** 한 판에서 얻은 기록. 결과 화면에서 저장에 더한다 */
@@ -85,6 +92,10 @@ function fresh(): SaveData {
     speed2: false,
     seenUnits: [],
     firstMythicDone: false,
+    tutCluster: false,
+    tutChain: false,
+    tut: 0,
+    tutTopup: false,
     stats: { runs: 0, totalKills: 0, droneKills: 0, meleeKills: 0, trooperKills: 0, midbossKills: 0, bossKills: 0, hexKills: 0, coreKills: 0, marketBuys: 0, totalTime: 0, bestTime: 0, bestLevel: 0 },
   };
 }
