@@ -55,6 +55,8 @@ export interface SaveData {
   tut: number;
   /** 리퍼닥이 모노와이어 값을 채워 줬는지 */
   tutTopup: boolean;
+  /** 처음 아지트에 왔을 때 리퍼닥 소개를 봤는지 */
+  introDone: boolean;
 }
 
 /** 한 판에서 얻은 기록. 결과 화면에서 저장에 더한다 */
@@ -96,6 +98,7 @@ function fresh(): SaveData {
     tutChain: false,
     tut: 0,
     tutTopup: false,
+    introDone: false,
     stats: { runs: 0, totalKills: 0, droneKills: 0, meleeKills: 0, trooperKills: 0, midbossKills: 0, bossKills: 0, hexKills: 0, coreKills: 0, marketBuys: 0, totalTime: 0, bestTime: 0, bestLevel: 0 },
   };
 }

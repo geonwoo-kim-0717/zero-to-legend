@@ -11,7 +11,7 @@ import { t as tr, I18n } from '../i18n';
 import { Ads } from '../systems/Ads';
 
 type Tab = 'clinic' | 'bar' | 'board' | 'market';
-type Who = 'jin' | 'doc';
+type Who = 'jin' | 'doc' | 'runner';
 interface DLine {
   who: Who;
   text: string;
@@ -113,15 +113,17 @@ export class HideoutScene extends Phaser.Scene {
     }
     const line = d.lines[d.i];
     const jin = line.who === 'jin';
-    const col = jin ? COLORS.magenta : COLORS.green;
+    const me = line.who === 'runner';
+    const col = me ? COLORS.cyan : jin ? COLORS.magenta : COLORS.green;
     const y = VIEW_H - 112;
     d.box.add(this.add.rectangle(24, y, VIEW_W - 48, 92, 0x0d0820, 0.96).setOrigin(0).setStrokeStyle(2, col));
     d.box.add(this.add.rectangle(34, y + 10, 72, 72, 0x140c2a).setOrigin(0).setStrokeStyle(1, col));
-    const tex = jin ? 'client' : this.textures.exists('ripperdoc') ? 'ripperdoc' : 'client';
-    const img = this.add.image(70, y + 46, tex).setScale(2);
-    if (!jin && tex === 'client') img.setTint(0x66ff99);
+    const tex = me ? Save.runner().texture : jin ? 'client' : this.textures.exists('ripperdoc') ? 'ripperdoc' : 'client';
+    const img = this.add.image(70, y + 46, tex);
+    img.setScale(Math.min(64 / img.width, 64 / img.height, 2));
+    if (!jin && !me && tex === 'client') img.setTint(0x66ff99);
     d.box.add(img);
-    d.box.add(this.add.text(118, y + 8, jin ? tr('npc.jin') : tr('npc.doc'), T(13, jin ? '#ff2bd6' : '#39ff88')));
+    d.box.add(this.add.text(118, y + 8, me ? Save.runner().name : jin ? tr('npc.jin') : tr('npc.doc'), T(13, me ? '#00f0ff' : jin ? '#ff2bd6' : '#39ff88')));
     d.box.add(this.add.text(118, y + 28, line.text, { ...T(12), wordWrap: { width: VIEW_W - 170, useAdvancedWrap: true }, lineSpacing: 3 }));
     Sound.play('select');
     if (d.i === d.lines.length - 1 && d.choices) {
@@ -144,9 +146,26 @@ export class HideoutScene extends Phaser.Scene {
   /** 첫 게임오버 뒤 진·리퍼닥 안내 (모든 저장에 한 번) */
   private tutorial(): void {
     const d = Save.data;
-    if (this.dlg || d.stats.runs < 1) return;
+    if (this.dlg) return;
     const runner = Save.runner().name;
     const L = (who: Who, key: Parameters<typeof tr>[0]): DLine => ({ who, text: tr(key, { runner }) });
+    // 처음 아지트에 왔을 때: 리퍼닥이 뉴럴 오버클럭을 알아보고 사용법을 알려 준다
+    if (!d.introDone) {
+      if (d.stats.runs > 0) {
+        d.introDone = true;
+        Save.write();
+      } else {
+        this.talk(
+          (['i1', 'i2', 'i3', 'i4', 'i5', 'i6', 'i7', 'i8', 'i9'] as const).map((k) => L(k === 'i2' || k === 'i6' ? 'runner' : 'doc', `intro.${k}`)),
+          () => {
+            d.introDone = true;
+            Save.write();
+          },
+        );
+        return;
+      }
+    }
+    if (d.stats.runs < 1) return;
     if (d.tut === 0) {
       const own = d.market.includes('monowire');
       const price = (meta.market.prices as Record<string, number>).monowire;
