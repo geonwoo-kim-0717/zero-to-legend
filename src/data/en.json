@@ -218,10 +218,10 @@
           "desc": "Acquired"
         },
         "1": {
-          "desc": "Pellets +2"
+          "desc": "Pellets +3"
         },
         "2": {
-          "desc": "Damage +3"
+          "desc": "Damage +4"
         },
         "3": {
           "desc": "Cooldown -12%"
@@ -230,13 +230,13 @@
           "desc": "Pierce +1"
         },
         "5": {
-          "desc": "Pellets +2"
+          "desc": "Pellets +3"
         },
         "6": {
           "desc": "Damage +4"
         },
         "7": {
-          "desc": "Cooldown -15%, Pellets +2"
+          "desc": "Cooldown -15%, Pellets +3"
         }
       }
     },

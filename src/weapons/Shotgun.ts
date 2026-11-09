@@ -35,7 +35,7 @@ export class Shotgun extends WeaponBase {
     const close = this.has('closeHunt');
     const shrapnel = this.has('shrapnel');
     const dmg = this.damage;
-    this.ctx.sfx('shoot');
+    this.ctx.sfx('shotgun');
     this.ctx.playFx('shotgun_blast', p.x + Math.cos(angle) * 6, p.y + Math.sin(angle) * 6, { angle, originX: 0 });
     const onHit = (a: number, knock: number) => (e: Enemy, killed: boolean) => {
       // 전설: 근거리 사냥 (가까운 적에게 ×1.6)

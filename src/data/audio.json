@@ -39,6 +39,11 @@
       "minGap": 70,
       "detune": 150
     },
+    "shotgun": {
+      "volume": 0.3,
+      "minGap": 90,
+      "detune": 100
+    },
     "slash": {
       "volume": 0.4,
       "minGap": 60,
