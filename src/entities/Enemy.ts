@@ -23,6 +23,7 @@ export class Enemy {
   radius = 0;
   xp = 0;
   flash = 0;
+  lastFlash = 0;
   stun = 0;
   /** 사이버 사이코의 돌진 베기 상태 */
   state: 'walk' | 'wind' | 'lunge' = 'walk';
@@ -79,8 +80,18 @@ export class Enemy {
   /** 피해를 주고, 죽었으면 true */
   hit(dmg: number): boolean {
     this.hp -= dmg;
-    this.flash = 0.06;
-    this.sprite.setTintFill(0xffffff);
+    if (this.isBoss) {
+      // 보스는 흰색으로 덮지 않고 옅은 붉은 틴트를 짧게, 0.15초에 한 번만 (계속 맞아도 형체가 보이게)
+      const now = performance.now();
+      if (now - this.lastFlash >= 150) {
+        this.lastFlash = now;
+        this.flash = 0.05;
+        this.sprite.setTint(0xff9a9a);
+      }
+    } else {
+      this.flash = 0.06;
+      this.sprite.setTintFill(0xffffff);
+    }
     return this.hp <= 0;
   }
 

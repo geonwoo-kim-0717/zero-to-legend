@@ -30,7 +30,7 @@ import { isTouch } from '../systems/Fullscreen';
 import { Settings } from '../systems/Settings';
 import { Ads } from '../systems/Ads';
 import type { RunResult } from './ResultScene';
-import { t as tr } from '../i18n';
+import { t as tr, I18n } from '../i18n';
 
 /** 공격 상태가 없는 접촉형 적: 플레이어에게 붙으면 공격 그림 */
 const CONTACT_POSE = new Set<string>(['trooper_tank', 'thug', 'sec_bot', 'drone', 'rat_bot']);
@@ -453,7 +453,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
       hp: fixed(this.add.text(8 + HP_W / 2, 6, '', { ...TEXT, fontSize: '10px', strokeThickness: 3 }).setOrigin(0.5, 0)),
       kills: fixed(this.add.text(VIEW_W - 8, 10, '0', TEXT).setOrigin(1, 0)),
       debug: fixed(this.add.text(VIEW_W - 8, 42, '', { ...TEXT, fontSize: '11px', color: '#39ff88', align: 'right' }).setOrigin(1, 0)),
-      od: fixed(this.add.text(VIEW_W / 2, VIEW_H - 22, SP[this.specialId].label, { ...TEXT, fontSize: '11px', color: SP[this.specialId].color }).setOrigin(0.5, 1)),
+      od: fixed(this.add.text(VIEW_W / 2, VIEW_H - 22, this.specialLabel(), { ...TEXT, fontSize: '11px', color: SP[this.specialId].color }).setOrigin(0.5, 1)),
       credits: fixed(this.add.text(VIEW_W - 8, 26, '', { ...TEXT, fontSize: '11px', color: '#fff23a' }).setOrigin(1, 0)),
       bossName: fixed(this.add.text(VIEW_W / 2, 42, '', { ...TEXT, fontSize: '11px', color: '#ff2a3a' }).setOrigin(0.5, 0)),
       zone: fixed(this.add.text(VIEW_W / 2, 29, '', { ...TEXT, fontSize: '10px', color: '#8a7aa8' }).setOrigin(0.5, 0)),
@@ -1692,6 +1692,12 @@ export class GameScene extends Phaser.Scene implements GameContext {
     return (SP[this.specialId] as { duration?: number }).duration ?? OD.duration;
   }
 
+  /** 특수 능력 게이지 이름: 한국어 화면은 한글 이름, 영어는 대문자 라벨 */
+  private specialLabel(): string {
+    const def = SP[this.specialId];
+    return I18n.lang === 'ko' ? def.name : def.label;
+  }
+
   private activateSpecial(): void {
     const def = SP[this.specialId];
     const color = Phaser.Display.Color.HexStringToColor(def.color).color;
@@ -1730,7 +1736,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
       Sound.play('bosswarn');
     }
     const t = this.add
-      .text(VIEW_W / 2, VIEW_H / 2 - 50, def.label, { ...TEXT, fontSize: '22px', color: def.color })
+      .text(VIEW_W / 2, VIEW_H / 2 - 50, this.specialLabel(), { ...TEXT, fontSize: '22px', color: def.color })
       .setOrigin(0.5)
       .setScrollFactor(0)
       .setDepth(120)
