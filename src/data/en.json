@@ -1003,7 +1003,7 @@
         "concept": "Melee body-mod brawler",
         "trait": "HP +30%\nMelee damage +20%",
         "unlock": {
-          "desc": "5,000 melee kills (total)"
+          "desc": "2,000 melee kills (total)"
         }
       },
       "2": {
@@ -1098,7 +1098,7 @@
       },
       "6": {
         "name": "Way of the Blade",
-        "desc": "5,000 melee kills → Viper"
+        "desc": "2,000 melee kills → Viper"
       },
       "7": {
         "name": "Survivor",
