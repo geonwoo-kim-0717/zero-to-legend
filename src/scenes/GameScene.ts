@@ -272,6 +272,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
     this.dashRings = [];
     this.icons = [];
     this.dpsBuckets = new Map();
+    this.dpsStart = new Map();
     this.dpsSec = -1;
     this.dpsShowT = 0;
     this.dmgSrc = null;
@@ -572,36 +573,42 @@ export class GameScene extends Phaser.Scene implements GameContext {
     b.src = this.dmgSrc;
   }
 
-  // ───────────── 무기별 DPS (최근 5초 평균, 왼쪽 HUD) ─────────────
+  // ───────────── 무기별 DPM (분당 피해: 최근 60초 기준, 왼쪽 HUD) ─────────────
   /** 지금 피해를 주고 있는 무기 id (무기 update 중이거나 그 무기가 쏜 탄을 처리하는 중) */
   private dmgSrc: string | null = null;
   private dpsBuckets = new Map<string, number[]>();
   private dpsSec = -1;
+  /** 무기가 처음 피해를 준 초 (60초가 안 됐으면 지금까지 평균으로 1분치를 환산) */
+  private dpsStart = new Map<string, number>();
   private dpsText!: Phaser.GameObjects.Text;
   private dpsShowT = 0;
 
   private logDamage(amount: number): void {
     if (!this.dmgSrc || amount <= 0) return;
     let b = this.dpsBuckets.get(this.dmgSrc);
-    if (!b) this.dpsBuckets.set(this.dmgSrc, (b = [0, 0, 0, 0, 0, 0]));
-    b[Math.floor(this.elapsed) % 6] += amount;
+    if (!b) {
+      this.dpsBuckets.set(this.dmgSrc, (b = new Array(61).fill(0)));
+      this.dpsStart.set(this.dmgSrc, Math.floor(this.elapsed));
+    }
+    b[Math.floor(this.elapsed) % 61] += amount;
   }
 
   private updateDps(dt: number): void {
     const sec = Math.floor(this.elapsed);
     if (sec !== this.dpsSec) {
       this.dpsSec = sec;
-      for (const b of this.dpsBuckets.values()) b[sec % 6] = 0;
+      for (const b of this.dpsBuckets.values()) b[sec % 61] = 0;
     }
     if ((this.dpsShowT -= dt) > 0) return;
     this.dpsShowT = 0.5;
-    const cur = sec % 6;
+    const cur = sec % 61;
     const lines = this.weapons.map((w) => {
       const b = this.dpsBuckets.get(w.id);
       const sum = b ? b.reduce((s, v, i) => (i === cur ? s : s + v), 0) : 0;
-      return `${w.name}  ${Math.round(sum / 5)}`;
+      const span = Math.max(1, Math.min(60, sec - (this.dpsStart.get(w.id) ?? sec)));
+      return `${w.name}  ${Math.round((sum / span) * 60).toLocaleString()}`;
     });
-    this.dpsText.setText(lines.length ? ['DPS', ...lines].join('\n') : '');
+    this.dpsText.setText(lines.length ? ['DPM', ...lines].join('\n') : '');
   }
 
   /** 선분 위의 적에게 한 번 피해 (칼날 대시 등) */
