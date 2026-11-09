@@ -3,10 +3,10 @@
   이음새 근처만 살짝 섞어 끊김을 없앤다.
 - 2챕터: 컨베이어 띠가 게임 판정(game.json zoneRules.conveyor: period마다 band)과 정확히 겹치도록
   원본의 띠 간격(308px)을 period(176)로 맞춰 줄 단위로 다시 쌓는다. 높이 = period x 6.
-- 둘 다 BOX 축소 후 128색으로 줄인다 (아지트 배경과 같은 방식).
+- BOX 축소 후 캐릭터와 같은 39색 팔레트(palx.PALX)로 칠한다. 아지트 배경도 같은 방식.
 사용: python3 tools/art/ground_from_ref.py
 """
-import json, os
+import json, os, sys
 import numpy as np
 from PIL import Image
 
@@ -23,11 +23,34 @@ def shrink(a, w, h):
     return np.asarray(Image.fromarray(a.clip(0, 255).astype(np.uint8)).resize((w, h), Image.BOX), np.float32)
 
 
+sys.path.insert(0, os.path.join(ROOT, 'tools', 'art', 'sprites2026', 'scripts', 'ext'))
+from palx import PALX  # 캐릭터·적 스프라이트와 같은 39색 팔레트
+
+PAL = np.array(PALX, np.float32)
+
+
+def to_lab(x):
+    x = np.clip(x, 0, 255) / 255.0
+    x = np.where(x > 0.04045, ((x + 0.055) / 1.055) ** 2.4, x / 12.92)
+    m = np.array([[0.4124, 0.3576, 0.1805], [0.2126, 0.7152, 0.0722], [0.0193, 0.1192, 0.9505]])
+    xyz = x @ m.T / np.array([0.95047, 1.0, 1.08883])
+    f = np.where(xyz > 0.008856, np.cbrt(xyz), 7.787 * xyz + 16 / 116)
+    return np.stack([116 * f[..., 1] - 16, 500 * (f[..., 0] - f[..., 1]), 200 * (f[..., 1] - f[..., 2])], -1)
+
+
+PAL_LAB = to_lab(PAL)
+
+
 def quant(a, path, dim=1.0):
-    im = Image.fromarray((a * dim).clip(0, 255).astype(np.uint8))
-    im = im.quantize(128, method=Image.Quantize.FASTOCTREE, dither=Image.Dither.NONE).convert('RGB')
+    """캐릭터 팔레트(39색)에서 가장 가까운 색으로 (Lab 거리). 바닥에는 어두운 색만 자연스럽게 골라진다."""
+    a = (a * dim).astype(np.float32)
+    flat = to_lab(a.reshape(-1, 3))
+    idx = np.empty(len(flat), int)
+    for i in range(0, len(flat), 65536):
+        idx[i:i + 65536] = ((flat[i:i + 65536, None] - PAL_LAB[None]) ** 2).sum(-1).argmin(1)
+    im = Image.fromarray(PAL[idx].reshape(a.shape).astype(np.uint8))
     im.save(path)
-    print(path, im.size)
+    print(path, im.size, 'colors', len(np.unique(idx)))
 
 
 def feather_x(a, n):
@@ -106,6 +129,13 @@ def industrial():
     quant(t, os.path.join(OUT, 'ground_industrial.png'), 0.95)
 
 
+def hideout():
+    """아지트·타이틀 배경 (480x270)."""
+    a = load('hideout_ref.png')
+    quant(shrink(a, 480, 270), os.path.join(OUT, 'hideout.png'))
+
+
 if __name__ == '__main__':
     slum()
     industrial()
+    hideout()
