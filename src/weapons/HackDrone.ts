@@ -81,7 +81,6 @@ export class HackDrone extends WeaponBase {
       const pulse = 0.25 + Math.sin(this.angle * 3) * 0.08;
       this.ctx.fx.fillStyle(COLORS.cyan, 0.06).fillCircle(p.x, p.y, orbit + 6);
       this.ctx.fx.lineStyle(2, COLORS.cyan, pulse).strokeCircle(p.x, p.y, orbit);
-      this.ctx.blockEnemyBulletsRing(orbit - 8, orbit + 8);
       for (const e of this.ctx.grid.query(p.x, p.y, orbit + 16, this.spreadBuf)) {
         if (!e.active || e.isBoss) continue;
         const d = Math.hypot(e.x - p.x, e.y - p.y) || 1;
@@ -104,7 +103,7 @@ export class HackDrone extends WeaponBase {
       if (jam) this.sprites[i].setTint(0x39ff88);
       else this.sprites[i].clearTint();
       if (jam) continue;
-      // 전설: 방어 궤도 — 드론이 적 탄을 막음
+      // 전설: 방어 궤도 — 드론 몸(+약간의 여유)에 닿은 적 탄만 지움
       if (this.has('defenseOrbit')) this.ctx.blockEnemyBullets(x, y, HIT_R + 3);
       // 지난 위치에서 지금 위치까지 몇 군데를 나눠 검사 (빠르게 돌아도 지나친 적을 놓치지 않음)
       const steps = Math.min(4, Math.max(1, Math.ceil(Math.hypot(x - pv.x, y - pv.y) / HIT_R)));

@@ -188,7 +188,7 @@
           "desc": "Acquired"
         },
         "1": {
-          "desc": "Damage +30"
+          "desc": "Damage +18"
         },
         "2": {
           "desc": "Cooldown -0.3s"
@@ -197,7 +197,7 @@
           "desc": "Beams +1"
         },
         "4": {
-          "desc": "Damage +40"
+          "desc": "Damage +24"
         },
         "5": {
           "desc": "Beam width +50%"
@@ -206,7 +206,7 @@
           "desc": "Cooldown -0.3s"
         },
         "7": {
-          "desc": "Beams +1, Damage +60"
+          "desc": "Beams +1, Damage +36"
         }
       }
     },
@@ -433,7 +433,7 @@
           },
           "1": {
             "name": "Defense Orbit",
-            "desc": "Drones form a barrier that blocks enemy bullets and pushes enemies away"
+            "desc": "Drones erase enemy bullets they touch and push enemies off the orbit"
           }
         },
         "mythic": {
