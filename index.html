@@ -46,6 +46,45 @@
 <body>
   <div id="game"></div>
   <div id="rotate"><div class="icon"></div><div>화면을 가로로 돌려주세요</div><small>게임은 잠시 멈춰 있어요</small></div>
+  <div id="inapp" style="display:none;position:fixed;inset:0;z-index:20;background:#07060f;color:#e8f7ff;font:700 16px 'Noto Sans KR',sans-serif;text-align:center;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:24px">
+    <div id="inapp-msg"></div>
+    <button id="inapp-open" style="font:inherit;padding:10px 18px;border:2px solid #ff2bd6;background:#120a24;color:#ff2bd6;border-radius:8px"></button>
+    <button id="inapp-stay" style="font:500 13px 'Noto Sans KR',sans-serif;background:none;border:0;color:#8a7aa8;text-decoration:underline"></button>
+  </div>
+  <script>
+    // 카카오톡·인스타그램 같은 앱 안 브라우저는 전체화면을 막는다 → 기본 브라우저로 열도록 안내
+    (function () {
+      try {
+        if (window.self !== window.top) return; // 포털(iframe) 안에서는 건드리지 않음
+        var ua = navigator.userAgent || '';
+        var url = location.href;
+        var ko = (navigator.language || '').toLowerCase().indexOf('ko') === 0;
+        var android = /Android/i.test(ua);
+        var openExternal = null;
+        var inapp = /Instagram|FBAN|FBAV|NAVER\(inapp|DaumApps|BAND\/|everytimeApp|KAKAOSTORY/i;
+        if (/KAKAOTALK/i.test(ua)) openExternal = function () { location.href = 'kakaotalk://web/openExternal?url=' + encodeURIComponent(url); };
+        else if (/ Line\//i.test(ua)) openExternal = function () { location.href = url + (url.indexOf('?') < 0 ? '?' : '&') + 'openExternalBrowser=1'; };
+        else if (inapp.test(ua)) {
+          if (android) openExternal = function () { location.href = 'intent://' + url.replace(/^https?:\/\//, '') + '#Intent;scheme=https;package=com.android.chrome;end'; };
+        } else return;
+        if (/KAKAOTALK/i.test(ua) && sessionStorage.getItem('ztl-ext') !== '1') { sessionStorage.setItem('ztl-ext', '1'); openExternal(); }
+        var box = document.getElementById('inapp');
+        document.getElementById('inapp-msg').innerHTML = ko
+          ? '앱 안 브라우저에서는 전체화면이 안 돼요.<br>기본 브라우저(Chrome·Safari)로 열어 주세요.' + (openExternal ? '' : '<br><small style="color:#8a7aa8;font-weight:500">오른쪽 위 ⋯ 메뉴 → "다른 브라우저로 열기"</small>')
+          : 'Fullscreen does not work in in-app browsers.<br>Please open this page in Chrome or Safari.';
+        var open = document.getElementById('inapp-open');
+        open.textContent = openExternal ? (ko ? '기본 브라우저로 열기' : 'Open in browser') : (ko ? '링크 복사' : 'Copy link');
+        open.onclick = function () {
+          if (openExternal) openExternal();
+          else if (navigator.clipboard) navigator.clipboard.writeText(url).then(function () { open.textContent = ko ? '복사됨! 브라우저에 붙여 넣으세요' : 'Copied!'; });
+        };
+        var stay = document.getElementById('inapp-stay');
+        stay.textContent = ko ? '그냥 여기서 할게요 (전체화면 없이)' : 'Play here anyway (no fullscreen)';
+        stay.onclick = function () { box.style.display = 'none'; };
+        box.style.display = 'flex';
+      } catch (e) {}
+    })();
+  </script>
   <script type="module" src="/src/main.ts"></script>
 </body>
 </html>
