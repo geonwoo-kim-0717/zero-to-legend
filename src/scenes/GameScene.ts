@@ -999,6 +999,8 @@ export class GameScene extends Phaser.Scene implements GameContext {
       guaranteeWeapon: this.weapons.length < gameData.guaranteeWeaponUntil,
       pool: this.weaponPool,
       luck: this.pHas('luckCircuit'),
+      // 첫 판 3분 전까지: 플라즈마 유탄이 조금 더 자주, 영웅(보라) 카드가 조금 더 자주
+      ...(Save.data.stats.runs === 0 && this.elapsed < 180 ? { favor: 'plasmaGrenade', favorChance: 0.35, epicMul: 2.5 } : {}),
     });
     if (this.giftScreen && !this.rewardOpen) {
       const gift = this.giftScreen === 'cluster' ? abilityCard(this.weapons, 'plasmaGrenade', 'legendary', 'cluster') : abilityCard(this.weapons, 'plasmaGrenade', 'mythic', 'chainReaction');

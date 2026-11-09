@@ -51,10 +51,12 @@ const rarityById = (id: string) => gameData.rarity.find((r) => r.id === id)!;
 
 /** 자기 수집기 신화 '행운 회로': 영웅 이상 카드 확률 2배 */
 let luck = false;
+/** 첫 판 튜토리얼: 영웅(보라) 등급 가중치 배율 */
+let epicMul = 1;
 
 function rollRarity(forced?: string): Rarity {
   if (forced) return rarityById(forced);
-  const wt = (r: Rarity) => r.weight * (luck && (r.id === 'epic' || r.ability) ? 1.5 : 1);
+  const wt = (r: Rarity) => r.weight * (luck && (r.id === 'epic' || r.ability) ? 1.5 : 1) * (r.id === 'epic' ? epicMul : 1);
   const total = gameData.rarity.reduce((s, r) => s + wt(r), 0);
   let n = Math.random() * total;
   for (const r of gameData.rarity) {
@@ -101,9 +103,10 @@ export function rollChoices(
   owned: WeaponBase[],
   ownedPassives: Map<PassiveId, PassiveState>,
   mode?: string,
-  opts: { guaranteeWeapon?: boolean; pool?: readonly WeaponId[]; luck?: boolean } = {},
+  opts: { guaranteeWeapon?: boolean; pool?: readonly WeaponId[]; luck?: boolean; favor?: string; favorChance?: number; epicMul?: number } = {},
 ): Choice[] {
   luck = !!opts.luck;
+  epicMul = opts.epicMul ?? 1;
   const forcedRarity = mode === 'boss' ? undefined : mode;
   const pool: Omit<Choice, 'rarity' | 'desc'>[] = [];
   for (const id of WEAPON_IDS) {
@@ -147,6 +150,14 @@ export function rollChoices(
   }
 
   const picks = Phaser.Utils.Array.Shuffle(pool).slice(0, 3);
+  // 첫 판 튜토리얼: 특정 항목이 조금 더 자주 나오게 (빠져 있으면 확률로 한 자리를 바꿔 넣음)
+  if (opts.favor && !picks.some((c) => c.id === opts.favor) && Math.random() < (opts.favorChance ?? 0)) {
+    const f = pool.find((c) => c.id === opts.favor);
+    if (f) {
+      if (picks.length < 3) picks.push(f);
+      else picks[Math.floor(Math.random() * picks.length)] = f;
+    }
+  }
   // 초반 무기 확정: 무기가 적을 때는 새 무기 카드가 최소 한 장 나오게
   const isNewWeapon = (c: (typeof pool)[number]) => c.kind === 'weapon' && !!c.isNew;
   if (opts.guaranteeWeapon && !picks.some(isNewWeapon)) {
