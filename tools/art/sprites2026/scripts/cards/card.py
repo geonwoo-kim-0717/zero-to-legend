@@ -30,11 +30,13 @@ EXT=["1E2233","3A4058","5C6680","A8B0C4","0F4A55","2E9AA8","8FD8DE","5A1650","B8
      "5A1018","B8333A","4A220E","C2671E","B89A2A","15502E","2E9E5A","6B5A8A","C9C2D9",
      "4A2C2A","8A5A4A","C08A70","E6BFA0"]   # skin ramp, for cyberware cards that show the body
 PALX=np.vstack([PAL,[[int(h[i:i+2],16) for i in (0,2,4)] for h in EXT]])
-def nearx(m):
+def nearx(m, skin=True):
     rm=(PALX[:,0]+m[0])/2; d=PALX-m
-    return int(np.argmin((2+rm/256)*d[:,0]**2+4*d[:,1]**2+(2+(255-rm)/256)*d[:,2]**2))
+    e=(2+rm/256)*d[:,0]**2+4*d[:,1]**2+(2+(255-rm)/256)*d[:,2]**2
+    if not skin: e[len(PALX)-4:]=1e18
+    return int(np.argmin(e))
 ROT={"railgun":32,"shotgun":32,"mantisBlade":20}   # long side-on weapons: tilt to use the square card box
-def card(src, out, S=48, pad=1, rot=0, mute=0.0, ext=False, soft=0):
+def card(src, out, S=48, pad=1, rot=0, mute=0.0, ext=False, soft=0, skin=True):
     a=nobg(np.asarray(Image.open(src).convert("RGB")), soft=soft)
     if rot: a=np.asarray(Image.fromarray(a,"RGBA").rotate(rot,resample=Image.BICUBIC,expand=True))
     ys,xs=np.where(a[...,3]>0); a=a[ys.min():ys.max()+1, xs.min():xs.max()+1]
@@ -51,7 +53,7 @@ def card(src, out, S=48, pad=1, rot=0, mute=0.0, ext=False, soft=0):
             if best is None and f.count(5)>=0.3*len(sol): best=5
             m=sol.mean(0)
             if mute: lum=m@[0.3,0.59,0.11]; m=m+(lum-m)*mute; m=m*(1-0.18*mute)   # pull rim-light neon toward grey, a bit darker
-            g[y,x]=best if best is not None else (nearx(m) if ext else near(m))
+            g[y,x]=best if best is not None else (nearx(m, skin) if ext else near(m))
     img=np.zeros((S,S,4),np.uint8); oy,ox=(S-gh)//2,(S-gw)//2
     full=np.full((S,S),-1); full[oy:oy+gh,ox:ox+gw]=g
     for y in range(S):
