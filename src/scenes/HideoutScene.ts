@@ -45,7 +45,7 @@ export class HideoutScene extends Phaser.Scene {
   create(): void {
     setupCamera(this);
     this.add.image(0, 0, 'hideout').setOrigin(0).setDisplaySize(VIEW_W, VIEW_H);
-    this.add.rectangle(0, 0, VIEW_W, VIEW_H, 0x07060f, 0.62).setOrigin(0);
+    this.add.rectangle(0, 0, VIEW_W, VIEW_H, 0x07060f, 0.4).setOrigin(0);
     this.add.text(12, 10, tr('hideout.title'), T(18, '#ff2bd6')).setShadow(0, 0, '#ff2bd6', 8, true, true);
     this.add.text(I18n.lang === 'ko' ? 74 : 108, 16, tr('hideout.sub'), T(11, '#8a7aa8'));
     this.credits = this.add.text(VIEW_W - 12, 8, '', T(16, '#fff23a')).setOrigin(1, 0);
