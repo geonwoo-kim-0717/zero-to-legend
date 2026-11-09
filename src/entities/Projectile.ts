@@ -37,6 +37,8 @@ export class Projectile {
   onHit: ((e: Enemy, killed: boolean) => void) | null = null;
   hitFx: string | undefined = undefined;
   readonly hits: Enemy[] = [];
+  /** 이 탄을 쏜 무기 id (무기별 DPS 집계용) */
+  src: string | null = null;
   readonly sprite: Phaser.GameObjects.Image;
 
   constructor(scene: Phaser.Scene) {

@@ -271,6 +271,10 @@ export class GameScene extends Phaser.Scene implements GameContext {
     this.mergeT = this.dashGhostT = 0;
     this.dashRings = [];
     this.icons = [];
+    this.dpsBuckets = new Map();
+    this.dpsSec = -1;
+    this.dpsShowT = 0;
+    this.dmgSrc = null;
     this.overdrive = this.specialOn = this.berserk = this.wasUntracked = false;
     this.runner = Save.runner();
     this.specialId = Save.special(this.runner.id as RunnerId);
@@ -463,6 +467,8 @@ export class GameScene extends Phaser.Scene implements GameContext {
       ),
     };
     this.hud.time.setShadow(0, 0, '#00f0ff', 6, true, true);
+    // 무기별 DPS: 왼쪽, 보유 아이콘 아래
+    this.dpsText = fixed(this.add.text(8, 84, '', { ...TEXT, fontSize: '8px', color: '#c8b8e8', lineSpacing: 3 }));
   }
 
   // ───────────────────────────── GameContext ─────────────────────────────
@@ -487,6 +493,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
     if (this.streak > 0) amount *= 1 + 0.02 * this.streak;
     // 처형자: 맞고 체력 15% 이하로 남는 일반 적은 즉사
     if (!e.isBoss && this.pHas('executioner') && e.hp - amount <= e.maxHp * 0.15) amount = Math.max(amount, e.hp);
+    this.logDamage(Math.min(amount, Math.max(0, e.hp)));
     if (e.hit(amount)) {
       if (tag === 'melee') this.run.meleeKills++;
       this.killEnemy(e);
@@ -560,7 +567,41 @@ export class GameScene extends Phaser.Scene implements GameContext {
   }
 
   fireBullet(x: number, y: number, angle: number, speed: number, damage: number, opts?: BulletOpts): void {
-    this.bullets.acquire().fire(x, y, angle, speed, damage, opts);
+    const b = this.bullets.acquire();
+    b.fire(x, y, angle, speed, damage, opts);
+    b.src = this.dmgSrc;
+  }
+
+  // ───────────── 무기별 DPS (최근 5초 평균, 왼쪽 HUD) ─────────────
+  /** 지금 피해를 주고 있는 무기 id (무기 update 중이거나 그 무기가 쏜 탄을 처리하는 중) */
+  private dmgSrc: string | null = null;
+  private dpsBuckets = new Map<string, number[]>();
+  private dpsSec = -1;
+  private dpsText!: Phaser.GameObjects.Text;
+  private dpsShowT = 0;
+
+  private logDamage(amount: number): void {
+    if (!this.dmgSrc || amount <= 0) return;
+    let b = this.dpsBuckets.get(this.dmgSrc);
+    if (!b) this.dpsBuckets.set(this.dmgSrc, (b = [0, 0, 0, 0, 0, 0]));
+    b[Math.floor(this.elapsed) % 6] += amount;
+  }
+
+  private updateDps(dt: number): void {
+    const sec = Math.floor(this.elapsed);
+    if (sec !== this.dpsSec) {
+      this.dpsSec = sec;
+      for (const b of this.dpsBuckets.values()) b[sec % 6] = 0;
+    }
+    if ((this.dpsShowT -= dt) > 0) return;
+    this.dpsShowT = 0.5;
+    const cur = sec % 6;
+    const lines = this.weapons.map((w) => {
+      const b = this.dpsBuckets.get(w.id);
+      const sum = b ? b.reduce((s, v, i) => (i === cur ? s : s + v), 0) : 0;
+      return `${w.name}  ${Math.round(sum / 5)}`;
+    });
+    this.dpsText.setText(lines.length ? ['DPS', ...lines].join('\n') : '');
   }
 
   /** 선분 위의 적에게 한 번 피해 (칼날 대시 등) */
@@ -1182,8 +1223,13 @@ export class GameScene extends Phaser.Scene implements GameContext {
     this.updateOverdrive(dt);
     this.updateEnemies(dt);
     if (this.boss) this.updateBoss(dt);
-    for (const w of this.weapons) w.update(dt);
+    for (const w of this.weapons) {
+      this.dmgSrc = w.id;
+      w.update(dt);
+    }
+    this.dmgSrc = null;
     this.updateBullets(dt);
+    this.updateDps(dt);
     this.updateEnemyBullets(dt);
     this.updateFx(dt);
     this.updateShouts(dt);
@@ -1502,6 +1548,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
       if (!b.active) continue;
       b.update(dt);
       if (!b.active) continue;
+      this.dmgSrc = b.src;
       for (const e of this.grid.query(b.x, b.y, b.radius + MAX_ENEMY_RADIUS, this.near)) {
         if (!e.active || b.hits.includes(e) || e.dodgeT > 0) continue;
         const rr = e.radius + b.radius;
@@ -1525,6 +1572,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
         }
       }
     }
+    this.dmgSrc = null;
   }
 
   /** 스마트 피스톨 연쇄 사격: 맞힌 자리에서 가장 가까운 다른 적에게 새 탄 */
