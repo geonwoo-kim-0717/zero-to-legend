@@ -1,80 +1,48 @@
-"""보안 드론 도트 (위에서 본 쿼드콥터): 흰 몸체 + 붉은 렌즈 + 프로펠러 4개.
-어두운 바닥(1챕터) 위에서도 보이도록 밝은 몸체, 1px 윤곽선. 걷기 2프레임은 프로펠러 날개 각도만 바뀐다.
+"""보안 드론 도트: 생성 원본(sources/drone_v2.png, 메탈 회색 쿼드콥터 + 붉은 렌즈·조명)을 22px로 변환.
+금속 반사가 흰색으로 튀지 않도록 붉은 조명을 뺀 부분만 밝기를 78%로 낮춘 뒤 process_ext.py(39색)로 변환한다.
+프레임: drone(기본) / drone_w2(위로 1px 떠오르고 프로펠러 조명 꺼짐 → 깜빡임) / drone_aim(렌즈가 밝아지고 붉은 경고 고리, 28px).
 사용: python3 tools/art/drone_sprite.py [출력 폴더=src/assets]"""
-import math, os, sys
+import os, subprocess, sys, tempfile
 import numpy as np
 from PIL import Image
 
-OUT = sys.argv[1] if len(sys.argv) > 1 else os.path.join(os.path.dirname(__file__), '..', '..', 'src', 'assets')
-H = lambda h: tuple(int(h[i:i + 2], 16) for i in (0, 2, 4))
-OUTL, WHITE, LIGHT, MID, DARK = H('07060F'), H('E8F7FF'), H('C9C2D9'), H('8A7AA8'), H('3A4058')
-RED, REDD, CYAN, CYAND = H('FF2A3A'), H('B8333A'), H('00F0FF'), H('2E9AA8')
-SS = 8  # 슈퍼샘플
+HERE = os.path.dirname(os.path.abspath(__file__))
+OUT = sys.argv[1] if len(sys.argv) > 1 else os.path.join(HERE, '..', '..', 'src', 'assets')
+SRC = os.path.join(HERE, 'sprites2026', 'sources', 'drone_v2.png')
+PROC = os.path.join(HERE, 'sprites2026', 'scripts', 'process_ext.py')
+S = 22
+RED, REDD, PINK, OUTL = (0xFF, 0x2A, 0x3A), (0xB8, 0x33, 0x3A), (0xFF, 0x8A, 0x9A), (7, 6, 15)
 
+a = np.asarray(Image.open(SRC).convert('RGB'), np.float32)
+red = (a[..., 0] > 120) & (a[..., 0] > a[..., 1] * 1.8)
+b = a * 0.78
+b[red] = a[red]
+tmp = tempfile.mkdtemp()
+Image.fromarray(b.clip(0, 255).astype(np.uint8)).save(f'{tmp}/src.png')
+subprocess.run([sys.executable, PROC, f'{tmp}/src.png', f'{tmp}/base.png', str(S), str(S), '', '25'], check=True, capture_output=True)
+base = np.asarray(Image.open(f'{tmp}/base.png').convert('RGBA')).copy()
+Image.fromarray(base).save(os.path.join(OUT, 'drone.png'))
 
-def draw(size, blade_ang, glow=False):
-    n = size * SS
-    img = np.zeros((n, n, 4), np.uint8)
-    yy, xx = np.mgrid[0:n, 0:n] / SS
-    c = size / 2
-    def disc(cx, cy, r): return (xx - cx) ** 2 + (yy - cy) ** 2 <= r * r
-    def seg(x0, y0, x1, y1, w):
-        dx, dy = x1 - x0, y1 - y0
-        t = np.clip(((xx - x0) * dx + (yy - y0) * dy) / (dx * dx + dy * dy), 0, 1)
-        return (xx - x0 - t * dx) ** 2 + (yy - y0 - t * dy) ** 2 <= (w / 2) ** 2
-    def put(mask, col): img[mask] = (*col, 255)
-    o = 5.0 * size / 18  # 로터 중심까지 거리
-    rr = 3.2 * size / 18  # 로터 반지름
-    rot = [(c - o, c - o), (c + o, c - o), (c - o, c + o), (c + o, c + o)]
-    # 팔
-    for (x, y) in rot:
-        put(seg(c, c, x, y, 2.2 * size / 18), MID)
-    # 로터: 어두운 원판 + 밝은 테두리 + 날개 두 장
-    for i, (x, y) in enumerate(rot):
-        put(disc(x, y, rr), DARK)
-        put(disc(x, y, rr) & ~disc(x, y, rr - 0.9), CYAND)
-        a = blade_ang + i * math.pi / 2
-        bx, by = math.cos(a) * (rr - 0.4), math.sin(a) * (rr - 0.4)
-        put(seg(x - bx, y - by, x + bx, y + by, 1.1), CYAN)
-        put(disc(x, y, 0.8), LIGHT)
-    # 몸체: 흰 원 + 아래쪽 그림자 + 붉은 렌즈
-    br = 3.4 * size / 18
-    put(disc(c, c, br), LIGHT)
-    put(disc(c - 0.6, c - 0.6, br - 0.9), WHITE)
-    put(disc(c, c + 0.3, 1.7 * size / 18 + (0.5 if glow else 0)), REDD)
-    put(disc(c, c + 0.1, 1.0 * size / 18 + (0.5 if glow else 0)), RED)
-    # 축소: 칸 안에서 가장 많은 색
-    small = np.zeros((size, size, 4), np.uint8)
-    for y in range(size):
-        for x in range(size):
-            blk = img[y * SS:(y + 1) * SS, x * SS:(x + 1) * SS].reshape(-1, 4)
-            op = blk[blk[:, 3] > 0]
-            if len(op) >= SS * SS * 0.4:
-                cols, cnt = np.unique(op, axis=0, return_counts=True)
-                small[y, x] = cols[cnt.argmax()]
-    # 1px 윤곽선
-    a = small[..., 3] > 0
-    nb = np.zeros_like(a)
-    nb[1:] |= a[:-1]; nb[:-1] |= a[1:]; nb[:, 1:] |= a[:, :-1]; nb[:, :-1] |= a[:, 1:]
-    small[nb & ~a] = (*OUTL, 255)
-    return small
+# 붉은 픽셀: 가운데 렌즈 / 바깥 프로펠러 조명
+rgb = base[..., :3].astype(int)
+isred = (base[..., 3] > 0) & (rgb[:, :, 0] > 150) & (rgb[:, :, 0] > rgb[:, :, 1] * 1.8)
+yy, xx = np.mgrid[0:S, 0:S]
+c = (S - 1) / 2
+centre = np.hypot(xx - c, yy - c) < 4.5
 
+w2 = base.copy()
+w2[isred & ~centre, :3] = REDD                 # 프로펠러 조명 꺼짐
+w2 = np.roll(w2, -1, 0)                         # 위로 1px (떠 있는 느낌)
+Image.fromarray(w2).save(os.path.join(OUT, 'drone_w2.png'))
 
-def pad(im, size):
-    out = np.zeros((size, size, 4), np.uint8)
-    o = (size - im.shape[0]) // 2
-    out[o:o + im.shape[0], o:o + im.shape[1]] = im
-    return out
-
-
-if __name__ == '__main__':
-    S = 18
-    Image.fromarray(draw(S, math.pi / 4)).save(os.path.join(OUT, 'drone.png'))
-    Image.fromarray(draw(S, 0)).save(os.path.join(OUT, 'drone_w2.png'))
-    # 공격(돌진) 프레임: 렌즈가 커지고 붉은 경고 고리
-    aim = pad(draw(S, math.pi / 8, glow=True), 28)
-    yy, xx = np.mgrid[0:28, 0:28]
-    ring = (np.abs(np.hypot(xx - 13.5, yy - 13.5) - 12.5) < 0.6) & (aim[..., 3] == 0) & (((xx + yy) % 3) != 0)
-    aim[ring] = (*RED, 255)
-    Image.fromarray(aim).save(os.path.join(OUT, 'drone_aim.png'))
-    print('drone sprites ->', OUT)
+aim = np.zeros((28, 28, 4), np.uint8)
+o = (28 - S) // 2
+aim[o:o + S, o:o + S] = base
+lens = np.zeros((28, 28), bool)
+lens[o:o + S, o:o + S] = isred & centre
+aim[lens, :3] = PINK                            # 렌즈가 하얗게 달아오름
+Y, X = np.mgrid[0:28, 0:28]
+ring = (np.abs(np.hypot(X - 13.5, Y - 13.5) - 12.8) < 0.6) & (aim[..., 3] == 0) & (((X + Y) % 3) != 0)
+aim[ring] = (*RED, 255)
+Image.fromarray(aim).save(os.path.join(OUT, 'drone_aim.png'))
+print('drone sprites ->', OUT)
