@@ -273,6 +273,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
     this.icons = [];
     this.dpsBuckets = new Map();
     this.dpsStart = new Map();
+    this.critNums = [];
     this.dpsSec = -1;
     this.dpsShowT = 0;
     this.dmgSrc = null;
@@ -489,6 +490,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
     if ((frenzy || this.pHas('crit')) && Math.random() < (frenzy ? 0.25 : 0.1)) {
       amount *= frenzy ? 3 : 2;
       this.burst(e.x, e.y, COLORS.yellow, 4);
+      this.critText(e.x, e.y - e.radius - 4, Math.round(amount));
     }
     if (this.pHas('rage')) amount *= 1 + 0.4 * (1 - this.player.hp / this.player.maxHp);
     if (this.streak > 0) amount *= 1 + 0.02 * this.streak;
@@ -582,6 +584,30 @@ export class GameScene extends Phaser.Scene implements GameContext {
   private dpsStart = new Map<string, number>();
   private dpsText!: Phaser.GameObjects.Text;
   private dpsShowT = 0;
+
+  /** 치명타 피해 숫자: 위로 떠오르며 사라짐 (최대 40개 재사용) */
+  private critNums: { t: Phaser.GameObjects.Text; life: number }[] = [];
+  private critText(x: number, y: number, dmg: number): void {
+    let n = this.critNums.find((o) => o.life <= 0);
+    if (!n) {
+      if (this.critNums.length >= 40) return;
+      n = { t: this.add.text(0, 0, '', { ...TEXT, fontSize: '10px', color: '#fff23a', strokeThickness: 3 }).setOrigin(0.5, 1).setDepth(97), life: 0 };
+      this.critNums.push(n);
+    }
+    n.life = 0.7;
+    n.t.setText(`${dmg}!`).setPosition(x + (Math.random() - 0.5) * 8, y).setAlpha(1).setScale(1.3).setVisible(true);
+  }
+
+  private updateCritNums(dt: number): void {
+    for (const n of this.critNums) {
+      if (n.life <= 0) continue;
+      n.life -= dt;
+      n.t.y -= 28 * dt;
+      n.t.setScale(Math.max(1, n.t.scale - dt * 2));
+      if (n.life < 0.25) n.t.setAlpha(Math.max(0, n.life / 0.25));
+      if (n.life <= 0) n.t.setVisible(false);
+    }
+  }
 
   private logDamage(amount: number): void {
     if (!this.dmgSrc || amount <= 0) return;
@@ -1237,6 +1263,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
     this.dmgSrc = null;
     this.updateBullets(dt);
     this.updateDps(dt);
+    this.updateCritNums(dt);
     this.updateEnemyBullets(dt);
     this.updateFx(dt);
     this.updateShouts(dt);
