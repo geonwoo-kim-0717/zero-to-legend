@@ -766,7 +766,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
       this.pauseUi.push(b);
       return b;
     };
-    btn(VIEW_W / 2, VIEW_H / 2 + 52, tr('pause.abandon'), '#ff5a6a', () => {
+    btn(VIEW_W / 2, VIEW_H / 2 + 84, tr('pause.abandon'), '#ff5a6a', () => {
       for (const o of this.pauseUi.slice(1)) o.destroy();
       this.pauseUi = this.pauseUi.slice(0, 1);
       this.hud.center.setVisible(false);
