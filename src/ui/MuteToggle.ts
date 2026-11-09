@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import { BASE_TEXT } from './text';
 import { Sound } from '../systems/Sound';
 import { Settings } from '../systems/Settings';
-import { toggleFullscreen, notify } from '../systems/Fullscreen';
+import { toggleFullscreen, notify, isTouch } from '../systems/Fullscreen';
 import { t as tr, I18n } from '../i18n';
 import { Ads } from '../systems/Ads';
 
@@ -23,7 +23,10 @@ function padHit(t: Phaser.GameObjects.Text, px = 6, py = 10): Phaser.GameObjects
   return t;
 }
 
-const label = () => (Sound.muted ? tr('ui.sound.off') : tr('ui.sound.on'));
+/** 터치 기기에서는 키보드 단축키 안내 ' (M)' 같은 꼬리를 뗀다 */
+const key = (s: string) => (isTouch() ? s.replace(/\s*\([A-Z]\)$/, '') : s);
+
+const label = () => key(Sound.muted ? tr('ui.sound.off') : tr('ui.sound.on'));
 
 /** 화면 구석의 소리 켜기/끄기 버튼 + M 키. 클릭·탭·키 모두 지원 */
 export function addMuteToggle(scene: Phaser.Scene, x: number, y: number, originX = 1): Phaser.GameObjects.Text {
@@ -46,7 +49,7 @@ export function addMuteToggle(scene: Phaser.Scene, x: number, y: number, originX
   return t;
 }
 
-const fxLabel = () => (Settings.reducedFx ? tr('ui.fx.reduced') : tr('ui.fx.normal'));
+const fxLabel = () => key(Settings.reducedFx ? tr('ui.fx.reduced') : tr('ui.fx.normal'));
 
 /** 화면 효과 줄이기 버튼 + V 키 (흔들림·번쩍임·글리치를 끔) */
 export function addFxToggle(scene: Phaser.Scene, x: number, y: number, originX = 1): Phaser.GameObjects.Text {
@@ -71,7 +74,7 @@ export function addFxToggle(scene: Phaser.Scene, x: number, y: number, originX =
 
 /** 전체화면 버튼 + F 키. 브라우저가 사용자 입력 안에서만 전체화면을 허락하므로 pointerup에서 바로 요청한다 */
 export function addFullscreenToggle(scene: Phaser.Scene, x: number, y: number, originX = 1): Phaser.GameObjects.Text {
-  const label = () => (scene.scale.isFullscreen ? tr('ui.fs.exit') : tr('ui.fs.enter'));
+  const label = () => key(scene.scale.isFullscreen ? tr('ui.fs.exit') : tr('ui.fs.enter'));
   const t = scene.add
     .text(x, y, label(), { ...BASE_TEXT, fontSize: '11px', color: '#8a7aa8' })
     .setOrigin(originX, 0)
@@ -105,7 +108,7 @@ export function addFullscreenToggle(scene: Phaser.Scene, x: number, y: number, o
 /** 언어 바꾸기 버튼 + L 키. 바꾸면 지금 화면을 다시 그린다 (설정은 기억) */
 export function addLangToggle(scene: Phaser.Scene, x: number, y: number, originX = 1): Phaser.GameObjects.Text {
   const t = scene.add
-    .text(x, y, tr('ui.lang'), { ...BASE_TEXT, fontSize: '11px', color: '#8a7aa8' })
+    .text(x, y, key(tr('ui.lang')), { ...BASE_TEXT, fontSize: '11px', color: '#8a7aa8' })
     .setOrigin(originX, 0)
     .setScrollFactor(0)
     .setDepth(160);
