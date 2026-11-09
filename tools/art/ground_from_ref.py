@@ -3,7 +3,7 @@
   이음새 근처만 살짝 섞어 끊김을 없앤다.
 - 2챕터: 컨베이어 띠가 게임 판정(game.json zoneRules.conveyor: period마다 band)과 정확히 겹치도록
   원본의 띠 간격(308px)을 period(176)로 맞춰 줄 단위로 다시 쌓는다. 높이 = period x 6.
-- BOX 축소 후 캐릭터와 같은 39색 팔레트(palx.PALX)로 칠한다. 아지트 배경도 같은 방식.
+- BOX 축소 후 공용 60색 팔레트(palx.PAL60 = 캐릭터 39색 + 중간 톤 21색)로 칠한다. 아지트 배경도 같은 방식.
 사용: python3 tools/art/ground_from_ref.py
 """
 import json, os, sys
@@ -24,9 +24,9 @@ def shrink(a, w, h):
 
 
 sys.path.insert(0, os.path.join(ROOT, 'tools', 'art', 'sprites2026', 'scripts', 'ext'))
-from palx import PALX  # 캐릭터·적 스프라이트와 같은 39색 팔레트
+from palx import PAL60  # 캐릭터 팔레트 39색 + 공용 중간 톤 21색
 
-PAL = np.array(PALX, np.float32)
+PAL = np.array(PAL60, np.float32)
 
 
 def to_lab(x):
@@ -42,7 +42,7 @@ PAL_LAB = to_lab(PAL)
 
 
 def quant(a, path, dim=1.0):
-    """캐릭터 팔레트(39색)에서 가장 가까운 색으로 (Lab 거리). 바닥에는 어두운 색만 자연스럽게 골라진다."""
+    """공용 60색 팔레트에서 가장 가까운 색으로 (Lab 거리). 바닥에는 어두운 색만 자연스럽게 골라진다."""
     a = (a * dim).astype(np.float32)
     flat = to_lab(a.reshape(-1, 3))
     idx = np.empty(len(flat), int)

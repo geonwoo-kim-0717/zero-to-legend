@@ -17,3 +17,8 @@ def nearx(m, skip_outline=True, skin=False):
 def hybrid(m, idx16, skin=False):
     """extended detail for darks, metals and shadows; the bright neon the sprite is recognised by stays"""
     return idx16 if idx16 in BRIGHT else nearx(m, skin=skin)
+
+# 60색 공용 팔레트: PALX(39) + 배경·스프라이트 원본에서 뽑은 중간 톤 21색. 배경(아지트·챕터 바닥)이 이걸 쓰고,
+# 스프라이트는 PALX(이 팔레트의 앞 39색)만 쓰므로 화면 전체가 같은 60색 안에 있다. 새 그림도 PAL60을 쓰면 된다.
+EXT60=["0C0C1F","317570","7432AC","EA3BED","23BCB7","292C31","E8E69E","C8CBCD","D320A6","25FCF6","252646","46095B","574964","52555C","83898F","0A0D2A","2A3A8A","361D2F","4D9FD2","645F42","AF817B"]
+PAL60=np.concatenate([PALX,np.array([[int(h[i:i+2],16) for i in (0,2,4)] for h in EXT60],float)])
