@@ -755,6 +755,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
     if (!on) return;
     // 뒤를 어둡게 해서 글자가 잘 보이게
     this.pauseUi.push(this.add.rectangle(0, 0, VIEW_W, VIEW_H, 0x000000, 0.5).setOrigin(0).setScrollFactor(0).setDepth(99));
+    this.buildPanel();
     const btn = (x: number, y: number, label: string, color: string, onClick: () => void) => {
       const b = this.add
         .text(x, y, label, { ...TEXT, fontSize: '13px', color, backgroundColor: '#120a24', padding: { x: 12, y: 6 } })
@@ -786,6 +787,102 @@ export class GameScene extends Phaser.Scene implements GameContext {
       btn(VIEW_W / 2 + 50, VIEW_H / 2 + 76, tr('pause.no'), '#00f0ff', () => {
         this.hud.center.setVisible(this.state === 'paused');
         this.showPauseMenu(true);
+      });
+    });
+  }
+
+  /** 일시정지 화면 위쪽: 지금 가진 무기·사이버웨어·추가 강화 카드. 누르면 효과를 보여준다 */
+  private buildPanel(): void {
+    const rar = (id: string) => gameData.rarity.find((r) => r.id === id)!;
+    const items: { tex: string; title: string; sub: string; detail: string; color: string }[] = [];
+    for (const w of this.weapons) {
+      const l = abilitiesData.weapons[w.id as WeaponId];
+      const abil = [...w.abilities].map((id) => {
+        const myth = l.mythic.find((a) => a.id === id);
+        const a = myth ?? l.legendary.find((x) => x.id === id);
+        return a ? `★ ${a.name} (${rar(myth ? 'mythic' : 'legendary').label})\n${a.desc}` : '';
+      });
+      const best = [...w.abilities].some((id) => l.mythic.some((a) => a.id === id)) ? 'mythic' : w.abilities.size ? 'legendary' : '';
+      items.push({ tex: `card_${w.id}`, title: w.name, sub: `Lv.${w.level}`, detail: [weaponsData[w.id as WeaponId].desc, ...abil.filter(Boolean)].join('\n'), color: best ? rar(best).color : '#e8f7ff' });
+    }
+    for (const [id, st] of this.passives) {
+      const abil = (st.abilities ?? []).map((a) => passiveAbility(id, a)).filter((a): a is NonNullable<typeof a> => !!a);
+      items.push({
+        tex: `card_${id}`,
+        title: passivesData[id].name,
+        sub: `Lv.${st.level}`,
+        detail: [passivesData[id].desc.replace('{v}', String(Math.round(st.total))), ...abil.map((a) => `★ ${a.name}\n${a.desc}`)].join('\n'),
+        color: abil.length ? rar('legendary').color : '#e8f7ff',
+      });
+    }
+    for (const o of gameData.overflow) {
+      const v = this.overflow[o.id];
+      if (!v) continue;
+      items.push({ tex: `card_${o.id}`, title: o.name, sub: `+${v}`, detail: o.desc.replace('{v}', String(v)), color: '#8a7aa8' });
+    }
+    if (!items.length) return;
+    const add = <T extends Phaser.GameObjects.GameObject>(o: T): T => {
+      (o as unknown as Phaser.GameObjects.Components.ScrollFactor).setScrollFactor(0);
+      (o as unknown as Phaser.GameObjects.Components.Depth).setDepth(131);
+      this.pauseUi.push(o);
+      return o;
+    };
+    const gap = 5;
+    const tw = Math.min(62, Math.floor((VIEW_W - 40 - gap * (items.length - 1)) / items.length));
+    const th = 54;
+    const x0 = VIEW_W / 2 - (items.length * tw + (items.length - 1) * gap) / 2;
+    const y0 = 66;
+    add(this.add.text(VIEW_W / 2, y0 - 4, tr('pause.build'), { ...TEXT, fontSize: '9px', color: '#8a7aa8' }).setOrigin(0.5, 1));
+    let open = -1;
+    let detail: Phaser.GameObjects.GameObject[] = [];
+    const tiles: Phaser.GameObjects.Rectangle[] = [];
+    const close = () => {
+      for (const o of detail) o.destroy();
+      detail = [];
+      if (open >= 0) tiles[open]?.setFillStyle(0x120a24, 0.95);
+      open = -1;
+      this.hud.center.setVisible(this.state === 'paused');
+    };
+    items.forEach((it, i) => {
+      const x = x0 + i * (tw + gap);
+      const col = Phaser.Display.Color.HexStringToColor(it.color).color;
+      const tile = add(this.add.rectangle(x, y0, tw, th, 0x120a24, 0.95).setOrigin(0).setStrokeStyle(1, col, 0.9));
+      tiles.push(tile);
+      if (this.textures.exists(it.tex)) {
+        const img = add(this.add.image(x + tw / 2, y0 + 17, it.tex));
+        img.setScale(Math.min(26 / img.width, 26 / img.height));
+      }
+      const name = add(this.add.text(x + tw / 2, y0 + 33, it.title, { ...TEXT, fontSize: '8px', color: it.color }).setOrigin(0.5, 0));
+      if (name.width > tw - 4) name.setScale((tw - 4) / name.width);
+      add(this.add.text(x + tw / 2, y0 + 43, it.sub, { ...TEXT, fontSize: '8px', color: '#39ff88' }).setOrigin(0.5, 0));
+      // 누른 카드에서 떼야 열린다 (이동하다 손을 뗀 경우는 무시)
+      let armed = false;
+      tile.setInteractive({ useHandCursor: true });
+      tile.on('pointerdown', () => (armed = true));
+      tile.on('pointerout', () => (armed = false));
+      tile.on('pointerup', () => {
+        if (!armed) return;
+        armed = false;
+        const same = open === i;
+        close();
+        if (same) return;
+        open = i;
+        tile.setFillStyle(0x2a1650, 0.95);
+        this.hud.center.setVisible(false);
+        Sound.play('hover');
+        const txt = this.add
+          .text(VIEW_W / 2, y0 + th + 12, `${it.title}  ${it.sub}\n${it.detail}`, { ...TEXT, fontSize: '11px', color: '#e8f7ff', align: 'center', lineSpacing: 2, wordWrap: { width: 420, useAdvancedWrap: true } })
+          .setOrigin(0.5, 0)
+          .setScrollFactor(0)
+          .setDepth(132);
+        const bg = this.add
+          .rectangle(VIEW_W / 2, txt.y - 6, txt.width + 20, txt.height + 12, 0x0d0820, 0.95)
+          .setOrigin(0.5, 0)
+          .setStrokeStyle(1, col, 0.8)
+          .setScrollFactor(0)
+          .setDepth(131.5);
+        detail = [bg, txt];
+        this.pauseUi.push(bg, txt);
       });
     });
   }
