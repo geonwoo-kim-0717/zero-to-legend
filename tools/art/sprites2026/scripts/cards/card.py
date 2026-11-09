@@ -27,7 +27,8 @@ def nobg(a, step=7, minv=120, sat=0.14, holes=14, soft=0):
     return np.dstack([a,np.where(bg,0,255)]).astype(np.uint8)
 # extended palette: the game's 16 colours plus muted mid-tones per hue, so shading has steps between neon and black
 EXT=["1E2233","3A4058","5C6680","A8B0C4","0F4A55","2E9AA8","8FD8DE","5A1650","B8459E","E8A0D8",
-     "5A1018","B8333A","4A220E","C2671E","B89A2A","15502E","2E9E5A","6B5A8A","C9C2D9"]
+     "5A1018","B8333A","4A220E","C2671E","B89A2A","15502E","2E9E5A","6B5A8A","C9C2D9",
+     "4A2C2A","8A5A4A","C08A70","E6BFA0"]   # skin ramp, for cyberware cards that show the body
 PALX=np.vstack([PAL,[[int(h[i:i+2],16) for i in (0,2,4)] for h in EXT]])
 def nearx(m):
     rm=(PALX[:,0]+m[0])/2; d=PALX-m
