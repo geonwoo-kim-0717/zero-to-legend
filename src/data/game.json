@@ -292,6 +292,10 @@
     "despawnDistance": 700,
     "maxEnemies": 600
   },
+  "zoneWarmup": {
+    "time": 180,
+    "spawnFrom": 0.45
+  },
   "droneAi": {
     "hover": 4,
     "bob": 1.5,

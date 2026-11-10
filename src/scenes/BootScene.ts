@@ -3,16 +3,57 @@ import { COLORS, VIEW_W, VIEW_H } from '../config';
 import { Sound } from '../systems/Sound';
 import { setupCamera } from '../ui/text';
 import { Ads } from '../systems/Ads';
+import enemies from '../data/enemies.json';
 // src/assets/*.png 를 모두 data URI로 포함하고, 파일 이름을 텍스처 키로 쓴다
 const PNGS = import.meta.glob('../assets/*.png', { eager: true, query: '?inline', import: 'default' }) as Record<string, string>;
 const PIXEL_ART: [string, string][] = Object.entries(PNGS).map(([path, url]) => [path.split('/').pop()!.replace('.png', ''), url]);
+
+/**
+ * 적 그림의 바깥 윤곽선(검정)을 옅은 보라빛으로 바꾼다.
+ * 어두운 바닥 위에서 어두운 적(타워 경비, 드론, 부패 경찰 등)의 실루엣이 묻히지 않게 하는 림 라이트.
+ * 원본 PNG는 그대로 두고, 불러올 때만 바꾼다. 안쪽 윤곽선(팔다리 구분선)은 건드리지 않는다.
+ */
+const ENEMY_IDS = Object.keys(enemies);
+const ENEMY_SKINS = ['guard_baton', 'guard_rifle', 'guard_shotgun', 'guard_charger', 'spider_bot'];
+const RIM: [number, number, number] = [0x8a, 0x7a, 0xa8];
+function isEnemyKey(key: string): boolean {
+  const base = key.replace(/_(w1|w2|aim|charge)$/, '');
+  return ENEMY_IDS.includes(base) || ENEMY_SKINS.includes(base);
+}
+function rimLight(img: HTMLImageElement): HTMLCanvasElement {
+  const w = img.width;
+  const h = img.height;
+  const cv = document.createElement('canvas');
+  cv.width = w;
+  cv.height = h;
+  const cx = cv.getContext('2d')!;
+  cx.drawImage(img, 0, 0);
+  const d = cx.getImageData(0, 0, w, h);
+  const a = d.data;
+  const clear = (x: number, y: number) => x < 0 || y < 0 || x >= w || y >= h || a[(y * w + x) * 4 + 3] === 0;
+  const hit: number[] = [];
+  for (let y = 0; y < h; y++)
+    for (let x = 0; x < w; x++) {
+      const i = (y * w + x) * 4;
+      if (a[i + 3] === 0 || a[i] !== 7 || a[i + 1] !== 6 || a[i + 2] !== 15) continue;
+      if (clear(x - 1, y) || clear(x + 1, y) || clear(x, y - 1) || clear(x, y + 1)) hit.push(i);
+    }
+  for (const i of hit) {
+    a[i] = RIM[0];
+    a[i + 1] = RIM[1];
+    a[i + 2] = RIM[2];
+  }
+  cx.putImageData(d, 0, 0);
+  return cv;
+}
 
 /** data URI 이미지를 텍스처로 등록 */
 function loadTexture(scene: Phaser.Scene, key: string, url: string): Promise<void> {
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.onload = () => {
-      scene.textures.addImage(key, img);
+      if (isEnemyKey(key)) scene.textures.addCanvas(key, rimLight(img));
+      else scene.textures.addImage(key, img);
       resolve();
     };
     img.onerror = () => reject(new Error(`texture ${key} failed to load`));

@@ -1258,7 +1258,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
     if (nextBoss && !this.boss && !this.raid && this.transitionT <= 0 && zt >= nextBoss.time) this.spawnBoss(nextBoss);
     if (this.transitionT <= 0) this.updateRaid(dt);
     this.drawArena(dt);
-    if (this.transitionT <= 0) this.spawner.update(dt, zt, zt, (wavesData as Record<string, Wave[]>)[this.zone.id], p.x, p.y, this.zone.hpMul);
+    if (this.transitionT <= 0) this.spawner.update(dt, zt, zt, (wavesData as Record<string, Wave[]>)[this.zone.id], p.x, p.y, this.zoneHpMul(zt), this.zoneSpawnMul(zt));
     this.updateZoneRule(dt);
     if (this.transitionT <= 0) this.updateCounters(dt, zt);
     this.thornT -= dt;
@@ -1530,7 +1530,9 @@ export class GameScene extends Phaser.Scene implements GameContext {
     if (src) this.lastHit = src;
     dmg *= 1 + this.heat * meta.heat.damagePer;
     // 적 공격력도 챕터 안에서 분마다 조금씩 오른다 (챕터마다 0부터)
-    dmg *= 1 + ((this.elapsed - this.zoneStart) / 60) * gameData.enemyDamageGrowthPerMin;
+    // (보스 몸통·돌진은 제외: 보스는 늘 챕터 끝에 나와서 이 보정이 통째로 얹히면 다섯 대에 끝난다)
+    const bossHit = !!src && (src.kind === 'boss' || src.kind === 'contact') && /^(mid)?boss/.test(src.id);
+    if (!bossHit) dmg *= 1 + ((this.elapsed - this.zoneStart) / 60) * gameData.enemyDamageGrowthPerMin;
     if (this.pHas('steelSkin')) dmg *= 0.85;
     this.sinceHurt = 0;
     // 순간 재부팅 쉴드가 먼저 피해를 흡수
@@ -1546,7 +1548,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
       }
     }
     p.hp -= dmg;
-    p.invuln = PLAYER.hurtInvuln;
+    p.invuln = bossHit ? PLAYER.bossHurtInvuln : PLAYER.hurtInvuln;
     Sound.play('hurt');
     // 불굴: 치명상을 입으면 체력 1로 버티고 3초 무적 (챕터마다 1번)
     if (p.hp <= 0 && this.pHas('undying') && !this.undyingUsed) {
@@ -2037,6 +2039,21 @@ export class GameScene extends Phaser.Scene implements GameContext {
 
   private get zone(): Zone {
     return ZONES[this.zoneIdx];
+  }
+
+  /**
+   * 2·3챕터 초반 워밍업: 빌드가 레벨 1로 초기화된 직후라, 처음 warmup.time초 동안
+   * 적 체력 배율은 1배에서 구역 배율까지, 생성 수는 spawnFrom배에서 1배까지 서서히 올린다.
+   */
+  private zoneWarm(zt: number): number {
+    return this.zoneIdx === 0 ? 1 : Phaser.Math.Clamp(zt / gameData.zoneWarmup.time, 0, 1);
+  }
+  private zoneHpMul(zt: number): number {
+    return 1 + (this.zone.hpMul - 1) * this.zoneWarm(zt);
+  }
+  private zoneSpawnMul(zt: number): number {
+    const from = gameData.zoneWarmup.spawnFrom;
+    return from + (1 - from) * this.zoneWarm(zt);
   }
 
   /** 지금 챕터의 전투 음악 (1 하층가 · 2 공장 · 3 기업 타워) */

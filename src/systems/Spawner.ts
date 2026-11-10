@@ -41,14 +41,17 @@ export class Spawner {
   constructor(private readonly spawn: SpawnFn) {}
 
   /** zt: 지금 구역에서 흐른 시간 (웨이브 표는 구역마다 따로), elapsed: 전체 시간 (체력 증가) */
-  update(dt: number, elapsed: number, zt: number, waves: Wave[], px: number, py: number, hpMul = 1): void {
+  update(dt: number, elapsed: number, zt: number, waves: Wave[], px: number, py: number, hpMul = 1, countMul = 1): void {
     const wave = waves.find((w) => zt >= w.start && zt < w.end);
     if (!wave) return;
     this.timer -= dt;
     if (this.timer > 0) return;
     this.timer = wave.interval;
     const hpScale = hpScaleAt(elapsed) * hpMul;
-    for (let i = 0; i < wave.count; i++) {
+    // countMul: 챕터 초반 워밍업. 소수점은 확률로 반올림해 평균 수를 맞춘다
+    const exact = wave.count * countMul;
+    const n = Math.max(1, Math.floor(exact) + (Math.random() < exact % 1 ? 1 : 0));
+    for (let i = 0; i < n; i++) {
       this.spawnAround(pickWeighted(wave.weights) as EnemyId, px, py, hpScale);
     }
   }

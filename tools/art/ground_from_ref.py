@@ -129,6 +129,35 @@ def industrial():
     quant(t, os.path.join(OUT, 'ground_industrial.png'), 0.95)
 
 
+def tower():
+    """3챕터 기업 타워 로비: 검은 대리석 + 금속 띠 + 청록 선. 흰 바닥등은 경험치 조각과 헷갈리지 않게 살짝 눌러 준다."""
+    a = load('ground3_ref.png').copy()
+    L = 880  # 위쪽 110px은 조명 반사 띠라 뺀다
+    x0, dx = best_cut(a, 2, 1022, L, 1)
+    y0, dy = best_cut(a, 118, 1022, L, 0)
+    print('tower cut', x0, y0, round(dx, 1), round(dy, 1))
+    c = a[y0:y0 + L, x0:x0 + L]
+    T = round(L * 0.6)
+    c = shrink(c, T, T)
+    # 넓게 퍼진 조명 얼룩을 편다 (그대로 두면 팔레트로 줄일 때 회색 띠가 생긴다)
+    from PIL import ImageFilter
+    lum_im = Image.fromarray(c.mean(2).clip(0, 255).astype(np.uint8))
+    wrap = Image.new('L', (T * 3, T * 3))
+    for i in range(3):
+        for j in range(3):
+            wrap.paste(lum_im, (i * T, j * T))
+    low = np.asarray(wrap.filter(ImageFilter.GaussianBlur(28)), np.float32)[T:2 * T, T:2 * T]
+    c = c * np.clip(low.mean() / np.maximum(low, 1), 0.55, 1.5)[..., None]
+    lum = c.mean(2, keepdims=True)
+    c = np.where(lum > 150, c * 0.62, c)  # 아주 밝은 점(바닥등)만
+    # 무채색에 가까운 대리석은 차가운 남색 쪽으로 모은다 (팔레트의 올리브색으로 튀지 않게). 청록 선·그을음은 그대로
+    sat = c.max(2) - c.min(2)
+    cool = c.mean(2, keepdims=True) * np.array([0.86, 0.92, 1.3], np.float32)
+    c = np.where((sat < 46)[..., None], cool, c)
+    c = feather_y(feather_x(c, 6), 6)
+    quant(c, os.path.join(OUT, 'ground_tower.png'), 0.85)
+
+
 def hideout():
     """아지트·타이틀 배경 (480x270)."""
     a = load('hideout_ref.png')
@@ -138,4 +167,5 @@ def hideout():
 if __name__ == '__main__':
     slum()
     industrial()
+    tower()
     hideout()

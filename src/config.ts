@@ -7,6 +7,8 @@ export const PLAYER = {
   radius: 6,
   pickupRadius: 48,
   hurtInvuln: 0.6,
+  /** 보스 몸통·돌진에 맞은 뒤의 무적 시간: 연속 돌진에 한 번에 녹지 않고 빠져나올 틈 */
+  bossHurtInvuln: 1.2,
   dashSpeedMul: 3.5,
   dashTime: 0.15,
   dashInvuln: 0.2,
