@@ -1130,19 +1130,36 @@
         "name": "Lower Slums",
         "intro": {
           "0": {
-            "text": "{runner}, I paid Doc for every piece of chrome in your body. Hope you haven't forgotten. You're paying me back, with interest."
+            "text": "{runner}! Every piece of chrome Doc used to put you back together, I paid for. Don't you dare tell me you forgot. You're paying me back, with interest."
           },
           "1": {
-            "text": "Nobody hires a zero-point citizen. Nobody but me."
+            "text": "Besides, who else would hire a zero-pointer? Nobody. Right?"
           },
           "2": {
-            "text": "Here's the job. Carlo Basili, gang boss of the Lower Slums. He sells protection in the blocks CENSUS gave up on. Take him out."
+            "text": "Same job. Basili. That pig squeezing the slums for protection money. This time, finish it."
           },
           "3": {
             "text": "And the debt?"
           },
           "4": {
-            "text": "Finish the whole job and it's gone. Hold out about ten minutes and Basili will come for you himself."
+            "text": "See the whole job through and it's wiped clean. I promise. Hold out ten minutes and Basili shows up in person. Don't you flinch this time."
+          }
+        },
+        "introFirst": {
+          "0": {
+            "text": "So you're {runner}? Doc told me about you. A zero-pointer wired with a Neural Overclock? Heh. Called you the second I heard."
+          },
+          "1": {
+            "text": "Citizen score zero. Nobody in this city hires someone like you. ...Nobody but me."
+          },
+          "2": {
+            "text": "Got a job for you. Carlo Basili, gang boss of the Lower Slums. Took over the blocks CENSUS threw away and bleeds them for protection money. Trash. Take him out."
+          },
+          "3": {
+            "text": "What's the pay?"
+          },
+          "4": {
+            "text": "Enough to make it worth it. Hold out ten minutes and that pig Basili will crawl out himself."
           }
         }
       },
@@ -1151,22 +1168,22 @@
         "ruleHint": "Floor conveyors drag you along",
         "intro": {
           "0": {
-            "text": "Basili's down. Seen the news? \"Slum security vacuum, AI management failure.\" You're tonight's headline."
+            "text": "Ha! Did you see? Basili is DOWN! The headline says \"Slum security vacuum, AI management failure.\" You're tonight's top story!"
           },
           "1": {
-            "text": "I'm keeping his ledger. Call it a hobby."
+            "text": "I grabbed his ledger. ...What? It's a hobby. A hobby."
           },
           "2": {
-            "text": "Next job. The Industrial Zone factory is building XM-4 war mechs for Black Shield. Stop the line."
+            "text": "Okay, next. The Industrial Zone factory is stamping out XM-4 war mechs for Black Shield. Shut that line down."
           },
           "3": {
-            "text": "Past the factory checkpoint your weapons get confiscated and your mods get locked. My inside man will slip in your main weapon and one piece of gear."
+            "text": "Problem is the checkpoint. The second you're in, weapons get confiscated and mods get locked. My inside man will sneak in your main weapon and one piece of gear."
           },
           "4": {
             "text": "You want me to walk into a mech factory empty-handed?"
           },
           "5": {
-            "text": "Close to it. And watch the floor conveyors. They'll drag you along."
+            "text": "Not empty-handed. Almost empty-handed. Heh. Oh, and watch the floor conveyors. Space out and the floor will haul you off somewhere."
           }
         }
       },
@@ -1175,25 +1192,25 @@
         "ruleHint": "When red lines blink, security lasers sweep through",
         "intro": {
           "0": {
-            "text": "The XM-4 is scrap. Tonight's headline: \"Arconan factory accident, AI security failure.\" The council is getting loud."
+            "text": "The XM-4 is scrap! This time it's \"Arconan factory accident, AI security failure.\" The council is losing its mind."
           },
           "1": {
             "text": "You sure care about headlines."
           },
           "2": {
-            "text": "Occupational habit."
+            "text": "...Occupational habit. Drop it."
           },
           "3": {
-            "text": "Last one. The city management AI at the top of the corporate tower. CENSUS. Shut it down."
+            "text": "This is the last one, {runner}. The city management AI sitting on top of the corporate tower. CENSUS. Shut it down."
           },
           "4": {
-            "text": "Security Director Nora Vail runs the lobby. The checkpoint is worse than the factory's. Same deal: main weapon and one piece of gear."
+            "text": "Security Director Nora Vail runs the lobby. The checkpoint is way nastier than the factory's. Main weapon and one piece of gear, that's all I can get in."
           },
           "5": {
-            "text": "And this chip. The moment CENSUS goes dark, plug it in. Don't ask."
+            "text": "And... this chip. The moment CENSUS goes dark, plug it in. Don't ask. Please. Just this once, don't ask."
           },
           "6": {
-            "text": "Laser grids sweep the tower. When the red lines flash, move."
+            "text": "Laser grids sweep the tower. When the red lines flash, move. Unless you want to get cooked."
           }
         },
         "skins": {
@@ -1242,25 +1259,25 @@
     },
     "ending": {
       "0": {
-        "text": "CENSUS is dark. You plugged the chip in? ...Good."
+        "text": "CENSUS is... dark. Ha, you actually did it. The chip? You plugged it in? ...Good. GOOD!"
       },
       "1": {
         "text": "What was that chip?"
       },
       "2": {
-        "text": "Northridge Holdings' install key for the new AI. Tomorrow morning the council signs an emergency contract."
+        "text": "Northridge Holdings' install key for the new AI. Tomorrow morning the council signs an emergency contract, kicking and screaming."
       },
       "3": {
-        "text": "Your debt's settled, like I promised. Good work, {runner}."
+        "text": "Your debt's wiped, like I promised. ...You did good, {runner}. I mean it."
       },
       "4": {
-        "text": "The city always belongs to someone. This time it's my company."
+        "text": "This city always belongs to someone. This time it's my company. That's all."
       },
       "5": {
         "text": "And the slums on the new scoreboard?"
       },
       "6": {
-        "text": "At the bottom. Same as always."
+        "text": "......At the bottom. Same as always."
       }
     }
   },

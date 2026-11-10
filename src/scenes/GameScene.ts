@@ -395,7 +395,9 @@ export class GameScene extends Phaser.Scene implements GameContext {
     this.gameSpeed = Save.data.speedUnlocked && Save.data.speed2 ? 2 : 1;
     if (Save.data.speedUnlocked) this.makeSpeedBtn();
     // 1챕터 의뢰 브리핑
-    this.startDialog((ZONES[0] as Zone & { intro?: Line[] }).intro ?? [], () => undefined);
+    // 첫 판: 진과 처음 만나는 대사 (아직 빚이 없다). 두 번째 판부터: 리퍼닥 수리비를 갚으라는 대사
+    const z0 = ZONES[0] as Zone & { intro?: Line[]; introFirst?: Line[] };
+    this.startDialog((Save.data.stats.runs === 0 && z0.introFirst) || z0.intro || [], () => undefined);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.game.events.off(Phaser.Core.Events.BLUR, this.onBlur, this);
       this.levelUi.hide();
