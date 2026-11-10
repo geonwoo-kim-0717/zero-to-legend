@@ -452,6 +452,7 @@
   "counters": {
     "startZone": 1,
     "startTime": 300,
+    "minZoneTime": 180,
     "every": 5,
     "count": 2,
     "maxAlive": 12,

@@ -2098,9 +2098,9 @@ export class GameScene extends Phaser.Scene implements GameContext {
   }
 
   // ───────────────────────────── 카운터 몬스터 ─────────────────────────────
-  /** 2챕터 중반부터, 플레이어가 전설·신화 능력을 가진 무기에 맞서는 카운터를 투입 */
+  /** 2챕터 중반부터, 플레이어가 전설·신화 능력을 가진 무기에 맞서는 카운터를 투입. 어느 챕터든 시작 3분(minZoneTime) 전에는 없다 */
   private updateCounters(dt: number, zt: number): void {
-    if (this.zoneIdx < CT.startZone || (this.zoneIdx === CT.startZone && zt < CT.startTime)) return;
+    if (this.zoneIdx < CT.startZone || (this.zoneIdx === CT.startZone && zt < CT.startTime) || zt < CT.minZoneTime) return;
     if ((this.counterT -= dt) > 0) return;
     this.counterT = CT.every;
     const by = CT.byWeapon as Record<string, string>;
