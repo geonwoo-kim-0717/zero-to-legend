@@ -1142,7 +1142,7 @@
             "text": "And the debt?"
           },
           "4": {
-            "text": "See the whole job through and it's wiped clean. I promise. Hold out ten minutes and Basili shows up in person. Don't you flinch this time."
+            "text": "See the whole job through and it's wiped clean. I promise. Hold out ten minutes and Basili shows up in person. Don't you goddamn flinch this time."
           }
         },
         "introFirst": {
@@ -1153,7 +1153,7 @@
             "text": "Citizen score zero. Nobody in this city hires someone like you. ...Nobody but me."
           },
           "2": {
-            "text": "Got a job for you. Carlo Basili, gang boss of the Lower Slums. Took over the blocks CENSUS threw away and bleeds them for protection money. Trash. Take him out."
+            "text": "Got a job for you. Carlo Basili, gang boss of the Lower Slums. Took over the blocks CENSUS threw away and bleeds them for protection money. Piece of shit. Take him out."
           },
           "3": {
             "text": "What's the pay?"
@@ -1168,7 +1168,7 @@
         "ruleHint": "Floor conveyors drag you along",
         "intro": {
           "0": {
-            "text": "Ha! Did you see? Basili is DOWN! The headline says \"Slum security vacuum, AI management failure.\" You're tonight's top story!"
+            "text": "Ha! Did you see? That damn pig Basili is DOWN! The headline says \"Slum security vacuum, AI management failure.\" You're tonight's top story!"
           },
           "1": {
             "text": "I grabbed his ledger. ...What? It's a hobby. A hobby."
@@ -1183,7 +1183,7 @@
             "text": "You want me to walk into a mech factory empty-handed?"
           },
           "5": {
-            "text": "Not empty-handed. Almost empty-handed. Heh. Oh, and watch the floor conveyors. Space out and the floor will haul you off somewhere."
+            "text": "Not empty-handed. Almost empty-handed. Heh. Oh, and watch those damn floor conveyors. Space out and the floor will haul you off somewhere."
           }
         }
       },
@@ -1192,13 +1192,13 @@
         "ruleHint": "When red lines blink, security lasers sweep through",
         "intro": {
           "0": {
-            "text": "The XM-4 is scrap! This time it's \"Arconan factory accident, AI security failure.\" The council is losing its mind."
+            "text": "The XM-4 is scrap! This time it's \"Arconan factory accident, AI security failure.\" The council is shitting bricks."
           },
           "1": {
             "text": "You sure care about headlines."
           },
           "2": {
-            "text": "...Occupational habit. Drop it."
+            "text": "...Occupational habit. Drop it, damn it."
           },
           "3": {
             "text": "This is the last one, {runner}. The city management AI sitting on top of the corporate tower. CENSUS. Shut it down."
@@ -1210,7 +1210,7 @@
             "text": "And... this chip. The moment CENSUS goes dark, plug it in. Don't ask. Please. Just this once, don't ask."
           },
           "6": {
-            "text": "Laser grids sweep the tower. When the red lines flash, move. Unless you want to get cooked."
+            "text": "Laser grids sweep the tower. When the red lines flash, move. Unless you want to get cooked like a goddamn roast."
           }
         },
         "skins": {
@@ -1259,7 +1259,7 @@
     },
     "ending": {
       "0": {
-        "text": "CENSUS is... dark. Ha, you actually did it. The chip? You plugged it in? ...Good. GOOD!"
+        "text": "CENSUS is... dark. Ha, holy shit, you actually did it. The chip? You plugged it in? ...Good. GOOD!"
       },
       "1": {
         "text": "What was that chip?"
