@@ -180,9 +180,12 @@ export class HideoutScene extends Phaser.Scene {
       // 첫 판에서 크레딧을 넉넉히 벌어 왔으면 (모노와이어 + 광전사 칩 + 여유) 진·리퍼닥이 알아챈다
       const rich = !own && d.credits >= TUT_RICH;
       d.tutRich = rich;
-      const lines = rich
-        ? [L('jin', 'tut.a1'), L('jin', 'tut.a2r'), L('jin', 'tut.a3r')]
-        : [L('jin', 'tut.a1'), L('jin', 'tut.a2'), L('jin', 'tut.a3')];
+      // 첫 판에 엔딩까지 봤으면 쓰러진 걸 수거한 게 아니다
+      const lines = d.lastWin
+        ? [L('jin', 'tut.a1w'), L('jin', 'tut.a2w'), L('jin', 'tut.a3w')]
+        : rich
+          ? [L('jin', 'tut.a1'), L('jin', 'tut.a2r'), L('jin', 'tut.a3r')]
+          : [L('jin', 'tut.a1'), L('jin', 'tut.a2'), L('jin', 'tut.a3')];
       if (topup) lines.push(L('doc', 'tut.a4'));
       if (!own) lines.push(L('jin', 'tut.a5'));
       this.talk(lines, () => {

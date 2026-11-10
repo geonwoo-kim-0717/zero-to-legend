@@ -396,8 +396,11 @@ export class GameScene extends Phaser.Scene implements GameContext {
     if (Save.data.speedUnlocked) this.makeSpeedBtn();
     // 1챕터 의뢰 브리핑
     // 첫 판: 진과 처음 만나는 대사 (아직 빚이 없다). 두 번째 판부터: 리퍼닥 수리비를 갚으라는 대사
-    const z0 = ZONES[0] as Zone & { intro?: Line[]; introFirst?: Line[] };
-    this.startDialog((Save.data.stats.runs === 0 && z0.introFirst) || z0.intro || [], () => undefined);
+    // 첫 판: 진과 첫 만남 · 지난 판 클리어: 새 주인 밑의 하층가 · 지난 판 2챕터 이상에서 쓰러짐: 바실리 백업 의체 · 그 밖: 빚 갚기
+    const z0 = ZONES[0] as Zone & { intro?: Line[]; introFirst?: Line[]; introRetry?: Line[]; introClear?: Line[] };
+    const sd = Save.data;
+    const lines = sd.stats.runs === 0 ? z0.introFirst : sd.lastWin ? z0.introClear : sd.lastZone >= 1 ? z0.introRetry : z0.intro;
+    this.startDialog(lines ?? z0.intro ?? [], () => undefined);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.game.events.off(Phaser.Core.Events.BLUR, this.onBlur, this);
       this.levelUi.hide();
@@ -981,7 +984,9 @@ export class GameScene extends Phaser.Scene implements GameContext {
     else if (near >= 12) tip = 'swarm';
     else if (h?.kind === 'bullet' || h?.kind === 'missile') tip = 'bullet';
     const bossName = this.boss ? enemiesData[this.boss.id as EnemyId].name : '';
-    return { cause, remark: `${zonesData.client.name}: "${tr(key(`death.tip.${tip}`), { name: bossName })}"` };
+    // 챕터마다 다른 첫마디 + 상황별 조언
+    const open = tr(key(`death.open.${Math.min(this.zoneIdx, 2)}`));
+    return { cause, remark: `${zonesData.client.name}: "${open} ${tr(key(`death.tip.${tip}`), { name: bossName })}"` };
   }
 
   private openLevelUp(reroll = false): void {

@@ -85,24 +85,27 @@ export class ResultScene extends Phaser.Scene {
         wordWrap: { width: 560 },
       })
       .setOrigin(0.5, 0);
+    // 픽서의 한마디가 두 줄이 되면 아래 줄들을 그만큼 내린다
+    let below = 0;
     if (r.remark) {
-      this.add
-        .text(VIEW_W / 2, 252, `✉ ${r.remark}`, { ...BASE_TEXT, fontSize: '11px', color: '#ff2bd6', align: 'center', wordWrap: { width: 560, useAdvancedWrap: true } })
+      const rm = this.add
+        .text(VIEW_W / 2, 246, `✉ ${r.remark}`, { ...BASE_TEXT, fontSize: '11px', color: '#ff2bd6', align: 'center', wordWrap: { width: 580, useAdvancedWrap: true } })
         .setOrigin(0.5, 0);
+      below = Math.max(0, rm.y + rm.height + 10 - 274);
     }
     const notes: string[] = unlocked.map((n) => t('result.unlock', { name: n }));
     if (Save.data.heatMax > heatBefore) notes.push(t('result.heat', { n: Save.data.heatMax }));
     const ready = Save.claimable();
     if (ready > 0) notes.push(t('result.claim', { n: ready }));
     this.add
-      .text(VIEW_W / 2, 280, notes.join('   ·   ') || t('result.tip'), {
+      .text(VIEW_W / 2, 280 + below, notes.join('   ·   ') || t('result.tip'), {
         ...BASE_TEXT,
         fontSize: notes.length ? '12px' : '11px',
         color: notes.length ? '#fff23a' : '#8a7aa8',
       })
       .setOrigin(0.5);
 
-    const again = this.add.text(VIEW_W / 2, 304, t('result.back'), { ...BASE_TEXT, fontSize: '14px', color: '#ffffff' }).setOrigin(0.5);
+    const again = this.add.text(VIEW_W / 2, 304 + below, t('result.back'), { ...BASE_TEXT, fontSize: '14px', color: '#ffffff' }).setOrigin(0.5);
     this.tweens.add({ targets: again, alpha: 0.3, duration: 700, yoyo: true, repeat: -1 });
     this.add.tileSprite(0, 0, VIEW_W, VIEW_H, 'scan').setOrigin(0);
     Sound.music('title', 1200);
@@ -118,7 +121,7 @@ export class ResultScene extends Phaser.Scene {
       void Ads.prepareRewarded().then((ok) => {
         if (!ok || leaving || !this.scene.isActive()) return;
         adBtn = this.add
-          .text(VIEW_W / 2, 334, t('result.ad', { n: r.credits }), { ...BASE_TEXT, fontSize: '12px', color: '#07060f', backgroundColor: '#fff23a', padding: { x: 10, y: 4 }, strokeThickness: 0 })
+          .text(VIEW_W / 2, Math.min(VIEW_H - 14, 334 + below), t('result.ad', { n: r.credits }), { ...BASE_TEXT, fontSize: '12px', color: '#07060f', backgroundColor: '#fff23a', padding: { x: 10, y: 4 }, strokeThickness: 0 })
           .setOrigin(0.5)
           .setInteractive({ useHandCursor: true });
         adBtn.on('pointerup', async () => {

@@ -59,6 +59,9 @@ export interface SaveData {
   tutRich: boolean;
   /** 첫 귀환 튜토리얼 끝에 진이 두 번째 출격을 재촉했는지 */
   tutGo: boolean;
+  /** 마지막 판: 도달한 챕터(0부터)와 최종 클리어 여부 — 다음 판 시작 대사·첫 귀환 대사가 달라진다 */
+  lastZone: number;
+  lastWin: boolean;
   /** 처음 아지트에 왔을 때 리퍼닥 소개를 봤는지 */
   introDone: boolean;
 }
@@ -104,6 +107,8 @@ function fresh(): SaveData {
     tutTopup: false,
     tutRich: false,
     tutGo: false,
+    lastZone: 0,
+    lastWin: false,
     introDone: false,
     stats: { runs: 0, totalKills: 0, droneKills: 0, meleeKills: 0, trooperKills: 0, midbossKills: 0, bossKills: 0, hexKills: 0, coreKills: 0, marketBuys: 0, totalTime: 0, bestTime: 0, bestLevel: 0 },
   };
@@ -194,6 +199,8 @@ export const Save = {
     const before = meta.runners.filter((r) => !this.isUnlocked(r)).map((r) => r.id);
     const s = this.data.stats;
     s.runs++;
+    this.data.lastZone = Math.max(0, (run.zone ?? 1) - 1);
+    this.data.lastWin = victory;
     s.totalKills += run.kills;
     s.droneKills += run.droneKills;
     s.meleeKills += run.meleeKills;
