@@ -1407,6 +1407,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
             }
           }
         }
+        if (e.id === 'drone') this.droneAi(e, dt, dx, dy, d, slow, hidden, (x, y) => ((vx = x), (vy = y)));
         if (e.id === 'sniper_turret') this.turretAi(e, dt, dx, dy, d, hidden);
         else if (e.id === 'glitch_ghost') this.ghostAi(e, dt, d, hidden);
         if (e.id === 'kamikaze' && this.kamikazeAi(e, dt, d, (x, y) => ((vx = x), (vy = y)))) continue;
@@ -1449,6 +1450,8 @@ export class GameScene extends Phaser.Scene implements GameContext {
         }
         e.x += vx * dt;
         e.y += vy * dt;
+        // 드론은 움직이는 쪽으로 살짝 기운다
+        if (e.flying) e.tilt += (Phaser.Math.Clamp(vx / 160, -1, 1) * 0.35 - e.tilt) * Math.min(1, dt * 8);
         // 너무 멀어진 적은 플레이어 주변으로 재배치
         if (d > gameData.spawn.despawnDistance && e.maxHp < 1000) {
           e.kill();
@@ -1456,7 +1459,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
           continue;
         }
       }
-      e.sprite.setPosition(e.x, e.y);
+      this.placeEnemy(e);
       if (e.id.startsWith('c_')) this.fx.lineStyle(1, Phaser.Display.Color.HexStringToColor((CT.info as Record<string, { color: string }>)[e.id].color).color, 0.7).strokeCircle(e.x, e.y, e.radius + 4);
       if (e.flash > 0) {
         e.flash -= dt;
@@ -1501,7 +1504,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
         this.burst(best.x, best.y, COLORS.magenta, 4);
       }
     }
-    e.sprite.setPosition(e.x, e.y);
+    this.placeEnemy(e);
     this.fx.lineStyle(1, COLORS.magenta, 0.6).lineBetween(e.x, e.y - e.radius - 4, e.x, e.y - e.radius - 10);
   }
 
@@ -2422,6 +2425,71 @@ export class GameScene extends Phaser.Scene implements GameContext {
       if (z.t <= 0) {
         z.phase = 'idle';
         z.t = L.every * Phaser.Math.FloatBetween(0.8, 1.2);
+      }
+    }
+  }
+
+  /** 적 그림 위치. 드론은 바닥(판정 위치) 위에 떠서 위아래로 흔들리고, 그림자는 바닥에 남는다 */
+  private placeEnemy(e: Enemy): void {
+    if (!e.flying) {
+      e.sprite.setPosition(e.x, e.y);
+      return;
+    }
+    const A = gameData.droneAi;
+    const bob = Math.sin(this.elapsed * 5 + e.phase) * A.bob;
+    const dive = e.state === 'lunge' ? 3 : 0; // 내리꽂을 때는 바닥 가까이
+    e.sprite.setPosition(e.x, e.y - A.hover + bob + dive).setRotation(e.tilt);
+    const k = 1 - (bob + dive) / (A.hover * 2.5); // 높이 뜰수록 그림자가 작고 옅다
+    e.shadow.setPosition(e.x, e.y + A.shadowY).setScale(1 + (1 - k) * 0.6 - 0.15).setAlpha(0.55 * k);
+  }
+
+  /**
+   * 보안 드론: 멀면 좌우로 흔들며 다가오고, 가까우면 플레이어 둘레를 선회하다가
+   * 가끔 멈춰 렌즈를 밝힌 뒤(예고) 플레이어 쪽으로 내리꽂는다.
+   */
+  private droneAi(e: Enemy, dt: number, dx: number, dy: number, d: number, slow: number, hidden: boolean, set: (vx: number, vy: number) => void): void {
+    const A = gameData.droneAi;
+    const ux = dx / d;
+    const uy = dy / d;
+    e.t -= dt;
+    if (e.state === 'walk') {
+      let vx: number;
+      let vy: number;
+      if (d > A.orbit * 1.4) {
+        const w = Math.sin(this.elapsed * A.weaveFreq + e.phase) * A.weave * e.side;
+        vx = ux - uy * w;
+        vy = uy + ux * w;
+        const n = Math.hypot(vx, vy);
+        vx = (vx / n) * e.speed;
+        vy = (vy / n) * e.speed;
+      } else {
+        const rad = Phaser.Math.Clamp((d - A.orbit) / A.orbit, -1, 1) * 1.6; // 반지름 유지
+        vx = (-uy * e.side + ux * rad) * e.speed * A.orbitSpeed;
+        vy = (ux * e.side + uy * rad) * e.speed * A.orbitSpeed;
+      }
+      set(vx * slow, vy * slow);
+      if (e.t <= 0 && !hidden && d < A.diveRange && this.onScreen(e.x, e.y)) {
+        e.state = 'wind';
+        e.t = A.windup;
+      }
+    } else if (e.state === 'wind') {
+      // 살짝 물러나며 조준 (조준선은 끝까지 플레이어를 따라간다)
+      e.dirX = ux;
+      e.dirY = uy;
+      set(-ux * 12 * slow, -uy * 12 * slow);
+      const k = 1 - Math.max(0, e.t / A.windup);
+      const L = A.diveSpeed * A.diveTime * 0.5; // 짧고 옅게 (드론이 여럿이어도 화면이 어지럽지 않게)
+      this.fx.lineStyle(1, 0xff2a3a, 0.1 + k * 0.3).lineBetween(e.x, e.y - A.hover, e.x + ux * L, e.y - A.hover + uy * L);
+      if (e.t <= 0) {
+        e.state = 'lunge';
+        e.t = A.diveTime;
+      }
+    } else {
+      set(e.dirX * A.diveSpeed * slow, e.dirY * A.diveSpeed * slow);
+      if (e.t <= 0) {
+        e.state = 'walk';
+        e.t = Phaser.Math.FloatBetween(A.diveEvery[0], A.diveEvery[1]);
+        e.side = -e.side; // 다음엔 반대 방향으로 선회
       }
     }
   }

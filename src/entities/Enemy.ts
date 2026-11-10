@@ -45,10 +45,21 @@ export class Enemy {
   ghostT = 0;
   /** 공격 프레임(_aim)을 보여줄 남은 시간 (사격·순간이동 직후) */
   atkT = 0;
+  /** 드론: 선회 방향(±1), 흔들림 위상, 기울기 */
+  side = 1;
+  phase = 0;
+  tilt = 0;
   readonly sprite: Phaser.GameObjects.Image;
+  /** 떠 있는 적(드론)의 바닥 그림자 */
+  readonly shadow: Phaser.GameObjects.Ellipse;
 
   constructor(scene: Phaser.Scene) {
     this.sprite = scene.add.image(0, 0, 'drone').setDepth(10).setVisible(false);
+    this.shadow = scene.add.ellipse(0, 0, 16, 6, 0x000000, 0.55).setDepth(9).setVisible(false);
+  }
+
+  get flying(): boolean {
+    return this.id === 'drone';
   }
 
   spawn(id: EnemyId, x: number, y: number, hpScale: number): void {
@@ -74,6 +85,11 @@ export class Enemy {
     this.state = 'walk';
     this.t = 2 + Math.random() * 2;
     this.cd = 1 + Math.random() * 1.5;
+    this.side = Math.random() < 0.5 ? -1 : 1;
+    this.phase = Math.random() * Math.PI * 2;
+    this.tilt = 0;
+    this.shadow.setPosition(x, y).setVisible(this.flying);
+    this.sprite.setRotation(0);
     this.sprite.setTexture(def.texture).setPosition(x, y).setVisible(true).clearTint().setFlipX(false).setScale(this.isBoss ? BOSS_SCALE : 1).setAlpha(1).setDepth(this.isBoss ? 12 : 10);
   }
 
@@ -98,5 +114,6 @@ export class Enemy {
   kill(): void {
     this.active = false;
     this.sprite.setVisible(false);
+    this.shadow.setVisible(false);
   }
 }

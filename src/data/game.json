@@ -292,6 +292,20 @@
     "despawnDistance": 700,
     "maxEnemies": 600
   },
+  "droneAi": {
+    "hover": 4,
+    "bob": 1.5,
+    "shadowY": 6,
+    "orbit": 75,
+    "orbitSpeed": 1.15,
+    "weave": 0.7,
+    "weaveFreq": 3,
+    "diveRange": 150,
+    "diveEvery": [2.5, 4.5],
+    "windup": 0.45,
+    "diveTime": 0.4,
+    "diveSpeed": 210
+  },
   "melee": {
     "psycho": {
       "range": 150,
