@@ -28,6 +28,9 @@ const progress = (stat: string, cur: number, goal: number) =>
   stat === 'totalTime' || stat === 'bestTime' ? tr('hideout.minutes', { a: Math.min(Math.floor(cur / 60), goal / 60), b: goal / 60 }) : `${fmt(Math.min(cur, goal))}/${fmt(goal)}`;
 
 /** 아지트(로비): 런 사이에 크레딧으로 영구 강화·러너 선택·의뢰 보상 받기 */
+/** 첫 판 뒤 이만큼 이상 벌어 왔으면 '넉넉한' 대사 (모노와이어 600 + 광전사 칩 1,000 + 여유) */
+const TUT_RICH = 1800;
+
 export class HideoutScene extends Phaser.Scene {
   private tab: Tab = 'bar';
   private panel!: Phaser.GameObjects.Container;
@@ -36,6 +39,8 @@ export class HideoutScene extends Phaser.Scene {
   private summary!: Phaser.GameObjects.Container;
   private hint!: Phaser.GameObjects.Text;
   /** 아지트 대화창 (튜토리얼 · 리퍼닥 제안 · 초기화 확인) */
+  private goBtn!: Phaser.GameObjects.Rectangle;
+  private goHint: Phaser.GameObjects.Text | null = null;
   private dlg: { lines: DLine[]; i: number; box: Phaser.GameObjects.Container; choices?: [string, () => void][]; done: () => void } | null = null;
 
   constructor() {
@@ -62,7 +67,7 @@ export class HideoutScene extends Phaser.Scene {
     this.textButton(12, 340, tr('hideout.export'), () => this.exportSave());
     this.textButton(I18n.lang === 'ko' ? 104 : 110, 340, tr('hideout.import'), () => this.importSave());
     this.textButton(I18n.lang === 'ko' ? 104 : 110, 325, tr('hideout.reset'), () => this.askReset());
-    const go = this.add.rectangle(VIEW_W - 12, VIEW_H - 10, 132, 36, COLORS.magenta, 0.9).setOrigin(1, 1).setStrokeStyle(2, 0xffffff);
+    const go = (this.goBtn = this.add.rectangle(VIEW_W - 12, VIEW_H - 10, 132, 36, COLORS.magenta, 0.9)).setOrigin(1, 1).setStrokeStyle(2, 0xffffff);
     this.add.text(VIEW_W - 78, VIEW_H - 33, tr('hideout.deploy'), T(16, '#ffffff')).setOrigin(0.5);
     this.add.text(VIEW_W - 78, VIEW_H - 17, 'ENTER', T(10, '#ffd6f6')).setOrigin(0.5);
     go.setInteractive({ useHandCursor: true }).on('pointerup', () => this.deploy());
@@ -84,6 +89,8 @@ export class HideoutScene extends Phaser.Scene {
     this.tab = Save.claimable() > 0 ? 'board' : 'bar';
     this.dlg = null;
     this.refresh();
+    this.goHint = null;
+    this.showGoHint();
     this.time.delayedCall(300, () => this.tutorial());
   }
 
@@ -170,7 +177,12 @@ export class HideoutScene extends Phaser.Scene {
       const own = d.market.includes('monowire');
       const price = (meta.market.prices as Record<string, number>).monowire;
       const topup = !own && d.credits < price && !d.tutTopup;
-      const lines = [L('jin', 'tut.a1'), L('jin', 'tut.a2'), L('jin', 'tut.a3')];
+      // 첫 판에서 크레딧을 넉넉히 벌어 왔으면 (모노와이어 + 광전사 칩 + 여유) 진·리퍼닥이 알아챈다
+      const rich = !own && d.credits >= TUT_RICH;
+      d.tutRich = rich;
+      const lines = rich
+        ? [L('jin', 'tut.a1'), L('jin', 'tut.a2r'), L('jin', 'tut.a3r')]
+        : [L('jin', 'tut.a1'), L('jin', 'tut.a2'), L('jin', 'tut.a3')];
       if (topup) lines.push(L('doc', 'tut.a4'));
       if (!own) lines.push(L('jin', 'tut.a5'));
       this.talk(lines, () => {
@@ -199,7 +211,10 @@ export class HideoutScene extends Phaser.Scene {
         return;
       }
       const cost = meta.specials.berserk.cost;
-      if (d.credits < cost) return;
+      if (d.credits < cost) {
+        this.sendOff();
+        return;
+      }
       this.tab = 'clinic';
       this.refresh();
       this.talk([L('doc', 'tut.c1'), L('doc', 'tut.c2')], () => undefined, [
@@ -213,7 +228,7 @@ export class HideoutScene extends Phaser.Scene {
             d.tut = 3;
             Save.write();
             this.refresh();
-            this.talk([L('doc', 'tut.c.yes')]);
+            this.talk([L('doc', 'tut.c.yes')], () => this.sendOff());
           },
         ],
         [
@@ -221,7 +236,7 @@ export class HideoutScene extends Phaser.Scene {
           () => {
             d.tut = 3;
             Save.write();
-            this.talk([L('doc', 'tut.c.no.reply')]);
+            this.talk([L('doc', 'tut.c.no.reply')], () => this.sendOff());
           },
         ],
       ]);
@@ -237,7 +252,7 @@ export class HideoutScene extends Phaser.Scene {
       this.talk(
         [
           { who: 'doc', text: tr('tut.b2', { runner }) },
-          { who: 'doc', text: tr('tut.b3', { runner }) },
+          { who: 'doc', text: tr(Save.data.tutRich && Save.data.credits >= meta.specials.berserk.cost ? 'tut.b3r' : 'tut.b3', { runner }) },
         ],
         () => {
           Save.data.tut = 2;
@@ -247,6 +262,32 @@ export class HideoutScene extends Phaser.Scene {
         },
       );
     });
+  }
+
+  /** 첫 귀환 튜토리얼 마무리: 진이 두 번째 임무로 등을 떠민다 (한 번만). 출격 버튼이 깜빡인다 */
+  private sendOff(): void {
+    const d = Save.data;
+    if (d.tutGo || d.stats.runs !== 1) return; // 첫 귀환 때만
+    const runner = Save.runner().name;
+    this.talk(
+      [
+        { who: 'jin', text: tr('tut.g1', { runner }) },
+        { who: 'jin', text: tr('tut.g2', { runner }) },
+      ],
+      () => {
+        d.tutGo = true;
+        Save.write();
+        this.showGoHint();
+      },
+    );
+  }
+
+  /** 두 번째 판 전까지 출격 버튼 강조 */
+  private showGoHint(): void {
+    const d = Save.data;
+    if (!d.tutGo || d.stats.runs !== 1 || this.goHint) return;
+    this.goHint = this.add.text(VIEW_W - 78, VIEW_H - 58, tr('tut.hint.go'), T(11, '#ff2bd6')).setOrigin(0.5).setDepth(5);
+    this.tweens.add({ targets: [this.goHint, this.goBtn], alpha: 0.45, duration: 500, yoyo: true, repeat: -1 });
   }
 
   private askReset(): void {

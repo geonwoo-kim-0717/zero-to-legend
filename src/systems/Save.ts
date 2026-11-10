@@ -55,6 +55,10 @@ export interface SaveData {
   tut: number;
   /** 리퍼닥이 모노와이어 값을 채워 줬는지 */
   tutTopup: boolean;
+  /** 첫 판 뒤 크레딧이 넉넉했는지(1,800 이상): 진·리퍼닥 대사가 달라진다 */
+  tutRich: boolean;
+  /** 첫 귀환 튜토리얼 끝에 진이 두 번째 출격을 재촉했는지 */
+  tutGo: boolean;
   /** 처음 아지트에 왔을 때 리퍼닥 소개를 봤는지 */
   introDone: boolean;
 }
@@ -98,6 +102,8 @@ function fresh(): SaveData {
     tutChain: false,
     tut: 0,
     tutTopup: false,
+    tutRich: false,
+    tutGo: false,
     introDone: false,
     stats: { runs: 0, totalKills: 0, droneKills: 0, meleeKills: 0, trooperKills: 0, midbossKills: 0, bossKills: 0, hexKills: 0, coreKills: 0, marketBuys: 0, totalTime: 0, bestTime: 0, bestLevel: 0 },
   };
