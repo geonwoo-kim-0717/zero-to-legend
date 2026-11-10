@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import { WeaponBase } from './WeaponBase';
 import { COLORS } from '../config';
 
-const BASE_R = 48;
+const BASE_R = 58; // 48에서 20% 상향 (베기 그림·발동 거리·판정 모두 이 값을 따른다)
 const HALF_ARC = 1.1;
 /** 실제 판정 반지름 = 보이는 베기 반지름 × 1.1 */
 const HIT_MUL = 1.1; // 약 63도 → 전체 126도
