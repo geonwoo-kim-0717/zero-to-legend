@@ -364,19 +364,19 @@
   "passives": {
     "muscle": {
       "name": "Synthetic Muscle",
-      "desc": "Damage +{v}%"
+      "desc": "All weapon damage +{v}%"
     },
     "neural": {
       "name": "Neural Accelerator",
-      "desc": "Attack speed +{v}%"
+      "desc": "All weapon attack speed +{v}%"
     },
     "dermal": {
       "name": "Subdermal Armor",
-      "desc": "Max HP +{v}"
+      "desc": "Runner max HP +{v}"
     },
     "magnet": {
       "name": "Magnetic Collector",
-      "desc": "Pickup range +{v}%"
+      "desc": "Item pickup range +{v}%"
     }
   },
   "abilities": {
@@ -1044,7 +1044,7 @@
       },
       "1": {
         "name": "Neural Booster",
-        "desc": "Damage +{v}%"
+        "desc": "All weapon damage +{v}%"
       },
       "2": {
         "name": "Leg Servos",
@@ -1052,7 +1052,7 @@
       },
       "3": {
         "name": "Pickup Magnet",
-        "desc": "Pickup range +{v}%"
+        "desc": "Item pickup range +{v}%"
       },
       "4": {
         "name": "Nano Repair",
