@@ -832,7 +832,7 @@
   "enemies": {
     "drone": {
       "name": "Security Drone",
-      "guide": "Security drones. CENSUS's goddamn eyeballs. Weak as hell, but they swarm. Keep moving!",
+      "guide": "Security drones. CENSUS's eyeballs. Weak, but they swarm. Keep moving!",
       "lines": {
         "0": "Unregistered mod detected.",
         "1": "Citizen score 0. Tracking."
@@ -840,7 +840,7 @@
     },
     "thug": {
       "name": "Street Thug",
-      "guide": "Basili's little goons. They smelled the bounty. They hurt like hell up close, so keep your distance.",
+      "guide": "Basili's goons. They smelled the bounty. They hurt like hell up close, so keep your distance.",
       "lines": {
         "0": "That bounty is mine!",
         "1": "Let's raise my score!"
@@ -856,7 +856,7 @@
     },
     "psycho": {
       "name": "Cyberpsycho",
-      "guide": "Damn, a psycho. Chrome-crazed, bites anyone. When it pauses it lunges, so dash sideways!",
+      "guide": "A psycho. Chrome-crazed, bites anyone. When it pauses it lunges, so dash sideways!",
       "lines": {
         "0": "Chrome... more...",
         "1": "My head is so loud!"
@@ -886,7 +886,7 @@
     },
     "kamikaze": {
       "name": "Kamikaze Drone",
-      "guide": "Suicide drones! They blink, then boom. When one starts blinking, get the hell away.",
+      "guide": "Suicide drones! They blink, then boom. When one starts blinking, get away.",
       "lines": {
         "0": "Closing on target.",
         "1": "Arming."
@@ -922,7 +922,7 @@
     },
     "sec_bot": {
       "name": "Security Bot",
-      "guide": "Factory security bots. Slow as hell, tough as hell, hits hard. Don't get close; whittle them down.",
+      "guide": "Factory security bots. Slow, tough, hits hard. Don't get close; whittle them down.",
       "lines": {
         "0": "No access.",
         "1": "Protecting the line."
@@ -930,7 +930,7 @@
     },
     "glitch_ghost": {
       "name": "Glitch Ghost AI",
-      "guide": "Oh hell, a phantom CENSUS projects. It teleports behind you. When it vanishes, look around.",
+      "guide": "Huh, a phantom CENSUS projects. It teleports behind you. When it vanishes, look around.",
       "lines": {
         "0": "You're not in the records.",
         "1": "Recalculating score..."
@@ -946,7 +946,7 @@
     },
     "c_mirror": {
       "name": "Mirror Trooper",
-      "guide": "Shit, a mirror trooper. CENSUS learned your gunplay. Bullets barely work, so beat it with something else.",
+      "guide": "Damn, a mirror trooper. CENSUS learned your gunplay. Bullets barely work, so beat it with something else.",
       "lines": {
         "0": "Already learned that round."
       }
@@ -960,21 +960,21 @@
     },
     "c_dampener": {
       "name": "Blast Dampener",
-      "guide": "Dampener. It gobbles up explosions. Stop blowing stuff up and hit it with something else.",
+      "guide": "Dampener. It eats explosions. Stop blowing stuff up and hit it with something else.",
       "lines": {
         "0": "Impact absorbed."
       }
     },
     "c_thorn": {
       "name": "Thorn Knight",
-      "guide": "Thorn trooper. Cut it and you get cut too. Damn thing. Deal with it from range.",
+      "guide": "Thorn trooper. Cut it and you get cut too. Deal with it from range.",
       "lines": {
         "0": "Cut me, bleed."
       }
     },
     "c_prism": {
       "name": "Refraction Prism",
-      "guide": "Prism. Bends every beam and EMP. Even the railgun stops there, damn it.",
+      "guide": "Prism. Bends every beam and EMP. Even the railgun stops there.",
       "lines": {
         "0": "Beam deflected."
       }
@@ -1142,7 +1142,7 @@
             "text": "And the debt?"
           },
           "4": {
-            "text": "See the whole job through and it's wiped clean. I promise. Hold out ten minutes and Basili shows up in person. Don't you goddamn flinch this time."
+            "text": "See the whole job through and it's wiped clean. I promise. Hold out ten minutes and Basili shows up in person. Don't you flinch this time."
           }
         },
         "introFirst": {
@@ -1153,7 +1153,7 @@
             "text": "Citizen score zero. Nobody in this city hires someone like you. ...Nobody but me."
           },
           "2": {
-            "text": "Got a job for you. Carlo Basili, gang boss of the Lower Slums. Took over the blocks CENSUS threw away and bleeds them for protection money. Piece of shit. Take him out."
+            "text": "Got a job for you. Carlo Basili, gang boss of the Lower Slums. Took over the blocks CENSUS threw away and bleeds them for protection money. Trash. Take him out."
           },
           "3": {
             "text": "What's the pay?"
@@ -1170,7 +1170,7 @@
             "text": "And one piece of shitty news. Basili had a backup clone body. While you were down, he swallowed the slums right back up."
           },
           "2": {
-            "text": "Factory, tower, all of it, back to square one. Damn it, this time we go all the way."
+            "text": "Factory, tower, all of it, back to square one. This time we go all the way."
           },
           "3": {
             "text": "Basili again."
@@ -1184,7 +1184,7 @@
             "text": "{runner}, you hear the news? Northridge owns the council now, and the slums haven't changed one bit. Hilarious."
           },
           "1": {
-            "text": "That bastard Basili crawled back out in a clone body. Now he's running protection for Northridge. Fuck me."
+            "text": "Basili crawled back out in a clone body. Now he's running protection for Northridge. Unbelievable."
           },
           "2": {
             "text": "New owners, same jobs. Let's flip the table one more time."
@@ -1202,7 +1202,7 @@
         "ruleHint": "Floor conveyors drag you along",
         "intro": {
           "0": {
-            "text": "Ha! Did you see? That damn pig Basili is DOWN! The headline says \"Slum security vacuum, AI management failure.\" You're tonight's top story!"
+            "text": "Ha! Did you see? Basili is DOWN! The headline says \"Slum security vacuum, AI management failure.\" You're tonight's top story!"
           },
           "1": {
             "text": "I grabbed his ledger. ...What? It's a hobby. A hobby."
@@ -1217,7 +1217,7 @@
             "text": "You want me to walk into a mech factory empty-handed?"
           },
           "5": {
-            "text": "Not empty-handed. Almost empty-handed. Heh. Oh, and watch those damn floor conveyors. Space out and the floor will haul you off somewhere."
+            "text": "Not empty-handed. Almost empty-handed. Heh. Oh, and watch the floor conveyors. Space out and the floor will haul you off somewhere."
           }
         }
       },
@@ -1226,13 +1226,13 @@
         "ruleHint": "When red lines blink, security lasers sweep through",
         "intro": {
           "0": {
-            "text": "The XM-4 is scrap! This time it's \"Arconan factory accident, AI security failure.\" The council is shitting bricks."
+            "text": "The XM-4 is scrap! This time it's \"Arconan factory accident, AI security failure.\" The council is losing its mind."
           },
           "1": {
             "text": "You sure care about headlines."
           },
           "2": {
-            "text": "...Occupational habit. Drop it, damn it."
+            "text": "...Occupational habit. Drop it."
           },
           "3": {
             "text": "This is the last one, {runner}. The city management AI sitting on top of the corporate tower. CENSUS. Shut it down."
@@ -1244,13 +1244,13 @@
             "text": "And... this chip. The moment CENSUS goes dark, plug it in. Don't ask. Please. Just this once, don't ask."
           },
           "6": {
-            "text": "Laser grids sweep the tower. When the red lines flash, move. Unless you want to get cooked like a goddamn roast."
+            "text": "Laser grids sweep the tower. When the red lines flash, move. Unless you want to get cooked."
           }
         },
         "skins": {
           "thug": {
             "name": "Tower Guard",
-            "guide": "Tower guards. Arconan payroll leeches with batons. Keep your distance.",
+            "guide": "Tower guards. Arconan wage-earners with batons. Keep your distance.",
             "lines": {
               "0": "Not on my shift.",
               "1": "No lobby access!"
