@@ -2726,7 +2726,10 @@ export class GameScene extends Phaser.Scene implements GameContext {
     if (nextBoss && !this.boss && this.warnedBoss !== key && zt >= nextBoss.time - lead) {
       this.warnedBoss = key;
       const name = enemiesData[nextBoss.id as EnemyId].name;
-      this.phoneText(tr(nextBoss.final ? 'phone.boss' : 'phone.midboss', { name, ga: josa(name, '이', '가') }));
+      // 보스마다 스토리에 맞춘 문자 (없으면 공용 문구)
+      const own = `phone.boss.${nextBoss.id}` as Parameters<typeof tr>[0];
+      const msg = tr(own);
+      this.phoneText(msg !== own ? msg : tr(nextBoss.final ? 'phone.boss' : 'phone.midboss', { name, ga: josa(name, '이', '가') }), `${nextBoss.id}_w1`);
     }
     if (!this.raid && !this.boss && this.warnedRaid !== this.nextRaid && this.elapsed >= this.nextRaid - lead) {
       // 보스가 곧 나올 차례면 습격은 미뤄지므로 그때는 알리지 않는다
