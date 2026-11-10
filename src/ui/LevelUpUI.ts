@@ -67,7 +67,8 @@ export class LevelUpUI {
           .setOrigin(1, 0),
       );
       const kind = t(c.kind === 'weapon' ? 'lvl.kind.weapon' : c.kind === 'passive' ? 'lvl.kind.passive' : 'lvl.kind.overflow');
-      add(s.add.text(x + cw / 2, y + 8, kind, { ...BASE_TEXT, fontSize: '11px', color: '#8a7aa8' }).setOrigin(0.5, 0));
+      // 종류는 번호 옆 왼쪽에 (가운데에 두면 영어판에서 등급 글자와 겹친다)
+      add(s.add.text(x + 30, y + 8, kind, { ...BASE_TEXT, fontSize: '11px', color: '#8a7aa8' }).setOrigin(0, 0));
       // 무기·사이버웨어 그림: 카드용 큰 그림(card_<id>)이 있으면 그것, 없으면 아이콘을 키워서
       const img = s.textures.exists(`card_${c.id}`) ? `card_${c.id}` : s.textures.exists(`icon_${c.id}`) ? `icon_${c.id}` : null;
       add(s.add.rectangle(x + cw / 2, y + 50, 56, 56, 0x07060f, 0.9).setStrokeStyle(1, col, 0.7));

@@ -711,29 +711,29 @@
         "legendary": {
           "0": {
             "name": "Critical Hit",
-            "desc": "All attacks have a 10% chance to deal 2x damage"
+            "desc": "All weapon attacks have a 10% chance to deal 2x damage"
           },
           "1": {
             "name": "Executioner",
-            "desc": "Hitting a normal enemy at 15% HP or less kills it"
+            "desc": "Any weapon hit on a normal enemy at 15% HP or less kills it"
           },
           "2": {
             "name": "Rage",
-            "desc": "The lower your HP, the more damage (up to +40%)"
+            "desc": "The lower the runner's HP, the more damage for all weapons (up to +40%)"
           }
         },
         "mythic": {
           "0": {
             "name": "Critical Frenzy",
-            "desc": "25% crit chance, crits deal 3x"
+            "desc": "All weapons: 25% crit chance, crits deal 3x"
           },
           "1": {
             "name": "Titan",
-            "desc": "Damage +50%, move speed -10%"
+            "desc": "All weapon damage +50%, runner move speed -10%"
           },
           "2": {
             "name": "Kill Streak",
-            "desc": "Each kill: +2% damage for 3s (max +40%)"
+            "desc": "Each kill gives all weapons +2% damage for 3s (up to +40%)"
           }
         }
       },
@@ -749,7 +749,7 @@
           },
           "2": {
             "name": "Kill Rush",
-            "desc": "Each kill: +20% attack speed for 1s"
+            "desc": "Each kill gives all weapons +20% attack speed for 1s"
           }
         },
         "mythic": {
@@ -759,7 +759,7 @@
           },
           "1": {
             "name": "Overload Core",
-            "desc": "Attack speed +50%, max HP -20%"
+            "desc": "All weapon attack speed +50%, runner max HP -20%"
           },
           "2": {
             "name": "Blade Dash",
@@ -775,11 +775,11 @@
           },
           "1": {
             "name": "Nano Regen",
-            "desc": "After 3s without being hit, heal 2 HP per second"
+            "desc": "After 3s without being hit, the runner regenerates 2 HP/s"
           },
           "2": {
             "name": "Steel Skin",
-            "desc": "Damage taken -15%"
+            "desc": "Runner takes 15% less damage"
           }
         },
         "mythic": {
@@ -793,7 +793,7 @@
           },
           "2": {
             "name": "Bulk",
-            "desc": "Max HP +100; pushes away normal enemies that touch you"
+            "desc": "Runner max HP +100, pushes away normal enemies on contact"
           }
         }
       },
