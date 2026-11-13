@@ -1472,9 +1472,13 @@ export class GameScene extends Phaser.Scene implements GameContext {
       if (e.flash > 0) {
         e.flash -= dt;
         if (e.flash <= 0) {
-          if (e.stun > 0) e.sprite.setTint(0x66ffff);
-          else e.sprite.clearTint();
-        }
+          e.flashSprite.setVisible(false);
+          // 보스는 그림 자체에 붉은 틴트를 썼으니 되돌린다 (일반 적은 흰 실루엣만 숨기면 됨)
+          if (e.isBoss) {
+            if (e.stun > 0) e.sprite.setTint(0x66ffff);
+            else e.sprite.clearTint();
+          }
+        } else e.syncFlash();
       }
       // 접촉 피해 (조종당한 적은 플레이어를 공격하지 않음)
       const rr = p.radius + e.radius;
