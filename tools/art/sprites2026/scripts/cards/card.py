@@ -36,8 +36,8 @@ def nearx(m, skin=True):
     if not skin: e[len(PALX)-4:]=1e18
     return int(np.argmin(e))
 ROT={"railgun":32,"shotgun":32,"mantisBlade":20}   # long side-on weapons: tilt to use the square card box
-def card(src, out, S=48, pad=1, rot=0, mute=0.0, ext=False, soft=0, skin=True):
-    a=nobg(np.asarray(Image.open(src).convert("RGB")), soft=soft)
+def card(src, out, S=48, pad=1, rot=0, mute=0.0, ext=False, soft=0, skin=True, rgba=None):
+    a=rgba if rgba is not None else nobg(np.asarray(Image.open(src).convert("RGB")), soft=soft)
     if rot: a=np.asarray(Image.fromarray(a,"RGBA").rotate(rot,resample=Image.BICUBIC,expand=True))
     ys,xs=np.where(a[...,3]>0); a=a[ys.min():ys.max()+1, xs.min():xs.max()+1]
     h,w=a.shape[:2]; n=S-2*pad; cs=max(h,w)/n; gw,gh=round(w/cs),round(h/cs)
