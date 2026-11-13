@@ -49,6 +49,8 @@ const ZR = gameData.zoneRules;
 /** 왼쪽 위 체력바 폭 */
 const HP_W = 120;
 type BossPhase = 'walk' | 'aim' | 'charge';
+/** 블랙 실드 이송기가 착지 지점 위로 떠 있는 높이 (그림 112x55 기준) */
+const SHIP_LIFT = 44;
 type BossDef = (typeof gameData.bosses)[number];
 type MeleeDef = { range: number; interval: number; windup: number; lungeTime: number; lungeSpeed: number };
 type Phase2 = { at: number; chargeCount: number; aimTime: number; chargeTime: number; chargeSpeed: number; volleyEvery: number; volleyCount: number; bulletSpeed: number; bulletDamage: number };
@@ -2818,6 +2820,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
   }
 
   // ───────────────────────────── 블랙 실드 진압대 습격 ─────────────────────────────
+  // (이송기 그림 112x55: 착지 지점보다 SHIP_LIFT만큼 떠서 그림자 위에 있는다)
   private updateRaid(dt: number): void {
     const R = gameData.raid;
     const p = this.player;
@@ -2834,8 +2837,9 @@ export class GameScene extends Phaser.Scene implements GameContext {
       });
       this.raid = {
         phase: 'in', t: 0, sx, tx, ty, markers,
-        ship: this.add.image(sx, ty - 34, 'dropship').setDepth(30),
-        shadow: this.add.ellipse(sx, ty + 8, 58, 14, 0x000000, 0.35).setDepth(9),
+        // 날아오고 나갈 때는 덕트 엔진을 기울인 그림, 멈춰 있을 때는 정지 그림
+        ship: this.add.image(sx, ty - SHIP_LIFT, this.textures.exists('dropship_move') ? 'dropship_move' : 'dropship').setDepth(30),
+        shadow: this.add.ellipse(sx, ty + 8, 92, 20, 0x000000, 0.35).setDepth(9),
       };
       const warn = this.add
         .text(VIEW_W / 2, 72, tr('raid.warn'), { ...TEXT, fontSize: '16px', color: '#ff2a3a', align: 'center' })
@@ -2856,6 +2860,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
       if (k >= 1) {
         r.phase = 'hover';
         r.t = 0;
+        r.ship.setTexture('dropship');
         Sound.play('bosscharge');
       }
     } else if (r.phase === 'hover') {
@@ -2883,6 +2888,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
         r.phase = 'out';
         r.t = 0;
         r.sx = r.ship.x;
+        if (this.textures.exists('dropship_move')) r.ship.setTexture('dropship_move');
       }
     } else {
       const k = Math.min(1, r.t / R.flyOut);
@@ -2895,7 +2901,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
         return;
       }
     }
-    r.ship.y = r.ty - 34 + bob;
+    r.ship.y = r.ty - SHIP_LIFT + bob;
     r.shadow.setPosition(r.ship.x, r.ty + 8);
     if (r.phase !== 'out') {
       // 착지 지점 표시
