@@ -388,9 +388,9 @@
     "firstDelayMax": 40,
     "minGap": 60,
     "maxGap": 90,
-    "flyIn": 1.4,
-    "hover": 1.0,
-    "flyOut": 1.4,
+    "flyIn": 2.8,
+    "hover": 1.5,
+    "flyOut": 2.8,
     "squad": [
       "trooper_tank",
       "trooper_melee",
