@@ -2,7 +2,7 @@
   "weapons": {
     "smartPistol": {
       "name": "Smart Pistol",
-      "desc": "Homing shots at nearby enemies (range 190, max 4 shots)",
+      "desc": "Homing shots at nearby enemies (range 190)",
       "levels": {
         "0": {
           "desc": "Acquired"
