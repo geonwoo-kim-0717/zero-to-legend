@@ -1118,6 +1118,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
       zone: `${this.zone.label} ${this.zone.name}`,
       heat: this.heat,
       runner: this.runner.name,
+      zoneTime: this.elapsed - this.zoneStart,
       ...(victory ? {} : this.deathCause()),
     };
     this.clearArena();

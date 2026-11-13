@@ -1,3 +1,5 @@
+import { Leaderboard, type Entry } from '../systems/Leaderboard';
+import { askName } from '../ui/NameInput';
 import Phaser from 'phaser';
 import { BASE_TEXT, setupCamera } from '../ui/text';
 import { Sound } from '../systems/Sound';
@@ -39,6 +41,7 @@ export class HideoutScene extends Phaser.Scene {
   private summary!: Phaser.GameObjects.Container;
   private hint!: Phaser.GameObjects.Text;
   /** 아지트 대화창 (튜토리얼 · 리퍼닥 제안 · 초기화 확인) */
+  private board: Phaser.GameObjects.Container | null = null;
   private goBtn!: Phaser.GameObjects.Rectangle;
   private goHint: Phaser.GameObjects.Text | null = null;
   private dlg: { lines: DLine[]; i: number; box: Phaser.GameObjects.Container; choices?: [string, () => void][]; done: () => void } | null = null;
@@ -67,6 +70,7 @@ export class HideoutScene extends Phaser.Scene {
     this.textButton(12, 340, tr('hideout.export'), () => this.exportSave());
     this.textButton(I18n.lang === 'ko' ? 104 : 110, 340, tr('hideout.import'), () => this.importSave());
     this.textButton(I18n.lang === 'ko' ? 104 : 110, 325, tr('hideout.reset'), () => this.askReset());
+    this.textButton(I18n.lang === 'ko' ? 104 : 110, 310, tr('lb.button'), () => this.openBoard());
     const go = (this.goBtn = this.add.rectangle(VIEW_W - 12, VIEW_H - 10, 132, 36, COLORS.magenta, 0.9)).setOrigin(1, 1).setStrokeStyle(2, 0xffffff);
     this.add.text(VIEW_W - 78, VIEW_H - 33, tr('hideout.deploy'), T(16, '#ffffff')).setOrigin(0.5);
     this.add.text(VIEW_W - 78, VIEW_H - 17, 'ENTER', T(10, '#ffd6f6')).setOrigin(0.5);
@@ -76,10 +80,10 @@ export class HideoutScene extends Phaser.Scene {
     this.add.tileSprite(0, 0, VIEW_W, VIEW_H, 'scan').setOrigin(0).setDepth(300);
 
     const kb = this.input.keyboard!;
-    kb.on('keydown-ENTER', () => (this.dlg ? this.dlgNext() : this.deploy()));
+    kb.on('keydown-ENTER', () => (this.board ? undefined : this.dlg ? this.dlgNext() : this.deploy()));
     kb.on('keydown-SPACE', () => this.dlg && this.dlgNext());
     if (Ads.provider !== 'crazygames') kb.on('keydown-ESC', () => this.scene.start('Title'));
-    TABS.forEach((id, i) => kb.on(`keydown-${['ONE', 'TWO', 'THREE', 'FOUR'][i]}`, () => !this.dlg && this.setTab(id)));
+    TABS.forEach((id, i) => kb.on(`keydown-${['ONE', 'TWO', 'THREE', 'FOUR'][i]}`, () => !this.dlg && !this.board && this.setTab(id)));
     kb.on('keydown-LEFT', () => !this.dlg && this.tab === 'bar' && this.cycleRunner(-1));
     kb.on('keydown-RIGHT', () => !this.dlg && this.tab === 'bar' && this.cycleRunner(1));
 
@@ -90,6 +94,7 @@ export class HideoutScene extends Phaser.Scene {
     this.dlg = null;
     this.refresh();
     this.goHint = null;
+    this.board = null;
     this.showGoHint();
     this.time.delayedCall(300, () => this.tutorial());
   }
@@ -291,6 +296,77 @@ export class HideoutScene extends Phaser.Scene {
     if (!d.tutGo || d.stats.runs !== 1 || this.goHint) return;
     this.goHint = this.add.text(VIEW_W - 78, VIEW_H - 58, tr('tut.hint.go'), T(11, '#ff2bd6')).setOrigin(0.5).setDepth(5);
     this.tweens.add({ targets: [this.goHint, this.goBtn], alpha: 0.45, duration: 500, yoyo: true, repeat: -1 });
+  }
+
+  // ───────────────────────────── 리더보드 ─────────────────────────────
+  private openBoard(): void {
+    if (this.dlg || this.board) return;
+    Sound.play('hover');
+    const W = 420;
+    const H = 300;
+    const x = (VIEW_W - W) / 2;
+    const y = (VIEW_H - H) / 2;
+    const box = (this.board = this.add.container(0, 0).setDepth(260));
+    const dim = this.add.rectangle(0, 0, VIEW_W, VIEW_H, 0x07060f, 0.8).setOrigin(0).setInteractive();
+    box.add(dim);
+    box.add(this.add.rectangle(x, y, W, H, 0x0d0820, 0.98).setOrigin(0).setStrokeStyle(2, COLORS.magenta));
+    box.add(this.add.text(x + 16, y + 10, tr('lb.title'), T(18, '#ff2bd6')));
+    const close = () => {
+      box.destroy();
+      this.board = null;
+    };
+    const btn = (bx: number, label: string, fn: () => void, color = '#8a7aa8') => {
+      const b = this.add.text(bx, y + H - 24, label, T(12, color)).setInteractive({ useHandCursor: true });
+      b.on('pointerup', fn);
+      box.add(b);
+      return b;
+    };
+    const closeBtn = btn(x + W - 16, tr('lb.close'), close, '#e8f7ff');
+    closeBtn.setOrigin(1, 0);
+    btn(x + 16, Leaderboard.name ? `${tr('lb.rename')} (${Leaderboard.name})` : tr('lb.setname'), async () => {
+      const v = await askName(Leaderboard.name);
+      if (!v || !Leaderboard.setName(v)) return;
+      await Leaderboard.push();
+      if (this.board !== box) return;
+      close();
+      this.openBoard();
+    }, Leaderboard.name ? '#8a7aa8' : '#fff23a');
+    const status = this.add.text(x + W / 2, y + 150, tr('lb.loading'), T(12, '#8a7aa8')).setOrigin(0.5);
+    box.add(status);
+    const cols = [x + 16, x + 52, x + 300, x + 330, x + W - 16];
+    const head = [tr('lb.col.rank'), tr('lb.col.name'), tr('lb.col.score'), tr('lb.col.zone'), tr('lb.col.time')];
+    const rowAt = (i: number, cells: string[], color: string) => {
+      const ry = y + 40 + i * 19;
+      cells.forEach((c, k) => {
+        const tx = this.add.text(cols[k], ry, c, T(k === 1 ? 12 : 11, color));
+        if (k === 2 || k === 4) tx.setOrigin(1, 0);
+        if (k === 2) tx.setX(cols[2] - 8);
+        box.add(tx);
+      });
+    };
+    rowAt(0, head, '#6a5a88');
+    const line = (e: Entry, rank: number | string): string[] => [
+      String(rank),
+      e.name,
+      e.score.toLocaleString('en-US'),
+      e.cleared ? tr('lb.clear') : tr('lb.zone', { n: e.zone }),
+      `${Math.floor(e.time / 60)}:${String(Math.floor(e.time % 60)).padStart(2, '0')}`,
+    ];
+    void Leaderboard.top(10).then(({ list, myRank, offline }) => {
+      if (this.board !== box) return;
+      status.setText('');
+      if (!list.length) status.setText(Leaderboard.name || !Leaderboard.best ? tr('lb.empty') : tr('lb.noname'));
+      list.forEach((e, i) => {
+        if (e.me) box.add(this.add.rectangle(x + 8, y + 38 + (i + 1) * 19, W - 16, 18, 0x2a1050, 1).setOrigin(0));
+        rowAt(i + 1, line(e, i + 1), e.me ? '#fff23a' : i < 3 ? '#00f0ff' : '#e8f7ff');
+      });
+      const foot: string[] = [];
+      const mine = Leaderboard.best;
+      if (offline) foot.push(tr(Leaderboard.online ? 'lb.offline' : 'lb.local'));
+      else if (myRank) foot.push(tr('lb.myrank', { n: myRank }));
+      if (mine) foot.push(tr('lb.mybest', { n: mine.score.toLocaleString('en-US') }));
+      box.add(this.add.text(x + W / 2, y + H - 46, foot.join('   ·   '), T(11, offline ? '#ff8a1f' : '#39ff88')).setOrigin(0.5));
+    });
   }
 
   private askReset(): void {

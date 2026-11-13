@@ -62,6 +62,10 @@ export interface SaveData {
   /** 마지막 판: 도달한 챕터(0부터)와 최종 클리어 여부 — 다음 판 시작 대사·첫 귀환 대사가 달라진다 */
   lastZone: number;
   lastWin: boolean;
+  /** 리더보드: 닉네임, 이 기기의 익명 ID, 이 기기 최고 기록 */
+  nickname?: string;
+  playerId?: string;
+  best?: { id: string; name: string; score: number; zone: number; time: number; kills: number; runner: string; heat: number; cleared: boolean } | null;
   /** 처음 아지트에 왔을 때 리퍼닥 소개를 봤는지 */
   introDone: boolean;
 }
@@ -249,7 +253,9 @@ export const Save = {
   },
 
   reset(): void {
-    this.data = fresh();
+    // 리더보드 신원(닉네임·기기 ID)은 남긴다: 서버의 내 기록과 이어지게
+    const { nickname, playerId } = this.data;
+    this.data = { ...fresh(), nickname, playerId };
     this.write();
   },
 };

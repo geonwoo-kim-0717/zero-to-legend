@@ -6,6 +6,8 @@ import { VIEW_W, VIEW_H } from '../config';
 import { Save, type RunStats } from '../systems/Save';
 import { Ads } from '../systems/Ads';
 import { t } from '../i18n';
+import { Leaderboard } from '../systems/Leaderboard';
+import { askName } from '../ui/NameInput';
 
 export interface RunResult {
   victory: boolean;
@@ -18,6 +20,11 @@ export interface RunResult {
   runner: string;
   zone: string;
   heat: number;
+  /** 도달한 챕터에서 버틴 시간(초) — 리더보드 점수용 */
+  zoneTime?: number;
+  /** 리더보드 점수 (한 번만 계산) */
+  score?: number;
+  scoreBest?: boolean;
   /** 사인과 픽서의 한마디 (패배했을 때만) */
   cause?: string;
   remark?: string;
@@ -37,6 +44,11 @@ export class ResultScene extends Phaser.Scene {
     // 크레딧과 기록을 저장 (사망해도 100% 유지)
     const heatBefore = Save.data.heatMax;
     const unlocked = r.saved ? [] : Save.commitRun(r.run, r.credits, r.victory);
+    if (!r.saved) {
+      const rec = Leaderboard.record({ zone: r.run.zone, zoneTime: r.zoneTime ?? 0, time: r.time, kills: r.kills, heat: r.heat, cleared: r.victory, runner: r.runner });
+      r.score = rec.score;
+      r.scoreBest = rec.isBest;
+    }
     r.saved = true;
     this.add.tileSprite(0, 0, VIEW_W, VIEW_H, 'ground').setOrigin(0);
     this.add.rectangle(0, 0, VIEW_W, VIEW_H, 0x000000, 0.5).setOrigin(0);
@@ -72,9 +84,30 @@ export class ResultScene extends Phaser.Scene {
       [t('result.level'), `${r.level}`],
       [t('result.credits'), t('result.creditsVal', { n: r.credits, total: Save.data.credits })],
     ];
+    const scoreTxt = (r.score ?? 0).toLocaleString('en-US');
+    rows.push([t('result.score'), r.scoreBest ? t('result.score.best', { n: scoreTxt }) : scoreTxt]);
     rows.forEach(([k, v], i) => {
-      this.add.text(190, 106 + i * 18, k, { ...BASE_TEXT, fontSize: '13px', color: '#8a7aa8' });
-      this.add.text(450, 106 + i * 18, v, { ...BASE_TEXT, fontSize: '13px', color: '#ffffff' }).setOrigin(1, 0);
+      const last = i === rows.length - 1;
+      this.add.text(190, 104 + i * 16, k, { ...BASE_TEXT, fontSize: '13px', color: last ? '#fff23a' : '#8a7aa8' });
+      this.add.text(450, 104 + i * 16, v, { ...BASE_TEXT, fontSize: '13px', color: last ? '#fff23a' : '#ffffff' }).setOrigin(1, 0);
+    });
+    // 리더보드: 닉네임이 없으면 정하는 버튼, 있으면 등록됐다는 표시 (눌러서 닉네임 변경)
+    const rankLabel = () => (Leaderboard.name ? t(Leaderboard.online ? 'result.rank.name' : 'result.rank.local', { name: Leaderboard.name }) : t('result.rank.set'));
+    const rankBtn = this.add
+      .text(12, 12, rankLabel(), { ...BASE_TEXT, fontSize: '12px', color: Leaderboard.name ? '#8a7aa8' : '#07060f', backgroundColor: Leaderboard.name ? undefined : '#fff23a', padding: { x: 6, y: 3 }, strokeThickness: Leaderboard.name ? 3 : 0 })
+      .setDepth(5)
+      .setInteractive({ useHandCursor: true });
+    let naming = false;
+    rankBtn.on('pointerup', async () => {
+      if (naming) return;
+      naming = true;
+      const v = await askName(Leaderboard.name);
+      // 입력 창을 닫은 클릭이 '아지트로 귀환'으로 이어지지 않게 잠깐 뒤에 푼다
+      this.time.delayedCall(250, () => (naming = false));
+      if (!v || !Leaderboard.setName(v)) return;
+      void Leaderboard.push();
+      Sound.play('select');
+      rankBtn.setText(rankLabel()).setColor('#8a7aa8').setBackgroundColor('rgba(0,0,0,0)').setStroke('#000000', 3);
     });
     this.add
       .text(VIEW_W / 2, 220, r.weapons.map((w) => `${w.name} Lv.${w.level}`).join('   '), {
@@ -146,7 +179,7 @@ export class ResultScene extends Phaser.Scene {
     this.time.delayedCall(600, () => {
       const go = async () => {
         // 광고 진행 중이면 이번 입력만 무시 (다음 입력은 다시 받는다)
-        if (leaving || busy) return;
+        if (leaving || busy || naming) return;
         leaving = true;
         Sound.play('start');
         // 판 사이 전면 광고 (첫 판 제외, 3분에 1번, 광고가 안 오면 몇 초 안에 그냥 진행)
@@ -155,7 +188,7 @@ export class ResultScene extends Phaser.Scene {
       };
       this.input.keyboard!.on('keydown-ENTER', go);
       this.input.on('pointerup', (_p: Phaser.Input.Pointer, over: Phaser.GameObjects.GameObject[]) => {
-        if (over.includes(mute) || over.includes(fsBtn) || (adBtn && over.includes(adBtn))) return;
+        if (over.includes(mute) || over.includes(fsBtn) || over.includes(rankBtn) || (adBtn && over.includes(adBtn))) return;
         void go();
       });
     });
