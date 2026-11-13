@@ -37,7 +37,8 @@ export class EnemyBullet {
     this.homeDelay = 0;
     if (this.sprite.texture.key !== texture) this.sprite.setTexture(texture).setBlendMode(texture === 'ebullet' ? Phaser.BlendModes.ADD : Phaser.BlendModes.NORMAL);
     this.sprite.setPosition(x, y).setVisible(true).setRotation(angle).setScale(scale);
-    if (texture !== 'ebullet') this.radius = Math.max(this.radius, 4);
+    // 그림이 있는 탄(보스 미사일 등)은 그림 두께에 맞춘 판정 (21x10 미사일 → 약 4.5)
+    if (texture !== 'ebullet') this.radius = Math.max(this.radius, 4, (this.sprite.height * scale) * 0.45);
   }
 
   /** 목표 쪽으로 방향을 튼다 (속도는 그대로). 추적 거리를 다 쓰면 직진 */

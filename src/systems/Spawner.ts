@@ -4,12 +4,23 @@ import type { EnemyId } from '../entities/Enemy';
 import { VIEW_W, VIEW_H } from '../config';
 import gameData from '../data/game.json';
 
-/** 경과 시간에 따른 적 체력 배율: hpGrowthLateFrom(5분)까지는 분당 hpGrowthPerMin, 그 뒤로는 분당 hpGrowthPerMinLate만큼 기본 체력 대비 증가 */
+/**
+ * 챕터 시작부터 흐른 시간(초)에 따른 일반 적 체력 배율. game.json hpCurve 점들을 직선으로 잇고,
+ * 마지막 점 뒤로는 마지막 구간의 기울기로 늘린다 (플레이어 성장 측정값에 맞춘 곡선).
+ */
+const CURVE = (gameData as unknown as { hpCurve: [number, number][] }).hpCurve;
 export function hpScaleAt(elapsed: number): number {
-  const g = gameData;
-  const early = Math.min(elapsed, g.hpGrowthLateFrom);
-  const late = Math.max(0, elapsed - g.hpGrowthLateFrom);
-  return 1 + (early / 60) * g.hpGrowthPerMin + (late / 60) * g.hpGrowthPerMinLate;
+  const t = Math.max(0, elapsed);
+  for (let i = 1; i < CURVE.length; i++) {
+    const [t1, v1] = CURVE[i];
+    if (t <= t1) {
+      const [t0, v0] = CURVE[i - 1];
+      return v0 + ((v1 - v0) * (t - t0)) / (t1 - t0);
+    }
+  }
+  const [ta, va] = CURVE[CURVE.length - 2];
+  const [tb, vb] = CURVE[CURVE.length - 1];
+  return vb + ((vb - va) * (t - tb)) / (tb - ta);
 }
 
 export interface Wave {
