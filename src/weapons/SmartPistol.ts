@@ -18,7 +18,7 @@ export class SmartPistol extends WeaponBase {
     return Math.min(MAX_SHOTS, Math.max(1, this.s.count));
   }
 
-  /** 탄 수에 따라 깎인 한 발 피해 (신화 사격에도 같이 적용) */
+  /** 탄 수에 따라 깎인 한 발 피해 (일반 사격만. 신화 탄막 오버로드·데드아이는 깎지 않는다) */
   private get shotDamage(): number {
     return this.damage * (1 - SPLIT_PENALTY * (this.shots - 1));
   }
@@ -32,7 +32,7 @@ export class SmartPistol extends WeaponBase {
       this.stormT = 5;
       this.ctx.sfx('shoot');
       for (let i = 0; i < 24; i++) {
-        this.ctx.fireBullet(p.x, p.y, (i / 24) * Math.PI * 2, this.s.speed, this.shotDamage, { pierce: this.s.pierce + 1, chain, texture: 'fx_smartPistol_tracer_1', hitFx: 'smartPistol_hit' });
+        this.ctx.fireBullet(p.x, p.y, (i / 24) * Math.PI * 2, this.s.speed, this.damage, { pierce: this.s.pierce + 1, chain, texture: 'fx_smartPistol_tracer_1', hitFx: 'smartPistol_hit' });
       }
     }
     // 신화: 데드아이
@@ -42,7 +42,7 @@ export class SmartPistol extends WeaponBase {
       let n = 0;
       for (const e of this.ctx.enemies) {
         if (!e.active || !this.ctx.onScreen(e.x, e.y)) continue;
-        this.ctx.fireBullet(p.x, p.y, Math.atan2(e.y - p.y, e.x - p.x), this.s.speed * 1.4, this.shotDamage, { target: e, turnRate: 14, texture: 'fx_smartPistol_tracer_1', hitFx: 'smartPistol_hit' });
+        this.ctx.fireBullet(p.x, p.y, Math.atan2(e.y - p.y, e.x - p.x), this.s.speed * 1.4, this.damage, { target: e, turnRate: 14, texture: 'fx_smartPistol_tracer_1', hitFx: 'smartPistol_hit' });
         if (++n >= 60) break;
       }
     }
