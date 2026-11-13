@@ -2836,7 +2836,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
     });
   }
 
-  /** 진압대 강하: drop 그림으로 떨어지고, 착지하면 land 그림 0.7초 + 먼지, 끝나면 서 있는 자세. 내내 무적·깜빡임 */
+  /** 진압대 강하: drop 그림으로 떨어지고, 착지하면 land 그림 0.7초 + 먼지, 끝나면 서 있는 자세. 내내 무적 (깜빡임 없음) */
   private updateDrop(e: Enemy, dt: number): void {
     const footY = e.landY + this.textures.get(e.tex).getSourceImage().height / 2;
     e.x = e.landX;
@@ -2862,7 +2862,6 @@ export class GameScene extends Phaser.Scene implements GameContext {
         return;
       }
     }
-    e.sprite.setAlpha(Math.floor(this.elapsed * 12) % 2 ? 0.45 : 1);
   }
 
   /** 한 번 재생하는 시트 효과 (프레임 '0'..'n-1') */
