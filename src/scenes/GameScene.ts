@@ -1238,11 +1238,9 @@ export class GameScene extends Phaser.Scene implements GameContext {
     // 카메라 원점을 좌상단에 두었으므로 플레이어를 화면 가운데에 두도록 직접 따라간다
     const cam = this.cameras.main;
     const follow = Math.min(1, dt * 12);
-    // 최종 보스전에는 경계 중앙에 카메라를 고정해 경계 전체가 보이게 한다
-    const fxp = this.arena ? this.arena.x + this.arena.w / 2 : p.x;
-    const fyp = this.arena ? this.arena.y + this.arena.h / 2 : p.y;
-    cam.scrollX += (fxp - VIEW_W / 2 - cam.scrollX) * follow;
-    cam.scrollY += (fyp - VIEW_H / 2 - cam.scrollY) * follow;
+    // 보스전 경계 안에서도 카메라는 플레이어를 따라간다 (예전에는 경계 중앙에 고정)
+    cam.scrollX += (p.x - VIEW_W / 2 - cam.scrollX) * follow;
+    cam.scrollY += (p.y - VIEW_H / 2 - cam.scrollY) * follow;
     this.updatePassiveSpecials(dt);
     // 빗줄기는 화면에 붙어서 아래로 흐른다 (슬로우 모션 때도 같이 느려짐)
     this.rainFx.tilePositionY -= 260 * dt;
@@ -1250,7 +1248,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
     this.bg.tilePositionX = this.cameras.main.scrollX;
     this.bg.tilePositionY = this.cameras.main.scrollY;
     this.skyline.tilePositionX = this.cameras.main.scrollX * 0.25;
-    // 보스 경계전에는 카메라가 고정되어 화면 위쪽 바닥도 싸움터가 되므로 먼 배경을 걷어낸다
+    // 보스 경계전에는 먼 배경을 걷어내 싸움터에 집중시킨다
     this.skyline.alpha += ((this.arena ? 0 : 1) - this.skyline.alpha) * Math.min(1, dt * 3);
 
     const zt = this.elapsed - this.zoneStart;
