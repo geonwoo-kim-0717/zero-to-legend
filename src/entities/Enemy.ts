@@ -48,6 +48,12 @@ export class Enemy {
   ghostT = 0;
   /** 공격 프레임(_aim)을 보여줄 남은 시간 (사격·순간이동 직후) */
   atkT = 0;
+  /** 블랙 실드 강하: 떨어지는 남은 시간, 착지 충격 남은 시간(둘 다 무적), 떨어지기 시작한 높이, 착지 지점 */
+  dropT = 0;
+  landT = 0;
+  dropFromY = 0;
+  landX = 0;
+  landY = 0;
   /** 드론: 선회 방향(±1), 흔들림 위상, 기울기 */
   side = 1;
   phase = 0;
@@ -83,6 +89,9 @@ export class Enemy {
     this.xp = def.xp;
     this.flash = 0;
     this.flashSprite.setVisible(false);
+    this.dropT = 0;
+    this.landT = 0;
+    this.sprite.setOrigin(0.5);
     this.stun = 0;
     this.slowT = 0;
     this.atkT = 0;

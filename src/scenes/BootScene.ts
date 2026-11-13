@@ -47,6 +47,14 @@ function rimLight(img: HTMLImageElement): HTMLCanvasElement {
   return cv;
 }
 
+/** 프레임 시트: [칸 너비, 칸 높이, 프레임 수, 열 수] */
+const SHEETS: Record<string, [number, number, number, number]> = {
+  fx_ship_wash: [136, 120, 12, 4],
+  fx_ship_wash_move: [136, 120, 12, 4],
+  fx_ship_dust: [176, 40, 24, 3],
+  fx_land_dust: [112, 40, 18, 3],
+};
+
 /** data URI 이미지를 텍스처로 등록 */
 function loadTexture(scene: Phaser.Scene, key: string, url: string): Promise<void> {
   return new Promise((resolve, reject) => {
@@ -146,6 +154,12 @@ export class BootScene extends Phaser.Scene {
       : Promise.resolve();
     Promise.all([ready.catch(() => undefined), ...PIXEL_ART.map(([k, u]) => loadTexture(this, k, u))])
       .then(() => {
+        // 효과 시트: 한 장 그림을 같은 크기 칸으로 잘라 프레임 '0'..'n-1' 로 등록 (왼쪽 위부터 가로 순서)
+        for (const [key, [fw, fh, n, cols]] of Object.entries(SHEETS)) {
+          if (!this.textures.exists(key)) continue;
+          const tex = this.textures.get(key);
+          for (let i = 0; i < n; i++) tex.add(String(i), 0, (i % cols) * fw, Math.floor(i / cols) * fh, fw, fh);
+        }
         Ads.loadingStop();
         // CrazyGames: 한 번의 클릭으로 플레이할 수 있게 타이틀을 건너뛰고 아지트로
         this.scene.start(Ads.provider === 'crazygames' ? 'Hideout' : 'Title');

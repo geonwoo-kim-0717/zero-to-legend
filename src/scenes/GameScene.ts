@@ -49,6 +49,8 @@ const ZR = gameData.zoneRules;
 /** 왼쪽 위 체력바 폭 */
 const HP_W = 120;
 type BossPhase = 'walk' | 'aim' | 'charge';
+/** 진압대 강하: 떨어지는 시간, 대원 사이 간격, 착지 충격 컷 유지 시간 (그동안 무적) */
+const DROP = { fall: 0.45, stagger: 0.12, land: 0.7 };
 /** 블랙 실드 이송기가 착지 지점 위로 떠 있는 높이 (그림 112x55 기준) */
 const SHIP_LIFT = 44;
 type BossDef = (typeof gameData.bosses)[number];
@@ -207,6 +209,9 @@ export class GameScene extends Phaser.Scene implements GameContext {
     tx: number;
     ty: number;
     ship: Phaser.GameObjects.Image;
+    /** 엔진 후류(이동 중 기운 것/정지 중 수직)와 바닥 먼지(정지 중에만) */
+    wash: Phaser.GameObjects.Image | null;
+    dust: Phaser.GameObjects.Image | null;
     shadow: Phaser.GameObjects.Ellipse;
     markers: { x: number; y: number }[];
   } | null = null;
@@ -486,6 +491,8 @@ export class GameScene extends Phaser.Scene implements GameContext {
     if (e === this.boss && this.bossShieldT > 0) return false;
     // 회피 기동 중인 진압대는 피해를 받지 않음
     if (e.dodgeT > 0) return false;
+    // 강하·착지 충격 중인 진압대는 무적
+    if (e.dropT > 0 || e.landT > 0) return false;
     const DG = gameData.squadAi.dodge;
     if (DG.roles.includes(e.id) && e.dodgeCd < DG.reactBelow && e.hp > amount) this.startDodge(e);
     // 카운터 몬스터: 특정 피해 종류에 강함
@@ -1345,6 +1352,10 @@ export class GameScene extends Phaser.Scene implements GameContext {
     const conv = this.zone.rule === 'conveyor';
     for (const e of this.enemyPool.items) {
       if (!e.active) continue;
+      if (e.dropT > 0 || e.landT > 0) {
+        this.updateDrop(e, dt);
+        continue;
+      }
       if (e.charmT > 0) {
         e.charmT -= dt;
         if (e.charmT <= 0) e.sprite.clearTint();
@@ -2097,6 +2108,8 @@ export class GameScene extends Phaser.Scene implements GameContext {
     for (const k of this.pickups.items) if (k.active) k.magnet = true;
     if (this.raid) {
       this.raid.ship.destroy();
+      this.raid.wash?.destroy();
+      this.raid.dust?.destroy();
       this.raid.shadow.destroy();
       this.raid = null;
     }
@@ -2823,6 +2836,52 @@ export class GameScene extends Phaser.Scene implements GameContext {
     });
   }
 
+  /** 진압대 강하: drop 그림으로 떨어지고, 착지하면 land 그림 0.7초 + 먼지, 끝나면 서 있는 자세. 내내 무적·깜빡임 */
+  private updateDrop(e: Enemy, dt: number): void {
+    const footY = e.landY + this.textures.get(e.tex).getSourceImage().height / 2;
+    e.x = e.landX;
+    e.y = e.landY;
+    if (e.dropT > 0) {
+      e.dropT -= dt;
+      const k = Phaser.Math.Clamp(1 - e.dropT / DROP.fall, 0, 1);
+      e.sprite.setPosition(e.x, e.dropFromY + (footY - e.dropFromY) * k * k);
+      if (e.dropT <= 0) {
+        e.landT = DROP.land;
+        if (this.textures.exists(`${e.tex}_land`)) e.sprite.setTexture(`${e.tex}_land`);
+        e.sprite.setPosition(e.x, footY);
+        this.playSheet('fx_land_dust', 18, e.x, footY, 56 / 112, 30 / 40, 12, 9.5);
+        this.burst(e.x, footY, 0xff2a3a, 6);
+        if (this.onScreen(e.x, e.y)) this.shake(80, 0.004);
+      }
+    } else {
+      e.landT -= dt;
+      e.sprite.setPosition(e.x, footY);
+      if (e.landT <= 0) {
+        e.landT = 0;
+        e.sprite.setTexture(e.tex).setOrigin(0.5).setAlpha(1).setPosition(e.x, e.y);
+        return;
+      }
+    }
+    e.sprite.setAlpha(Math.floor(this.elapsed * 12) % 2 ? 0.45 : 1);
+  }
+
+  /** 한 번 재생하는 시트 효과 (프레임 '0'..'n-1') */
+  private playSheet(key: string, n: number, x: number, y: number, ox: number, oy: number, fps: number, depth: number): void {
+    if (!this.textures.exists(key)) return;
+    const img = this.add.image(x, y, key, '0').setOrigin(ox, oy).setDepth(depth);
+    const t0 = this.elapsed;
+    const tick = () => {
+      const f = Math.floor((this.elapsed - t0) * fps);
+      if (f >= n || !img.active) {
+        this.events.off('update', tick);
+        img.destroy();
+        return;
+      }
+      img.setFrame(String(f));
+    };
+    this.events.on('update', tick);
+  }
+
   // ───────────────────────────── 블랙 실드 진압대 습격 ─────────────────────────────
   // (이송기 그림 112x55: 착지 지점보다 SHIP_LIFT만큼 떠서 그림자 위에 있는다)
   private updateRaid(dt: number): void {
@@ -2844,6 +2903,8 @@ export class GameScene extends Phaser.Scene implements GameContext {
         // 날아오고 나갈 때는 덕트 엔진을 기울인 그림, 멈춰 있을 때는 정지 그림
         ship: this.add.image(sx, ty - SHIP_LIFT, this.textures.exists('dropship_move') ? 'dropship_move' : 'dropship').setDepth(30),
         shadow: this.add.ellipse(sx, ty + 8, 92, 20, 0x000000, 0.35).setDepth(9),
+        wash: this.textures.exists('fx_ship_wash_move') ? this.add.image(sx, ty, 'fx_ship_wash_move', '0').setOrigin(0).setDepth(29.9) : null,
+        dust: this.textures.exists('fx_ship_dust') ? this.add.image(sx, ty + 8, 'fx_ship_dust', '0').setOrigin(88 / 176, 30 / 40).setDepth(9.5).setVisible(false) : null,
       };
       const warn = this.add
         .text(VIEW_W / 2, 72, tr('raid.warn'), { ...TEXT, fontSize: '16px', color: '#ff2a3a', align: 'center' })
@@ -2882,13 +2943,21 @@ export class GameScene extends Phaser.Scene implements GameContext {
         let said = 0;
         r.markers.forEach((m, i) => {
           const e = this.spawnEnemy(R.squad[i] as EnemyId, m.x, m.y, hpMul);
-          if (e) e.t = 1.5 + Math.random();
+          if (e) {
+            e.t = 1.5 + Math.random();
+            // 이송기 배에서 착지 지점까지 떨어진 뒤 착지 충격 (그동안 무적)
+            e.dropT = DROP.fall + i * DROP.stagger;
+            e.dropFromY = r.ship.y + 10;
+            e.landX = m.x;
+            e.landY = m.y;
+            if (this.textures.exists(`${e.tex}_drop`)) e.sprite.setTexture(`${e.tex}_drop`);
+            e.sprite.setOrigin(0.5, 1);
+          }
           // 말풍선: 반반 확률로 역할 대사 또는 '사이코를 제압하라' 대사
           if (e && talkers.has(i)) {
             this.shout(e, tr((Math.random() < 0.5 ? `squad.${e.id}` : `squad.psycho.${lines[i]}`) as Parameters<typeof tr>[0]), said * 0.5, said === 1);
             said++;
           }
-          this.burst(m.x, m.y, 0xff2a3a, 10);
         });
         Sound.play('explode');
         r.phase = 'out';
@@ -2902,6 +2971,8 @@ export class GameScene extends Phaser.Scene implements GameContext {
       if (k >= 1) {
         r.ship.destroy();
         r.shadow.destroy();
+        r.wash?.destroy();
+        r.dust?.destroy();
         this.raid = null;
         this.nextRaid = this.elapsed + Phaser.Math.FloatBetween(R.minGap, R.maxGap);
         return;
@@ -2909,6 +2980,17 @@ export class GameScene extends Phaser.Scene implements GameContext {
     }
     r.ship.y = r.ty - SHIP_LIFT + bob;
     r.shadow.setPosition(r.ship.x, r.ty + 8);
+    // 엔진 후류: 이동 중 기운 것, 정지 중 수직 (프레임 왼쪽 위 = 이송기 그림 왼쪽 위 - (12, 4)), 12fps 반복
+    const fr = String(Math.floor(this.elapsed * 12));
+    if (r.wash) {
+      const key = r.phase === 'hover' ? 'fx_ship_wash' : 'fx_ship_wash_move';
+      if (this.textures.exists(key)) {
+        r.wash.setTexture(key, String(+fr % 12));
+        r.wash.setPosition(r.ship.x - r.ship.width / 2 - 12, r.ship.y - r.ship.height / 2 - 4);
+      }
+    }
+    // 바닥 먼지: 떠 있는 동안에만
+    if (r.dust) r.dust.setVisible(r.phase === 'hover').setPosition(r.ship.x, r.ty + 8).setFrame(String(+fr % 24));
     if (r.phase !== 'out') {
       // 착지 지점 표시
       const pulse = 0.5 + Math.sin(this.elapsed * 10) * 0.3;
