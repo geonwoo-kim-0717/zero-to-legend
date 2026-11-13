@@ -2,7 +2,7 @@
 The source is re-rendered at the new size with the extended palette (process_ext.py); it is aligned to each
 scaled frame by silhouette, and a frame pixel takes the source colour there when the two colours are close
 (same material). Hand-drawn parts that differ from the source (redrawn legs, flashes, slashes) keep their colour.
-usage: redetail.py src.png size thr frames_dir out_dir name [name_w2 ...]"""
+usage: redetail.py src.png W[xH] thr[:black] frames_dir out_dir name [name_w2 ...]"""
 import sys, os, subprocess, numpy as np
 from PIL import Image
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -19,9 +19,10 @@ def align(frame, base, R=8):
             if s > best[0]: best = (s, dx, dy)
     return shifted(base, best[1], best[2])
 if __name__ == "__main__":
-    src, size, thr, fdir, out = sys.argv[1], int(sys.argv[2]), sys.argv[3], sys.argv[4], sys.argv[5]
+    src, size, thr, fdir, out = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4], sys.argv[5]
+    w, h = (size.split("x") + [size])[:2]; thr, black = (thr.split(":") + [""])[:2]
     os.makedirs(out, exist_ok=True); tmp = os.path.join(out, "_base.png")
-    subprocess.run(["python3", os.path.join(HERE, "process_ext.py"), src, tmp, str(size), str(size), "none", thr], check=True, capture_output=True)
+    subprocess.run(["python3", os.path.join(HERE, "process_ext.py"), src, tmp, w, h, "black" if black else "none", thr], check=True, capture_output=True)
     base = np.asarray(Image.open(tmp).convert("RGBA")).astype(int); os.remove(tmp)
     for n in sys.argv[6:]:
         f = np.asarray(Image.open(os.path.join(fdir, n + ".png")).convert("RGBA")).astype(int); H, W = f.shape[:2]
