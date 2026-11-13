@@ -2,7 +2,7 @@
   "weapons": {
     "smartPistol": {
       "name": "Smart Pistol",
-      "desc": "Homing shots at the nearest enemy",
+      "desc": "Homing shots at the nearest enemy (max 4; each extra shot -10% damage per shot)",
       "levels": {
         "0": {
           "desc": "Acquired"
@@ -26,7 +26,7 @@
           "desc": "Damage +8"
         },
         "7": {
-          "desc": "Shots +2, Pierce +1"
+          "desc": "Shots +1, Pierce +1"
         }
       }
     },
