@@ -396,8 +396,7 @@
       "trooper_melee",
       "trooper_hacker",
       "trooper_sniper"
-    ],
-    "hpGrowthPerRaid": 1.2
+    ]
   },
   "squadAi": {
     "sniper": {

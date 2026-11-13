@@ -75,7 +75,7 @@
   },
   "trooper_tank": {
     "name": "진압대 탱커",
-    "hp": 6400,
+    "hp": 9600,
     "speed": 36,
     "damage": 20,
     "radius": 16,
@@ -85,7 +85,7 @@
   },
   "trooper_melee": {
     "name": "진압대 근접 공격수",
-    "hp": 4000,
+    "hp": 6000,
     "speed": 52,
     "damage": 15,
     "radius": 15,
@@ -95,7 +95,7 @@
   },
   "trooper_hacker": {
     "name": "진압대 해커",
-    "hp": 3200,
+    "hp": 4800,
     "speed": 46,
     "damage": 15,
     "radius": 15,
@@ -105,7 +105,7 @@
   },
   "trooper_sniper": {
     "name": "진압대 저격수",
-    "hp": 2400,
+    "hp": 3600,
     "speed": 44,
     "damage": 15,
     "radius": 15,

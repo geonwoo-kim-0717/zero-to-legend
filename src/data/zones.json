@@ -14,7 +14,6 @@
       "rule": null,
       "ruleHint": "",
       "raidStart": 330,
-      "raidHpMul": 1,
       "hpMul": 1,
       "music": "battle",
       "intro": [
@@ -116,7 +115,6 @@
       "rule": "conveyor",
       "ruleHint": "바닥 컨베이어가 몸을 끌고 간다",
       "raidStart": 330,
-      "raidHpMul": 1.6,
       "intro": [
         {
           "who": "client",
@@ -156,7 +154,6 @@
       "rule": "laser",
       "ruleHint": "붉은 선이 깜빡이면 보안 레이저가 지나간다",
       "raidStart": 330,
-      "raidHpMul": 2.2,
       "intro": [
         {
           "who": "client",

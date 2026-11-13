@@ -2866,8 +2866,10 @@ export class GameScene extends Phaser.Scene implements GameContext {
     } else if (r.phase === 'hover') {
       this.fx.fillStyle(COLORS.yellow, 0.1).fillEllipse(r.tx, r.ty, 100, 54);
       if (r.t >= R.hover) {
-        // 역할군별 대원 투입. 습격마다 체력이 hpGrowthPerRaid배씩 늘어난다
-        const hpMul = this.zone.raidHpMul * Math.pow(R.hpGrowthPerRaid, this.raidsInZone);
+        // 역할군별 대원 투입. 체력은 일반 몬스터와 같은 곡선·챕터 배율을 따르되,
+        // 첫 습격 시각(raidStart, 5:30)의 곡선 값을 1로 맞춰 1챕터 첫 습격 4명 합계가 enemies.json 기본값(24,000)이 되게 한다
+        const zt = this.elapsed - this.zoneStart;
+        const hpMul = this.zoneHpMul(zt) * (hpScaleAt(zt) / hpScaleAt(this.zone.raidStart));
         this.raidCount++;
         this.raidsInZone++;
         const lines = [1, 2, 3, 4].sort(() => Math.random() - 0.5);
