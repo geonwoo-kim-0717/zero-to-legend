@@ -14,6 +14,10 @@ let pending: MusicKey | null = null;
 /** 소리 잠금이 풀리길 기다리는 곡 시작 함수 (항상 하나만 — 여러 장면이 부르면 곡이 겹쳐 재생되던 문제 방지) */
 let unlockHook: (() => void) | null = null;
 let duckFactor = 1;
+/** 블랙 실드 습격 연출 중: 습격 소리 말고 나머지(음악·효과음)를 줄인다. 0이면 꺼짐, 값은 끝낼 시각(안전장치) */
+let raidFocusUntil = 0;
+const RAID_KEYS: readonly string[] = audio.raidDuck.keep;
+const raidFocusOn = () => performance.now() < raidFocusUntil;
 /** 사용자가 끈 소리 / 포털(CrazyGames)이 끈 소리 — 둘 중 하나라도 켜져 있으면 음소거 */
 let userMuted = false;
 let portalMuted = false;
@@ -43,7 +47,7 @@ function fade(s: Vol, from: number, to: number, ms: number, done?: () => void): 
   requestAnimationFrame(step);
 }
 
-const target = (key: MusicKey) => audio.musicVolume * audio.music[key].volume * duckFactor;
+const target = (key: MusicKey) => audio.musicVolume * audio.music[key].volume * duckFactor * (raidFocusOn() ? audio.raidDuck.factor : 1);
 
 /** 효과음·배경음악 관리. 모든 장면이 같은 전역 사운드 매니저를 쓴다 */
 export const Sound = {
@@ -114,7 +118,7 @@ export const Sound = {
     lastPlayed.set(key, now);
     if (!game.cache.audio.exists(`sfx-${key}`)) return;
     if (key === 'slowmo') sfxDuckUntil = now + audio.slowmoDuck.ms;
-    const duck = key !== 'slowmo' && now < sfxDuckUntil ? audio.slowmoDuck.factor : 1;
+    const duck = (key !== 'slowmo' && now < sfxDuckUntil ? audio.slowmoDuck.factor : 1) * (raidFocusOn() && !RAID_KEYS.includes(key) ? audio.raidDuck.factor : 1);
     // 슬로우 모션 전용 소리는 원래 속도로, 나머지는 오버클럭 중이면 느리고 낮게
     const rate = key === 'slowmo' || key === 'slowmo_out' ? 1 : sfxRate;
     game.sound.play(`sfx-${key}`, { volume: def.volume * audio.sfxVolume * duck, detune: detune ?? (Math.random() * 2 - 1) * def.detune, rate });
@@ -172,6 +176,27 @@ export const Sound = {
     if (!game) return;
     if (on) game.sound.pauseAll();
     else game.sound.resumeAll();
+  },
+
+  /** 블랙 실드 습격(사이렌 ~ 마지막 착지) 동안 습격 소리가 묻히지 않게 다른 소리를 줄인다.
+   *  끄는 걸 놓쳐도 maxMs 뒤엔 저절로 풀린다 */
+  raidFocus(on: boolean): void {
+    const was = raidFocusOn();
+    raidFocusUntil = on ? performance.now() + audio.raidDuck.maxMs : 0;
+    if (was === on || !current) return;
+    const s = current.sound;
+    const key = current.key;
+    fade(s, s.volume, target(key), audio.raidDuck.fadeMs);
+    if (on) {
+      // 안전장치로 풀릴 때 음악도 되돌린다
+      const until = raidFocusUntil;
+      setTimeout(() => {
+        if (raidFocusUntil === until && current) {
+          raidFocusUntil = 0;
+          fade(current.sound, current.sound.volume, target(current.key), audio.raidDuck.fadeMs);
+        }
+      }, audio.raidDuck.maxMs + 50);
+    }
   },
 
   /** 일시정지 등에서 배경음악을 잠시 줄인다 (1 = 원래 크기) */

@@ -213,6 +213,8 @@ export class GameScene extends Phaser.Scene implements GameContext {
   private nextRaid = 0;
   /** 이번 판에 온 습격 횟수 (습격마다 체력 증가) */
   private raidCount = 0;
+  /** 습격 대원 중 아직 착지하지 않은 수 (0이 되면 줄였던 소리를 되돌림) */
+  private raidDropping = 0;
   private raid: {
     phase: 'in' | 'hover' | 'out';
     t: number;
@@ -426,6 +428,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
       this.levelUi.hide();
       Sound.musicRate(1);
       Sound.slowWorld(false);
+      Sound.raidFocus(false);
       Ads.setPlaying(false);
       if (this.carryKeys) this.input.keyboard?.off('keydown', this.carryKeys);
       for (const w of this.weapons) w.destroy();
@@ -2986,6 +2989,8 @@ export class GameScene extends Phaser.Scene implements GameContext {
         e.sprite.setPosition(e.x, footY);
         this.playSheet('fx_land_dust', 18, e.x, footY, 56 / 112, 30 / 40, 12, 9.5);
         if (this.onScreen(e.x, e.y)) Sound.play('trooperland');
+        // 마지막 대원이 착지하면 줄였던 다른 소리를 되돌린다
+        if (--this.raidDropping <= 0) Sound.raidFocus(false);
         this.burst(e.x, footY, 0xff2a3a, 6);
         if (this.onScreen(e.x, e.y)) this.shake(80, 0.004);
       }
@@ -3048,6 +3053,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
         .setDepth(120);
       this.tweens.add({ targets: warn, alpha: 0.2, duration: 200, yoyo: true, repeat: 3, onComplete: () => warn.destroy() });
       // 블랙 실드 출동 경보: 오르내리는 사이렌
+      Sound.raidFocus(true);
       Sound.play('raidsiren');
       return;
     }
@@ -3077,12 +3083,14 @@ export class GameScene extends Phaser.Scene implements GameContext {
         // 말풍선은 한 번에 1~2명만 (누가 말할지는 무작위)
         const talkers = new Set([0, 1, 2, 3].sort(() => Math.random() - 0.5).slice(0, Math.random() < 0.5 ? 1 : 2));
         let said = 0;
+        this.raidDropping = 0;
         r.markers.forEach((m, i) => {
           const e = this.spawnEnemy(R.squad[i] as EnemyId, m.x, m.y, hpMul);
           if (e) {
             e.t = 1.5 + Math.random();
             // 이송기 배에서 착지 지점까지 떨어진 뒤 착지 충격 (그동안 무적)
             e.dropT = DROP.fall + i * DROP.stagger;
+            this.raidDropping++;
             e.dropFromY = r.ship.y + 10;
             e.landX = m.x;
             e.landY = m.y;
@@ -3095,6 +3103,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
             said++;
           }
         });
+        if (!this.raidDropping) Sound.raidFocus(false);
         Sound.play('explode');
         r.phase = 'out';
         r.t = 0;

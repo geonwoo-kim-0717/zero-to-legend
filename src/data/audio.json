@@ -207,5 +207,15 @@
   "overclockAudio": {
     "musicRate": 0.7,
     "sfxRate": 0.7
+  },
+  "raidDuck": {
+    "factor": 0.4,
+    "fadeMs": 250,
+    "maxMs": 12000,
+    "keep": [
+      "raidsiren",
+      "shiphover",
+      "trooperland"
+    ]
   }
 }
