@@ -57,7 +57,7 @@ export class ProxMine extends WeaponBase {
         for (const e of this.ctx.grid.query(m.x, m.y, 110, this.buf)) {
           if (!e.active || e.isBoss) continue;
           const d = Math.hypot(m.x - e.x, m.y - e.y) || 1;
-          const v = Math.min(d, 320 * dt);
+          const v = Math.min(d, 320 * dt) * this.ctx.ccMul(e);
           e.x += ((m.x - e.x) / d) * v;
           e.y += ((m.y - e.y) / d) * v;
         }

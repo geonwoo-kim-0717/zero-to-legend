@@ -162,6 +162,10 @@ export class GameScene extends Phaser.Scene implements GameContext {
   /** 구역 보스 처치 뒤 대화가 열리기까지 남은 시간 */
   private transitionT = 0;
   private raidsInZone = 0;
+  /** 해커가 CC를 막으며 외친 마지막 출동 번호 */
+  private hackShoutRaid = -1;
+  /** 블랙 실드 회피 때 퍼지는 붉은 원 */
+  private dodgeRings: { x: number; y: number; r: number; life: number }[] = [];
   private floorG!: Phaser.GameObjects.Graphics;
   private laser: { phase: 'idle' | 'warn' | 'fire'; t: number; lines: number[][]; hit: boolean } = { phase: 'idle', t: 5, lines: [], hit: false };
   private dialog: { lines: Line[]; i: number; box: Phaser.GameObjects.Container; text: Phaser.GameObjects.Text; full: string; shown: number; ev: Phaser.Time.TimerEvent | null; done: () => void } | null = null;
@@ -301,6 +305,8 @@ export class GameScene extends Phaser.Scene implements GameContext {
     this.zoneStart = 0;
     this.transitionT = 0;
     this.raidsInZone = 0;
+    this.dodgeRings = [];
+    this.hackShoutRaid = -1;
     this.laser = { phase: 'idle', t: 5, lines: [], hit: false };
     this.dialog = null;
     this.heat = Math.min(Save.data.heat, Save.data.heatMax);
@@ -502,6 +508,12 @@ export class GameScene extends Phaser.Scene implements GameContext {
     if (e.dropT > 0 || e.landT > 0) return false;
     const DG = gameData.squadAi.dodge;
     if (DG.roles.includes(e.id) && e.dodgeCd < DG.reactBelow && e.hp > amount) this.startDodge(e);
+    // 체력이 처음 30% 밑으로 떨어지면 한 번, 연속 회피로 플레이어에게서 빠진다
+    if (DG.roles.includes(e.id) && !e.fled && e.hp > amount && e.hp - amount < e.maxHp * DG.fleeBelow) {
+      e.fled = true;
+      e.fleeLeft = DG.fleeCount;
+      e.fleeCd = 0;
+    }
     // 카운터 몬스터: 특정 피해 종류에 강함
     const res = (CT.mul as Record<string, Record<string, number>>)[e.id];
     if (res && tag && res[tag] !== undefined) amount *= res[tag];
@@ -679,21 +691,43 @@ export class GameScene extends Phaser.Scene implements GameContext {
     return this.cameras.main.worldView;
   }
 
+  /** 해커가 살아 있으면 블랙 실드 요원 전원이 CC를 막는다 (기절·둔화 무시, 끌어당김·넉백 75% 감소, 조종은 1.5초 뒤 해제) */
+  private hackerShield(e: Enemy): boolean {
+    if (!e.id.startsWith('trooper_')) return false;
+    const on = this.enemyPool.items.some((o) => o.active && o.id === 'trooper_hacker');
+    // 막을 때 해커가 외친다 (출동당 한 번)
+    if (on && this.hackShoutRaid !== this.raidCount) {
+      const h = this.enemyPool.items.find((o) => o.active && o.id === 'trooper_hacker');
+      if (h && h.dropT <= 0 && h.landT <= 0) {
+        this.hackShoutRaid = this.raidCount;
+        this.shout(h, tr('squad.hacker.block'), 0);
+      }
+    }
+    return on;
+  }
+
+  ccMul(e: Enemy): number {
+    return this.hackerShield(e) ? gameData.squadAi.hacker.ccPullKnockMul : 1;
+  }
+
   /** 실 인형: 적을 잠깐 조종해 다른 적과 싸우게 한다 (보스 제외) */
   charm(e: Enemy, seconds: number): void {
     if (!e.active || e.isBoss) return;
+    if (this.hackerShield(e)) seconds = Math.min(seconds, gameData.squadAi.hacker.charmMax);
     e.charmT = Math.max(e.charmT, seconds);
     e.sprite.setTint(0xff2bd6);
   }
 
   stun(e: Enemy, seconds: number): void {
     if (!e.active || e.isBoss || e.id === 'c_insulator' || e.id === 'c_thorn') return;
+    if (this.hackerShield(e)) return;
     e.stun = Math.max(e.stun, seconds);
     e.sprite.setTint(0x66ffff);
   }
 
   slow(e: Enemy, seconds: number): void {
     if (e.id === 'c_prism') return;
+    if (this.hackerShield(e)) return;
     e.slowT = Math.max(e.slowT, seconds);
   }
 
@@ -1246,6 +1280,12 @@ export class GameScene extends Phaser.Scene implements GameContext {
       this.fx.lineStyle(2, COLORS.cyan, Math.max(0, r.life / 0.22)).strokeCircle(p.x, p.y, r.r);
     }
     this.dashRings = this.dashRings.filter((r) => r.life > 0);
+    for (const r of this.dodgeRings) {
+      r.life -= dt;
+      r.r += 140 * dt;
+      this.fx.lineStyle(2, 0xff2a3a, Math.max(0, r.life / 0.22)).strokeCircle(r.x, r.y, r.r);
+    }
+    this.dodgeRings = this.dodgeRings.filter((r) => r.life > 0);
     if (p.shieldT > 0) {
       // 쉴드 표시: 남은 시간만큼 옅어지는 시안 원
       this.fx.lineStyle(2, COLORS.cyan, 0.4 + p.shieldT * 0.5).strokeCircle(p.x, p.y, 15);
@@ -1440,6 +1480,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
         // 진압대 회피 기동
         const DGM = gameData.squadAi.dodge;
         if (DGM.roles.includes(e.id)) {
+          if (e.fleeLeft > 0) e.fleeCd -= dt;
           if (e.dodgeT > 0) {
             e.dodgeT -= dt;
             vx = e.dodgeVX * slow;
@@ -1447,6 +1488,13 @@ export class GameScene extends Phaser.Scene implements GameContext {
             if ((e.ghostT -= dt) <= 0) {
               e.ghostT = DGM.ghostEvery;
               this.spawnGhostAt(e.sprite.texture.key, e.x, e.y, e.sprite.flipX, 0xff2a3a);
+            }
+          } else if (e.fleeLeft > 0) {
+            // 체력 30% 미만 도주: 회피 시작 간격 0.5초로 연속 회피
+            if (e.fleeCd <= 0) {
+              e.fleeLeft--;
+              e.fleeCd = DGM.fleeGap;
+              this.startDodge(e, true);
             }
           } else if ((e.dodgeCd -= dt) <= 0 && e.state === 'walk' && !hidden && this.onScreen(e.x, e.y)) this.startDodge(e);
         }
@@ -1698,7 +1746,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
         for (const e of this.enemyPool.items) {
           if (!e.active || e.isBoss || !this.onScreen(e.x, e.y)) continue;
           const d = Math.hypot(sp.x - e.x, sp.y - e.y) || 1;
-          const v = Math.min(d, 420 * dt);
+          const v = Math.min(d, 420 * dt) * this.ccMul(e);
           e.x += ((sp.x - e.x) / d) * v;
           e.y += ((sp.y - e.y) / d) * v;
         }
@@ -2812,15 +2860,15 @@ export class GameScene extends Phaser.Scene implements GameContext {
   }
 
   /** 진압대 회피 기동: 뉴럴 오버클럭의 축소판. 플레이어 기준 옆으로 빠르게 미끄러지며 잔상, 그동안 피해 무시 */
-  private startDodge(e: Enemy): void {
+  private startDodge(e: Enemy, away = false): void {
     const D = gameData.squadAi.dodge;
     const p = this.player;
     const dx = p.x - e.x;
     const dy = p.y - e.y;
     const d = Math.hypot(dx, dy) || 1;
     const side = Math.random() < 0.5 ? 1 : -1;
-    // 옆으로 + (공격수는 앞으로 파고들고, 해커·저격수는 뒤로 빠짐)
-    const fwd = e.id === 'trooper_melee' ? 0.45 : -0.5;
+    // 옆으로 + (공격수는 앞으로 파고들고, 해커·저격수는 뒤로 빠짐). 도주 때는 플레이어 반대쪽으로 크게
+    const fwd = away ? -1.6 : e.id === 'trooper_melee' ? 0.45 : -0.5;
     let vx = (-dy / d) * side + (dx / d) * fwd;
     let vy = (dx / d) * side + (dy / d) * fwd;
     const m = Math.hypot(vx, vy) || 1;
@@ -2830,7 +2878,10 @@ export class GameScene extends Phaser.Scene implements GameContext {
     e.dodgeVY = vy * D.speed;
     e.dodgeT = D.time;
     e.ghostT = 0;
-    e.dodgeCd = Phaser.Math.FloatBetween(D.everyMin, D.everyMax);
+    const ev = (D.every as Record<string, number[]>)[e.id] ?? [2, 3];
+    e.dodgeCd = Phaser.Math.FloatBetween(ev[0], ev[1]);
+    // 플레이어 대시와 같은 퍼지는 원 (붉은색)
+    if (this.onScreen(e.x, e.y)) this.dodgeRings.push({ x: e.x, y: e.y, r: 6, life: 0.22 });
     // 예고·조준 중이던 동작은 취소
     if (e.state !== 'walk') {
       e.state = 'walk';

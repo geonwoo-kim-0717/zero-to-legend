@@ -409,6 +409,8 @@
       "bulletLife": 2
     },
     "hacker": {
+      "ccPullKnockMul": 0.25,
+      "charmMax": 1.5,
       "range": 170,
       "behindTank": 50,
       "interval": 6,
@@ -423,8 +425,14 @@
         "trooper_hacker",
         "trooper_sniper"
       ],
-      "everyMin": 4,
-      "everyMax": 7,
+      "every": {
+        "trooper_melee": [1.5, 2],
+        "trooper_hacker": [2, 3],
+        "trooper_sniper": [2, 3]
+      },
+      "fleeBelow": 0.3,
+      "fleeCount": 3,
+      "fleeGap": 0.5,
       "time": 0.3,
       "speed": 260,
       "reactBelow": 1.5,

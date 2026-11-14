@@ -117,8 +117,9 @@ export class PlasmaGrenade extends WeaponBase {
     if (primary && this.has('gravity')) {
       for (const e of this.ctx.grid.query(x, y, r * 2, this.pullBuf)) {
         if (!e.active || e.isBoss) continue;
-        e.x += (x - e.x) * 0.6;
-        e.y += (y - e.y) * 0.6;
+        const k = 0.6 * this.ctx.ccMul(e);
+        e.x += (x - e.x) * k;
+        e.y += (y - e.y) * k;
       }
     }
     const chainOn = this.has('chainReaction');

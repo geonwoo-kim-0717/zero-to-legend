@@ -23,8 +23,9 @@ export class Shotgun extends WeaponBase {
       if ((k.t -= dt) > 0) continue;
       for (const [e, v] of k.hits) {
         if (!e.active) continue;
-        e.x += Math.cos(v.a) * v.d;
-        e.y += Math.sin(v.a) * v.d;
+        const k = this.ctx.ccMul(e);
+        e.x += Math.cos(v.a) * v.d * k;
+        e.y += Math.sin(v.a) * v.d * k;
       }
     }
     this.knocks = this.knocks.filter((k) => k.t > 0);

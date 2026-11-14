@@ -43,6 +43,10 @@ export class Enemy {
   /** 진압대 회피 기동: 남은 시간, 다음 회피까지, 회피 속도 */
   dodgeT = 0;
   dodgeCd = 0;
+  /** 체력 30% 미만 도주(연속 회피): 이미 썼는지, 남은 횟수, 다음 회피까지 */
+  fled = false;
+  fleeLeft = 0;
+  fleeCd = 0;
   dodgeVX = 0;
   dodgeVY = 0;
   ghostT = 0;
@@ -106,7 +110,10 @@ export class Enemy {
     this.atkT = 0;
     this.charmT = 0;
     this.dodgeT = 0;
-    this.dodgeCd = 3 + Math.random() * 3;
+    this.dodgeCd = 1 + Math.random() * 2;
+    this.fled = false;
+    this.fleeLeft = 0;
+    this.fleeCd = 0;
     this.state = 'walk';
     this.t = 2 + Math.random() * 2;
     this.cd = 1 + Math.random() * 1.5;

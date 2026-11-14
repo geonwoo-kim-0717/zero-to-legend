@@ -59,6 +59,8 @@ export interface GameContext {
   slow(e: Enemy, seconds: number): void;
   /** (x,y)가 해킹 방벽 드론의 방해 범위 안인지 (포탑·해킹 드론이 먹통) */
   jammed(x: number, y: number): boolean;
+  /** 끌어당김·넉백 배율 (해커가 살아 있는 블랙 실드는 0.25) */
+  ccMul(e: Enemy): number;
   /** 적을 잠깐 조종해 다른 적과 싸우게 (보스 제외) */
   charm(e: Enemy, seconds: number): void;
   /** 이번 프레임에 끝난 대시 경로 (없으면 null) */
