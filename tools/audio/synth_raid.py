@@ -46,7 +46,7 @@ def trooperland(dur=0.45):
         clank += np.sin(2 * np.pi * fr * k) * np.exp(-k / 0.018) * (t >= at) * 0.35
     dust = (lowpass(noise, 2500) - lowpass(noise, 400)) * np.exp(-t / 0.14) * 0.6
     x = (thump + body + clank + dust) * np.minimum(1, t / 0.001)
-    return norm(np.tanh(x * 1.5) / np.tanh(1.5))
+    return norm(np.tanh(x * 2.8) / np.tanh(2.8))  # 세게 눌러 평균 음량을 올림 (전투 소리에 묻히지 않게)
 
 
 def trooperdash(dur=0.25):

@@ -185,12 +185,12 @@
       "detune": 0
     },
     "shiphover": {
-      "volume": 0.28,
+      "volume": 0.65,
       "minGap": 1000,
       "detune": 0
     },
     "trooperland": {
-      "volume": 0.4,
+      "volume": 0.95,
       "minGap": 80,
       "detune": 120
     },
