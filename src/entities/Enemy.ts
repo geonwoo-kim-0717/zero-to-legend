@@ -54,6 +54,12 @@ export class Enemy {
   dropFromY = 0;
   landX = 0;
   landY = 0;
+  /** 진압대 공격 동작: 지난 프레임의 상태, 재생 중인 프레임 시퀀스, 탱커 방패 치기 다음 가능 시각 */
+  prevState: 'walk' | 'wind' | 'lunge' = 'walk';
+  seq: { start: number; frames: number[]; durs: number[]; fxAt: number; fxDone: boolean } | null = null;
+  atkCd = 0;
+  /** 공격 그림(발 기준 origin 0.5,1)을 쓸 때, 기본 그림 중심에서 발까지의 거리 */
+  footOff = 0;
   /** 드론: 선회 방향(±1), 흔들림 위상, 기울기 */
   side = 1;
   phase = 0;
@@ -91,6 +97,9 @@ export class Enemy {
     this.flashSprite.setVisible(false);
     this.dropT = 0;
     this.landT = 0;
+    this.prevState = 'walk';
+    this.seq = null;
+    this.atkCd = 0;
     this.sprite.setOrigin(0.5);
     this.stun = 0;
     this.slowT = 0;
@@ -133,7 +142,7 @@ export class Enemy {
     const s = this.sprite;
     const f = this.flashSprite;
     if (f.texture.key !== s.texture.key) f.setTexture(s.texture.key);
-    f.setPosition(s.x, s.y).setRotation(s.rotation).setFlipX(s.flipX).setScale(s.scaleX, s.scaleY);
+    f.setOrigin(s.originX, s.originY).setPosition(s.x, s.y).setRotation(s.rotation).setFlipX(s.flipX).setScale(s.scaleX, s.scaleY);
   }
 
   kill(): void {

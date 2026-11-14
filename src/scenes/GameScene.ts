@@ -49,6 +49,13 @@ const ZR = gameData.zoneRules;
 /** 왼쪽 위 체력바 폭 */
 const HP_W = 120;
 type BossPhase = 'walk' | 'aim' | 'charge';
+/** 블랙 실드 요원 공격 그림·이펙트 (아트 tools/art/sprites2026/scripts/troopers6/keys/atk_meta.json) */
+const TROOPER_ATK = {
+  tank: { ms: [90, 110, 140, 70, 90, 120, 110, 100], size: [48, 42], fxStart: 4, anchor: [41, 23], fx: 'fx_shield_bash', fxN: 8, fxSize: [64, 40], pivot: [32, 18] },
+  melee: { ms: [90, 110, 140, 60, 80, 120, 110, 100], size: [48, 42], fxStart: 3, anchor: [22, 41], fx: 'fx_baton_slash', fxN: 10, fxSize: [136, 104], pivot: [44, 92] },
+  hacker: { ms: [100, 120, 160, 80, 110, 160, 120, 100], size: [48, 42], fxStart: 4, anchor: [37, 13], fx: 'fx_hack_pulse', fxN: 10, fxSize: [64, 48], pivot: [20, 24] },
+  sniper: { ms: [100, 140, 200, 70, 90, 110, 140, 140], size: [54, 48], fxStart: 3, anchor: [45, 47], fx: 'fx_sniper_muzzle', fxN: 23, fxSize: [96, 72], pivot: [44, 66] },
+} as const;
 /** 진압대 강하: 떨어지는 시간, 대원 사이 간격, 착지 충격 컷 유지 시간 (그동안 무적) */
 const DROP = { fall: 0.45, stagger: 0.12, land: 0.7 };
 /** 블랙 실드 이송기가 착지 지점 위로 떠 있는 높이 (그림 112x55 기준) */
@@ -2474,7 +2481,8 @@ export class GameScene extends Phaser.Scene implements GameContext {
   /** 적 그림 위치. 드론은 바닥(판정 위치) 위에 떠서 위아래로 흔들리고, 그림자는 바닥에 남는다 */
   private placeEnemy(e: Enemy): void {
     if (!e.flying) {
-      e.sprite.setPosition(e.x, e.y);
+      // 진압대 공격 그림은 발 기준(origin 0.5,1)이라 기본 그림의 발 위치에 맞춘다
+      e.sprite.setPosition(e.x, e.sprite.originY === 1 ? e.y + e.footOff : e.y);
       return;
     }
     const A = gameData.droneAi;
@@ -2543,15 +2551,93 @@ export class GameScene extends Phaser.Scene implements GameContext {
    */
   private animateEnemy(e: Enemy, dt: number, d: number): void {
     const base = e.tex;
+    const hasAtk = this.textures.exists(`${base}_atk_00`);
+    if (hasAtk && this.animateTrooper(e, d)) return;
+    if (e.sprite.originY === 1) e.sprite.setOrigin(0.5);
     if (!this.textures.exists(`${base}_w2`)) return;
     e.atkT = Math.max(0, e.atkT - dt);
+    // 공격 동작 그림이 있는 요원은 한 장짜리 _aim 대신 걷기 프레임으로 (공격은 animateTrooper가 맡음)
     const attacking =
-      e.atkT > 0 ||
+      !hasAtk &&
+      (e.atkT > 0 ||
       (e.state !== 'walk' && e.id !== 'sniper_turret') ||
-      (CONTACT_POSE.has(e.id) && d < 26);
+      (CONTACT_POSE.has(e.id) && d < 26));
     const key = attacking ? `${base}_aim` : Math.floor(this.elapsed * 4 + e.x * 0.01) % 2 ? base : `${base}_w2`;
     const tex = this.textures.exists(key) ? key : base;
     if (e.sprite.texture.key !== tex) e.sprite.setTexture(tex);
+  }
+
+  /**
+   * 블랙 실드 요원 공격 동작 (8프레임). 예고·조준·시전 동안은 준비 프레임을 그 시간에 맞춰 늘리고,
+   * 실제 공격 순간부터 타격·후속 프레임과 공격 이펙트를 재생한다. 탱커는 가까우면 방패 치기를 한 번씩.
+   * 공격 그림을 쓰는 동안이면 true (아니면 기본 걷기 프레임으로)
+   */
+  private animateTrooper(e: Enemy, d: number): boolean {
+    const role = e.id.replace('trooper_', '') as keyof typeof TROOPER_ATK;
+    const A = TROOPER_ATK[role];
+    if (!A) return false;
+    const prev = e.prevState;
+    e.prevState = e.state;
+    const scaled = (from: number, to: number, total: number) => {
+      const ms = A.ms.slice(from, to + 1);
+      const sum = ms.reduce((a, b) => a + b, 0);
+      return ms.map((m) => (m / sum) * total);
+    };
+    const start = (from: number, to: number, durs: number[]) => {
+      e.seq = { start: this.elapsed, frames: Array.from({ length: to - from + 1 }, (_, i) => from + i), durs, fxAt: A.fxStart - from, fxDone: false };
+    };
+    // 실제 공격이 일어나는 순간 → 타격 이후 시퀀스
+    if (role === 'melee' && prev === 'wind' && e.state === 'lunge') {
+      const M = (gameData.melee as Record<string, MeleeDef>)[e.id];
+      start(3, 7, scaled(3, 7, M.lungeTime));
+    } else if ((role === 'hacker' || role === 'sniper') && prev === 'wind' && e.state === 'walk') {
+      start(A.fxStart, 7, A.ms.slice(A.fxStart).map((m) => m / 1000));
+    } else if (role === 'tank' && !e.seq && d < 30 && this.elapsed >= e.atkCd) {
+      start(0, 7, A.ms.map((m) => m / 1000));
+      e.atkCd = this.elapsed + A.ms.reduce((a, b) => a + b, 0) / 1000 + 1;
+    }
+    let idx = -1;
+    if (e.seq) {
+      let t = this.elapsed - e.seq.start;
+      let i = 0;
+      while (i < e.seq.durs.length && t >= e.seq.durs[i]) t -= e.seq.durs[i++];
+      if (i >= e.seq.frames.length) e.seq = null;
+      else {
+        idx = e.seq.frames[i];
+        if (!e.seq.fxDone && i >= e.seq.fxAt) {
+          e.seq.fxDone = true;
+          this.trooperFx(e, A);
+        }
+      }
+    } else if (e.state === 'wind') {
+      // 예고·조준·시전: 준비 프레임(근접 00~02, 해커 00~03, 저격 00~02)을 남은 시간에 맞춰
+      const total = role === 'melee' ? (gameData.melee as Record<string, MeleeDef>)[e.id].windup : role === 'hacker' ? gameData.squadAi.hacker.cast : gameData.squadAi.sniper.aim;
+      const last = A.fxStart - 1;
+      const k = Phaser.Math.Clamp(1 - e.t / total, 0, 0.999);
+      idx = Math.floor(k * (last + 1));
+    }
+    if (idx < 0) return false;
+    const key = `${e.tex}_atk_${String(idx).padStart(2, '0')}`;
+    if (!this.textures.exists(key)) return false;
+    if (e.sprite.originY !== 1) {
+      e.footOff = this.textures.get(e.tex).getSourceImage().height / 2;
+      e.sprite.setOrigin(0.5, 1);
+    }
+    if (e.sprite.texture.key !== key) e.sprite.setTexture(key);
+    return true;
+  }
+
+  /** 진압대 공격 이펙트: 이펙트 기준점(pivot)을 공격 그림 안의 지점(anchor)에 맞춰 1회 재생. 왼쪽을 보면 같이 뒤집는다 */
+  private trooperFx(e: Enemy, A: (typeof TROOPER_ATK)[keyof typeof TROOPER_ATK]): void {
+    const [fw, fh] = A.size;
+    const flip = e.sprite.flipX;
+    const ax = flip ? fw - A.anchor[0] : A.anchor[0];
+    const foot = e.y + e.footOff;
+    const x = e.x - fw / 2 + ax;
+    const y = foot - fh + A.anchor[1];
+    const [sw, sh] = A.fxSize;
+    const ox = (flip ? sw - A.pivot[0] : A.pivot[0]) / sw;
+    this.playSheet(A.fx, A.fxN, x, y, ox, A.pivot[1] / sh, 12, 11, flip);
   }
 
   /** 보스 모션: 걷기 2프레임, 돌진 예고(떨림), 돌진 자세, 코어는 둥실 떠 있음 */
@@ -2865,9 +2951,9 @@ export class GameScene extends Phaser.Scene implements GameContext {
   }
 
   /** 한 번 재생하는 시트 효과 (프레임 '0'..'n-1') */
-  private playSheet(key: string, n: number, x: number, y: number, ox: number, oy: number, fps: number, depth: number): void {
+  private playSheet(key: string, n: number, x: number, y: number, ox: number, oy: number, fps: number, depth: number, flip = false): void {
     if (!this.textures.exists(key)) return;
-    const img = this.add.image(x, y, key, '0').setOrigin(ox, oy).setDepth(depth);
+    const img = this.add.image(x, y, key, '0').setOrigin(ox, oy).setDepth(depth).setFlipX(flip);
     const t0 = this.elapsed;
     const tick = () => {
       const f = Math.floor((this.elapsed - t0) * fps);

@@ -53,6 +53,10 @@ const SHEETS: Record<string, [number, number, number, number]> = {
   fx_ship_wash_move: [136, 120, 12, 4],
   fx_ship_dust: [176, 40, 24, 3],
   fx_land_dust: [112, 40, 18, 3],
+  fx_shield_bash: [64, 40, 8, 3],
+  fx_baton_slash: [136, 104, 10, 3],
+  fx_hack_pulse: [64, 48, 10, 3],
+  fx_sniper_muzzle: [96, 72, 23, 5],
 };
 
 /** data URI 이미지를 텍스처로 등록 */
