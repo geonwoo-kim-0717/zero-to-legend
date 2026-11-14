@@ -3,7 +3,7 @@ import { WeaponBase } from './WeaponBase';
 import { COLORS } from '../config';
 import type { Enemy } from '../entities/Enemy';
 
-const BASE_ORBIT = 40;
+const BASE_ORBIT = 60;
 /** 드론 판정 반경 (그림 8px보다 조금 넉넉하게) */
 const HIT_R = 8;
 
