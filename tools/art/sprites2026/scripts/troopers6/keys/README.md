@@ -14,3 +14,13 @@ Generated with the 2dimg2motion method (image model draws the poses, scripts onl
 
 Effects: `scripts/pixelfx_zerolegend/*.js` are pixelfx effects (github patch-gg/pixelfx, put under src/fx/zerolegend/),
 rendered with `node tools/render.mjs zerolegend/<id> --sheet --bg none [--opts '{"tilt":40}']`.
+
+## Attack (8 frames each)
+- Keyposes generated per trooper (sources/troopers6_keys/atk/): S start, A wind-up, M mid, B strike, F follow-through.
+  Picks: tank A=tank_a#1 B=tank_b#2 S/M/F=tank_m1; melee A/B=melee_a, S=melee_m2#1, M=melee_mid1, F=melee_m1#3;
+  hacker A/B=hacker_a, S/M/F=hacker_m2; sniper A/B=sniper_a, S=sniper_m2#3, M/F=sniper_m1#2,#3.
+- `atk5_px.py` (+ `atk_scales.json`) pixelates them like keys_px.py; `atk_build.py` orders them, adds the rigged
+  holds (A2 = 1px crouch, B2 = 1px forward or crouch, F2 = 1px crouch) and writes `trooper_<id>_atk_NN.png` + `atk_meta.json`
+  (per-frame ms, which fx, fx start frame, fx anchor in frame pixels).
+- Effects: fx_shield_bash (zerolegend/shield-bash), fx_baton_slash (melee/sword-slash, cyan palette),
+  fx_hack_pulse (zerolegend/hack-pulse), fx_sniper_muzzle (projectiles/muzzle-pistol, height 31). All 12fps, one-shot.
