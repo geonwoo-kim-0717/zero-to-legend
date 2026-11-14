@@ -59,7 +59,11 @@
       "minGap": 45,
       "detune": 250
     },
-    "pickup": {"volume": 0.2, "minGap": 70, "detune": 0},
+    "pickup": {
+      "volume": 0.2,
+      "minGap": 70,
+      "detune": 0
+    },
     "heal": {
       "volume": 0.7,
       "minGap": 200,
@@ -179,6 +183,21 @@
       "volume": 0.7,
       "minGap": 300,
       "detune": 0
+    },
+    "shiphover": {
+      "volume": 0.28,
+      "minGap": 1000,
+      "detune": 0
+    },
+    "trooperland": {
+      "volume": 0.4,
+      "minGap": 80,
+      "detune": 120
+    },
+    "trooperdash": {
+      "volume": 0.25,
+      "minGap": 150,
+      "detune": 150
     }
   },
   "slowmoDuck": {

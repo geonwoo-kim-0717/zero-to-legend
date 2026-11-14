@@ -2865,8 +2865,11 @@ export class GameScene extends Phaser.Scene implements GameContext {
     e.ghostT = 0;
     const ev = (D.every as Record<string, number[]>)[e.id] ?? [2, 3];
     e.dodgeCd = Phaser.Math.FloatBetween(ev[0], ev[1]);
-    // 플레이어 대시와 같은 퍼지는 원 (붉은색)
-    if (this.onScreen(e.x, e.y)) this.dodgeRings.push({ x: e.x, y: e.y, r: 6, life: 0.22 });
+    // 플레이어 대시와 같은 퍼지는 원 (붉은색) + 대시 소리
+    if (this.onScreen(e.x, e.y)) {
+      this.dodgeRings.push({ x: e.x, y: e.y, r: 6, life: 0.22 });
+      Sound.play('trooperdash');
+    }
     // 예고·조준 중이던 동작은 취소
     if (e.state !== 'walk') {
       e.state = 'walk';
@@ -2982,6 +2985,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
         if (this.textures.exists(`${e.tex}_land`)) e.sprite.setTexture(`${e.tex}_land`);
         e.sprite.setPosition(e.x, footY);
         this.playSheet('fx_land_dust', 18, e.x, footY, 56 / 112, 30 / 40, 12, 9.5);
+        if (this.onScreen(e.x, e.y)) Sound.play('trooperland');
         this.burst(e.x, footY, 0xff2a3a, 6);
         if (this.onScreen(e.x, e.y)) this.shake(80, 0.004);
       }
@@ -3057,7 +3061,8 @@ export class GameScene extends Phaser.Scene implements GameContext {
         r.phase = 'hover';
         r.t = 0;
         r.ship.setTexture('dropship');
-        Sound.play('bosscharge');
+        // 착륙(정지) 엔진 소리
+        Sound.play('shiphover');
       }
     } else if (r.phase === 'hover') {
       this.fx.fillStyle(COLORS.yellow, 0.1).fillEllipse(r.tx, r.ty, 100, 54);
