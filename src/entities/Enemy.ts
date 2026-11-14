@@ -8,9 +8,6 @@ export const BOSS_SCALE = (gameData as { bossScale?: number }).bossScale ?? 1;
 export type EnemyId = keyof typeof enemies;
 export type EnemyDef = (typeof enemies)[EnemyId];
 
-/** 일반 적 피격 번쩍임의 흰색 불투명도 (0.4 = 흰색 40%, 원래 모습 60%) */
-const HIT_FLASH_ALPHA = 0.4;
-
 export class Enemy {
   active = false;
   id: EnemyId = 'drone';
@@ -71,13 +68,10 @@ export class Enemy {
   readonly sprite: Phaser.GameObjects.Image;
   /** 떠 있는 적(드론)의 바닥 그림자 */
   readonly shadow: Phaser.GameObjects.Ellipse;
-  /** 피격 번쩍임: 몬스터 그림 위에 겹치는 반투명 흰 실루엣 (원래 모습이 비쳐 보이게) */
-  readonly flashSprite: Phaser.GameObjects.Image;
 
   constructor(scene: Phaser.Scene) {
     this.sprite = scene.add.image(0, 0, 'drone').setDepth(10).setVisible(false);
     this.shadow = scene.add.ellipse(0, 0, 16, 6, 0x000000, 0.55).setDepth(9).setVisible(false);
-    this.flashSprite = scene.add.image(0, 0, 'drone').setDepth(10.5).setVisible(false).setTintFill(0xffffff).setAlpha(HIT_FLASH_ALPHA);
   }
 
   get flying(): boolean {
@@ -98,7 +92,6 @@ export class Enemy {
     this.radius = def.radius * (this.isBoss ? BOSS_SCALE : 1);
     this.xp = def.xp;
     this.flash = 0;
-    this.flashSprite.setVisible(false);
     this.dropT = 0;
     this.landT = 0;
     this.prevState = 'walk';
@@ -128,28 +121,14 @@ export class Enemy {
   /** 피해를 주고, 죽었으면 true */
   hit(dmg: number): boolean {
     this.hp -= dmg;
-    if (this.isBoss) {
-      // 보스는 흰색으로 덮지 않고 옅은 붉은 틴트를 짧게, 0.15초에 한 번만 (계속 맞아도 형체가 보이게)
-      const now = performance.now();
-      if (now - this.lastFlash >= 150) {
-        this.lastFlash = now;
-        this.flash = 0.05;
-        this.sprite.setTint(0xff9a9a);
-      }
-    } else {
-      this.flash = 0.06;
-      this.syncFlash();
-      this.flashSprite.setVisible(true);
+    // 피격 표시: 흰색으로 덮지 않고 옅은 붉은 틴트를 짧게, 0.15초에 한 번만 (계속 맞아도 형체가 보이게. 보스와 같은 방식)
+    const now = performance.now();
+    if (now - this.lastFlash >= 150) {
+      this.lastFlash = now;
+      this.flash = 0.05;
+      this.sprite.setTint(0xff9a9a);
     }
     return this.hp <= 0;
-  }
-
-  /** 흰 실루엣을 몬스터 그림과 같은 모양·위치로 맞춘다 */
-  syncFlash(): void {
-    const s = this.sprite;
-    const f = this.flashSprite;
-    if (f.texture.key !== s.texture.key) f.setTexture(s.texture.key);
-    f.setOrigin(s.originX, s.originY).setPosition(s.x, s.y).setRotation(s.rotation).setFlipX(s.flipX).setScale(s.scaleX, s.scaleY);
   }
 
   kill(): void {
@@ -157,6 +136,5 @@ export class Enemy {
     this.flash = 0;
     this.sprite.setVisible(false);
     this.shadow.setVisible(false);
-    this.flashSprite.setVisible(false);
   }
 }

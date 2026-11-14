@@ -426,7 +426,7 @@
         "trooper_sniper"
       ],
       "every": {
-        "trooper_melee": [1.5, 2],
+        "trooper_melee": [2, 3],
         "trooper_hacker": [2, 3],
         "trooper_sniper": [2, 3]
       },
@@ -435,7 +435,7 @@
       "fleeGap": 0.5,
       "time": 0.3,
       "speed": 260,
-      "reactBelow": 1.5,
+      "reactBelow": 0.5,
       "ghostEvery": 0.035
     }
   },

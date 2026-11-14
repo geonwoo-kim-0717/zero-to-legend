@@ -1408,6 +1408,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
         if (e.charmT <= 0) e.sprite.clearTint();
         else {
           this.charmedAi(e, dt);
+          this.tickHitFlash(e, dt);
           continue;
         }
       }
@@ -1535,17 +1536,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
       }
       this.placeEnemy(e);
       if (e.id.startsWith('c_')) this.fx.lineStyle(1, Phaser.Display.Color.HexStringToColor((CT.info as Record<string, { color: string }>)[e.id].color).color, 0.7).strokeCircle(e.x, e.y, e.radius + 4);
-      if (e.flash > 0) {
-        e.flash -= dt;
-        if (e.flash <= 0) {
-          e.flashSprite.setVisible(false);
-          // 보스는 그림 자체에 붉은 틴트를 썼으니 되돌린다 (일반 적은 흰 실루엣만 숨기면 됨)
-          if (e.isBoss) {
-            if (e.stun > 0) e.sprite.setTint(0x66ffff);
-            else e.sprite.clearTint();
-          }
-        } else e.syncFlash();
-      }
+      this.tickHitFlash(e, dt);
       // 접촉 피해 (조종당한 적은 플레이어를 공격하지 않음)
       const rr = p.radius + e.radius;
       if (e.charmT <= 0 && p.invuln <= 0 && (p.x - e.x) ** 2 + (p.y - e.y) ** 2 < rr * rr) {
@@ -2699,12 +2690,6 @@ export class GameScene extends Phaser.Scene implements GameContext {
     const jitter = ph === 'aim' && !Settings.reducedFx ? (Math.random() - 0.5) * 2 : 0;
     b.sprite.setPosition(b.x + jitter, b.y + bob);
     if (!core) b.sprite.setFlipX(ph === 'charge' ? this.bossDir.x < 0 : this.player.x < b.x);
-    // 2페이즈: 붉은 기운
-    if (this.bossPhase2) {
-      const r = b.radius + 6 + Math.sin(this.elapsed * 10) * 2;
-      this.fx.lineStyle(2, 0xff2a3a, 0.5).strokeCircle(b.x, b.y, r);
-      this.fx.fillStyle(0xff2a3a, 0.08).fillCircle(b.x, b.y, r);
-    }
   }
 
   /** 소환·탄막 때 보스가 한 번 들썩인다 */
@@ -2971,6 +2956,16 @@ export class GameScene extends Phaser.Scene implements GameContext {
         },
       });
     });
+  }
+
+  /** 피격 틴트가 끝나면 원래 색(기절 시안·조종 분홍)으로 되돌린다 */
+  private tickHitFlash(e: Enemy, dt: number): void {
+    if (e.flash <= 0) return;
+    e.flash -= dt;
+    if (e.flash > 0) return;
+    if (e.charmT > 0) e.sprite.setTint(0xff2bd6);
+    else if (e.stun > 0) e.sprite.setTint(0x66ffff);
+    else e.sprite.clearTint();
   }
 
   /** 진압대 강하: drop 그림으로 떨어지고, 착지하면 land 그림 0.7초 + 먼지, 끝나면 서 있는 자세. 내내 무적 (깜빡임 없음) */
