@@ -69,6 +69,7 @@ export class Shotgun extends WeaponBase {
         const a = angle + (i * Math.PI * 2) / k;
         this.ctx.fireBullet(p.x, p.y, a, this.s.speed * 1.2, dmg * this.s.count, {
           pierce: 999,
+          falloff: false,
           texture: 'fx_shotgun_pellet_1',
           life: 0.7,
           turnRate: 0,

@@ -1715,8 +1715,8 @@ export class GameScene extends Phaser.Scene implements GameContext {
         if (!e.active || b.hits.includes(e) || e.dodgeT > 0) continue;
         const rr = e.radius + b.radius;
         if ((e.x - b.x) ** 2 + (e.y - b.y) ** 2 < rr * rr) {
-          // 관통: 꿰뚫을 때마다 피해 ×0.8 누적 (첫 적 100%)
-          const killed = this.damage(e, b.damage * gameData.falloff.pierce ** b.hits.length, b.tag ?? 'bullet');
+          // 관통: 꿰뚫을 때마다 피해 ×0.8 누적 (첫 적 100%). 슬러그 탄·검기는 제외
+          const killed = this.damage(e, b.damage * (b.falloff ? gameData.falloff.pierce ** b.hits.length : 1), b.tag ?? 'bullet');
           b.hits.push(e);
           // 반사 장갑병: 총탄은 관통·연쇄 없이 사라진다
           if (e.id === 'c_mirror' && !b.tag) {

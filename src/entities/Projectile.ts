@@ -4,6 +4,8 @@ import type { DamageTag } from '../weapons/types';
 
 export interface BulletOpts {
   pierce?: number;
+  /** false면 관통해도 피해가 줄지 않음 (슬러그 탄·검기) */
+  falloff?: boolean;
   target?: Enemy | null;
   /** 적을 맞힌 뒤 근처 적에게 튕기는 횟수 */
   chain?: number;
@@ -32,6 +34,7 @@ export class Projectile {
   life = 0;
   damage = 0;
   pierce = 0;
+  falloff = true;
   chain = 0;
   radius = 3;
   turnRate = 0;
@@ -58,6 +61,7 @@ export class Projectile {
     this.vy = Math.sin(angle) * speed;
     this.damage = damage;
     this.pierce = o.pierce ?? 0;
+    this.falloff = o.falloff ?? true;
     this.chain = o.chain ?? 0;
     this.life = o.life ?? 1.6;
     this.turnRate = o.turnRate ?? 7;

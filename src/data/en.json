@@ -407,7 +407,7 @@
         "legendary": {
           "0": {
             "name": "Sword Wave",
-            "desc": "Slashes toward the nearest enemy, each slash fires a piercing wave (-20% per enemy pierced)"
+            "desc": "Slashes toward the nearest enemy, each slash fires a piercing wave"
           },
           "1": {
             "name": "Counter Stance",
@@ -567,7 +567,7 @@
         "legendary": {
           "0": {
             "name": "Slug Round",
-            "desc": "Fires one large piercing slug instead of pellets; damage = pellet damage × pellet count (-20% per enemy pierced)"
+            "desc": "Fires one large piercing slug instead of pellets; damage = pellet damage × pellet count"
           },
           "1": {
             "name": "Dragon's Breath",

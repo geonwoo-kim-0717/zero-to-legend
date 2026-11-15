@@ -70,7 +70,7 @@ export class MantisBlade extends WeaponBase {
         for (let q = 0; q < (whirl ? 4 : 1); q++) this.ctx.playFx('mantisBlade_slash', p.x, p.y, { angle: a + (q * Math.PI) / 2, originX: 8 / 48, scale: r / 40, frameTime: 0.035 });
         // 전설: 검기
         if (this.has('swordWave')) {
-          this.ctx.fireBullet(p.x, p.y, a, 320, dmg * 0.6, { pierce: 999, texture: 'wave', life: 0.8, turnRate: 0, tag: 'melee' });
+          this.ctx.fireBullet(p.x, p.y, a, 320, dmg * 0.6, { pierce: 999, falloff: false, texture: 'wave', life: 0.8, turnRate: 0, tag: 'melee' });
         }
       }
     }
