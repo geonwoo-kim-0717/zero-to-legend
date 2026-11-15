@@ -77,6 +77,8 @@ function josa(name: string, a: string, b: string): string {
   return (c - 0xac00) % 28 ? a : b;
 }
 
+/** AI 점수 표시 모드: 요원 행동 점수·스폰 디렉터 값을 화면에 띄운다 (주소에 ?ai, 또는 VITE_AI_SHOW=1 빌드) */
+const AI_SHOW = import.meta.env.VITE_AI_SHOW === '1' || new URLSearchParams(location.search).has('ai');
 /** 진압대 걷기 루프 재생 속도 (아트: 한 걸음 주기 1초) */
 const WALK_FPS = 12;
 
@@ -228,6 +230,32 @@ export class GameScene extends Phaser.Scene implements GameContext {
   private raidDropping = 0;
   /** 적 그림별 걷기 루프 프레임 수 (<id>_walk_NN, 0이면 없음) */
   private walkFrames = new Map<string, number>();
+  /** 스폰 디렉터 패널 (왼쪽): 지금 상황 입력값 → 점수 → 배율 */
+  private dirPanel: Phaser.GameObjects.Text | null = null;
+  private drawDirectorPanel(show: boolean): void {
+    if (!show) {
+      this.dirPanel?.setVisible(false);
+      return;
+    }
+    if (!this.dirPanel) {
+      this.dirPanel = this.add
+        .text(8, VIEW_H - 26, '', { ...TEXT, fontSize: '8px', color: '#fff23a', lineSpacing: 2, backgroundColor: '#07060fcc', padding: { x: 4, y: 3 } })
+        .setOrigin(0, 1)
+        .setScrollFactor(0)
+        .setDepth(150);
+    }
+    const s = this.directorSense();
+    const L = this.spawner.last;
+    const f = (v: number) => v.toFixed(2);
+    const lines = [
+      '스폰 디렉터',
+      `체력 ${Math.round(s.playerHp * 100)}% · 주변 ${s.near} · 원거리 ${s.ranged} · 처치율 ${f(s.killRatio)}`,
+      L ? `점수 체력 ${f(L.score.hp)} 밀도 ${f(L.score.dense)} 여유 ${f(L.score.room)} 처치 ${f(L.score.kill)}` : '점수 (다음 스폰 때 계산)',
+      L ? `→ 스폰 수 x${f(L.countMul)} · 원거리 x${f(L.rangedMul)} · 포위 ${f(L.surround)}` : '',
+    ];
+    this.dirPanel.setText(lines.filter(Boolean).join('\n')).setVisible(true);
+  }
+
   /** 스폰 디렉터가 볼 지금 상황: 플레이어 체력, 주변 적 수, 원거리 수, 처치 속도 */
   private killTimes: number[] = [];
   private directorSense(): DirSense {
@@ -248,8 +276,10 @@ export class GameScene extends Phaser.Scene implements GameContext {
   /** 디버그(F1): 블랙 실드 머리 위에 지금 행동과 상위 점수 표시 */
   private squadDbg = new Map<Enemy, Phaser.GameObjects.Text>();
   private drawSquadDebug(): void {
-    for (const [e, t] of this.squadDbg) if (!this.debug || !e.active) t.setVisible(false);
-    if (!this.debug) return;
+    const show = this.debug || AI_SHOW;
+    for (const [e, t] of this.squadDbg) if (!show || !e.active) t.setVisible(false);
+    this.drawDirectorPanel(show);
+    if (!show) return;
     for (const e of this.enemyPool.items) {
       if (!e.active || !e.id.startsWith('trooper_')) continue;
       let t = this.squadDbg.get(e);
@@ -3805,11 +3835,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
     this.hud.debug.setText(
       this.debug
         ? `FPS ${this.game.loop.actualFps.toFixed(0)}\nENEMY ${this.enemyPool.countActive()}\nBULLET ${this.bullets.countActive()}\n` +
-            `HP ${Math.ceil(p.hp)}/${p.maxHp}${this.god ? ' GOD' : ''}\n[N]+100 [T]+60s [L]lvl\n[G]god [O]ability\n${tr('debug.rarity')}` +
-            (this.spawner.last
-              ? `\nDIR 수x${this.spawner.last.countMul.toFixed(2)} 원거리x${this.spawner.last.rangedMul.toFixed(2)} 포위${this.spawner.last.surround.toFixed(2)}` +
-                `\n  hp${this.spawner.last.score.hp.toFixed(2)} 밀도${this.spawner.last.score.dense.toFixed(2)} 여유${this.spawner.last.score.room.toFixed(2)} 처치${this.spawner.last.score.kill.toFixed(2)}`
-              : '')
+            `HP ${Math.ceil(p.hp)}/${p.maxHp}${this.god ? ' GOD' : ''}\n[N]+100 [T]+60s [L]lvl\n[G]god [O]ability\n${tr('debug.rarity')}`
         : '',
     );
   }

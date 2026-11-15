@@ -1026,7 +1026,7 @@
       },
       "berserk": {
         "name": "Berserk Mode",
-        "desc": "2x melee damage, +20% move speed, heal 1 HP per melee kill"
+        "desc": "2x melee damage, +20% move speed, heal 2 HP per melee kill"
       },
       "cloak": {
         "name": "Optical Camo",
