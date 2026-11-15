@@ -44,6 +44,8 @@ export class TitleScene extends Phaser.Scene {
       })
       .setOrigin(0.5);
     this.add.tileSprite(0, 0, VIEW_W, VIEW_H, 'scan').setOrigin(0);
+    // 빌드 번호 (버그 제보 때 어느 빌드인지 확인용)
+    this.add.text(VIEW_W - 6, VIEW_H - 5, __BUILD__, { ...BASE_TEXT, fontSize: '9px', color: '#8a7aa8' }).setOrigin(1, 1).setAlpha(0.8);
 
     Sound.music('title');
     const mute = addMuteToggle(this, VIEW_W - 10, 10);
