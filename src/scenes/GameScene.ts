@@ -19,6 +19,7 @@ import { createWeapon, type WeaponBase, type WeaponId } from '../weapons';
 import type { GameContext, Stats, DamageTag, FxOpts } from '../weapons/types';
 import meta from '../data/meta.json';
 import zonesData from '../data/zones.json';
+import midbossAnim from '../data/midboss_anim.json';
 import wavesData from '../data/waves.json';
 import type { Wave } from '../systems/Spawner';
 import { Save, type Runner, type RunnerId, type SpecialId, type RunStats } from '../systems/Save';
@@ -64,6 +65,10 @@ const DROP = { fall: 0.45, stagger: 0.12, land: 0.7 };
 /** 블랙 실드 이송기가 착지 지점 위로 떠 있는 높이 (그림 112x55 기준) */
 const SHIP_LIFT = 44;
 type BossDef = (typeof gameData.bosses)[number];
+/** 보스 동작별 프레임 설정 (game.json bosses[].anim) */
+type BossAnim = { walkFps: number; scale: number; motionScale: { walk: number; charge: number; slam: number; hook: number }; footY: number; chargeFlash: number };
+/** 아트가 주는 보스 동작별 프레임 정보 (프레임 수·캔버스 크기·허리 위치) */
+const BOSS_ANIM: Record<string, Record<string, { frames: number; w: number; h: number; originX: number; originY: number }>> = { midboss: midbossAnim };
 type SwingDef = { range: number; reach: number; windup: number; recover: number; cd: number; damageMul: number };
 type MeleeDef = { range: number; interval: number; windup: number; lungeTime: number; lungeSpeed: number; swing?: SwingDef };
 type Phase2 = { at: number; chargeCount: number; aimTime: number; chargeTime: number; chargeSpeed: number; volleyEvery: number; volleyCount: number; bulletSpeed: number; bulletDamage: number };
@@ -2927,7 +2932,8 @@ export class GameScene extends Phaser.Scene implements GameContext {
   }
 
   /** 보스 모션: 걷기 2프레임, 돌진 예고(떨림), 돌진 자세, 코어는 둥실 떠 있음 */
-  private animateBoss(b: Enemy, def: BossDef): void {
+  private animateBoss(b: Enemy, def: BossDef, dt: number): void {
+    if (this.animateBossFrames(b, def, dt)) return;
     const ph = this.bossPhase;
     const f = ph === 'aim' || this.bossAtkT > 0 ? 'aim' : ph === 'charge' ? 'charge' : Math.floor(this.elapsed * 4) % 2 ? 'w1' : 'w2';
     const key = `${def.id}_${f}`;
@@ -2939,11 +2945,63 @@ export class GameScene extends Phaser.Scene implements GameContext {
     if (!core) b.sprite.setFlipX(ph === 'charge' ? this.bossDir.x < 0 : this.player.x < b.x);
   }
 
+  /**
+   * 동작별 프레임 그림이 있는 보스(코박): 걷기 루프, 돌진 예고(웅크림)·돌진 프레임.
+   * 프레임 수·허리 위치는 아트의 <id>_anim.json, 재생 속도·배율은 game.json bosses[].anim에서 읽는다.
+   * 그림이 교체돼도 JSON만 바뀌면 코드는 그대로 맞춰진다. 그림이 없으면 false (예전 2프레임 방식)
+   */
+  private animateBossFrames(b: Enemy, def: BossDef, dt: number): boolean {
+    const A = (def as { anim?: BossAnim }).anim;
+    const M = BOSS_ANIM[def.id];
+    if (!A || !M || !this.textures.exists(`${def.id}_walk_00`)) return false;
+    const ph = this.bossPhase;
+    let motion: string;
+    let idx: number;
+    const n = (m: string) => M[m]?.frames ?? 0;
+    if (ph === 'aim' && n('charge') >= 3) {
+      // 예고: 마지막 두 장(돌진 번쩍·끝 자세)을 뺀 앞 프레임을 예고 시간에 맞춰 재생
+      const total = this.bossPhase2 ? ((def as { phase2?: Phase2 }).phase2?.aimTime ?? def.aimTime) : def.aimTime;
+      const k = Phaser.Math.Clamp(1 - this.bossTimer / total, 0, 0.999);
+      motion = 'charge';
+      idx = Math.floor(k * (n('charge') - 2));
+    } else if (ph === 'charge' && n('charge') >= 2) {
+      const total = this.bossPhase2 ? ((def as { phase2?: Phase2 }).phase2?.chargeTime ?? def.chargeTime) : def.chargeTime;
+      motion = 'charge';
+      idx = n('charge') - (1 - this.bossTimer / total < A.chargeFlash ? 2 : 1);
+    } else {
+      motion = 'walk';
+      b.walkPh = (b.walkPh + dt * A.walkFps) % n('walk');
+      idx = Math.floor(b.walkPh);
+    }
+    const key = `${def.id}_${motion}_${String(idx).padStart(2, '0')}`;
+    if (!this.textures.exists(key)) return false;
+    if (b.sprite.texture.key !== key) b.sprite.setTexture(key);
+    // 그림은 오른쪽을 본다. 뒤집으면 허리 위치(originX)도 반대쪽으로
+    const flip = ph === 'charge' || ph === 'aim' ? this.bossDir.x < 0 : this.player.x < b.x;
+    const ox = M[motion].originX;
+    b.sprite.setFlipX(flip).setOrigin(flip ? 1 - ox : ox, 1);
+    const sc = this.bossAnimScale(def, motion);
+    if (!this.tweens.isTweening(b.sprite)) b.sprite.setScale(sc);
+    b.footOff = A.footY;
+    const jitter = ph === 'aim' && !Settings.reducedFx ? (Math.random() - 0.5) * 2 : 0;
+    b.sprite.setPosition(b.x + jitter, b.y + A.footY);
+    return true;
+  }
+
+  /** 보스 표시 배율 (동작별 프레임 그림이면 그 동작 배율까지) */
+  private bossAnimScale(def: BossDef | null, motion?: string): number {
+    const A = def ? (def as { anim?: BossAnim }).anim : undefined;
+    if (!A) return BOSS_SCALE;
+    const m = motion ?? this.boss?.sprite.texture.key.match(/_(walk|charge|slam|hook)_\d+$/)?.[1] ?? 'walk';
+    return BOSS_SCALE * A.scale * (A.motionScale[m as keyof BossAnim['motionScale']] ?? 1);
+  }
+
   /** 소환·탄막 때 보스가 한 번 들썩인다 */
   private bossPulse(b: Enemy): void {
     this.tweens.killTweensOf(b.sprite);
-    b.sprite.setScale(BOSS_SCALE);
-    this.tweens.add({ targets: b.sprite, scaleX: 1.15 * BOSS_SCALE, scaleY: 0.88 * BOSS_SCALE, duration: 90, yoyo: true });
+    const S = this.bossAnimScale(this.bossDef);
+    b.sprite.setScale(S);
+    this.tweens.add({ targets: b.sprite, scaleX: 1.15 * S, scaleY: 0.88 * S, duration: 90, yoyo: true });
   }
 
   /** 저격 터렛: 제자리에서 조준선을 0.8초 보여준 뒤 강한 한 발 */
@@ -3777,7 +3835,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
         if (refill && e) this.bossMinions.push({ e, id });
       });
     }
-    this.animateBoss(b, def);
+    this.animateBoss(b, def, dt);
     // 보스가 화면에서 너무 멀어지면 다시 가까이
     const pd = Math.hypot(p.x - b.x, p.y - b.y) || 1;
     if (!this.arena && pd > 520) {

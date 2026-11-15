@@ -75,7 +75,15 @@
       "aimTime": 0.8,
       "chargeTime": 0.7,
       "firstSummon": 6,
-      "zone": "slum"
+      "zone": "slum",
+      "anim": {
+        "note": "동작별 프레임 그림(midboss_<동작>_NN). 프레임 수·허리 위치(originX)는 아트가 주는 src/data/midboss_anim.json을 그대로 읽는다. scale은 bossScale에 곱하는 표시 배율, motionScale은 동작별 추가 배율(그림 배율이 어긋났을 때 임시 보정용), footY는 판정 중심에서 발까지(px)",
+        "walkFps": 12,
+        "scale": 0.96,
+        "motionScale": { "walk": 1, "charge": 0.5, "slam": 0.5, "hook": 0.5 },
+        "footY": 40,
+        "chargeFlash": 0.4
+      }
     },
     {
       "id": "boss",
