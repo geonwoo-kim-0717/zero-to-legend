@@ -66,7 +66,7 @@ const DROP = { fall: 0.45, stagger: 0.12, land: 0.7 };
 const SHIP_LIFT = 44;
 type BossDef = (typeof gameData.bosses)[number];
 /** 보스 동작별 프레임 설정 (game.json bosses[].anim) */
-type BossAnim = { walkFps: number; scale: number; motionScale: { walk: number; charge: number; slam: number; hook: number }; footY: number; chargeFlash: number };
+type BossAnim = { walkFps: number; scale: number; motionScale: Record<string, number>; footY: number; chargeWind: number[]; chargeFlash: number; chargeRun: number[]; chargeFlashTime: number };
 /** 아트가 주는 보스 동작별 프레임 정보 (프레임 수·캔버스 크기·허리 위치) */
 const BOSS_ANIM: Record<string, Record<string, { frames: number; w: number; h: number; originX: number; originY: number }>> = { midboss: midbossAnim };
 type SwingDef = { range: number; reach: number; windup: number; recover: number; cd: number; damageMul: number };
@@ -2958,16 +2958,20 @@ export class GameScene extends Phaser.Scene implements GameContext {
     let motion: string;
     let idx: number;
     const n = (m: string) => M[m]?.frames ?? 0;
-    if (ph === 'aim' && n('charge') >= 3) {
-      // 예고: 마지막 두 장(돌진 번쩍·끝 자세)을 뺀 앞 프레임을 예고 시간에 맞춰 재생
-      const total = this.bossPhase2 ? ((def as { phase2?: Phase2 }).phase2?.aimTime ?? def.aimTime) : def.aimTime;
-      const k = Phaser.Math.Clamp(1 - this.bossTimer / total, 0, 0.999);
+    const P2 = this.bossPhase2 ? (def as { phase2?: Phase2 }).phase2 : undefined;
+    if (ph === 'aim' && n('charge') > 0) {
+      // 예고: 예고 프레임(chargeWind)을 예고 시간에 맞춰 한 번 재생
+      const k = Phaser.Math.Clamp(1 - this.bossTimer / (P2?.aimTime ?? def.aimTime), 0, 0.999);
+      const [w0, w1] = A.chargeWind;
       motion = 'charge';
-      idx = Math.floor(k * (n('charge') - 2));
-    } else if (ph === 'charge' && n('charge') >= 2) {
-      const total = this.bossPhase2 ? ((def as { phase2?: Phase2 }).phase2?.chargeTime ?? def.chargeTime) : def.chargeTime;
+      idx = w0 + Math.floor(k * (w1 - w0 + 1));
+    } else if (ph === 'charge' && n('charge') > 0) {
+      // 돌진: 처음 chargeFlashTime 동안 번쩍 프레임, 이후 돌진 프레임을 남은 시간에 맞춰
+      const total = P2?.chargeTime ?? def.chargeTime;
+      const t = total - this.bossTimer;
+      const [r0, r1] = A.chargeRun;
       motion = 'charge';
-      idx = n('charge') - (1 - this.bossTimer / total < A.chargeFlash ? 2 : 1);
+      idx = t < A.chargeFlashTime ? A.chargeFlash : r0 + Math.min(r1 - r0, Math.floor(((t - A.chargeFlashTime) / Math.max(0.01, total - A.chargeFlashTime)) * (r1 - r0 + 1)));
     } else {
       motion = 'walk';
       b.walkPh = (b.walkPh + dt * A.walkFps) % n('walk');
@@ -2992,8 +2996,8 @@ export class GameScene extends Phaser.Scene implements GameContext {
   private bossAnimScale(def: BossDef | null, motion?: string): number {
     const A = def ? (def as { anim?: BossAnim }).anim : undefined;
     if (!A) return BOSS_SCALE;
-    const m = motion ?? this.boss?.sprite.texture.key.match(/_(walk|charge|slam|hook)_\d+$/)?.[1] ?? 'walk';
-    return BOSS_SCALE * A.scale * (A.motionScale[m as keyof BossAnim['motionScale']] ?? 1);
+    const m = motion ?? this.boss?.sprite.texture.key.match(/_(walk|leap|charge|slam|hook)_\d+$/)?.[1] ?? 'walk';
+    return BOSS_SCALE * A.scale * (A.motionScale[m] ?? 1);
   }
 
   /** 소환·탄막 때 보스가 한 번 들썩인다 */
