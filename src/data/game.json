@@ -105,12 +105,13 @@
         "landFrames": [4, 6]
       },
       "entrance": {
-        "note": "등장 연출: 화면 안·플레이어에서 minDist 이상인 곳 중 적이 가장 몰린 자리로 height px 위에서 fall초 동안 떨어진다(무적). 착지 반경(가로 radius, 세로 0.6배) 안 졸개 처치(보상 없음, 플레이어 피해 없음) 후 taunt초 동안 멈춰서 line 대사",
+        "note": "등장 연출: 화면 안·플레이어에서 minDist 이상인 곳 중 적이 가장 몰린 자리로 height px 위에서 fall초 동안 떨어진다(무적). 착지 반경(가로 radius, 세로 0.6배) 안 졸개 처치(보상 없음, 플레이어 피해 없음) 후 착지 자세(마지막 장은 holdLast초 더)를 보이고 바로 걸어오며 line 대사(말풍선 taunt초)",
         "minDist": 180,
         "fall": 0.4,
         "height": 260,
         "radius": 90,
         "taunt": 2,
+        "holdLast": 0.2,
         "line": "boss.taunt.midboss"
       },
       "hook": {

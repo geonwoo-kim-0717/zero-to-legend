@@ -73,7 +73,7 @@ const MARK_A = (gameData as { bossMarkAlpha?: number }).bossMarkAlpha ?? 1;
 /** 이송기 엔진 기울기 프레임 (dropship_tilt_00 정지 ~ _05 전진), 프레임당 시간(ms) */
 const SHIP_TILT_N = 5;
 const SHIP_TILT_MS = 80;
-type EntranceDef = { minDist: number; fall: number; height: number; radius: number; taunt: number; line: string };
+type EntranceDef = { minDist: number; fall: number; height: number; radius: number; taunt: number; holdLast: number; line: string };
 /** 갈고리 (game.json bosses[].hook): 중간 거리에서 예고선 → 갈고리 발사 → 맞으면 끌어와 틈 뒤 내리찍기, 빗나가면 감아들임 */
 type HookDef = { minDist: number; maxDist: number; aim: number; range: number; speed: number; damage: number; pullTime: number; pullTo: number; gap: number; backSpeed: number; throwTime: number; throwFrames: number[]; pullFrames: number[] };
 /** 분노 (game.json bosses[].enrage) */
@@ -3039,14 +3039,9 @@ export class GameScene extends Phaser.Scene implements GameContext {
         }
         lift = (this.bossTimer / ent.fall) ** 1.6 * ent.height;
       } else {
-        const t = ent.taunt - this.bossTimer;
-        if (t < sl.recover) {
-          motion = 'slam';
-          idx = span(sl.landFrames, t / sl.recover);
-        } else {
-          motion = 'walk';
-          idx = 0;
-        }
+        const t = sl.recover + ent.holdLast - this.bossTimer;
+        motion = 'slam';
+        idx = t < sl.recover ? span(sl.landFrames, t / sl.recover) : sl.landFrames[1];
       }
     } else if ((ph === 'leap' || ph === 'air' || ph === 'slam') && sl) {
       // 점프 내리찍기: 웅크렸다 도약(leap) → 공중(도약 마지막 장, 착지 직전엔 칼 휘두르기) → 착지(slam)
@@ -4113,8 +4108,9 @@ export class GameScene extends Phaser.Scene implements GameContext {
       if (this.bossTimer <= 0) {
         if (this.bossPhase === 'enter') {
           this.entranceLand(b, ent, sl);
+          // 착지 자세를 끝까지 보여주고(마지막 장은 holdLast초 더) 곧바로 걸어오며 말한다 (말풍선은 taunt초)
           this.bossPhase = 'taunt';
-          this.bossTimer = ent.taunt;
+          this.bossTimer = (sl?.recover ?? 0) + ent.holdLast;
         } else {
           this.bossPhase = 'walk';
           this.bossTimer = def.firstWalk;
