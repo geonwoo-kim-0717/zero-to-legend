@@ -224,12 +224,34 @@ export class GameScene extends Phaser.Scene implements GameContext {
   private nextRaid = 0;
   /** 이번 습격 요원이 모두 사살되길 기다리는 중 (그 뒤부터 다음 습격 쿨타임) */
   private raidWaitClear = false;
+  /** 직전 부대 투입 시각·체력 합계, 플레이어 스펙 결과, 다음 부대 체력 배율 */
+  private raidDeployAt = 0;
+  private raidSquadHp = 0;
+  private raidSpec: { clear: number; ttk: number; score: number } | null = null;
+  private raidHpMul = 1;
+  /** 최근 DPS 계산용: 1초 단위 피해 합계 [초, 합계] */
+  private dmgSec: [number, number][] = [];
   /** 이번 판에 온 습격 횟수 (습격마다 체력 증가) */
   private raidCount = 0;
   /** 습격 대원 중 아직 착지하지 않은 수 (0이 되면 줄였던 소리를 되돌림) */
   private raidDropping = 0;
   /** 적 그림별 걷기 루프 프레임 수 (<id>_walk_NN, 0이면 없음) */
   private walkFrames = new Map<string, number>();
+  /** 최근 DPS: 1초 단위로 모은 피해를 window초만큼 평균 */
+  private noteDps(a: number): void {
+    const sec = Math.floor(this.elapsed);
+    const last = this.dmgSec[this.dmgSec.length - 1];
+    if (last && last[0] === sec) last[1] += a;
+    else this.dmgSec.push([sec, a]);
+    if (this.dmgSec.length > 120) this.dmgSec.shift();
+  }
+  private recentDps(window: number): number {
+    const from = this.elapsed - window;
+    let sum = 0;
+    for (const [t, a] of this.dmgSec) if (t >= from) sum += a;
+    return sum / window;
+  }
+
   /** 스폰 디렉터 패널 (왼쪽): 지금 상황 입력값 → 점수 → 배율 */
   private dirPanel: Phaser.GameObjects.Text | null = null;
   private drawDirectorPanel(show: boolean): void {
@@ -249,9 +271,14 @@ export class GameScene extends Phaser.Scene implements GameContext {
     const f = (v: number) => v.toFixed(2);
     const lines = [
       '스폰 디렉터',
-      `체력 ${Math.round(s.playerHp * 100)}% · 주변 ${s.near} · 원거리 ${s.ranged} · 처치율 ${f(s.killRatio)}`,
-      L ? `점수 체력 ${f(L.score.hp)} 밀도 ${f(L.score.dense)} 여유 ${f(L.score.room)} 처치 ${f(L.score.kill)}` : '점수 (다음 스폰 때 계산)',
+      `체력 ${Math.round(s.playerHp * 100)}% · 주변 ${s.near} · 원거리 ${s.ranged} · 처치율 ${f(s.killRatio)} · 보스 ${s.boss ? '있음' : '없음'} · 요원 ${s.squad}`,
+      L ? `점수 체력 ${f(L.score.hp)} 밀도 ${f(L.score.dense)} 여유 ${f(L.score.room)} 처치 ${f(L.score.kill)} 강적 x${f(L.score.strong)}` : '점수 (다음 스폰 때 계산)',
       L ? `→ 스폰 수 x${f(L.countMul)} · 원거리 x${f(L.rangedMul)} · 포위 ${f(L.surround)}` : '',
+      '블랙 실드',
+      this.raidSpec
+        ? `섬멸 ${this.raidSpec.clear.toFixed(0)}초 · DPS 기준 ${this.raidSpec.ttk.toFixed(0)}초 → 스펙 ${f(this.raidSpec.score)}`
+        : '스펙 (첫 부대 섬멸 뒤 계산)',
+      `→ 다음 습격 ${this.raidWaitClear ? '섬멸 대기' : this.nextRaid === Infinity ? '-' : `${Math.max(0, this.nextRaid - this.elapsed).toFixed(0)}초 뒤`} · 다음 부대 체력 x${f(this.raidHpMul)}`,
     ];
     this.dirPanel.setText(lines.filter(Boolean).join('\n')).setVisible(true);
   }
@@ -265,12 +292,13 @@ export class GameScene extends Phaser.Scene implements GameContext {
     let near = 0;
     let ranged = 0;
     for (const e of this.enemyPool.items) {
-      if (!e.active || e.isBoss) continue;
+      if (!e.active || e.isBoss || e.id.startsWith('trooper_')) continue;
       if ((e.x - p.x) ** 2 + (e.y - p.y) ** 2 < D.nearR * D.nearR) near++;
       if (RANGED.has(e.id)) ranged++;
     }
     const spawned = this.spawner.recentSpawns(this.elapsed, D.killWindow);
-    return { playerHp: Math.max(0, p.hp) / p.maxHp, near, ranged, killRatio: spawned ? this.killTimes.length / spawned : 1 };
+    const squad = this.enemyPool.items.filter((e) => e.active && e.id.startsWith('trooper_')).length;
+    return { playerHp: Math.max(0, p.hp) / p.maxHp, near, ranged, killRatio: spawned ? this.killTimes.length / spawned : 1, boss: !!this.boss, squad };
   }
 
   /** 디버그(F1): 블랙 실드 머리 위에 지금 행동과 상위 점수 표시 */
@@ -414,6 +442,9 @@ export class GameScene extends Phaser.Scene implements GameContext {
     this.raidCount = 0;
     this.nextRaid = ZONES[0].raidStart + Math.random() * gameData.raid.firstDelayMax;
     this.raidWaitClear = false;
+    this.raidSpec = null;
+    this.raidHpMul = 1;
+    this.dmgSec = [];
     this.mergeT = this.dashGhostT = 0;
     this.dashRings = [];
     this.icons = [];
@@ -659,6 +690,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
     // 처형자: 맞고 체력 15% 이하로 남는 일반 적은 즉사
     if (!e.isBoss && this.pHas('executioner') && e.hp - amount <= e.maxHp * 0.15) amount = Math.max(amount, e.hp);
     this.logDamage(Math.min(amount, Math.max(0, e.hp)));
+    this.noteDps(Math.min(amount, Math.max(0, e.hp)));
     this.dmgNumber(e, amount, critMul);
     if (e.hit(amount)) {
       if (tag === 'melee') this.run.meleeKills++;
@@ -3313,7 +3345,16 @@ export class GameScene extends Phaser.Scene implements GameContext {
     if (!this.raid) {
       if (this.raidWaitClear && !this.enemyPool.items.some((o) => o.active && o.id.startsWith('trooper_'))) {
         this.raidWaitClear = false;
-        this.nextRaid = this.elapsed + Phaser.Math.FloatBetween(gameData.raid.minGap, gameData.raid.maxGap);
+        // 플레이어 스펙: 직전 부대 섬멸 시간 + 최근 DPS로 그 부대를 잡는 데 걸릴 시간 (둘 다 15초 이하 1, 60초 이상 0)
+        const clear = this.elapsed - this.raidDeployAt;
+        const dps = this.recentDps(R.dpsWindow);
+        const ttk = dps > 0 ? this.raidSquadHp / dps : 999;
+        const sc = (t: number) => Phaser.Math.Clamp((R.specSlow - t) / (R.specSlow - R.specFast), 0, 1);
+        const score = (sc(clear) + sc(ttk)) / 2;
+        this.raidSpec = { clear, ttk, score };
+        // 강할수록 다음 습격이 빨리(40초), 다음 부대 체력이 높게(1.2배)
+        this.nextRaid = this.elapsed + Phaser.Math.Linear(R.maxGap, R.minGap, score);
+        this.raidHpMul = Phaser.Math.Linear(R.hpMin, R.hpMax, score);
       }
       if (this.boss || this.elapsed < this.nextRaid) return;
       const a = Math.random() * Math.PI * 2;
@@ -3363,8 +3404,9 @@ export class GameScene extends Phaser.Scene implements GameContext {
         // 역할군별 대원 투입. 체력은 일반 몬스터와 같은 곡선·챕터 배율을 따르되,
         // 첫 습격 시각(raidStart, 5:30)의 곡선 값을 1로 맞춰 1챕터 첫 습격 4명 합계가 enemies.json 기본값(24,000)이 되게 한다
         const zt = this.elapsed - this.zoneStart;
-        const hpMul = this.zoneHpMul(zt) * (hpScaleAt(zt) / hpScaleAt(this.zone.raidStart));
+        const hpMul = this.zoneHpMul(zt) * (hpScaleAt(zt) / hpScaleAt(this.zone.raidStart)) * this.raidHpMul;
         this.raidCount++;
+        this.raidDeployAt = this.elapsed;
         this.raidsInZone++;
         const lines = [1, 2, 3, 4].sort(() => Math.random() - 0.5);
         // 말풍선은 한 번에 1~2명만 (누가 말할지는 무작위)
@@ -3392,6 +3434,8 @@ export class GameScene extends Phaser.Scene implements GameContext {
           }
         });
         if (!this.raidDropping) Sound.raidFocus(false);
+        // 플레이어 스펙 계산용: 이번 부대 체력 합계
+        this.raidSquadHp = this.enemyPool.items.filter((o) => o.active && o.id.startsWith('trooper_')).reduce((t, o) => t + o.maxHp, 0);
         Sound.play('explode');
         r.phase = 'out';
         r.t = 0;

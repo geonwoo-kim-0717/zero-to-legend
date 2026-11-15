@@ -6,6 +6,7 @@ import gameData from '../data/game.json';
  *  - 스폰 수: 플레이어 체력이 낮을수록, 플레이어 주변에 적이 많을수록 줄인다
  *  - 원거리 비율: 근처 원거리가 많을수록 줄이고, 처치 속도가 빠를수록 늘린다
  *  - 포위도: 플레이어 체력이 높을수록 사방에서 둘러싸고, 낮을수록 한 방향 무리로 몰려온다
+ *  - 보스·블랙 실드가 있으면 스폰 수와 원거리를 줄인다
  */
 
 export interface DirSense {
@@ -17,6 +18,10 @@ export interface DirSense {
   ranged: number;
   /** 최근 처치 수 / 최근 스폰 수 (1이면 나오는 만큼 잡는 중) */
   killRatio: number;
+  /** 보스가 나와 있는지 */
+  boss: boolean;
+  /** 살아 있는 블랙 실드 요원 수 (0~4) */
+  squad: number;
 }
 
 export interface DirPlan {
@@ -27,7 +32,7 @@ export interface DirPlan {
   /** 0이면 한 방향 무리, 1이면 사방 포위 */
   surround: number;
   /** 디버그용 점수 */
-  score: { hp: number; dense: number; room: number; kill: number };
+  score: { hp: number; dense: number; room: number; kill: number; strong: number };
 }
 
 const D = gameData.director;
@@ -43,13 +48,17 @@ export function plan(s: DirSense): DirPlan {
   const hp = pow(s.playerHp, 0.6);
   // 주변 밀도: nearLow까지는 1, nearHigh에서 0
   const dense = 1 - ramp(s.near, D.nearLow, D.nearHigh);
-  const countMul = lerp(D.lowHpCount, 1, hp) * lerp(D.denseCount, 1, dense);
+  // 보스·블랙 실드가 있으면 강한 적에 집중하도록 일반 몬스터를 줄인다 (요원은 남은 수에 비례)
+  const squadK = clamp01(s.squad / 4);
+  const strong = (s.boss ? D.bossCount : 1) * lerp(1, D.squadCount, squadK);
+  const strongRanged = (s.boss ? D.bossRanged : 1) * lerp(1, D.squadRanged, squadK);
+  const countMul = lerp(D.lowHpCount, 1, hp) * lerp(D.denseCount, 1, dense) * strong;
   // 원거리 여유: 상한에 가까울수록 급격히 0 (탄막이 화면을 덮지 않게)
   const room = 1 - pow(s.ranged / D.rangedCap, 2);
   // 처치 속도: 나오는 만큼 못 잡으면 0, 넉넉히 잡으면 1
   const kill = ramp(s.killRatio, D.killLow, D.killHigh);
-  const rangedMul = lerp(D.rangedMin, D.rangedMax, room * (0.35 + 0.65 * kill));
+  const rangedMul = lerp(D.rangedMin, D.rangedMax, room * (0.35 + 0.65 * kill)) * strongRanged;
   // 포위도: 체력이 높을수록 사방에서
   const surround = pow(s.playerHp, 1.5);
-  return { countMul, rangedMul, surround, score: { hp, dense, room, kill } };
+  return { countMul, rangedMul, surround, score: { hp, dense, room, kill, strong } };
 }

@@ -397,8 +397,13 @@
   "raid": {
     "start": 330,
     "firstDelayMax": 40,
-    "minGap": 60,
-    "maxGap": 90,
+    "minGap": 40,
+    "maxGap": 60,
+    "specFast": 15,
+    "specSlow": 60,
+    "hpMin": 0.9,
+    "hpMax": 1.2,
+    "dpsWindow": 20,
     "flyIn": 2.8,
     "hover": 1.5,
     "flyOut": 2.8,
@@ -422,7 +427,11 @@
     "killLow": 0.5,
     "killHigh": 1.0,
     "killWindow": 20,
-    "packSpread": 25
+    "packSpread": 25,
+    "bossCount": 0.6,
+    "bossRanged": 0.5,
+    "squadCount": 0.6,
+    "squadRanged": 0.5
   },
   "squadBrain": {
     "think": 0.25,
