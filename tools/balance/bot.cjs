@@ -37,7 +37,9 @@ const SAVE = mode === 'vet'
     s.god = GOD; const T = window.__tele = { snaps: [], carryN: 0, samples: [], hits: [], hitSrc: {}, events: [], cards: {}, picks: [], end: null, dialogLines: 0, shot: null, shotsDone: {}, squadClear: [] };
     // 피해 출처 기록 (어떤 공격에 많이 맞는지)
     const hp0 = s.hurtPlayer.bind(s);
-    s.hurtPlayer = (dmg, src) => { const before = s.player.hp; hp0(dmg, src); if (s.player.hp < before || GOD) { const k = src ? src.id + ':' + src.kind : '?'; T.hitSrc[k] = (T.hitSrc[k] || 0) + 1; } };
+    // 무적이면 맞아도 무적 시간이 안 생겨 붙어 있는 동안 매 프레임 불리므로, 실제 게임처럼 0.6초 안의 중복은 세지 않는다
+    let lastHitAt = -9;
+    s.hurtPlayer = (dmg, src) => { const before = s.player.hp; hp0(dmg, src); const real = GOD ? s.elapsed - lastHitAt >= 0.6 : s.player.hp < before; if (real) { lastHitAt = s.elapsed; const k = src ? src.id + ':' + src.kind : '?'; T.hitSrc[k] = (T.hitSrc[k] || 0) + 1; } };
     // 블랙 실드 요원 우선순위 (해커가 살아 있으면 CC 면역이라 먼저)
     const PRIO = { trooper_hacker: 4, trooper_sniper: 3, trooper_melee: 2, trooper_tank: 1 };
     // 선분(ax,ay)→(bx,by)에서 점까지 거리와 수직 방향

@@ -79,8 +79,9 @@ export function scoreActs(s: Sense): Partial<Record<Act, number>> {
         v = atPref * (0.5 + 0.5 * healthy) * B.w.keep;
         break;
       case 'retreat':
-        // 원거리는 가까이 붙으면 물러나고, 모두 체력이 낮으면 물러난다 (플레이어가 빈사면 덜 물러남)
-        v = clamp01((ranged ? tooClose * 0.8 : 0) + low * 0.9) * (1 - 0.5 * finish) * B.w.retreat;
+        // 원거리는 가까이 붙으면 물러나고, 모두 체력이 낮으면 물러난다 (플레이어가 빈사면 덜 물러남).
+        // 선호 거리 + retreatExtra 밖이면 0: 끝없이 도망쳐 화면 밖으로 사라지지 않게 (부대가 전멸해야 다음 습격)
+        v = clamp01((ranged ? tooClose * 0.8 : 0) + low * 0.9) * (1 - 0.5 * finish) * ramp(s.d, pref + B.retreatExtra, pref) * B.w.retreat;
         break;
       case 'dodge':
         // 방금 맞았거나 체력이 낮고 가까울수록. 최소 간격 전이면 0
