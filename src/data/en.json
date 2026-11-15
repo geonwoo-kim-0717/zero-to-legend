@@ -98,7 +98,7 @@
           "desc": "Acquired"
         },
         "1": {
-          "desc": "Grenades +1"
+          "desc": "Grenades +1 (-10% damage per grenade)"
         },
         "2": {
           "desc": "Damage +10"
@@ -110,13 +110,13 @@
           "desc": "Cooldown -18%"
         },
         "5": {
-          "desc": "Grenades +1"
+          "desc": "Grenades +1 (-10% damage per grenade)"
         },
         "6": {
           "desc": "Damage +15, Area +20%"
         },
         "7": {
-          "desc": "Grenades +2"
+          "desc": "Grenades +2 (-20% damage per grenade)"
         }
       }
     },

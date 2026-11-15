@@ -169,6 +169,8 @@ export class GameScene extends Phaser.Scene implements GameContext {
   private raidsInZone = 0;
   /** 해커가 CC를 막으며 외친 마지막 출동 번호 */
   private hackShoutRaid = -1;
+  /** 해커 CC 면역 안내(진)를 이번 판에 보냈는지 */
+  private hackTipShown = false;
   /** 블랙 실드 회피 때 퍼지는 붉은 원 */
   private dodgeRings: { x: number; y: number; r: number; life: number }[] = [];
   private floorG!: Phaser.GameObjects.Graphics;
@@ -363,6 +365,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
     this.raidsInZone = 0;
     this.dodgeRings = [];
     this.hackShoutRaid = -1;
+    this.hackTipShown = false;
     this.laser = { phase: 'idle', t: 5, lines: [], hit: false };
     this.dialog = null;
     this.heat = Math.min(Save.data.heat, Save.data.heatMax);
@@ -780,10 +783,15 @@ export class GameScene extends Phaser.Scene implements GameContext {
     return this.cameras.main.worldView;
   }
 
-  /** 해커가 살아 있으면 블랙 실드 요원 전원이 CC를 막는다 (기절·둔화 무시, 끌어당김·넉백 75% 감소, 조종은 1.5초 뒤 해제) */
+  /** 해커가 살아 있으면 블랙 실드 요원 전원(해커 포함)이 CC 완전 면역 (기절·둔화·끌어당김·넉백·조종) */
   private hackerShield(e: Enemy): boolean {
     if (!e.id.startsWith('trooper_')) return false;
     const on = this.enemyPool.items.some((o) => o.active && o.id === 'trooper_hacker');
+    // 판마다 처음 막혔을 때 진이 알려 준다
+    if (on && !this.hackTipShown) {
+      this.hackTipShown = true;
+      this.phoneText(tr('phone.hackerShield'), 'trooper_hacker');
+    }
     // 막을 때 해커가 외친다 (출동당 한 번)
     if (on && this.hackShoutRaid !== this.raidCount) {
       const h = this.enemyPool.items.find((o) => o.active && o.id === 'trooper_hacker');
@@ -796,13 +804,13 @@ export class GameScene extends Phaser.Scene implements GameContext {
   }
 
   ccMul(e: Enemy): number {
-    return this.hackerShield(e) ? gameData.squadAi.hacker.ccPullKnockMul : 1;
+    return this.hackerShield(e) ? 0 : 1;
   }
 
   /** 실 인형: 적을 잠깐 조종해 다른 적과 싸우게 한다 (보스 제외) */
   charm(e: Enemy, seconds: number): void {
     if (!e.active || e.isBoss) return;
-    if (this.hackerShield(e)) seconds = Math.min(seconds, gameData.squadAi.hacker.charmMax);
+    if (this.hackerShield(e)) return;
     e.charmT = Math.max(e.charmT, seconds);
     e.sprite.setTint(0xff2bd6);
   }

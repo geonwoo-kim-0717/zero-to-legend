@@ -169,9 +169,12 @@ export class PlasmaGrenade extends WeaponBase {
     this.ctx.player.attackPose(tx, 0.2);
     const r = BASE_R * this.area;
     if (orbital) {
+      // 신화 궤도 폭격은 개수 감소 없음 (스마트 피스톨 신화와 같은 방식)
       this.grenades.push({ sx: tx, sy: ty, tx, ty, t: 0, fuse: 0.6, r: r * 2, dmg: this.damage, mini: false, orbital: true, sprite: null });
     } else {
-      this.launch(px, py, tx, ty, r, this.damage, false);
+      // 유탄이 1개 늘 때마다 한 발 피해 -10% (장판·집속탄도 이 피해를 따름)
+      const split = Math.max(0.5, 1 - gameData.falloff.grenadeSplit * (this.s.count - 1));
+      this.launch(px, py, tx, ty, r, this.damage * split, false);
     }
   }
 

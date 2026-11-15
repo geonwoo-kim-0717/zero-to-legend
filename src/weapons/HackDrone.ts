@@ -115,8 +115,9 @@ export class HackDrone extends WeaponBase {
           const rr = HIT_R + e.radius;
           if ((e.x - x) ** 2 + (e.y - y) ** 2 > rr * rr) continue;
           const d = Math.hypot(e.x - p.x, e.y - p.y) || 1;
-          e.x += ((e.x - p.x) / d) * 60 * dt;
-          e.y += ((e.y - p.y) / d) * 60 * dt;
+          const k = 60 * dt * this.ctx.ccMul(e);
+          e.x += ((e.x - p.x) / d) * k;
+          e.y += ((e.y - p.y) / d) * k;
         }
       }
       // 지난 위치에서 지금 위치까지 몇 군데를 나눠 검사 (빠르게 돌아도 지나친 적을 놓치지 않음)
@@ -132,8 +133,9 @@ export class HackDrone extends WeaponBase {
           // 전설: 방어 궤도 — 바깥으로 밀어냄
           if (this.has('defenseOrbit') && !killed && !e.isBoss) {
             const d = Math.hypot(e.x - p.x, e.y - p.y) || 1;
-            e.x += ((e.x - p.x) / d) * 14;
-            e.y += ((e.y - p.y) / d) * 14;
+            const k = 14 * this.ctx.ccMul(e);
+            e.x += ((e.x - p.x) / d) * k;
+            e.y += ((e.y - p.y) / d) * k;
           }
         },
       );

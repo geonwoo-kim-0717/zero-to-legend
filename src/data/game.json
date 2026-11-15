@@ -320,7 +320,7 @@
     "crit3": { "color": "#ff2a3a", "size": 11, "pop": 1.5 }
   },
   "visorGlow": { "alpha": 0.7, "scale": 0.75 },
-  "falloff": { "pierce": 0.8, "chain": 0.8 },
+  "falloff": { "pierce": 0.8, "chain": 0.8, "grenadeSplit": 0.1 },
   "melee": {
     "psycho": {
       "range": 150,
@@ -420,8 +420,6 @@
       "bulletLife": 2
     },
     "hacker": {
-      "ccPullKnockMul": 0.25,
-      "charmMax": 1.5,
       "range": 170,
       "behindTank": 50,
       "interval": 6,
