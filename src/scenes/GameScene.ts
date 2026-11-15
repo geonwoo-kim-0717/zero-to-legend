@@ -31,6 +31,7 @@ import { Settings } from '../systems/Settings';
 import { Ads } from '../systems/Ads';
 import type { RunResult } from './ResultScene';
 import { t as tr, I18n } from '../i18n';
+import { pickAct, roleOf, type Role } from '../systems/SquadBrain';
 import visorAnchors from '../data/visor_anchors.json';
 
 /** 공격 상태가 없는 접촉형 적: 플레이어에게 붙으면 공격 그림 */
@@ -218,12 +219,32 @@ export class GameScene extends Phaser.Scene implements GameContext {
   private arenaLabel: Phaser.GameObjects.Text | null = null;
   /** 블랙 실드 진압대 습격 */
   private nextRaid = 0;
+  /** 이번 습격 요원이 모두 사살되길 기다리는 중 (그 뒤부터 다음 습격 쿨타임) */
+  private raidWaitClear = false;
   /** 이번 판에 온 습격 횟수 (습격마다 체력 증가) */
   private raidCount = 0;
   /** 습격 대원 중 아직 착지하지 않은 수 (0이 되면 줄였던 소리를 되돌림) */
   private raidDropping = 0;
   /** 적 그림별 걷기 루프 프레임 수 (<id>_walk_NN, 0이면 없음) */
   private walkFrames = new Map<string, number>();
+  /** 디버그(F1): 블랙 실드 머리 위에 지금 행동과 상위 점수 표시 */
+  private squadDbg = new Map<Enemy, Phaser.GameObjects.Text>();
+  private drawSquadDebug(): void {
+    for (const [e, t] of this.squadDbg) if (!this.debug || !e.active) t.setVisible(false);
+    if (!this.debug) return;
+    for (const e of this.enemyPool.items) {
+      if (!e.active || !e.id.startsWith('trooper_')) continue;
+      let t = this.squadDbg.get(e);
+      if (!t) {
+        t = this.add.text(0, 0, '', { ...TEXT, fontSize: '7px', color: '#fff23a', strokeThickness: 2, align: 'center' }).setOrigin(0.5, 1).setDepth(150);
+        this.squadDbg.set(e, t);
+      }
+      const top = (Object.entries(e.scores) as [string, number][]).sort((a, b) => b[1] - a[1]).slice(0, 3);
+      const line = top.map(([a, v]) => `${a === e.act ? '▶' : ''}${a} ${v.toFixed(2)}`).join('\n');
+      t.setText(line).setPosition(e.x, e.y + (e.sprite.originY === 1 ? e.footOff - this.bodyTop(e.tex) : -18) - 9).setVisible(true);
+    }
+  }
+
   /** 블랙 실드 바이저 빛: 지금 그림의 바이저 중심(visor_anchors.json)에 원점·뒤집기를 반영해 Add로 얹는다.
    *  강하·착지·피격·조종 중에도 몸을 따라가고, 바이저 정보가 없는 그림이거나 몸이 안 보이면 숨긴다 */
   private placeVisorGlows(): void {
@@ -344,6 +365,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
     this.raid = null;
     this.raidCount = 0;
     this.nextRaid = ZONES[0].raidStart + Math.random() * gameData.raid.firstDelayMax;
+    this.raidWaitClear = false;
     this.mergeT = this.dashGhostT = 0;
     this.dashRings = [];
     this.icons = [];
@@ -567,13 +589,10 @@ export class GameScene extends Phaser.Scene implements GameContext {
     if (e.dodgeT > 0) return false;
     // 강하·착지 충격 중인 진압대는 무적
     if (e.dropT > 0 || e.landT > 0) return false;
-    const DG = gameData.squadAi.dodge;
-    if (DG.roles.includes(e.id) && e.dodgeCd < DG.reactBelow && e.hp > amount) this.startDodge(e);
-    // 체력이 처음 30% 밑으로 떨어지면 한 번, 연속 회피로 플레이어에게서 빠진다
-    if (DG.roles.includes(e.id) && !e.fled && e.hp > amount && e.hp - amount < e.maxHp * DG.fleeBelow) {
-      e.fled = true;
-      e.fleeLeft = DG.fleeCount;
-      e.fleeCd = 0;
+    // 블랙 실드: 맞은 시각을 남겨 두면 다음 판단(SquadBrain)에서 회피·후퇴 점수가 오른다
+    if (e.id.startsWith('trooper_')) {
+      e.lastHitAt = this.elapsed;
+      e.thinkT = Math.min(e.thinkT, 0.05);
     }
     // 카운터 몬스터: 특정 피해 종류에 강함
     const res = (CT.mul as Record<string, Record<string, number>>)[e.id];
@@ -1543,6 +1562,15 @@ export class GameScene extends Phaser.Scene implements GameContext {
             Sound.play('enemyshot');
           }
         }
+        // 블랙 실드: 행동 점수로 고른 행동대로 움직인다 (공격 시작도 고른 행동일 때만)
+        const role = roleOf(e.id);
+        if (role) {
+          const r = this.squadThink(e, role, dt, d, hidden);
+          if (r) {
+            vx = r[0] * slow;
+            vy = r[1] * slow;
+          }
+        }
         const m = (gameData.melee as Record<string, MeleeDef>)[e.id];
         if (m) {
           // 사이버 사이코·진압대원: 가까워지면 잠깐 멈춰 예고한 뒤, 그 방향으로 돌진
@@ -1560,11 +1588,11 @@ export class GameScene extends Phaser.Scene implements GameContext {
               e.state = 'walk';
               e.atkCd = this.elapsed + SW.cd;
             }
-          } else if (SW && e.state === 'walk' && d < SW.range + p.radius && this.elapsed >= e.atkCd && !hidden) {
+          } else if (SW && e.state === 'walk' && e.act === 'swing' && this.elapsed >= e.atkCd && !hidden) {
             e.state = 'swing';
             e.swingT = SW.windup + SW.recover;
             e.swingHit = false;
-          } else if (e.state === 'walk' && e.t <= 0 && d < m.range && (!SW || d > (SW.range + p.radius) * 2)) {
+          } else if (e.state === 'walk' && e.t <= 0 && (role ? e.act === 'lunge' && !hidden : d < m.range && (!SW || d > (SW.range + p.radius) * 2))) {
             e.state = 'wind';
             if (this.onScreen(e.x, e.y)) Sound.play('lungewarn');
             e.t = m.windup;
@@ -1592,26 +1620,17 @@ export class GameScene extends Phaser.Scene implements GameContext {
         if (e.id === 'sniper_turret') this.turretAi(e, dt, dx, dy, d, hidden);
         else if (e.id === 'glitch_ghost') this.ghostAi(e, dt, d, hidden);
         if (e.id === 'kamikaze' && this.kamikazeAi(e, dt, d, (x, y) => ((vx = x), (vy = y)))) continue;
-        // 진압대 회피 기동
-        const DGM = gameData.squadAi.dodge;
-        if (DGM.roles.includes(e.id)) {
-          if (e.fleeLeft > 0) e.fleeCd -= dt;
-          if (e.dodgeT > 0) {
-            e.dodgeT -= dt;
-            vx = e.dodgeVX * slow;
-            vy = e.dodgeVY * slow;
-            if ((e.ghostT -= dt) <= 0) {
-              e.ghostT = DGM.ghostEvery;
-              this.spawnGhostAt(e.sprite.texture.key, e.x, e.y, e.sprite.flipX, 0xff2a3a);
-            }
-          } else if (e.fleeLeft > 0) {
-            // 체력 30% 미만 도주: 회피 시작 간격 0.5초로 연속 회피
-            if (e.fleeCd <= 0) {
-              e.fleeLeft--;
-              e.fleeCd = DGM.fleeGap;
-              this.startDodge(e, true);
-            }
-          } else if ((e.dodgeCd -= dt) <= 0 && e.state === 'walk' && !hidden && this.onScreen(e.x, e.y)) this.startDodge(e);
+        if (e.id === 'trooper_sniper') this.sniperAi(e, dt, dx, dy, d, slow, (x, y) => ((vx = x), (vy = y)));
+        else if (e.id === 'trooper_hacker') this.hackerAi(e, dt, dx, dy, d, slow, (x, y) => ((vx = x), (vy = y)));
+        // 진압대 회피 대시 중 (회피를 고르는 건 SquadBrain)
+        if (e.dodgeT > 0) {
+          e.dodgeT -= dt;
+          vx = e.dodgeVX * slow;
+          vy = e.dodgeVY * slow;
+          if ((e.ghostT -= dt) <= 0) {
+            e.ghostT = gameData.squadAi.dodge.ghostEvery;
+            this.spawnGhostAt(e.sprite.texture.key, e.x, e.y, e.sprite.flipX, 0xff2a3a);
+          }
         }
         if (e.slowT > 0) {
           e.slowT -= dt;
@@ -1619,8 +1638,6 @@ export class GameScene extends Phaser.Scene implements GameContext {
           vy *= 0.55;
         }
         if (conv) vx += this.conveyorAt(e.y);
-        if (e.id === 'trooper_sniper') this.sniperAi(e, dt, dx, dy, d, slow, (x, y) => ((vx = x), (vy = y)));
-        else if (e.id === 'trooper_hacker') this.hackerAi(e, dt, dx, dy, d, slow, (x, y) => ((vx = x), (vy = y)));
         // 그림이 오른쪽을 보고 있으므로 플레이어가 왼쪽에 있으면 뒤집는다 (드론은 대칭이라 그대로)
         if (e.id !== 'drone') e.sprite.setFlipX(dx < 0);
         this.animateEnemy(e, dt, d, vx);
@@ -2298,6 +2315,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
     this.bossesSpawned = 0;
     this.raidsInZone = 0;
     this.nextRaid = this.elapsed + this.zone.raidStart + Math.random() * gameData.raid.firstDelayMax;
+    this.raidWaitClear = false;
     this.applyZone(true);
     Sound.music(this.zoneMusic, 1200);
     this.startCarryOver();
@@ -2774,7 +2792,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
       start(0, 3, [...scaled(0, 2, SW.windup), SW.recover]);
     } else if ((role === 'hacker' || role === 'sniper') && prev === 'wind' && e.state === 'walk') {
       start(A.fxStart, 7, A.ms.slice(A.fxStart).map((m) => m / 1000));
-    } else if (role === 'tank' && !e.seq && d < 30 && this.elapsed >= e.atkCd) {
+    } else if (role === 'tank' && !e.seq && e.act === 'bash' && d < 34 && this.elapsed >= e.atkCd) {
       start(0, 7, A.ms.map((m) => m / 1000));
       e.atkCd = this.elapsed + A.ms.reduce((a, b) => a + b, 0) / 1000 + 1;
     }
@@ -2991,6 +3009,77 @@ export class GameScene extends Phaser.Scene implements GameContext {
   }
 
   /** 진압대 회피 기동: 뉴럴 오버클럭의 축소판. 플레이어 기준 옆으로 빠르게 미끄러지며 잔상, 그동안 피해 무시 */
+  /**
+   * 블랙 실드 판단 (SquadBrain): 0.25초마다(맞으면 곧바로) 행동마다 0~1 점수를 매겨 가장 높은 행동을 고른다.
+   * 고른 행동의 이동 속도를 돌려준다. 공격·회피 동작 중이면 판단을 미루고 null (각 동작 코드가 움직임을 맡음)
+   */
+  private squadThink(e: Enemy, role: Role, dt: number, d: number, hidden: boolean): [number, number] | null {
+    const B = gameData.squadBrain;
+    const p = this.player;
+    const tx = hidden ? this.decoy.x : p.x;
+    const ty = hidden ? this.decoy.y : p.y;
+    const ux = (tx - e.x) / d;
+    const uy = (ty - e.y) / d;
+    // 공격·회피 동작 중: 그 자리에 선다 (돌진·회피 이동은 각 동작 코드가 덮어씀)
+    if (e.state !== 'walk' || e.dodgeT > 0 || e.seq) return [0, 0];
+    const allies = this.enemyPool.items.filter((o) => o.active && o !== e && o.id.startsWith('trooper_'));
+    const weakest = allies.reduce<Enemy | null>((w, o) => (!w || o.hp / o.maxHp < w.hp / w.maxHp ? o : w), null);
+    if ((e.thinkT -= dt) <= 0) {
+      e.thinkT = B.think;
+      const onScr = this.onScreen(e.x, e.y);
+      const r = pickAct({
+        role,
+        hp: e.hp / e.maxHp,
+        playerHp: Math.max(0, p.hp) / p.maxHp,
+        d,
+        sinceHit: this.elapsed - e.lastHitAt,
+        dodgeReady: onScr && this.elapsed >= e.dodgeReadyAt,
+        attackReady: !hidden && onScr && (role === 'tank' ? this.elapsed >= e.atkCd : e.t <= 0),
+        swingReady: role === 'melee' && !hidden && this.elapsed >= e.atkCd,
+        hasTank: allies.some((o) => o.id === 'trooper_tank'),
+        weakestAlly: weakest ? weakest.hp / weakest.maxHp : 1,
+        current: e.act,
+      });
+      e.act = r.act;
+      e.scores = r.scores;
+      if (e.act === 'dodge') {
+        // 체력이 낮으면 플레이어 반대쪽으로 크게, 아니면 옆으로
+        this.startDodge(e, e.hp / e.maxHp < 0.35);
+        e.dodgeReadyAt = this.elapsed + B.dodgeGap;
+        return null;
+      }
+    }
+    const sp = e.speed;
+    switch (e.act) {
+      case 'approach':
+        return [ux * sp, uy * sp];
+      case 'retreat':
+        return [-ux * sp, -uy * sp];
+      case 'keep': {
+        // 선호 거리로 맞추면서 옆으로 돈다
+        const pref = B.pref[role];
+        const radial = Phaser.Math.Clamp((d - pref) / pref, -1, 1);
+        const side = e.side >= 0 ? 1 : -1;
+        return [(-uy * side * 0.4 + ux * radial) * sp, (ux * side * 0.4 + uy * radial) * sp];
+      }
+      case 'guard': {
+        // 가장 다친 아군과 플레이어 사이에 선다
+        if (!weakest) return [ux * sp, uy * sp];
+        const gx = weakest.x + (tx - weakest.x) * 0.35 - e.x;
+        const gy = weakest.y + (ty - weakest.y) * 0.35 - e.y;
+        const gd = Math.hypot(gx, gy);
+        return gd > 6 ? [(gx / gd) * sp, (gy / gd) * sp] : [0, 0];
+      }
+      case 'bash':
+        // 방패를 들고 천천히 밀고 들어간다 (34px 안이면 방패 치기)
+        return [ux * sp * 0.5, uy * sp * 0.5];
+      case 'cover':
+        return null; // 해커 AI가 탱커 뒤 자리를 잡는다
+      default:
+        return [0, 0]; // 돌진·휘두르기·해킹·저격: 그 자리에서 동작 시작
+    }
+  }
+
   private startDodge(e: Enemy, away = false): void {
     const D = gameData.squadAi.dodge;
     const p = this.player;
@@ -3171,6 +3260,10 @@ export class GameScene extends Phaser.Scene implements GameContext {
     const R = gameData.raid;
     const p = this.player;
     if (!this.raid) {
+      if (this.raidWaitClear && !this.enemyPool.items.some((o) => o.active && o.id.startsWith('trooper_'))) {
+        this.raidWaitClear = false;
+        this.nextRaid = this.elapsed + Phaser.Math.FloatBetween(gameData.raid.minGap, gameData.raid.maxGap);
+      }
       if (this.boss || this.elapsed < this.nextRaid) return;
       const a = Math.random() * Math.PI * 2;
       const tx = p.x + Math.cos(a) * 110;
@@ -3233,6 +3326,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
             e.t = 1.5 + Math.random();
             // 이송기 배에서 착지 지점까지 떨어진 뒤 착지 충격 (그동안 무적)
             e.dropT = DROP.fall + i * DROP.stagger;
+            e.side = Math.random() < 0.5 ? 1 : -1;
             this.raidDropping++;
             e.dropFromY = r.ship.y + 10;
             e.landX = m.x;
@@ -3262,7 +3356,9 @@ export class GameScene extends Phaser.Scene implements GameContext {
         r.wash?.destroy();
         r.dust?.destroy();
         this.raid = null;
-        this.nextRaid = this.elapsed + Phaser.Math.FloatBetween(R.minGap, R.maxGap);
+        // 다음 습격 쿨타임은 이번에 내린 요원이 모두 사살된 뒤부터 돈다 (updateRaid 앞부분에서 확인)
+        this.nextRaid = Infinity;
+        this.raidWaitClear = true;
         return;
       }
     }
@@ -3289,10 +3385,8 @@ export class GameScene extends Phaser.Scene implements GameContext {
   /** 저격수: 멀리 떨어져 붉은 조준선으로 1초 조준한 뒤 강한 한 발 (마지막 0.3초는 조준 고정) */
   private sniperAi(e: Enemy, dt: number, dx: number, dy: number, d: number, slow: number, setV: (x: number, y: number) => void): void {
     const S = gameData.squadAi.sniper;
-    if (d < S.range * 0.85) setV((-dx / d) * e.speed * slow, (-dy / d) * e.speed * slow);
-    else if (d < S.range * 1.15) setV((-dy / d) * e.speed * 0.3 * slow, (dx / d) * e.speed * 0.3 * slow);
     e.t -= dt;
-    if (e.state === 'walk' && e.t <= 0 && !this.untracked && d < S.range * 1.4 && this.onScreen(e.x, e.y)) {
+    if (e.state === 'walk' && e.t <= 0 && e.act === 'shoot' && !this.untracked && this.onScreen(e.x, e.y)) {
       e.state = 'wind';
       e.t = S.aim;
       Sound.play('lungewarn');
@@ -3337,9 +3431,10 @@ export class GameScene extends Phaser.Scene implements GameContext {
     const gx = tx - e.x;
     const gy = ty - e.y;
     const gd = Math.hypot(gx, gy);
-    setV(gd > 6 ? (gx / gd) * e.speed * slow : 0, gd > 6 ? (gy / gd) * e.speed * slow : 0);
+    // 이동은 SquadBrain이 정하고, 탱커 뒤로 숨기(cover)를 골랐을 때만 여기서 자리를 잡는다
+    if (e.act === 'cover' && e.state === 'walk' && e.dodgeT <= 0) setV(gd > 6 ? (gx / gd) * e.speed * slow : 0, gd > 6 ? (gy / gd) * e.speed * slow : 0);
     e.t -= dt;
-    if (e.state === 'walk' && e.t <= 0 && !this.untracked && d < H.reach && this.onScreen(e.x, e.y)) {
+    if (e.state === 'walk' && e.t <= 0 && e.act === 'hack' && !this.untracked && this.onScreen(e.x, e.y)) {
       e.state = 'wind';
       e.t = H.cast;
       Sound.play('glitch');
@@ -3666,6 +3761,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
     g.fillStyle(COLORS.cyan, 0.8).fillRect(sx, sy + 4, 24 * (1 - p.dashCd / p.dashCooldownMax), 1);
 
     this.placeVisorGlows();
+    this.drawSquadDebug();
 
     // 진압대원 체력 바
     for (const e of this.enemyPool.items) {

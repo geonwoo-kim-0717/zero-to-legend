@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import type { Act } from '../systems/SquadBrain';
 import enemies from '../data/enemies.json';
 import gameData from '../data/game.json';
 
@@ -63,6 +64,12 @@ export class Enemy {
   footOff = 0;
   /** 걷기 루프 재생 위치(프레임 단위). 바라보는 반대쪽으로 움직이면 거꾸로 감는다 */
   walkPh = 0;
+  /** 블랙 실드 행동 선택 (SquadBrain): 지금 행동, 다시 생각할 때까지, 마지막 점수, 마지막으로 맞은 시각, 회피 가능 시각 */
+  act: Act = 'approach';
+  thinkT = 0;
+  scores: Partial<Record<Act, number>> = {};
+  lastHitAt = -99;
+  dodgeReadyAt = 0;
   /** 근접 요원 진압봉 휘두르기: 남은 시간, 이번 휘두르기에서 이미 판정했는지 */
   swingT = 0;
   swingHit = false;
@@ -115,6 +122,11 @@ export class Enemy {
     this.fled = false;
     this.fleeLeft = 0;
     this.fleeCd = 0;
+    this.act = 'approach';
+    this.thinkT = 0;
+    this.scores = {};
+    this.lastHitAt = -99;
+    this.dodgeReadyAt = 0;
     this.state = 'walk';
     this.t = 2 + Math.random() * 2;
     this.cd = 1 + Math.random() * 1.5;

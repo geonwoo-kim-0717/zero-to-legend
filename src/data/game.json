@@ -409,6 +409,15 @@
       "trooper_sniper"
     ]
   },
+  "squadBrain": {
+    "think": 0.25,
+    "stick": 0.05,
+    "hitMemory": 0.8,
+    "dodgeGap": 1.0,
+    "pref": { "tank": 24, "melee": 40, "hacker": 170, "sniper": 240 },
+    "reach": { "bash": 34, "swing": 38, "lungeMin": 70, "lungeMax": 200, "hack": 230, "shoot": 330 },
+    "w": { "approach": 0.6, "keep": 0.45, "retreat": 0.9, "dodge": 0.95, "bash": 0.95, "guard": 0.7, "lunge": 0.9, "swing": 1, "hack": 1, "cover": 0.5, "shoot": 1 }
+  },
   "squadAi": {
     "sniper": {
       "range": 240,
