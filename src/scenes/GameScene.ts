@@ -1120,7 +1120,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
     for (let i = 0; i < v; i++) g.fillTriangle(7 + i * 8, cy - 5, 7 + i * 8, cy + 5, 14 + i * 8, cy);
   }
 
-  /** AI 점수 표시 빌드 전용: 3배속·무적 켜기/끄기 (관찰·테스트용, 저장하지 않음) */
+  /** AI 점수 표시 빌드 전용: 3배속·무적 켜기/끄기·1분 건너뛰기 (관찰·테스트용, 저장하지 않음) */
   private makeAiTools(): void {
     const mk = (y: number, label: () => string, toggle: () => void) => {
       const t = this.add
@@ -1146,6 +1146,8 @@ export class GameScene extends Phaser.Scene implements GameContext {
       }
     });
     mk(84, () => `무적: ${this.god ? '켬' : '끔'}`, () => (this.god = !this.god));
+    // 1분 건너뛰기: 게임 시간만 60초 앞으로 (스폰·보스·습격 시각이 그만큼 당겨짐)
+    mk(102, () => '+1분', () => (this.elapsed += 60));
   }
 
   /** 2챕터 첫 도달: 픽서가 넘겨 준 가속 모듈 제어 코드로 배속 버튼이 열린다 */

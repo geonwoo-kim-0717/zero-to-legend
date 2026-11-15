@@ -193,8 +193,8 @@
       "per": 1,
       "costs": [
         600,
-        1200,
-        2000
+        1800,
+        5400
       ]
     }
   ],
@@ -308,17 +308,17 @@
       "smartPistol",
       "mantisBlade",
       "hackDrone",
-      "plasmaGrenade"
+      "plasmaGrenade",
+      "shotgun",
+      "monowire"
     ],
     "prices": {
-      "monowire": 600,
-      "shotgun": 600,
-      "arcCoil": 800,
-      "empField": 800,
-      "proxMine": 900,
-      "microMissile": 1000,
-      "turret": 1000,
-      "railgun": 1200
+      "arcCoil": 3000,
+      "empField": 3000,
+      "proxMine": 3500,
+      "microMissile": 4000,
+      "turret": 4500,
+      "railgun": 5000
     }
   }
 }

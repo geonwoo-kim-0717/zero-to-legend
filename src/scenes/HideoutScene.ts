@@ -4,7 +4,7 @@ import Phaser from 'phaser';
 import { BASE_TEXT, setupCamera } from '../ui/text';
 import { Sound } from '../systems/Sound';
 import { addMuteToggle, addFullscreenToggle, addLangToggle } from '../ui/MuteToggle';
-import { notify } from '../systems/Fullscreen';
+import { notify, isTouch } from '../systems/Fullscreen';
 import { VIEW_W, VIEW_H, COLORS } from '../config';
 import meta from '../data/meta.json';
 import weapons from '../data/weapons.json';
@@ -82,7 +82,8 @@ export class HideoutScene extends Phaser.Scene {
     const kb = this.input.keyboard!;
     kb.on('keydown-ENTER', () => (this.board ? undefined : this.dlg ? this.dlgNext() : this.deploy()));
     kb.on('keydown-SPACE', () => this.dlg && this.dlgNext());
-    if (Ads.provider !== 'crazygames') kb.on('keydown-ESC', () => this.scene.start('Title'));
+    // 대화 중 Esc = 대화 건너뛰기, 아니면 타이틀로
+    if (Ads.provider !== 'crazygames') kb.on('keydown-ESC', () => (this.dlg ? this.dlgSkip() : this.scene.start('Title')));
     TABS.forEach((id, i) => kb.on(`keydown-${['ONE', 'TWO', 'THREE', 'FOUR'][i]}`, () => !this.dlg && !this.board && this.setTab(id)));
     kb.on('keydown-LEFT', () => !this.dlg && this.tab === 'bar' && this.cycleRunner(-1));
     kb.on('keydown-RIGHT', () => !this.dlg && this.tab === 'bar' && this.cycleRunner(1));
@@ -152,7 +153,28 @@ export class HideoutScene extends Phaser.Scene {
       });
     } else {
       d.box.add(this.add.text(VIEW_W - 34, y + 74, `${d.i + 1}/${d.lines.length}  ▶`, T(10, '#8a7aa8')).setOrigin(1, 0));
+      // 건너뛰기: 남은 줄을 넘긴다 (선택지가 있으면 선택지 줄까지)
+      const sk = this.add
+        .text(VIEW_W - 26, y - 22, isTouch() || Ads.provider === 'crazygames' ? tr('dialog.skip.touch') : tr('dialog.skip'), { ...T(11, '#e8f7ff'), backgroundColor: '#1a1030', padding: { x: 8, y: 3 } })
+        .setOrigin(1, 0)
+        .setInteractive({ useHandCursor: true });
+      sk.on('pointerup', (_p: Phaser.Input.Pointer, _x: number, _y: number, e: Phaser.Types.Input.EventData) => {
+        e.stopPropagation();
+        this.dlgSkip();
+      });
+      d.box.add(sk);
     }
+  }
+
+  /** 대화 건너뛰기: 선택지가 있으면 선택지 줄로, 없으면 대화를 끝낸다 */
+  private dlgSkip(): void {
+    const d = this.dlg;
+    if (!d) return;
+    if (d.choices) {
+      if (d.i >= d.lines.length - 1) return;
+      d.i = d.lines.length - 2;
+    } else d.i = d.lines.length - 1;
+    this.dlgNext();
   }
 
   /** 첫 게임오버 뒤 진·리퍼닥 안내 (모든 저장에 한 번) */
@@ -179,11 +201,11 @@ export class HideoutScene extends Phaser.Scene {
     }
     if (d.stats.runs < 1) return;
     if (d.tut === 0) {
-      const own = d.market.includes('monowire');
-      const price = (meta.market.prices as Record<string, number>).monowire;
-      const topup = !own && d.credits < price && !d.tutTopup;
-      // 첫 판에서 크레딧을 넉넉히 벌어 왔으면 (모노와이어 + 광전사 칩 + 여유) 진·리퍼닥이 알아챈다
-      const rich = !own && d.credits >= TUT_RICH;
+      // 시뮬레이션 칩 값이 모자라면 진이 채워 준다 (한 번)
+      const price = meta.clinic.find((c) => c.id === 'startPick')!.costs[0];
+      const topup = d.credits < price && !d.tutTopup;
+      // 첫 판에서 크레딧을 넉넉히 벌어 왔으면 (시뮬레이션 칩 + 광전사 칩 + 여유) 진·리퍼닥이 알아챈다
+      const rich = d.credits >= TUT_RICH;
       d.tutRich = rich;
       // 첫 판에 엔딩까지 봤으면 쓰러진 걸 수거한 게 아니다
       const lines = d.lastWin
@@ -191,25 +213,25 @@ export class HideoutScene extends Phaser.Scene {
         : rich
           ? [L('jin', 'tut.a1'), L('jin', 'tut.a2r'), L('jin', 'tut.a3r')]
           : [L('jin', 'tut.a1'), L('jin', 'tut.a2'), L('jin', 'tut.a3')];
-      if (topup) lines.push(L('doc', 'tut.a4'));
-      if (!own) lines.push(L('jin', 'tut.a5'));
+      // 블랙마켓을 보여 주며 밀수 무기 안내 (구매는 강요하지 않음) → 리퍼닥 시뮬레이션 칩
       this.talk(lines, () => {
-        if (topup) {
-          d.credits = price;
-          d.tutTopup = true;
-        }
-        d.tut = own ? 2 : 1;
-        Save.write();
-        if (own) this.tutorialB();
-        else {
-          this.tab = 'market';
-          this.refresh();
-        }
+        this.tab = 'market';
+        this.refresh();
+        this.talk([L('jin', 'tut.a5'), ...(topup ? [L('jin', 'tut.a4')] : [])], () => {
+          if (topup) {
+            d.credits = price;
+            d.tutTopup = true;
+          }
+          d.tut = 1;
+          Save.write();
+          this.tutorialB();
+        });
       });
       return;
     }
     if (d.tut === 1) {
-      if (d.market.includes('monowire')) this.tutorialB();
+      // 예전 저장(모노와이어 구매 대기)도 바로 다음 단계로
+      this.tutorialB();
       return;
     }
     if (d.tut === 2) {
@@ -279,7 +301,7 @@ export class HideoutScene extends Phaser.Scene {
     }
   }
 
-  /** 모노와이어를 산 뒤: 진이 리퍼닥으로 보내고, 리퍼닥이 시뮬레이션 칩 팁 */
+  /** 블랙마켓 안내 뒤: 진이 리퍼닥으로 보내고, 리퍼닥이 시뮬레이션 칩 팁 */
   private tutorialB(): void {
     const runner = Save.runner().name;
     this.talk([{ who: 'jin', text: tr('tut.b1', { runner }) }], () => {
@@ -717,7 +739,7 @@ export class HideoutScene extends Phaser.Scene {
       const x = PX + 10 + col * 232;
       const y = PY + 30 + row * 57;
       const off = have && Save.data.marketOff.includes(id);
-      const guide = Save.data.tut === 1 && id === 'monowire' && !have;
+      const guide = false;
       this.panel.add(this.add.rectangle(x, y, 226, 54, have && !off ? 0x1a1040 : 0x140c2a, 1).setOrigin(0).setStrokeStyle(guide ? 2 : 1, guide ? COLORS.magenta : have && !off ? COLORS.cyan : 0x3a2466));
       if (guide) this.panel.add(this.add.text(x + 220 - 70, y + 6, '▶', T(11, '#ff2bd6')).setOrigin(1, 0));
       this.panel.add(this.add.image(x + 18, y + 27, `icon_${id}`).setScale(2).setAlpha(off ? 0.35 : 1));
