@@ -409,6 +409,21 @@
       "trooper_sniper"
     ]
   },
+  "director": {
+    "ranged": ["gunner", "corrupt_cop", "sniper_turret"],
+    "nearR": 150,
+    "nearLow": 15,
+    "nearHigh": 45,
+    "lowHpCount": 0.55,
+    "denseCount": 0.4,
+    "rangedCap": 10,
+    "rangedMin": 0.2,
+    "rangedMax": 1.6,
+    "killLow": 0.5,
+    "killHigh": 1.0,
+    "killWindow": 20,
+    "packSpread": 25
+  },
   "squadBrain": {
     "think": 0.25,
     "stick": 0.05,

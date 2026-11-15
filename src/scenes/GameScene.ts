@@ -32,6 +32,7 @@ import { Ads } from '../systems/Ads';
 import type { RunResult } from './ResultScene';
 import { t as tr, I18n } from '../i18n';
 import { pickAct, roleOf, type Role } from '../systems/SquadBrain';
+import { RANGED, type DirSense } from '../systems/Director';
 import visorAnchors from '../data/visor_anchors.json';
 
 /** 공격 상태가 없는 접촉형 적: 플레이어에게 붙으면 공격 그림 */
@@ -227,6 +228,23 @@ export class GameScene extends Phaser.Scene implements GameContext {
   private raidDropping = 0;
   /** 적 그림별 걷기 루프 프레임 수 (<id>_walk_NN, 0이면 없음) */
   private walkFrames = new Map<string, number>();
+  /** 스폰 디렉터가 볼 지금 상황: 플레이어 체력, 주변 적 수, 원거리 수, 처치 속도 */
+  private killTimes: number[] = [];
+  private directorSense(): DirSense {
+    const D = gameData.director;
+    const p = this.player;
+    while (this.killTimes.length && this.killTimes[0] < this.elapsed - D.killWindow) this.killTimes.shift();
+    let near = 0;
+    let ranged = 0;
+    for (const e of this.enemyPool.items) {
+      if (!e.active || e.isBoss) continue;
+      if ((e.x - p.x) ** 2 + (e.y - p.y) ** 2 < D.nearR * D.nearR) near++;
+      if (RANGED.has(e.id)) ranged++;
+    }
+    const spawned = this.spawner.recentSpawns(this.elapsed, D.killWindow);
+    return { playerHp: Math.max(0, p.hp) / p.maxHp, near, ranged, killRatio: spawned ? this.killTimes.length / spawned : 1 };
+  }
+
   /** 디버그(F1): 블랙 실드 머리 위에 지금 행동과 상위 점수 표시 */
   private squadDbg = new Map<Enemy, Phaser.GameObjects.Text>();
   private drawSquadDebug(): void {
@@ -1429,7 +1447,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
     if (nextBoss && !this.boss && !this.raid && this.transitionT <= 0 && zt >= nextBoss.time) this.spawnBoss(nextBoss);
     if (this.transitionT <= 0) this.updateRaid(dt);
     this.drawArena(dt);
-    if (this.transitionT <= 0) this.spawner.update(dt, zt, zt, (wavesData as Record<string, Wave[]>)[this.zone.id], p.x, p.y, this.zoneHpMul(zt), this.zoneSpawnMul(zt));
+    if (this.transitionT <= 0) this.spawner.update(dt, zt, zt, (wavesData as Record<string, Wave[]>)[this.zone.id], p.x, p.y, this.zoneHpMul(zt), this.zoneSpawnMul(zt), this.directorSense(), this.elapsed);
     this.updateZoneRule(dt);
     if (this.transitionT <= 0) this.updateCounters(dt, zt);
     this.thornT -= dt;
@@ -1894,6 +1912,8 @@ export class GameScene extends Phaser.Scene implements GameContext {
 
   private killEnemy(e: Enemy): void {
     this.kills++;
+    // 스폰 디렉터 처치 속도용 (보스·진압대 제외)
+    if (!e.isBoss && !e.id.startsWith('trooper_')) this.killTimes.push(this.elapsed);
     if (e.isBoss) {
       const def = this.bossDef!;
       this.boss = null;
@@ -3784,7 +3804,11 @@ export class GameScene extends Phaser.Scene implements GameContext {
     this.hud.debug.setText(
       this.debug
         ? `FPS ${this.game.loop.actualFps.toFixed(0)}\nENEMY ${this.enemyPool.countActive()}\nBULLET ${this.bullets.countActive()}\n` +
-            `HP ${Math.ceil(p.hp)}/${p.maxHp}${this.god ? ' GOD' : ''}\n[N]+100 [T]+60s [L]lvl\n[G]god [O]ability\n${tr('debug.rarity')}`
+            `HP ${Math.ceil(p.hp)}/${p.maxHp}${this.god ? ' GOD' : ''}\n[N]+100 [T]+60s [L]lvl\n[G]god [O]ability\n${tr('debug.rarity')}` +
+            (this.spawner.last
+              ? `\nDIR 수x${this.spawner.last.countMul.toFixed(2)} 원거리x${this.spawner.last.rangedMul.toFixed(2)} 포위${this.spawner.last.surround.toFixed(2)}` +
+                `\n  hp${this.spawner.last.score.hp.toFixed(2)} 밀도${this.spawner.last.score.dense.toFixed(2)} 여유${this.spawner.last.score.room.toFixed(2)} 처치${this.spawner.last.score.kill.toFixed(2)}`
+              : '')
         : '',
     );
   }
