@@ -120,7 +120,7 @@
         "maxDist": 200,
         "aim": 0.6,
         "range": 260,
-        "speed": 600,
+        "speed": 1860,
         "damage": 10,
         "pullTime": 0.35,
         "pullTo": 30,

@@ -242,6 +242,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
   private hook = { len: 0, ax: 1, ay: 0, px: 0, py: 0, t: 0 };
   private hookChain: Phaser.GameObjects.TileSprite | null = null;
   private hookHead: Phaser.GameObjects.Image | null = null;
+  private hookTrail: Phaser.GameObjects.Image | null = null;
   /** 최종 보스전의 붉은 홀로그램 경계 (월드 좌표) */
   private arena: { x: number; y: number; w: number; h: number; t: number } | null = null;
   private arenaG!: Phaser.GameObjects.Graphics;
@@ -524,6 +525,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
     // 갈고리 사슬·머리는 장면과 함께 사라졌으므로 다시 만든다
     this.hookChain = null;
     this.hookHead = null;
+    this.hookTrail = null;
     this.bossDef = null;
     this.bossesSpawned = 0;
     this.god = false;
@@ -2016,6 +2018,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
       this.boss = null;
       this.hookChain?.setVisible(false);
       this.hookHead?.setVisible(false);
+      this.hookTrail?.setVisible(false);
       this.bossDef = null;
       e.kill();
       const color = def.final ? 0xff2a3a : COLORS.orange;
@@ -3176,11 +3179,16 @@ export class GameScene extends Phaser.Scene implements GameContext {
         this.playSheet('fx_hook_flash', 3, hand.x, hand.y, 0.5, 0.5, 20, 13);
       }
     } else if (ph === 'hookFly') {
+      const len0 = h.len;
       h.len = Math.min(hk.range, h.len + hk.speed * dt);
       const hx = hand.x + h.ax * h.len;
       const hy = hand.y + h.ay * h.len;
+      // 매우 빨라 한 프레임에 수십 px를 가므로, 이번 프레임에 지나간 구간 전체로 맞았는지 본다
+      const along = Phaser.Math.Clamp((p.x - hand.x) * h.ax + (p.y - hand.y) * h.ay, len0, h.len);
+      const cx = hand.x + h.ax * along;
+      const cy = hand.y + h.ay * along;
       // 대시(무적) 중이거나 방금 맞아 무적이면 그대로 지나간다
-      if (p.invuln <= 0 && !p.dashing && (p.x - hx) ** 2 + (p.y - hy) ** 2 < (p.radius + 8) ** 2) {
+      if (p.invuln <= 0 && !p.dashing && (p.x - cx) ** 2 + (p.y - cy) ** 2 < (p.radius + 8) ** 2) {
         this.hurtPlayer(hk.damage, { kind: 'boss', id: b.id });
         this.playSheet('fx_hook_hit', 3, hx, hy, 0.5, 0.5, 20, 13);
         this.shake(120, 0.01);
@@ -3241,6 +3249,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
     if (!on || this.hook.len <= 1 || !this.textures.exists('midboss_hook_chain')) {
       this.hookChain?.setVisible(false);
       this.hookHead?.setVisible(false);
+      this.hookTrail?.setVisible(false);
       return;
     }
     const M = BOSS_ANIM[def.id]?.hook as { chainTile?: { h: number; barRow: number }; head?: { w: number; h: number; join: number[] } } | undefined;
@@ -3262,6 +3271,19 @@ export class GameScene extends Phaser.Scene implements GameContext {
       .setOrigin(j[0] / hw, left ? 1 - (j[1] + 0.5) / hh : (j[1] + 0.5) / hh)
       .setRotation(a)
       .setFlipY(left);
+    // 날아가는 동안 사슬 앞쪽 위에 속도 잔상 (오른쪽 끝 = 갈고리 머리, 가운데 줄 = 사슬 줄)
+    if (this.textures.exists('fx_hook_trail')) {
+      this.hookTrail ??= this.add.image(0, 0, 'fx_hook_trail', '0').setDepth(12.55);
+      const fly = this.bossPhase === 'hookFly' && len > 12;
+      this.hookTrail
+        .setVisible(fly)
+        .setFrame(String(Math.floor(this.elapsed * 20) % 3))
+        .setPosition(hand.x + Math.cos(a) * len, hand.y + Math.sin(a) * len)
+        .setOrigin(1, 0.5)
+        .setRotation(a)
+        .setFlipY(left)
+        .setAlpha(Math.min(1, len / 48));
+    }
   }
 
   /** 점프 내리찍기 착지 범위: 떨어질 자리에 붉은 원, 착지가 가까울수록 안쪽이 차오른다 */
