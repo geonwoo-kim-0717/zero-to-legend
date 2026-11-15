@@ -73,6 +73,9 @@ function josa(name: string, a: string, b: string): string {
   return (c - 0xac00) % 28 ? a : b;
 }
 
+/** 진압대 걷기 루프 재생 속도 (아트: 한 걸음 주기 1초) */
+const WALK_FPS = 12;
+
 export class GameScene extends Phaser.Scene implements GameContext {
   // GameContext
   player!: Player;
@@ -217,6 +220,26 @@ export class GameScene extends Phaser.Scene implements GameContext {
   private raidDropping = 0;
   /** 적 그림별 걷기 루프 프레임 수 (<id>_walk_NN, 0이면 없음) */
   private walkFrames = new Map<string, number>();
+  /** 적 걷기 그림(없으면 기본 그림)에서 발부터 머리 꼭대기까지 높이 (체력바 위치용) */
+  private bodyTops = new Map<string, number>();
+  private bodyTop(tex: string): number {
+    let h = this.bodyTops.get(tex);
+    if (h !== undefined) return h;
+    const key = this.textures.exists(`${tex}_walk_00`) ? `${tex}_walk_00` : tex;
+    const img = this.textures.get(key).getSourceImage() as HTMLImageElement | HTMLCanvasElement;
+    const cv = document.createElement('canvas');
+    cv.width = img.width;
+    cv.height = img.height;
+    const cx = cv.getContext('2d')!;
+    cx.drawImage(img, 0, 0);
+    const a = cx.getImageData(0, 0, img.width, img.height).data;
+    let top = 0;
+    find: for (; top < img.height; top++) for (let x = 0; x < img.width; x++) if (a[(top * img.width + x) * 4 + 3] > 0) break find;
+    // 걷기 그림은 발이 맨 아랫줄이라 (높이 - 맨 윗줄)이 곧 몸 높이
+    h = img.height - top;
+    this.bodyTops.set(tex, h);
+    return h;
+  }
   private raid: {
     phase: 'in' | 'hover' | 'out';
     t: number;
@@ -1514,7 +1537,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
         else if (e.id === 'trooper_hacker') this.hackerAi(e, dt, dx, dy, d, slow, (x, y) => ((vx = x), (vy = y)));
         // 그림이 오른쪽을 보고 있으므로 플레이어가 왼쪽에 있으면 뒤집는다 (드론은 대칭이라 그대로)
         if (e.id !== 'drone') e.sprite.setFlipX(dx < 0);
-        this.animateEnemy(e, dt, d);
+        this.animateEnemy(e, dt, d, vx);
         // 주변 적과 겹치지 않도록 밀어냄
         for (const o of this.grid.query(e.x, e.y, e.radius * 2, this.near)) {
           if (o === e) continue;
@@ -2593,7 +2616,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
    * 공격 중(예고·돌진, 사격·순간이동 직후, 접촉형은 26px 안)에는 <id>_aim 그림을 쓴다.
    * 저격 터렛은 조준선 동안이 아니라 발사하는 순간에만 공격 그림.
    */
-  private animateEnemy(e: Enemy, dt: number, d: number): void {
+  private animateEnemy(e: Enemy, dt: number, d: number, vx = 0): void {
     const base = e.tex;
     const hasAtk = this.textures.exists(`${base}_atk_00`);
     if (hasAtk && this.animateTrooper(e, d)) return;
@@ -2605,7 +2628,10 @@ export class GameScene extends Phaser.Scene implements GameContext {
       this.walkFrames.set(base, n);
     }
     if (n > 0) {
-      const wk = `${base}_walk_${String(Math.floor(this.elapsed * 12 + e.x * 0.03) % n).padStart(2, '0')}`;
+      // 바라보는 쪽(플레이어 쪽)과 반대로 움직이면(뒷걸음·회피·도주) 걷기를 거꾸로 재생
+      const back = Math.abs(vx) > 5 && vx < 0 !== e.sprite.flipX;
+      e.walkPh = (((e.walkPh + dt * WALK_FPS * (back ? -1 : 1)) % n) + n) % n;
+      const wk = `${base}_walk_${String(Math.floor(e.walkPh)).padStart(2, '0')}`;
       if (e.sprite.originY !== 1) {
         e.footOff = this.textures.get(e.tex).getSourceImage().height / 2;
         e.sprite.setOrigin(0.5, 1);
@@ -3543,8 +3569,10 @@ export class GameScene extends Phaser.Scene implements GameContext {
     // 진압대원 체력 바
     for (const e of this.enemyPool.items) {
       if (!e.active || e.isBoss || e.maxHp < 1000) continue;
+      // 강하·착지 중(무적)에는 숨기고, 무적이 풀리면 머리 위에 표시
+      if (e.dropT > 0 || e.landT > 0) continue;
       const ex = e.x - cam.scrollX - 11;
-      const ey = e.y - cam.scrollY - 18;
+      const ey = e.y - cam.scrollY + (e.sprite.originY === 1 ? e.footOff - this.bodyTop(e.tex) : -18) - 5;
       g.fillStyle(0x30000a).fillRect(ex, ey, 22, 3);
       g.fillStyle(0xff2a3a).fillRect(ex, ey, (22 * Math.max(0, e.hp)) / e.maxHp, 3);
     }
