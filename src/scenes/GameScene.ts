@@ -634,6 +634,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
     this.speedBtn = null;
     this.gameSpeed = Save.data.speedUnlocked && Save.data.speed2 ? 2 : 1;
     if (Save.data.speedUnlocked) this.makeSpeedBtn();
+    if (AI_SHOW) this.makeAiTools();
     // 1챕터 의뢰 브리핑
     // 첫 판: 진과 처음 만나는 대사 (아직 빚이 없다). 두 번째 판부터: 리퍼닥 수리비를 갚으라는 대사
     // 첫 판: 진과 첫 만남 · 지난 판 클리어: 새 주인 밑의 하층가 · 지난 판 2챕터 이상에서 쓰러짐: 바실리 백업 의체 · 그 밖: 빚 갚기
@@ -1117,6 +1118,34 @@ export class GameScene extends Phaser.Scene implements GameContext {
     const cy = b.height / 2;
     g.clear().fillStyle(ink);
     for (let i = 0; i < v; i++) g.fillTriangle(7 + i * 8, cy - 5, 7 + i * 8, cy + 5, 14 + i * 8, cy);
+  }
+
+  /** AI 점수 표시 빌드 전용: 3배속·무적 켜기/끄기 (관찰·테스트용, 저장하지 않음) */
+  private makeAiTools(): void {
+    const mk = (y: number, label: () => string, toggle: () => void) => {
+      const t = this.add
+        .text(VIEW_W - 8, y, label(), { ...TEXT, fontSize: '10px', color: '#fff23a', backgroundColor: '#1a1030', padding: { x: 6, y: 2 } })
+        .setOrigin(1, 0)
+        .setScrollFactor(0)
+        .setDepth(160)
+        .setInteractive({ useHandCursor: true });
+      t.on('pointerdown', (_p: Phaser.Input.Pointer, _x: number, _y: number, e: Phaser.Types.Input.EventData) => {
+        e.stopPropagation();
+        toggle();
+        t.setText(label());
+        Sound.play('select');
+      });
+      return t;
+    };
+    let normal = this.gameSpeed;
+    mk(66, () => `3배속: ${this.gameSpeed === 3 ? '켬' : '끔'}`, () => {
+      if (this.gameSpeed === 3) this.gameSpeed = normal;
+      else {
+        normal = this.gameSpeed;
+        this.gameSpeed = 3;
+      }
+    });
+    mk(84, () => `무적: ${this.god ? '켬' : '끔'}`, () => (this.god = !this.god));
   }
 
   /** 2챕터 첫 도달: 픽서가 넘겨 준 가속 모듈 제어 코드로 배속 버튼이 열린다 */
