@@ -17,7 +17,7 @@ const ENEMY_IDS = Object.keys(enemies);
 const ENEMY_SKINS = ['guard_baton', 'guard_rifle', 'guard_shotgun', 'guard_charger', 'spider_bot'];
 const RIM: [number, number, number] = [0x8a, 0x7a, 0xa8];
 function isEnemyKey(key: string): boolean {
-  const base = key.replace(/_(w1|w2|aim|charge)$/, '');
+  const base = key.replace(/_(w1|w2|aim|charge|drop|land|walk_\d+|atk_\d+)$/, '');
   return ENEMY_IDS.includes(base) || ENEMY_SKINS.includes(base);
 }
 function rimLight(img: HTMLImageElement): HTMLCanvasElement {

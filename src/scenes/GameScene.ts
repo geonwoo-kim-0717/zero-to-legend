@@ -215,6 +215,8 @@ export class GameScene extends Phaser.Scene implements GameContext {
   private raidCount = 0;
   /** 습격 대원 중 아직 착지하지 않은 수 (0이 되면 줄였던 소리를 되돌림) */
   private raidDropping = 0;
+  /** 적 그림별 걷기 루프 프레임 수 (<id>_walk_NN, 0이면 없음) */
+  private walkFrames = new Map<string, number>();
   private raid: {
     phase: 'in' | 'hover' | 'out';
     t: number;
@@ -2595,6 +2597,22 @@ export class GameScene extends Phaser.Scene implements GameContext {
     const base = e.tex;
     const hasAtk = this.textures.exists(`${base}_atk_00`);
     if (hasAtk && this.animateTrooper(e, d)) return;
+    // 걷기 루프 그림(<id>_walk_NN)이 있으면 12fps로 재생. 공격 그림과 같은 발 기준(origin 0.5,1)
+    let n = this.walkFrames.get(base);
+    if (n === undefined) {
+      n = 0;
+      while (this.textures.exists(`${base}_walk_${String(n).padStart(2, '0')}`)) n++;
+      this.walkFrames.set(base, n);
+    }
+    if (n > 0) {
+      const wk = `${base}_walk_${String(Math.floor(this.elapsed * 12 + e.x * 0.03) % n).padStart(2, '0')}`;
+      if (e.sprite.originY !== 1) {
+        e.footOff = this.textures.get(e.tex).getSourceImage().height / 2;
+        e.sprite.setOrigin(0.5, 1);
+      }
+      if (e.sprite.texture.key !== wk) e.sprite.setTexture(wk);
+      return;
+    }
     if (e.sprite.originY === 1) e.sprite.setOrigin(0.5);
     if (!this.textures.exists(`${base}_w2`)) return;
     e.atkT = Math.max(0, e.atkT - dt);
