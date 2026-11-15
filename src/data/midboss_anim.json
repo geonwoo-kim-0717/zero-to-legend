@@ -68,10 +68,10 @@
    ]
   ],
   "chainTile": {
-   "w": 11,
+   "w": 12,
    "h": 5,
    "barRow": 2,
-   "note": "chain left edge at chainEnd.x-1, top at chainEnd.y-2; tile repeats every 11px (2 links), any crop stays connected"
+   "note": "chain left edge at chainEnd.x-1, top at chainEnd.y-2; tile repeats every 12px (4 links), any crop stays connected"
   },
   "head": {
    "w": 17,
