@@ -52,7 +52,7 @@ const ZONES = zonesData.zones;
 const ZR = gameData.zoneRules;
 /** 왼쪽 위 체력바 폭 */
 const HP_W = 120;
-type BossPhase = 'walk' | 'aim' | 'charge';
+type BossPhase = 'walk' | 'aim' | 'charge' | 'leap' | 'air' | 'slam';
 /** 블랙 실드 요원 공격 그림·이펙트 (아트 tools/art/sprites2026/scripts/troopers6/keys/atk_meta.json) */
 const TROOPER_ATK = {
   tank: { ms: [90, 110, 140, 70, 90, 120, 110, 100], size: [54, 48], fxStart: 4, anchor: [47, 27], fx: 'fx_shield_bash', fxN: 8, fxSize: [64, 40], pivot: [32, 18] },
@@ -65,6 +65,10 @@ const DROP = { fall: 0.45, stagger: 0.12, land: 0.7 };
 /** 블랙 실드 이송기가 착지 지점 위로 떠 있는 높이 (그림 112x55 기준) */
 const SHIP_LIFT = 44;
 type BossDef = (typeof gameData.bosses)[number];
+/** 점프 내리찍기 (game.json bosses[].slam) */
+type SlamDef = { minDist: number; leap: number; air: number; airSwing: number; recover: number; height: number; radius: number; damage: number; knock: number; leapFrames: number[]; airFrames: number[]; airRise: number; swingFrames: number[]; landFrames: number[] };
+/** 분노 (game.json bosses[].enrage) */
+type EnrageDef = { at: number; mul: number; tint: string };
 /** 보스 동작별 프레임 설정 (game.json bosses[].anim) */
 type BossAnim = { walkFps: number; scale: number; motionScale: Record<string, number>; footY: number; chargeWind: number[]; chargeFlash: number; chargeRun: number[]; chargeFlashTime: number };
 /** 아트가 주는 보스 동작별 프레임 정보 (프레임 수·캔버스 크기·허리 위치) */
@@ -221,6 +225,10 @@ export class GameScene extends Phaser.Scene implements GameContext {
   private bossMissile = 2;
   /** 보스 공격 모션을 보여줄 남은 시간 */
   private bossAtkT = 0;
+  /** 점프 내리찍기: 뛰어오른 자리, 떨어질 자리 / 분노 중인지 */
+  private bossFrom = { x: 0, y: 0 };
+  private bossTo = { x: 0, y: 0 };
+  private bossEnraged = false;
   /** 최종 보스전의 붉은 홀로그램 경계 (월드 좌표) */
   private arena: { x: number; y: number; w: number; h: number; t: number } | null = null;
   private arenaG!: Phaser.GameObjects.Graphics;
@@ -1757,7 +1765,8 @@ export class GameScene extends Phaser.Scene implements GameContext {
       const rr = p.radius + e.radius;
       // 근접 요원은 몸으로 부딪혀선 피해를 주지 않고 진압봉 휘두르기로만 (돌진은 이동)
       const swingOnly = !!(gameData.melee as Record<string, MeleeDef>)[e.id]?.swing;
-      if (!swingOnly && e.charmT <= 0 && p.invuln <= 0 && (p.x - e.x) ** 2 + (p.y - e.y) ** 2 < rr * rr) {
+      const airborne = e === this.boss && (this.bossPhase === 'leap' || this.bossPhase === 'air');
+      if (!swingOnly && !airborne && e.charmT <= 0 && p.invuln <= 0 && (p.x - e.x) ** 2 + (p.y - e.y) ** 2 < rr * rr) {
         const hp0 = p.hp;
         this.hurtPlayer(e.damage, { kind: e.isBoss ? 'boss' : 'contact', id: e.id });
         // 가시 갑주: 받은 피해의 3배를 돌려줌 · 거구: 일반 적을 밀어냄
@@ -2959,6 +2968,8 @@ export class GameScene extends Phaser.Scene implements GameContext {
     let idx: number;
     const n = (m: string) => M[m]?.frames ?? 0;
     const P2 = this.bossPhase2 ? (def as { phase2?: Phase2 }).phase2 : undefined;
+    const sl = (def as { slam?: SlamDef }).slam;
+    let lift = 0;
     if (ph === 'aim' && n('charge') > 0) {
       // 예고: 예고 프레임(chargeWind)을 예고 시간에 맞춰 한 번 재생
       const k = Phaser.Math.Clamp(1 - this.bossTimer / (P2?.aimTime ?? def.aimTime), 0, 0.999);
@@ -2972,6 +2983,30 @@ export class GameScene extends Phaser.Scene implements GameContext {
       const [r0, r1] = A.chargeRun;
       motion = 'charge';
       idx = t < A.chargeFlashTime ? A.chargeFlash : r0 + Math.min(r1 - r0, Math.floor(((t - A.chargeFlashTime) / Math.max(0.01, total - A.chargeFlashTime)) * (r1 - r0 + 1)));
+    } else if ((ph === 'leap' || ph === 'air' || ph === 'slam') && sl) {
+      // 점프 내리찍기: 웅크렸다 도약(leap) → 공중(도약 마지막 장, 착지 직전엔 칼 휘두르기) → 착지(slam)
+      const rage = this.bossEnraged ? ((def as { enrage?: EnrageDef }).enrage?.mul ?? 1) : 1;
+      const span = (r: number[], k: number) => r[0] + Math.min(r[1] - r[0], Math.floor(Phaser.Math.Clamp(k, 0, 0.999) * (r[1] - r[0] + 1)));
+      if (ph === 'leap') {
+        motion = 'leap';
+        idx = span(sl.leapFrames, 1 - this.bossTimer / (sl.leap / rage));
+      } else if (ph === 'air') {
+        const swing = sl.airSwing / rage;
+        if (this.bossTimer > swing) {
+          // 떠오르는 프레임(airFrames)을 airRise초 동안 재생하고 마지막 장 유지
+          motion = 'leap';
+          idx = span(sl.airFrames, (sl.air / rage - this.bossTimer) / sl.airRise);
+        } else {
+          motion = 'slam';
+          idx = span(sl.swingFrames, 1 - this.bossTimer / swing);
+        }
+        // 공중 높이: 포물선
+        const k = Phaser.Math.Clamp(1 - this.bossTimer / (sl.air / rage), 0, 1);
+        lift = Math.sin(k * Math.PI) * sl.height;
+      } else {
+        motion = 'slam';
+        idx = span(sl.landFrames, 1 - this.bossTimer / sl.recover);
+      }
     } else {
       motion = 'walk';
       b.walkPh = (b.walkPh + dt * A.walkFps) % n('walk');
@@ -2981,14 +3016,14 @@ export class GameScene extends Phaser.Scene implements GameContext {
     if (!this.textures.exists(key)) return false;
     if (b.sprite.texture.key !== key) b.sprite.setTexture(key);
     // 그림은 오른쪽을 본다. 뒤집으면 허리 위치(originX)도 반대쪽으로
-    const flip = ph === 'charge' || ph === 'aim' ? this.bossDir.x < 0 : this.player.x < b.x;
+    const flip = ph === 'charge' || ph === 'aim' || ph === 'leap' || ph === 'air' || ph === 'slam' ? this.bossDir.x < 0 : this.player.x < b.x;
     const ox = M[motion].originX;
     b.sprite.setFlipX(flip).setOrigin(flip ? 1 - ox : ox, 1);
     const sc = this.bossAnimScale(def, motion);
     if (!this.tweens.isTweening(b.sprite)) b.sprite.setScale(sc);
     b.footOff = A.footY;
     const jitter = ph === 'aim' && !Settings.reducedFx ? (Math.random() - 0.5) * 2 : 0;
-    b.sprite.setPosition(b.x + jitter, b.y + A.footY);
+    b.sprite.setPosition(b.x + jitter, b.y + A.footY - lift);
     return true;
   }
 
@@ -2998,6 +3033,41 @@ export class GameScene extends Phaser.Scene implements GameContext {
     if (!A) return BOSS_SCALE;
     const m = motion ?? this.boss?.sprite.texture.key.match(/_(walk|leap|charge|slam|hook)_\d+$/)?.[1] ?? 'walk';
     return BOSS_SCALE * A.scale * (A.motionScale[m] ?? 1);
+  }
+
+  /** 점프 내리찍기 착지 범위: 떨어질 자리에 붉은 원, 착지가 가까울수록 안쪽이 차오른다 */
+  private drawSlamMark(sl: SlamDef): void {
+    const rage = this.bossEnraged ? ((this.bossDef as { enrage?: EnrageDef }).enrage?.mul ?? 1) : 1;
+    const total = (sl.leap + sl.air) / rage;
+    const left = this.bossPhase === 'leap' ? this.bossTimer + sl.air / rage : this.bossTimer;
+    const k = Phaser.Math.Clamp(1 - left / total, 0, 1);
+    const { x, y } = this.bossTo;
+    this.fx.fillStyle(0xff2a3a, 0.1 + 0.15 * k).fillEllipse(x, y, sl.radius * 2, sl.radius * 1.2);
+    this.fx.fillStyle(0xff2a3a, 0.25).fillEllipse(x, y, sl.radius * 2 * k, sl.radius * 1.2 * k);
+    this.fx.lineStyle(2, 0xff2a3a, 0.5 + Math.sin(this.elapsed * 30) * 0.3).strokeEllipse(x, y, sl.radius * 2, sl.radius * 1.2);
+  }
+
+  /** 점프 내리찍기 착지: 범위 안이면 피해 + 밀려남, 충격파·흔들림 */
+  private slamLand(b: Enemy, sl: SlamDef): void {
+    const p = this.player;
+    // 바닥 범위는 납작한 타원(가로 radius, 세로 0.6배)
+    const nx = (p.x - b.x) / sl.radius;
+    const ny = (p.y - b.y) / (sl.radius * 0.6);
+    if (p.invuln <= 0 && nx * nx + ny * ny <= 1) {
+      this.hurtPlayer(sl.damage, { kind: 'boss', id: b.id });
+      const d = Math.hypot(p.x - b.x, p.y - b.y);
+      // 정중앙에 맞으면 보스가 뛰어온 방향으로 밀어낸다
+      const ux = d > 1 ? (p.x - b.x) / d : this.bossDir.x;
+      const uy = d > 1 ? (p.y - b.y) / d : this.bossDir.y;
+      p.x += ux * sl.knock;
+      p.y += uy * sl.knock;
+    }
+    const ring = this.add.ellipse(b.x, b.y, sl.radius * 2, sl.radius * 1.2).setStrokeStyle(3, 0xffa040, 0.9).setDepth(11);
+    ring.setScale(0.3);
+    this.tweens.add({ targets: ring, scale: 1.25, alpha: 0, duration: 380, ease: 'Quad.easeOut', onComplete: () => ring.destroy() });
+    this.burst(b.x, b.y, 0xffa040, 18);
+    this.shake(220, 0.014);
+    Sound.play('explode');
   }
 
   /** 소환·탄막 때 보스가 한 번 들썩인다 */
@@ -3348,6 +3418,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
     if (e.flash > 0) return;
     if (e.charmT > 0) e.sprite.setTint(0xff2bd6);
     else if (e.stun > 0) e.sprite.setTint(0x66ffff);
+    else if (e === this.boss && this.bossEnraged) e.sprite.setTint(Number((this.bossDef as { enrage?: EnrageDef }).enrage?.tint ?? 0xff6a6a));
     else e.sprite.clearTint();
   }
 
@@ -3692,6 +3763,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
       this.boss = this.spawnEnemy(id, bx, p.y, 1);
     }
     this.bossPhase2 = false;
+    this.bossEnraged = false;
     this.bossShieldT = 0;
     this.bossMissile = 2;
     this.bossAtkT = 0;
@@ -3768,13 +3840,59 @@ export class GameScene extends Phaser.Scene implements GameContext {
     if (this.bossAtkT > 0) this.bossAtkT -= dt;
     const p2 = this.bossPhase2 && ph ? ph : null;
 
+    // 분노: 체력이 낮아지면 붉게 변하고 이동·돌진이 빨라지며 예고가 짧아진다
+    const en = (def as { enrage?: EnrageDef }).enrage;
+    if (en && !this.bossEnraged && b.hp < b.maxHp * en.at) {
+      this.bossEnraged = true;
+      b.sprite.setTint(Number(en.tint));
+      Sound.play('bosswarn');
+      this.screenFlash(0xff2a3a, 0.2, 300);
+      this.shake(350, 0.012);
+      this.bossPulse(b);
+    }
+    const rage = this.bossEnraged && en ? en.mul : 1;
+    const sl = (def as { slam?: SlamDef }).slam;
     if (this.bossPhase === 'walk') {
-      b.x += (dx / d) * b.speed * slow * dt;
-      b.y += (dy / d) * b.speed * slow * dt;
+      b.x += (dx / d) * b.speed * rage * slow * dt;
+      b.y += (dy / d) * b.speed * rage * slow * dt;
       if (this.bossTimer <= 0) {
-        this.bossPhase = 'aim';
-        this.bossTimer = p2 ? p2.aimTime : def.aimTime;
-        this.bossCharges = p2 ? p2.chargeCount : 1;
+        if (sl && d >= sl.minDist) {
+          // 멀면 점프 내리찍기: 지금 플레이어 자리에 떨어진다 (뛰기 전에 자리를 정해 바닥에 표시)
+          this.bossPhase = 'leap';
+          this.bossTimer = sl.leap / rage;
+          this.bossFrom = { x: b.x, y: b.y };
+          this.bossTo = { x: tg.x, y: tg.y };
+          this.bossDir = { x: dx / d, y: dy / d };
+        } else {
+          this.bossPhase = 'aim';
+          this.bossTimer = (p2 ? p2.aimTime : def.aimTime) / rage;
+          this.bossCharges = p2 ? p2.chargeCount : 1;
+        }
+      }
+    } else if (sl && (this.bossPhase === 'leap' || this.bossPhase === 'air')) {
+      this.drawSlamMark(sl);
+      if (this.bossPhase === 'air') {
+        const k = Phaser.Math.Clamp(1 - this.bossTimer / (sl.air / rage), 0, 1);
+        b.x = Phaser.Math.Linear(this.bossFrom.x, this.bossTo.x, k);
+        b.y = Phaser.Math.Linear(this.bossFrom.y, this.bossTo.y, k);
+      }
+      if (this.bossTimer <= 0) {
+        if (this.bossPhase === 'leap') {
+          this.bossPhase = 'air';
+          this.bossTimer = sl.air / rage;
+          Sound.play('bosscharge');
+        } else {
+          this.bossPhase = 'slam';
+          this.bossTimer = sl.recover;
+          b.x = this.bossTo.x;
+          b.y = this.bossTo.y;
+          this.slamLand(b, sl);
+        }
+      }
+    } else if (this.bossPhase === 'slam') {
+      if (this.bossTimer <= 0) {
+        this.bossPhase = 'walk';
+        this.bossTimer = def.walkTime;
       }
     } else if (this.bossPhase === 'aim') {
       // 돌진 예고선
@@ -3787,14 +3905,14 @@ export class GameScene extends Phaser.Scene implements GameContext {
         this.bossTimer = p2 ? p2.chargeTime : def.chargeTime;
       }
     } else {
-      const sp = p2 ? p2.chargeSpeed : def.chargeSpeed;
+      const sp = (p2 ? p2.chargeSpeed : def.chargeSpeed) * rage;
       b.x += this.bossDir.x * sp * slow * dt;
       b.y += this.bossDir.y * sp * slow * dt;
       if (this.bossTimer <= 0) {
         if (--this.bossCharges > 0 && p2) {
           // 연속 돌진: 짧게 다시 조준
           this.bossPhase = 'aim';
-          this.bossTimer = p2.aimTime;
+          this.bossTimer = p2.aimTime / rage;
         } else {
           this.bossPhase = 'walk';
           this.bossTimer = def.walkTime;
@@ -3842,7 +3960,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
     this.animateBoss(b, def, dt);
     // 보스가 화면에서 너무 멀어지면 다시 가까이
     const pd = Math.hypot(p.x - b.x, p.y - b.y) || 1;
-    if (!this.arena && pd > 520) {
+    if (!this.arena && pd > 520 && this.bossPhase !== 'leap' && this.bossPhase !== 'air') {
       b.x = p.x - ((p.x - b.x) / pd) * 300;
       b.y = p.y - ((p.y - b.y) / pd) * 300;
     }
