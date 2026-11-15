@@ -95,6 +95,29 @@ export function addDmgToggle(scene: Phaser.Scene, x: number, y: number, originX 
   return t;
 }
 
+const introLabel = () => key(Settings.unitIntro ? tr('ui.intro.on') : tr('ui.intro.off'));
+
+/** 진의 적 소개 켜기/끄기 버튼 + U 키 */
+export function addIntroToggle(scene: Phaser.Scene, x: number, y: number, originX = 1): Phaser.GameObjects.Text {
+  const t = scene.add
+    .text(x, y, introLabel(), { ...BASE_TEXT, fontSize: '11px', color: '#8a7aa8' })
+    .setOrigin(originX, 0)
+    .setScrollFactor(0)
+    .setDepth(160);
+  padHit(t);
+  const toggle = () => {
+    Settings.toggleUnitIntro();
+    t.setText(introLabel());
+  };
+  t.on('pointerdown', (_p: Phaser.Input.Pointer, _x: number, _y: number, e: Phaser.Types.Input.EventData) => {
+    e.stopPropagation();
+    toggle();
+  });
+  scene.input.keyboard?.on('keydown-U', toggle);
+  scene.events.once(Phaser.Scenes.Events.SHUTDOWN, () => scene.input.keyboard?.off('keydown-U', toggle));
+  return t;
+}
+
 /** 전체화면 버튼 + F 키. 브라우저가 사용자 입력 안에서만 전체화면을 허락하므로 pointerup에서 바로 요청한다 */
 export function addFullscreenToggle(scene: Phaser.Scene, x: number, y: number, originX = 1): Phaser.GameObjects.Text {
   const label = () => key(scene.scale.isFullscreen ? tr('ui.fs.exit') : tr('ui.fs.enter'));

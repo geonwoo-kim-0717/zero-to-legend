@@ -27,7 +27,7 @@ import { Save, type Runner, type RunnerId, type SpecialId, type RunStats } from 
 import { rollChoices, abilityCard, computeStats, passiveAmount, passiveAbility, type Choice, type PassiveId, type PassiveState } from '../systems/Progression';
 import { LevelUpUI } from '../ui/LevelUpUI';
 import { Sound, type SfxKey, type MusicKey } from '../systems/Sound';
-import { addMuteToggle, addFxToggle, addDmgToggle, addFullscreenToggle } from '../ui/MuteToggle';
+import { addMuteToggle, addFxToggle, addDmgToggle, addIntroToggle, addFullscreenToggle } from '../ui/MuteToggle';
 import { isTouch } from '../systems/Fullscreen';
 import { Settings } from '../systems/Settings';
 import { Ads } from '../systems/Ads';
@@ -193,7 +193,6 @@ export class GameScene extends Phaser.Scene implements GameContext {
   /** 해커가 CC를 막으며 외친 마지막 출동 번호 */
   private hackShoutRaid = -1;
   /** 해커 CC 면역 안내(진)를 이번 판에 보냈는지 */
-  private hackTipShown = false;
   /** 블랙 실드 회피 때 퍼지는 붉은 원 */
   private dodgeRings: { x: number; y: number; r: number; life: number }[] = [];
   private floorG!: Phaser.GameObjects.Graphics;
@@ -521,7 +520,6 @@ export class GameScene extends Phaser.Scene implements GameContext {
     this.raidsInZone = 0;
     this.dodgeRings = [];
     this.hackShoutRaid = -1;
-    this.hackTipShown = false;
     this.laser = { phase: 'idle', t: 5, lines: [], hit: false };
     this.dialog = null;
     this.heat = Math.min(Save.data.heat, Save.data.heatMax);
@@ -616,9 +614,10 @@ export class GameScene extends Phaser.Scene implements GameContext {
     const muteBtn = addMuteToggle(this, 8, VIEW_H - 18, 0);
     const fxBtn = addFxToggle(this, muteBtn.x + muteBtn.width + 12, VIEW_H - 18, 0);
     const dmgBtn = addDmgToggle(this, fxBtn.x + fxBtn.width + 12, VIEW_H - 18, 0);
-    const fsBtn = addFullscreenToggle(this, dmgBtn.x + dmgBtn.width + 12, VIEW_H - 18, 0);
-    // 전투 중에는 숨기고 일시정지 화면에서만 보여준다 (M·V·H·F 키는 언제나 동작)
-    this.settingUi = [muteBtn, fxBtn, dmgBtn, ...(fsBtn.input?.enabled ? [fsBtn] : [])];
+    const introBtn = addIntroToggle(this, dmgBtn.x + dmgBtn.width + 12, VIEW_H - 18, 0);
+    const fsBtn = addFullscreenToggle(this, introBtn.x + introBtn.width + 12, VIEW_H - 18, 0);
+    // 전투 중에는 숨기고 일시정지 화면에서만 보여준다 (M·V·H·U·F 키는 언제나 동작)
+    this.settingUi = [muteBtn, fxBtn, dmgBtn, introBtn, ...(fsBtn.input?.enabled ? [fsBtn] : [])];
     for (const b of this.settingUi) b.setVisible(false);
     // 일시정지 버튼 (터치 기기에는 Esc가 없고, PC에서도 눌러서 멈출 수 있게)
     const pb = this.add
@@ -661,6 +660,8 @@ export class GameScene extends Phaser.Scene implements GameContext {
     if (Ads.provider !== 'crazygames') kb.on('keydown-ESC', () => this.togglePause());
     kb.on('keydown-ENTER', () => this.state === 'dialog' && this.advanceDialog());
     kb.on('keydown-SPACE', () => this.state === 'dialog' && this.advanceDialog());
+    // 대화 중 Esc = 건너뛰기 (대화 중에는 일시정지가 안 되므로 겹치지 않음)
+    if (Ads.provider !== 'crazygames') kb.on('keydown-ESC', () => this.state === 'dialog' && this.skipDialog());
     kb.on('keydown-F1', () => (this.debug = !this.debug));
     kb.on('keydown-BACKTICK', () => (this.debug = !this.debug));
     // 디버그 전용 치트 (F1으로 디버그를 켰을 때만)
@@ -683,7 +684,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
     // 일시정지 중에는 화면을 탭해도 계속 (터치 기기용)
     this.input.on('pointerup', (_p: Phaser.Input.Pointer, over: Phaser.GameObjects.GameObject[]) => {
       if (this.state === 'paused' && over.length === 0 && !this.portrait()) this.togglePause();
-      else if (this.state === 'dialog') this.advanceDialog();
+      else if (this.state === 'dialog' && over.length === 0) this.advanceDialog();
     });
     // 휴대폰을 세로로 돌리면 일시정지 (화면이 작아져 조작이 어려움)
     const mq = window.matchMedia?.('(orientation: portrait)');
@@ -947,12 +948,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
   private hackerShield(e: Enemy): boolean {
     if (!e.id.startsWith('trooper_')) return false;
     const on = this.enemyPool.items.some((o) => o.active && o.id === 'trooper_hacker');
-    // 판마다 처음 막혔을 때 진이 알려 준다
-    if (on && !this.hackTipShown) {
-      this.hackTipShown = true;
-      this.phoneText(tr('phone.hackerShield'), 'trooper_hacker');
-    }
-    // 막을 때 해커가 외친다 (출동당 한 번)
+    // 막을 때 해커가 말풍선으로 외친다 (출동당 한 번, 진의 문자 대신: 해커가 막고 있다는 걸 대사로 알림)
     if (on && this.hackShoutRaid !== this.raidCount) {
       const h = this.enemyPool.items.find((o) => o.active && o.id === 'trooper_hacker');
       if (h && h.dropT <= 0 && h.landT <= 0) {
@@ -1614,8 +1610,9 @@ export class GameScene extends Phaser.Scene implements GameContext {
     return e;
   }
 
-  /** 처음 만나는 적이면 진이 문자로 정체와 주의할 점을 알려 준다 (저장해서 다음 판부터는 생략) */
+  /** 처음 만나는 적이면 진이 문자로 정체와 주의할 점을 알려 준다 (저장해서 다음 판부터는 생략). 설정에서 끄면 소개하지 않는다 */
   private introduceUnit(e: Enemy): void {
+    if (!Settings.unitIntro) return;
     if (e.isBoss || e.id.startsWith('trooper_') || Save.data.seenUnits.includes(e.tex)) return; // 블랙 실드는 출동 알림만
     const guide = this.skin(e.id)?.guide ?? (enemiesData[e.id] as { guide?: string }).guide;
     if (!guide) return;
@@ -2665,7 +2662,26 @@ export class GameScene extends Phaser.Scene implements GameContext {
     box.add(this.add.rectangle(24, VIEW_H - 112, VIEW_W - 48, 96, 0x0d0820, 0.95).setOrigin(0).setStrokeStyle(2, COLORS.magenta));
     const text = this.add.text(118, VIEW_H - 84, '', { ...TEXT, fontSize: '13px', wordWrap: { width: VIEW_W - 170, useAdvancedWrap: true }, lineSpacing: 4 });
     box.add(text);
+    // 건너뛰기 버튼: 대화를 바로 끝낸다 (Esc도 같음)
+    const skip = this.add
+      .text(VIEW_W - 30, VIEW_H - 136, isTouch() || Ads.provider === 'crazygames' ? tr('dialog.skip.touch') : tr('dialog.skip'), { ...TEXT, fontSize: '11px', color: '#e8f7ff', backgroundColor: '#1a1030', padding: { x: 8, y: 3 } })
+      .setOrigin(1, 0)
+      .setInteractive({ useHandCursor: true });
+    skip.on('pointerdown', (_p: Phaser.Input.Pointer, _x: number, _y: number, e: Phaser.Types.Input.EventData) => {
+      e.stopPropagation();
+      this.skipDialog();
+    });
+    box.add(skip);
     this.dialog = { lines, i: -1, box, text, full: '', shown: 0, ev: null, done };
+    this.advanceDialog();
+  }
+
+  /** 대화 건너뛰기: 남은 줄을 모두 넘기고 바로 끝낸다 */
+  private skipDialog(): void {
+    const d = this.dialog;
+    if (!d) return;
+    d.i = d.lines.length - 1;
+    d.shown = d.full.length;
     this.advanceDialog();
   }
 
@@ -2679,8 +2695,8 @@ export class GameScene extends Phaser.Scene implements GameContext {
       return;
     }
     d.i++;
-    // 줄마다 바뀌는 초상·이름은 지우고 다시 그린다
-    d.box.list.slice(3).forEach((o) => o.destroy());
+    // 줄마다 바뀌는 초상·이름은 지우고 다시 그린다 (배경 2개·본문·건너뛰기 버튼은 남김)
+    d.box.list.slice(4).forEach((o) => o.destroy());
     if (d.i >= d.lines.length) {
       d.ev?.remove();
       d.box.destroy();

@@ -1,10 +1,13 @@
 const KEY = 'ztl-reduced-fx';
 const DMG_KEY = 'ztl-dmg-num';
+const INTRO_KEY = 'ztl-unit-intro';
+let unitIntro = true;
 let reduced = false;
 let dmgNumbers = true;
 try {
   reduced = localStorage.getItem(KEY) === '1';
   dmgNumbers = localStorage.getItem(DMG_KEY) !== '0';
+  unitIntro = localStorage.getItem(INTRO_KEY) !== '0';
 } catch {
   /* 저장소를 못 쓰는 환경 */
 }
@@ -36,5 +39,18 @@ export const Settings = {
       /* 무시 */
     }
     return dmgNumbers;
+  },
+  /** 진의 적 소개 문자 (기본 켬: 처음 만난 적만 한 번 소개). 끄면 소개하지 않는다 */
+  get unitIntro(): boolean {
+    return unitIntro;
+  },
+  toggleUnitIntro(): boolean {
+    unitIntro = !unitIntro;
+    try {
+      localStorage.setItem(INTRO_KEY, unitIntro ? '1' : '0');
+    } catch {
+      /* 무시 */
+    }
+    return unitIntro;
   },
 };
