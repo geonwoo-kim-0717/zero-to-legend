@@ -25,7 +25,7 @@ import { Save, type Runner, type RunnerId, type SpecialId, type RunStats } from 
 import { rollChoices, abilityCard, computeStats, passiveAmount, passiveAbility, type Choice, type PassiveId, type PassiveState } from '../systems/Progression';
 import { LevelUpUI } from '../ui/LevelUpUI';
 import { Sound, type SfxKey, type MusicKey } from '../systems/Sound';
-import { addMuteToggle, addFxToggle, addFullscreenToggle } from '../ui/MuteToggle';
+import { addMuteToggle, addFxToggle, addDmgToggle, addFullscreenToggle } from '../ui/MuteToggle';
 import { isTouch } from '../systems/Fullscreen';
 import { Settings } from '../systems/Settings';
 import { Ads } from '../systems/Ads';
@@ -347,7 +347,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
     this.icons = [];
     this.dpsBuckets = new Map();
     this.dpsStart = new Map();
-    this.critNums = [];
+    this.dmgNums = [];
     this.dpsSec = -1;
     this.dpsShowT = 0;
     this.dmgSrc = null;
@@ -451,9 +451,10 @@ export class GameScene extends Phaser.Scene implements GameContext {
     // 아래쪽 설정 버튼: 글자 길이가 언어마다 달라서 앞 버튼 폭만큼 띄워 놓는다
     const muteBtn = addMuteToggle(this, 8, VIEW_H - 18, 0);
     const fxBtn = addFxToggle(this, muteBtn.x + muteBtn.width + 12, VIEW_H - 18, 0);
-    const fsBtn = addFullscreenToggle(this, fxBtn.x + fxBtn.width + 12, VIEW_H - 18, 0);
-    // 전투 중에는 숨기고 일시정지 화면에서만 보여준다 (M·V·F 키는 언제나 동작)
-    this.settingUi = [muteBtn, fxBtn, ...(fsBtn.input?.enabled ? [fsBtn] : [])];
+    const dmgBtn = addDmgToggle(this, fxBtn.x + fxBtn.width + 12, VIEW_H - 18, 0);
+    const fsBtn = addFullscreenToggle(this, dmgBtn.x + dmgBtn.width + 12, VIEW_H - 18, 0);
+    // 전투 중에는 숨기고 일시정지 화면에서만 보여준다 (M·V·H·F 키는 언제나 동작)
+    this.settingUi = [muteBtn, fxBtn, dmgBtn, ...(fsBtn.input?.enabled ? [fsBtn] : [])];
     for (const b of this.settingUi) b.setVisible(false);
     // 일시정지 버튼 (터치 기기에는 Esc가 없고, PC에서도 눌러서 멈출 수 있게)
     const pb = this.add
@@ -577,16 +578,18 @@ export class GameScene extends Phaser.Scene implements GameContext {
     if (e.id === 'c_thorn' && tag === 'melee') this.thornReflect();
     // 강화 근섬유 특수 능력: 치명타 · 치명 폭주 · 분노 · 연속 처치
     const frenzy = this.pHas('critFrenzy');
+    let critMul = 1;
     if ((frenzy || this.pHas('crit')) && Math.random() < (frenzy ? 0.25 : 0.1)) {
-      amount *= frenzy ? 3 : 2;
-      this.burst(e.x, e.y, COLORS.yellow, 4);
-      this.critText(e.x, e.y - e.radius - 4, Math.round(amount));
+      critMul = frenzy ? 3 : 2;
+      amount *= critMul;
+      this.burst(e.x, e.y, critMul === 3 ? 0xff2a3a : COLORS.yellow, 4);
     }
     if (this.pHas('rage')) amount *= 1 + 0.4 * (1 - this.player.hp / this.player.maxHp);
     if (this.streak > 0) amount *= 1 + 0.02 * this.streak;
     // 처형자: 맞고 체력 15% 이하로 남는 일반 적은 즉사
     if (!e.isBoss && this.pHas('executioner') && e.hp - amount <= e.maxHp * 0.15) amount = Math.max(amount, e.hp);
     this.logDamage(Math.min(amount, Math.max(0, e.hp)));
+    this.dmgNumber(e, amount, critMul);
     if (e.hit(amount)) {
       if (tag === 'melee') this.run.meleeKills++;
       this.killEnemy(e);
@@ -675,23 +678,52 @@ export class GameScene extends Phaser.Scene implements GameContext {
   private dpsText!: Phaser.GameObjects.Text;
   private dpsShowT = 0;
 
-  /** 치명타 피해 숫자: 위로 떠오르며 사라짐 (최대 40개 재사용) */
-  private critNums: { t: Phaser.GameObjects.Text; life: number }[] = [];
-  private critText(x: number, y: number, dmg: number): void {
-    let n = this.critNums.find((o) => o.life <= 0);
-    if (!n) {
-      if (this.critNums.length >= 40) return;
-      n = { t: this.add.text(0, 0, '', { ...TEXT, fontSize: '10px', color: '#fff23a', strokeThickness: 3 }).setOrigin(0.5, 1).setDepth(97), life: 0 };
-      this.critNums.push(n);
+  /**
+   * 피해 숫자: 일반 흰색, 2배 치명타 노랑, 3배 치명타 빨강. 위로 떠오르며 사라짐 (최대 60개 재사용).
+   * 일반 피해는 같은 적이 0.2초 안에 또 맞으면 숫자 하나로 합산 (드론·장판·연쇄로 화면이 덮이지 않게)
+   */
+  private dmgNums: { t: Phaser.GameObjects.Text; life: number; e: Enemy | null; sum: number; age: number }[] = [];
+  private dmgNumber(e: Enemy, amount: number, critMul: number): void {
+    if (!Settings.dmgNumbers || amount <= 0) return;
+    const D = gameData.dmgNumbers;
+    if (critMul === 1) {
+      const m = this.dmgNums.find((o) => o.life > 0 && o.e === e && o.age < D.mergeWindow);
+      if (m) {
+        m.sum += amount;
+        m.t.setText(`${Math.round(m.sum)}`);
+        return;
+      }
     }
-    n.life = 0.7;
-    n.t.setText(`${dmg}!`).setPosition(x + (Math.random() - 0.5) * 8, y).setAlpha(1).setScale(1.3).setVisible(true);
+    let n = this.dmgNums.find((o) => o.life <= 0);
+    if (!n) {
+      if (this.dmgNums.length < D.max) {
+        n = { t: this.add.text(0, 0, '', { ...TEXT, fontSize: '9px', strokeThickness: 3 }).setOrigin(0.5, 1).setDepth(97), life: 0, e: null, sum: 0, age: 0 };
+        this.dmgNums.push(n);
+      } else if (critMul > 1) {
+        // 꽉 찼으면 치명타는 가장 오래된 숫자를 빌려 쓴다 (일반 피해는 생략)
+        n = this.dmgNums.reduce((a, b) => (a.life < b.life ? a : b));
+      } else return;
+    }
+    const style = critMul === 3 ? D.crit3 : critMul === 2 ? D.crit2 : D.normal;
+    n.life = D.life;
+    n.age = 0;
+    n.e = critMul === 1 ? e : null;
+    n.sum = amount;
+    n.t
+      .setText(critMul > 1 ? `${Math.round(amount)}!` : `${Math.round(amount)}`)
+      .setColor(style.color)
+      .setFontSize(style.size)
+      .setPosition(e.x + (Math.random() - 0.5) * 10, e.y - e.radius - 4)
+      .setAlpha(1)
+      .setScale(style.pop)
+      .setVisible(true);
   }
 
-  private updateCritNums(dt: number): void {
-    for (const n of this.critNums) {
+  private updateDmgNums(dt: number): void {
+    for (const n of this.dmgNums) {
       if (n.life <= 0) continue;
       n.life -= dt;
+      n.age += dt;
       n.t.y -= 28 * dt;
       n.t.setScale(Math.max(1, n.t.scale - dt * 2));
       if (n.life < 0.25) n.t.setAlpha(Math.max(0, n.life / 0.25));
@@ -1388,7 +1420,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
     this.dmgSrc = null;
     this.updateBullets(dt);
     this.updateDps(dt);
-    this.updateCritNums(dt);
+    this.updateDmgNums(dt);
     this.updateEnemyBullets(dt);
     this.updateFx(dt);
     this.updateShouts(dt);

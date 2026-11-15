@@ -311,6 +311,14 @@
     "diveTime": 0.4,
     "diveSpeed": 210
   },
+  "dmgNumbers": {
+    "mergeWindow": 0.2,
+    "max": 60,
+    "life": 0.7,
+    "normal": { "color": "#ffffff", "size": 9, "pop": 1 },
+    "crit2": { "color": "#fff23a", "size": 10, "pop": 1.3 },
+    "crit3": { "color": "#ff2a3a", "size": 11, "pop": 1.5 }
+  },
   "visorGlow": { "alpha": 0.7, "scale": 0.75 },
   "falloff": { "pierce": 0.8, "chain": 0.8 },
   "melee": {
