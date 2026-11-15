@@ -61,7 +61,8 @@ const DROP = { fall: 0.45, stagger: 0.12, land: 0.7 };
 /** 블랙 실드 이송기가 착지 지점 위로 떠 있는 높이 (그림 112x55 기준) */
 const SHIP_LIFT = 44;
 type BossDef = (typeof gameData.bosses)[number];
-type MeleeDef = { range: number; interval: number; windup: number; lungeTime: number; lungeSpeed: number };
+type SwingDef = { range: number; reach: number; windup: number; recover: number; cd: number; damageMul: number };
+type MeleeDef = { range: number; interval: number; windup: number; lungeTime: number; lungeSpeed: number; swing?: SwingDef };
 type Phase2 = { at: number; chargeCount: number; aimTime: number; chargeTime: number; chargeSpeed: number; volleyEvery: number; volleyCount: number; bulletSpeed: number; bulletDamage: number };
 const OD = gameData.overdrive;
 const SP = meta.specials;
@@ -1478,7 +1479,24 @@ export class GameScene extends Phaser.Scene implements GameContext {
         if (m) {
           // 사이버 사이코·진압대원: 가까워지면 잠깐 멈춰 예고한 뒤, 그 방향으로 돌진
           e.t -= dt;
-          if (e.state === 'walk' && e.t <= 0 && d < m.range) {
+          const SW = m.swing;
+          if (SW && e.state === 'swing') {
+            // 근접 요원: 진압봉 휘두르기. 예비동작이 끝나는 순간 한 번만 판정
+            vx = vy = 0;
+            e.swingT -= dt;
+            if (!e.swingHit && e.swingT <= SW.recover) {
+              e.swingHit = true;
+              if (e.charmT <= 0 && p.invuln <= 0 && d < SW.reach + p.radius) this.hurtPlayer(e.damage * SW.damageMul, { kind: 'contact', id: e.id });
+            }
+            if (e.swingT <= 0) {
+              e.state = 'walk';
+              e.atkCd = this.elapsed + SW.cd;
+            }
+          } else if (SW && e.state === 'walk' && d < SW.range + p.radius && this.elapsed >= e.atkCd && !hidden) {
+            e.state = 'swing';
+            e.swingT = SW.windup + SW.recover;
+            e.swingHit = false;
+          } else if (e.state === 'walk' && e.t <= 0 && d < m.range && (!SW || d > (SW.range + p.radius) * 2)) {
             e.state = 'wind';
             if (this.onScreen(e.x, e.y)) Sound.play('lungewarn');
             e.t = m.windup;
@@ -1567,7 +1585,9 @@ export class GameScene extends Phaser.Scene implements GameContext {
       this.tickHitFlash(e, dt);
       // 접촉 피해 (조종당한 적은 플레이어를 공격하지 않음)
       const rr = p.radius + e.radius;
-      if (e.charmT <= 0 && p.invuln <= 0 && (p.x - e.x) ** 2 + (p.y - e.y) ** 2 < rr * rr) {
+      // 근접 요원은 몸으로 부딪혀선 피해를 주지 않고 진압봉 휘두르기로만 (돌진은 이동)
+      const swingOnly = !!(gameData.melee as Record<string, MeleeDef>)[e.id]?.swing;
+      if (!swingOnly && e.charmT <= 0 && p.invuln <= 0 && (p.x - e.x) ** 2 + (p.y - e.y) ** 2 < rr * rr) {
         const hp0 = p.hp;
         this.hurtPlayer(e.damage, { kind: e.isBoss ? 'boss' : 'contact', id: e.id });
         // 가시 갑주: 받은 피해의 3배를 돌려줌 · 거구: 일반 적을 밀어냄
@@ -2674,8 +2694,14 @@ export class GameScene extends Phaser.Scene implements GameContext {
     };
     // 실제 공격이 일어나는 순간 → 타격 이후 시퀀스
     if (role === 'melee' && prev === 'wind' && e.state === 'lunge') {
+      // 돌진(이동만): 낮은 돌진 자세 04~07, 휘두르기 이펙트 없음
       const M = (gameData.melee as Record<string, MeleeDef>)[e.id];
-      start(3, 7, scaled(3, 7, M.lungeTime));
+      start(4, 7, scaled(4, 7, M.lungeTime));
+      e.seq!.fxDone = true;
+    } else if (role === 'melee' && prev !== 'swing' && e.state === 'swing') {
+      // 휘두르기: 준비 00~02를 예비동작 시간에 맞추고, 03(타격)에서 이펙트와 판정
+      const SW = (gameData.melee as Record<string, MeleeDef>)[e.id].swing!;
+      start(0, 3, [...scaled(0, 2, SW.windup), SW.recover]);
     } else if ((role === 'hacker' || role === 'sniper') && prev === 'wind' && e.state === 'walk') {
       start(A.fxStart, 7, A.ms.slice(A.fxStart).map((m) => m / 1000));
     } else if (role === 'tank' && !e.seq && d < 30 && this.elapsed >= e.atkCd) {
@@ -2695,6 +2721,9 @@ export class GameScene extends Phaser.Scene implements GameContext {
           this.trooperFx(e, A);
         }
       }
+    } else if (e.state === 'wind' && role === 'melee') {
+      // 돌진 예고: 낮게 웅크린 돌진 자세로 대기
+      idx = 4;
     } else if (e.state === 'wind') {
       // 예고·조준·시전: 준비 프레임(근접 00~02, 해커 00~03, 저격 00~02)을 남은 시간에 맞춰
       const total = role === 'melee' ? (gameData.melee as Record<string, MeleeDef>)[e.id].windup : role === 'hacker' ? gameData.squadAi.hacker.cast : gameData.squadAi.sniper.aim;

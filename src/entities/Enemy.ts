@@ -26,7 +26,7 @@ export class Enemy {
   lastFlash = 0;
   stun = 0;
   /** 사이버 사이코의 돌진 베기 상태 */
-  state: 'walk' | 'wind' | 'lunge' = 'walk';
+  state: 'walk' | 'wind' | 'lunge' | 'swing' = 'walk';
   t = 0;
   dirX = 0;
   dirY = 0;
@@ -56,13 +56,16 @@ export class Enemy {
   landX = 0;
   landY = 0;
   /** 진압대 공격 동작: 지난 프레임의 상태, 재생 중인 프레임 시퀀스, 탱커 방패 치기 다음 가능 시각 */
-  prevState: 'walk' | 'wind' | 'lunge' = 'walk';
+  prevState: 'walk' | 'wind' | 'lunge' | 'swing' = 'walk';
   seq: { start: number; frames: number[]; durs: number[]; fxAt: number; fxDone: boolean } | null = null;
   atkCd = 0;
   /** 공격 그림(발 기준 origin 0.5,1)을 쓸 때, 기본 그림 중심에서 발까지의 거리 */
   footOff = 0;
   /** 걷기 루프 재생 위치(프레임 단위). 바라보는 반대쪽으로 움직이면 거꾸로 감는다 */
   walkPh = 0;
+  /** 근접 요원 진압봉 휘두르기: 남은 시간, 이번 휘두르기에서 이미 판정했는지 */
+  swingT = 0;
+  swingHit = false;
   /** 드론: 선회 방향(±1), 흔들림 위상, 기울기 */
   side = 1;
   phase = 0;
