@@ -311,6 +311,7 @@
     "diveTime": 0.4,
     "diveSpeed": 210
   },
+  "visorGlow": { "alpha": 0.55, "scale": 0.75 },
   "falloff": { "pierce": 0.8, "chain": 0.8 },
   "melee": {
     "psycho": {

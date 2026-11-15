@@ -31,6 +31,7 @@ import { Settings } from '../systems/Settings';
 import { Ads } from '../systems/Ads';
 import type { RunResult } from './ResultScene';
 import { t as tr, I18n } from '../i18n';
+import visorAnchors from '../data/visor_anchors.json';
 
 /** 공격 상태가 없는 접촉형 적: 플레이어에게 붙으면 공격 그림 */
 const CONTACT_POSE = new Set<string>(['trooper_tank', 'thug', 'sec_bot', 'drone', 'rat_bot']);
@@ -221,6 +222,33 @@ export class GameScene extends Phaser.Scene implements GameContext {
   private raidDropping = 0;
   /** 적 그림별 걷기 루프 프레임 수 (<id>_walk_NN, 0이면 없음) */
   private walkFrames = new Map<string, number>();
+  /** 블랙 실드 바이저 빛: 지금 그림의 바이저 중심(visor_anchors.json)에 원점·뒤집기를 반영해 Add로 얹는다.
+   *  강하·착지·피격·조종 중에도 몸을 따라가고, 바이저 정보가 없는 그림이거나 몸이 안 보이면 숨긴다 */
+  private placeVisorGlows(): void {
+    const V = gameData.visorGlow;
+    const A = visorAnchors as Record<string, { x: number; y: number; color: string }>;
+    for (const e of this.enemyPool.items) {
+      if (!e.active) continue;
+      const s = e.sprite;
+      const a = A[s.texture.key];
+      if (!a || !s.visible) {
+        e.glow.setVisible(false);
+        continue;
+      }
+      const w = s.frame.width;
+      const h = s.frame.height;
+      const ax = s.flipX ? w - a.x : a.x;
+      const tex = `fx_visor_glow_${a.color}`;
+      if (e.glow.texture.key !== tex) e.glow.setTexture(tex);
+      e.glow
+        .setPosition(s.x + (ax - s.originX * w) * s.scaleX, s.y + (a.y - s.originY * h) * s.scaleY)
+        .setScale(V.scale)
+        .setAlpha(V.alpha * s.alpha)
+        .setDepth(s.depth + 0.01)
+        .setVisible(true);
+    }
+  }
+
   /** 적 걷기 그림(없으면 기본 그림)에서 발부터 머리 꼭대기까지 높이 (체력바 위치용) */
   private bodyTops = new Map<string, number>();
   private bodyTop(tex: string): number {
@@ -3596,6 +3624,8 @@ export class GameScene extends Phaser.Scene implements GameContext {
     g.fillStyle(0x300010).fillRect(sx, sy, 24, 3);
     g.fillStyle(COLORS.magenta).fillRect(sx, sy, (24 * Math.max(0, p.hp)) / p.maxHp, 3);
     g.fillStyle(COLORS.cyan, 0.8).fillRect(sx, sy + 4, 24 * (1 - p.dashCd / p.dashCooldownMax), 1);
+
+    this.placeVisorGlows();
 
     // 진압대원 체력 바
     for (const e of this.enemyPool.items) {

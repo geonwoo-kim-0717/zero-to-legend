@@ -73,10 +73,13 @@ export class Enemy {
   readonly sprite: Phaser.GameObjects.Image;
   /** 떠 있는 적(드론)의 바닥 그림자 */
   readonly shadow: Phaser.GameObjects.Ellipse;
+  /** 블랙 실드 바이저 빛 (Add 합성, 매 프레임 GameScene.placeVisorGlows가 위치를 잡음) */
+  readonly glow: Phaser.GameObjects.Image;
 
   constructor(scene: Phaser.Scene) {
     this.sprite = scene.add.image(0, 0, 'drone').setDepth(10).setVisible(false);
     this.shadow = scene.add.ellipse(0, 0, 16, 6, 0x000000, 0.55).setDepth(9).setVisible(false);
+    this.glow = scene.add.image(0, 0, 'fx_visor_glow_red').setBlendMode(Phaser.BlendModes.ADD).setVisible(false);
   }
 
   get flying(): boolean {
@@ -141,5 +144,6 @@ export class Enemy {
     this.flash = 0;
     this.sprite.setVisible(false);
     this.shadow.setVisible(false);
+    this.glow.setVisible(false);
   }
 }
