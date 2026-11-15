@@ -85,8 +85,8 @@
         "footY": 38,
         "chargeWind": [0, 4],
         "chargeFlash": 5,
-        "chargeRun": [6, 8],
-        "chargeFlashTime": 0.12
+        "chargeRun": [5, 6],
+        "chargeFlashTime": 0
       },
       "slam": {
         "note": "점프 내리찍기: 걷기가 끝났을 때 플레이어가 minDist 이상 멀면 돌진 대신. 도약(leap초) → 공중(air초, 마지막 airSwing초는 칼 휘두르기) → 착지 피해(가로 radius, 세로 0.6배 타원) + knock px 밀려남 → recover초 착지 자세. 프레임 번호: leapFrames 웅크렸다 뛰기, airFrames 떠오르기(airRise초, 마지막 장 유지), slam_ 휘두르기·착지",
