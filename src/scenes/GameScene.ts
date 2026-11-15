@@ -632,7 +632,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
     this.dmgNumber(e, amount, critMul);
     if (e.hit(amount)) {
       if (tag === 'melee') this.run.meleeKills++;
-      this.killEnemy(e);
+      this.killEnemy(e, tag);
       return true;
     }
     return false;
@@ -1910,7 +1910,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
     }
   }
 
-  private killEnemy(e: Enemy): void {
+  private killEnemy(e: Enemy, tag?: DamageTag): void {
     this.kills++;
     // 스폰 디렉터 처치 속도용 (보스·진압대 제외)
     if (!e.isBoss && !e.id.startsWith('trooper_')) this.killTimes.push(this.elapsed);
@@ -1962,7 +1962,8 @@ export class GameScene extends Phaser.Scene implements GameContext {
     this.dropPickup('xp', e.x, e.y, e.xp);
     if (Math.random() < gameData.healDropChance) this.dropPickup('heal', e.x + 6, e.y, gameData.healAmount);
     if (!this.specialOn) this.odGauge = Math.min(100, this.odGauge + OD.perKill);
-    if (this.berserk) this.heal(SP.berserk.healPerKill, true);
+    // 광전사 모드: 근접 무기로 처치했을 때만 체력 회복
+    if (this.berserk && tag === 'melee') this.heal(SP.berserk.healPerKill, true);
     if (this.pHas('killStreak')) {
       this.streak = Math.min(20, this.streak + 1);
       this.streakT = 3;
