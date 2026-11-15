@@ -243,6 +243,8 @@ export class GameScene extends Phaser.Scene implements GameContext {
   private bossLastAttack = 0;
   private bossLastSummon = 0;
   private bossThinkT = 0;
+  /** 지난 프레임의 보스 단계 (공격이 끝나고 다시 걷기 시작한 때를 알기 위해) */
+  private bossPrevPhase: BossPhase = 'walk';
   private bossAct: BossAct = 'walk';
   private bossScores: Partial<Record<BossAct, number>> = {};
   private bossSummoned: Enemy[] = [];
@@ -3214,7 +3216,9 @@ export class GameScene extends Phaser.Scene implements GameContext {
       // 대시(무적) 중이거나 방금 맞아 무적이면 그대로 지나간다
       if (p.invuln <= 0 && !p.dashing && (p.x - cx) ** 2 + (p.y - cy) ** 2 < (p.radius + 8) ** 2) {
         this.hurtPlayer(hk.damage, { kind: 'boss', id: b.id });
-        this.playSheet('fx_hook_hit', 3, hx, hy, 0.5, 0.5, 20, 13);
+        // 갈고리 머리는 맞은 자리에서 멈춘다 (이번 프레임에 더 나간 만큼 되돌림)
+        h.len = along;
+        this.playSheet('fx_hook_hit', 3, cx, cy, 0.5, 0.5, 20, 13);
         this.shake(120, 0.01);
         this.bossPhase = 'hookPull';
         this.bossTimer = hk.pullTime;
@@ -3276,16 +3280,18 @@ export class GameScene extends Phaser.Scene implements GameContext {
       this.hookTrail?.setVisible(false);
       return;
     }
-    const M = BOSS_ANIM[def.id]?.hook as { chainTile?: { h: number; barRow: number }; head?: { w: number; h: number; join: number[] } } | undefined;
+    const M = BOSS_ANIM[def.id]?.hook as { chainTile?: { w: number; h: number; barRow: number }; head?: { w: number; h: number; join: number[] } } | undefined;
+    // 사슬 반복 그림 크기는 아트 json(chainTile)을 따른다 (그림이 바뀌어도 그대로 맞춤)
+    const th = M?.chainTile?.h ?? this.textures.get('midboss_hook_chain').getSourceImage().height;
     const bar = M?.chainTile ? (M.chainTile.barRow + 0.5) / M.chainTile.h : 0.5;
-    this.hookChain ??= this.add.tileSprite(0, 0, 8, 7, 'midboss_hook_chain').setDepth(12.5);
+    this.hookChain ??= this.add.tileSprite(0, 0, 8, th, 'midboss_hook_chain').setDepth(12.5);
     this.hookHead ??= this.add.image(0, 0, 'midboss_hook_head').setDepth(12.6);
     const hand = this.hookHand(b, def);
     const a = Math.atan2(this.hook.ay, this.hook.ax);
     const left = this.hook.ax < 0;
     const len = this.hook.len;
     // 왼쪽으로 던지면 그림이 뒤집히지 않게 세로로 뒤집는다
-    this.hookChain.setVisible(true).setPosition(hand.x, hand.y).setSize(len, 7).setOrigin(0, bar).setRotation(a).setFlipY(left);
+    this.hookChain.setVisible(true).setPosition(hand.x, hand.y).setSize(len, th).setOrigin(0, bar).setRotation(a).setFlipY(left);
     const j = M?.head?.join ?? [0, 2];
     const hw = M?.head?.w ?? 17;
     const hh = M?.head?.h ?? 12;
@@ -4083,6 +4089,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
     this.bossLastAttack = this.elapsed;
     this.bossLastSummon = this.elapsed;
     this.bossThinkT = 0;
+    this.bossPrevPhase = 'walk';
     this.bossAct = 'walk';
     this.bossScores = {};
     this.bossSummoned = [];
@@ -4378,6 +4385,9 @@ export class GameScene extends Phaser.Scene implements GameContext {
       });
     }
     this.animateBoss(b, def, dt);
+    // 공격 준비도는 공격이 끝나고 다시 걷기 시작한 때부터 잰다 (긴 공격 직후 바로 다음 공격이 나오지 않게)
+    if (this.bossPrevPhase !== 'walk' && this.bossPhase === 'walk') this.bossLastAttack = this.elapsed;
+    this.bossPrevPhase = this.bossPhase;
     // 보스가 화면에서 너무 멀어지면 다시 가까이
     const pd = Math.hypot(p.x - b.x, p.y - b.y) || 1;
     if (!this.arena && pd > 520 && this.bossPhase !== 'leap' && this.bossPhase !== 'air' && this.bossPhase !== 'enter' && this.bossPhase !== 'taunt') {
