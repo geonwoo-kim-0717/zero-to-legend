@@ -1715,8 +1715,9 @@ export class GameScene extends Phaser.Scene implements GameContext {
         if (!e.active || b.hits.includes(e) || e.dodgeT > 0) continue;
         const rr = e.radius + b.radius;
         if ((e.x - b.x) ** 2 + (e.y - b.y) ** 2 < rr * rr) {
+          // 관통: 꿰뚫을 때마다 피해 ×0.8 누적 (첫 적 100%)
+          const killed = this.damage(e, b.damage * gameData.falloff.pierce ** b.hits.length, b.tag ?? 'bullet');
           b.hits.push(e);
-          const killed = this.damage(e, b.damage, b.tag ?? 'bullet');
           // 반사 장갑병: 총탄은 관통·연쇄 없이 사라진다
           if (e.id === 'c_mirror' && !b.tag) {
             b.kill();
@@ -1751,7 +1752,8 @@ export class GameScene extends Phaser.Scene implements GameContext {
     }
     if (!best) return;
     const a = Math.atan2(best.y - hit.y, best.x - hit.x);
-    this.fireBullet(hit.x, hit.y, a, b.speed, b.damage, { target: best, chain: b.chain - 1 });
+    // 튕긴 탄은 피해 ×0.8 (여러 번 튕기면 누적)
+    this.fireBullet(hit.x, hit.y, a, b.speed, b.damage * gameData.falloff.chain, { target: best, chain: b.chain - 1 });
   }
 
   /** 사이버웨어 특수 능력 중 시간에 따라 발동하는 것 */

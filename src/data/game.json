@@ -311,6 +311,7 @@
     "diveTime": 0.4,
     "diveSpeed": 210
   },
+  "falloff": { "pierce": 0.8, "chain": 0.8 },
   "melee": {
     "psycho": {
       "range": 150,

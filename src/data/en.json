@@ -385,7 +385,7 @@
         "legendary": {
           "0": {
             "name": "Chain Shot",
-            "desc": "Bullets bounce once to another nearby enemy"
+            "desc": "Bullets bounce once to another nearby enemy (bounced shot -20% damage)"
           },
           "1": {
             "name": "Target Lock",
@@ -407,7 +407,7 @@
         "legendary": {
           "0": {
             "name": "Sword Wave",
-            "desc": "Slashes toward the nearest enemy, each slash fires a piercing wave"
+            "desc": "Slashes toward the nearest enemy, each slash fires a piercing wave (-20% per enemy pierced)"
           },
           "1": {
             "name": "Counter Stance",
@@ -469,7 +469,7 @@
           },
           "1": {
             "name": "Chain Reaction",
-            "desc": "Enemies killed by blasts explode the same way"
+            "desc": "Enemies killed by blasts explode the same way (-20% damage per chain)"
           }
         }
       },
@@ -567,7 +567,7 @@
         "legendary": {
           "0": {
             "name": "Slug Round",
-            "desc": "Fires one large piercing slug instead of pellets; damage = pellet damage × pellet count"
+            "desc": "Fires one large piercing slug instead of pellets; damage = pellet damage × pellet count (-20% per enemy pierced)"
           },
           "1": {
             "name": "Dragon's Breath",

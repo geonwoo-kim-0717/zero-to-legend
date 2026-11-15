@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { WeaponBase } from './WeaponBase';
 import { COLORS } from '../config';
+import gameData from '../data/game.json';
 import type { Enemy } from '../entities/Enemy';
 
 const THROW_RANGE = 220;
@@ -126,7 +127,8 @@ export class PlasmaGrenade extends WeaponBase {
     this.hitCircle(x, y, r, dmg, undefined, (e, killed) => {
       if (killed && chainOn && this.chainBudget >= 1) {
         this.chainBudget--;
-        this.chains.push({ x: e.x, y: e.y, r, dmg, delay: 0.12 });
+        // 연쇄될 때마다 피해 ×0.8 누적
+        this.chains.push({ x: e.x, y: e.y, r, dmg: dmg * gameData.falloff.chain, delay: 0.12 });
       }
     });
     this.blasts.push({ x, y, r, life: 0.25 });
