@@ -320,7 +320,7 @@
     "crit3": { "color": "#ff2a3a", "size": 11, "pop": 1.5 }
   },
   "visorGlow": { "alpha": 0.7, "scale": 0.75 },
-  "falloff": { "pierce": 0.8, "chain": 0.8, "grenadeSplit": 0.1 },
+  "falloff": { "pierce": 0.8, "chain": 0.8, "chainBlast": 0.6, "chainGap": 40, "grenadeSplit": 0.1 },
   "melee": {
     "psycho": {
       "range": 150,

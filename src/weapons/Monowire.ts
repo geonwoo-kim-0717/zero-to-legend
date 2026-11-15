@@ -103,8 +103,8 @@ export class Monowire extends WeaponBase {
       }
       if (killed) return;
       this.ctx.slow(e, 0.5);
-      // 맞은 일반 적은 1초 동안 아군이 되어 다른 적과 싸움
-      if (!e.isBoss) this.ctx.charm(e, 1);
+      // 맞은 일반 적은 1초(Lv.7부터 1.5초) 동안 아군이 되어 다른 적과 싸움
+      if (!e.isBoss) this.ctx.charm(e, this.level >= 7 ? 1.5 : 1);
       if (this.has('entangle')) {
         this.ctx.stun(e, 0.5);
         for (const o of this.ctx.grid.query(e.x, e.y, 40, this.near)) if (o.active && (o.x - e.x) ** 2 + (o.y - e.y) ** 2 < 40 * 40) this.ctx.stun(o, 0.5);

@@ -30,8 +30,8 @@ const progress = (stat: string, cur: number, goal: number) =>
   stat === 'totalTime' || stat === 'bestTime' ? tr('hideout.minutes', { a: Math.min(Math.floor(cur / 60), goal / 60), b: goal / 60 }) : `${fmt(Math.min(cur, goal))}/${fmt(goal)}`;
 
 /** 아지트(로비): 런 사이에 크레딧으로 영구 강화·러너 선택·의뢰 보상 받기 */
-/** 첫 판 뒤 이만큼 이상 벌어 왔으면 '넉넉한' 대사 (모노와이어 600 + 광전사 칩 1,000 + 여유) */
-const TUT_RICH = 1800;
+/** 첫 판 뒤 이만큼 이상 벌어 왔으면 '넉넉한' 대사 (모노와이어 600 + 시뮬레이션 칩 600 + 광전사 칩 1,000) */
+const TUT_RICH = 2200;
 
 export class HideoutScene extends Phaser.Scene {
   private tab: Tab = 'bar';
@@ -213,13 +213,26 @@ export class HideoutScene extends Phaser.Scene {
       return;
     }
     if (d.tut === 2) {
+      // 시뮬레이션 칩 구매 대기 (못 사면 건너뜀) → 산 걸 확인하면 리퍼닥이 광전사 칩 추천
+      const simCost = meta.clinic.find((c) => c.id === 'startPick')!.costs[0];
+      if (Save.clinicLevel('startPick' as ClinicId) === 0) {
+        if (d.credits < simCost) {
+          d.tut = 3;
+          Save.write();
+          this.sendOff();
+        }
+        return;
+      }
       if (d.specials.includes('berserk')) {
         d.tut = 3;
         Save.write();
+        this.sendOff();
         return;
       }
       const cost = meta.specials.berserk.cost;
       if (d.credits < cost) {
+        d.tut = 3;
+        Save.write();
         this.sendOff();
         return;
       }
@@ -229,14 +242,21 @@ export class HideoutScene extends Phaser.Scene {
         [
           tr('tut.c.buy'),
           () => {
-            if (Save.spend(cost)) {
+            const bought = Save.spend(cost);
+            if (bought) {
               d.specials.push('berserk');
               Sound.play('levelup');
             }
             d.tut = 3;
+            d.tutEquip = bought;
             Save.write();
             this.refresh();
-            this.talk([L('doc', 'tut.c.yes')], () => this.sendOff());
+            // 장착은 도크 9에서: 탭을 옮기고 장착할 때까지 안내
+            this.talk([L('doc', 'tut.c.yes')], () => {
+              if (!bought) return this.sendOff();
+              this.tab = 'bar';
+              this.refresh();
+            });
           },
         ],
         [
@@ -248,6 +268,14 @@ export class HideoutScene extends Phaser.Scene {
           },
         ],
       ]);
+      return;
+    }
+    // 광전사 칩 장착 대기: 장착하면 진이 한마디 하고 출격 안내
+    if (d.tutEquip && Save.special() === 'berserk') {
+      d.tutEquip = false;
+      Save.write();
+      this.refresh();
+      this.talk([L('jin', 'tut.e1')], () => this.sendOff());
     }
   }
 
@@ -260,7 +288,8 @@ export class HideoutScene extends Phaser.Scene {
       this.talk(
         [
           { who: 'doc', text: tr('tut.b2', { runner }) },
-          { who: 'doc', text: tr(Save.data.tutRich && Save.data.credits >= meta.specials.berserk.cost ? 'tut.b3r' : 'tut.b3', { runner }) },
+          // 시뮬레이션 칩을 살 돈이 있으면 지금 사라고, 없으면 모아 오라고
+          { who: 'doc', text: tr(Save.data.credits >= meta.clinic.find((c) => c.id === 'startPick')!.costs[0] ? 'tut.b3s' : 'tut.b3', { runner }) },
         ],
         () => {
           Save.data.tut = 2;
@@ -499,6 +528,7 @@ export class HideoutScene extends Phaser.Scene {
           Save.write();
           Sound.play('levelup');
           this.refresh();
+          this.tutorial();
         });
       }
     });
@@ -575,7 +605,14 @@ export class HideoutScene extends Phaser.Scene {
     const cur = Save.special();
     const sp = meta.specials[cur];
     const y = PY + 206;
-    this.panel.add(this.add.text(PX + 10, y + 2, tr('bar.special'), T(12, '#c8b8e8')));
+    const equipGuide = Save.data.tutEquip && cur !== 'berserk';
+    this.panel.add(this.add.text(PX + 10, y + 2, tr('bar.special'), T(12, equipGuide ? '#ff2bd6' : '#c8b8e8')));
+    if (equipGuide) {
+      this.hint.setText(tr('tut.hint.equip'));
+      const arrow = this.add.text(PX + 312, y + 1, '◀', T(12, '#ff2bd6'));
+      this.panel.add(arrow);
+      this.tweens.add({ targets: arrow, alpha: 0.3, duration: 400, yoyo: true, repeat: -1 });
+    }
     if (opts.length > 1) {
       this.button(PX + 100, y, 24, '◀', true, () => this.cycleSpecial(-1), COLORS.cyan);
       this.button(PX + 290, y, 24, '▶', true, () => this.cycleSpecial(1), COLORS.cyan);
@@ -618,6 +655,7 @@ export class HideoutScene extends Phaser.Scene {
     Save.write();
     Sound.play('hover');
     this.refresh();
+    this.tutorial();
   }
 
   private pickRunner(id: RunnerId): void {

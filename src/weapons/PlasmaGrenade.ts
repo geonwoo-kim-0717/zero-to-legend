@@ -84,11 +84,14 @@ export class PlasmaGrenade extends WeaponBase {
     this.grenades = this.grenades.filter((g) => g.t < g.fuse);
 
     // 신화: 연쇄 폭발 대기열
-    for (const c of this.chains) {
-      c.delay -= dt;
-      if (c.delay <= 0) this.explode(c.x, c.y, c.r, c.dmg, false);
-    }
+    for (const r of this.recentChains) r.t -= dt;
+    this.recentChains = this.recentChains.filter((r) => r.t > 0);
+    const due = this.chains.filter((c) => (c.delay -= dt) <= 0);
     this.chains = this.chains.filter((c) => c.delay > 0);
+    for (const c of due) {
+      this.recentChains.push({ x: c.x, y: c.y, t: 0.3 });
+      this.explode(c.x, c.y, c.r, c.dmg, false);
+    }
 
     // 전설: 플라즈마 장판
     for (const pl of this.pools) {
@@ -113,6 +116,14 @@ export class PlasmaGrenade extends WeaponBase {
     this.blasts = this.blasts.filter((b) => b.life > 0);
   }
 
+  /** 연쇄 폭발은 대기 중이거나 방금(0.3초 안) 터진 연쇄 폭발에서 40px 안에는 새로 만들지 않는다 (겹쳐 터지지 않게) */
+  private recentChains: { x: number; y: number; t: number }[] = [];
+  private chainFree(x: number, y: number): boolean {
+    const g = gameData.falloff.chainGap ** 2;
+    const near = (o: { x: number; y: number }) => (o.x - x) ** 2 + (o.y - y) ** 2 < g;
+    return !this.chains.some(near) && !this.recentChains.some(near);
+  }
+
   private explode(x: number, y: number, r: number, dmg: number, primary: boolean): void {
     // 전설: 중력탄 — 주변 적을 중심으로 끌어당김
     if (primary && this.has('gravity')) {
@@ -125,10 +136,10 @@ export class PlasmaGrenade extends WeaponBase {
     }
     const chainOn = this.has('chainReaction');
     this.hitCircle(x, y, r, dmg, undefined, (e, killed) => {
-      if (killed && chainOn && this.chainBudget >= 1) {
+      if (killed && chainOn && this.chainBudget >= 1 && this.chainFree(e.x, e.y)) {
         this.chainBudget--;
-        // 연쇄될 때마다 피해 ×0.8 누적
-        this.chains.push({ x: e.x, y: e.y, r, dmg: dmg * gameData.falloff.chain, delay: 0.12 });
+        // 연쇄될 때마다 피해 ×0.6 누적
+        this.chains.push({ x: e.x, y: e.y, r, dmg: dmg * gameData.falloff.chainBlast, delay: 0.12 });
       }
     });
     this.blasts.push({ x, y, r, life: 0.25 });

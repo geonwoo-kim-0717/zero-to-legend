@@ -143,7 +143,7 @@
           "desc": "Damage +8"
         },
         "6": {
-          "desc": "Length +20%"
+          "desc": "Length +20%, hit enemies fight for you 1.5s"
         },
         "7": {
           "desc": "2 lashes, Damage +10"
@@ -469,7 +469,7 @@
           },
           "1": {
             "name": "Chain Reaction",
-            "desc": "Enemies killed by blasts explode the same way (-20% damage per chain)"
+            "desc": "Enemies killed by blasts explode the same way (-40% damage per chain)"
           }
         }
       },

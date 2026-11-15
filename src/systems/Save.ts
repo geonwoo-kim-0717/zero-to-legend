@@ -51,7 +51,7 @@ export interface SaveData {
   /** 첫 판 튜토리얼 카드: 4번째 레벨업 집속탄, 3분 뒤 연쇄 폭발 */
   tutCluster: boolean;
   tutChain: boolean;
-  /** 아지트 튜토리얼 단계: 0 시작 전 · 1 모노와이어 구매 대기 · 2 기본 안내 끝 · 3 광전사 칩 제안까지 끝 */
+  /** 아지트 튜토리얼 단계: 0 시작 전 · 1 모노와이어 구매 대기 · 2 시뮬레이션 칩 구매 대기 · 3 광전사 칩 제안까지 끝 */
   tut: number;
   /** 리퍼닥이 모노와이어 값을 채워 줬는지 */
   tutTopup: boolean;
@@ -59,6 +59,8 @@ export interface SaveData {
   tutRich: boolean;
   /** 첫 귀환 튜토리얼 끝에 진이 두 번째 출격을 재촉했는지 */
   tutGo: boolean;
+  /** 광전사 칩을 산 뒤 도크 9에서 장착하기를 기다리는 중 */
+  tutEquip: boolean;
   /** 마지막 판: 도달한 챕터(0부터)와 최종 클리어 여부 — 다음 판 시작 대사·첫 귀환 대사가 달라진다 */
   lastZone: number;
   lastWin: boolean;
@@ -111,6 +113,7 @@ function fresh(): SaveData {
     tutTopup: false,
     tutRich: false,
     tutGo: false,
+    tutEquip: false,
     lastZone: 0,
     lastWin: false,
     introDone: false,
