@@ -311,6 +311,7 @@
     "diveTime": 0.4,
     "diveSpeed": 210
   },
+  "falloff": { "pierce": 0.8, "chain": 0.8 },
   "melee": {
     "psycho": {
       "range": 150,
@@ -324,7 +325,8 @@
       "interval": 4.5,
       "windup": 0.8,
       "lungeTime": 0.6,
-      "lungeSpeed": 260
+      "lungeSpeed": 260,
+      "swing": { "range": 30, "reach": 38, "windup": 0.35, "recover": 0.3, "cd": 1.2, "damageMul": 1.5 }
     }
   },
   "xpCurve": {
