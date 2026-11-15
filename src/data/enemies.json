@@ -78,7 +78,7 @@
     "hp": 9600,
     "speed": 36,
     "damage": 20,
-    "radius": 16,
+    "radius": 18,
     "xp": 15,
     "texture": "trooper_tank",
     "guide": "블랙 실드 탱커. 방패로 밀고 들어온다. 맷집이 제일 세니 나중에 잡아."
@@ -108,7 +108,7 @@
     "hp": 3600,
     "speed": 44,
     "damage": 15,
-    "radius": 15,
+    "radius": 13,
     "xp": 15,
     "texture": "trooper_sniper",
     "guide": "진압대 저격수. 멀리서 강한 한 방. 조준선이 보이면 움직여."

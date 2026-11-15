@@ -51,10 +51,10 @@ const HP_W = 120;
 type BossPhase = 'walk' | 'aim' | 'charge';
 /** 블랙 실드 요원 공격 그림·이펙트 (아트 tools/art/sprites2026/scripts/troopers6/keys/atk_meta.json) */
 const TROOPER_ATK = {
-  tank: { ms: [90, 110, 140, 70, 90, 120, 110, 100], size: [48, 42], fxStart: 4, anchor: [41, 23], fx: 'fx_shield_bash', fxN: 8, fxSize: [64, 40], pivot: [32, 18] },
+  tank: { ms: [90, 110, 140, 70, 90, 120, 110, 100], size: [54, 48], fxStart: 4, anchor: [47, 27], fx: 'fx_shield_bash', fxN: 8, fxSize: [64, 40], pivot: [32, 18] },
   melee: { ms: [90, 110, 140, 60, 80, 120, 110, 100], size: [48, 42], fxStart: 3, anchor: [22, 41], fx: 'fx_baton_slash', fxN: 10, fxSize: [136, 104], pivot: [44, 92] },
   hacker: { ms: [100, 120, 160, 80, 110, 160, 120, 100], size: [48, 42], fxStart: 4, anchor: [37, 13], fx: 'fx_hack_pulse', fxN: 10, fxSize: [64, 48], pivot: [20, 24] },
-  sniper: { ms: [100, 140, 200, 70, 90, 110, 140, 140], size: [54, 48], fxStart: 3, anchor: [45, 47], fx: 'fx_sniper_muzzle', fxN: 23, fxSize: [96, 72], pivot: [44, 66] },
+  sniper: { ms: [100, 140, 200, 70, 90, 110, 140, 140], size: [48, 42], fxStart: 3, anchor: [39, 45], fx: 'fx_sniper_muzzle', fxN: 23, fxSize: [96, 72], pivot: [44, 66] },
 } as const;
 /** 진압대 강하: 떨어지는 시간, 대원 사이 간격, 착지 충격 컷 유지 시간 (그동안 무적) */
 const DROP = { fall: 0.45, stagger: 0.12, land: 0.7 };
