@@ -64,8 +64,8 @@ function loadTexture(scene: Phaser.Scene, key: string, url: string): Promise<voi
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.onload = () => {
-      // 블랙 실드(trooper_)는 밝은 테두리 빛 없이 원래 검정 외곽선 (사용자 결정: 실루엣이 흐려짐)
-      if (isEnemyKey(key) && !key.startsWith('trooper_')) scene.textures.addCanvas(key, rimLight(img));
+      // 블랙 실드(trooper_)와 보스(boss·midboss)는 밝은 테두리 빛 없이 원래 검정 외곽선 (사용자 결정: 실루엣이 흐려짐)
+      if (isEnemyKey(key) && !/^(trooper_|boss|midboss)/.test(key)) scene.textures.addCanvas(key, rimLight(img));
       else scene.textures.addImage(key, img);
       resolve();
     };

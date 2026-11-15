@@ -102,12 +102,12 @@
         "airFrames": [6, 8],
         "airRise": 0.2,
         "swingFrames": [0, 3],
-        "landFrames": [4, 8]
+        "landFrames": [4, 6]
       },
       "entrance": {
         "note": "등장 연출: 화면 안·플레이어에서 minDist 이상인 곳 중 적이 가장 몰린 자리로 height px 위에서 fall초 동안 떨어진다(무적). 착지 반경(가로 radius, 세로 0.6배) 안 졸개 처치(보상 없음, 플레이어 피해 없음) 후 taunt초 동안 멈춰서 line 대사",
         "minDist": 180,
-        "fall": 0.7,
+        "fall": 0.4,
         "height": 260,
         "radius": 90,
         "taunt": 2,
@@ -617,5 +617,6 @@
   "fixerWarnShow": 3.3,
   "maxedAbilityChance": 0.15,
   "enemyDamageGrowthPerMin": 0.04,
-  "bossScale": 1.3
+  "bossScale": 1.3,
+  "bossMarkAlpha": 0.5
 }

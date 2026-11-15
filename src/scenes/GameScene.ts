@@ -68,6 +68,11 @@ type BossDef = (typeof gameData.bosses)[number];
 /** 점프 내리찍기 (game.json bosses[].slam) */
 type SlamDef = { minDist: number; leap: number; air: number; airSwing: number; recover: number; height: number; radius: number; damage: number; knock: number; leapFrames: number[]; airFrames: number[]; airRise: number; swingFrames: number[]; landFrames: number[] };
 /** 등장 연출 (game.json bosses[].entrance): 화면 위에서 적이 몰린 곳으로 떨어져 졸개를 처치하고 한마디 */
+/** 보스 착지 예고 원의 불투명도 배율 (game.json bossMarkAlpha) */
+const MARK_A = (gameData as { bossMarkAlpha?: number }).bossMarkAlpha ?? 1;
+/** 이송기 엔진 기울기 프레임 (dropship_tilt_00 정지 ~ _05 전진), 프레임당 시간(ms) */
+const SHIP_TILT_N = 5;
+const SHIP_TILT_MS = 80;
 type EntranceDef = { minDist: number; fall: number; height: number; radius: number; taunt: number; line: string };
 /** 분노 (game.json bosses[].enrage) */
 type EnrageDef = { at: number; mul: number; tint: string };
@@ -392,6 +397,10 @@ export class GameScene extends Phaser.Scene implements GameContext {
     ship: Phaser.GameObjects.Image;
     /** 엔진 후류(이동 중 기운 것/정지 중 수직)와 바닥 먼지(정지 중에만) */
     wash: Phaser.GameObjects.Image | null;
+    /** 정지 자세 후류: 엔진 기울기(tilt)에 맞춰 이동 후류와 겹쳐 바꾼다 */
+    washH: Phaser.GameObjects.Image | null;
+    /** 엔진 기울기 0(정지·수직)~5(전진), 프레임 dropship_tilt_NN */
+    tilt: number;
     dust: Phaser.GameObjects.Image | null;
     shadow: Phaser.GameObjects.Ellipse;
     markers: { x: number; y: number }[];
@@ -2390,6 +2399,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
     if (this.raid) {
       this.raid.ship.destroy();
       this.raid.wash?.destroy();
+      this.raid.washH?.destroy();
       this.raid.dust?.destroy();
       this.raid.shadow.destroy();
       this.raid = null;
@@ -3086,9 +3096,9 @@ export class GameScene extends Phaser.Scene implements GameContext {
   private drawEntranceMark(ent: EntranceDef): void {
     const k = Phaser.Math.Clamp(1 - this.bossTimer / ent.fall, 0, 1);
     const { x, y } = this.bossTo;
-    this.fx.fillStyle(0xff2a3a, 0.1 + 0.15 * k).fillEllipse(x, y, ent.radius * 2, ent.radius * 1.2);
-    this.fx.fillStyle(0xff2a3a, 0.25).fillEllipse(x, y, ent.radius * 2 * k, ent.radius * 1.2 * k);
-    this.fx.lineStyle(2, 0xff2a3a, 0.5 + Math.sin(this.elapsed * 30) * 0.3).strokeEllipse(x, y, ent.radius * 2, ent.radius * 1.2);
+    this.fx.fillStyle(0xff2a3a, MARK_A * (0.1 + 0.15 * k)).fillEllipse(x, y, ent.radius * 2, ent.radius * 1.2);
+    this.fx.fillStyle(0xff2a3a, MARK_A * 0.25).fillEllipse(x, y, ent.radius * 2 * k, ent.radius * 1.2 * k);
+    this.fx.lineStyle(2, 0xff2a3a, MARK_A * (0.5 + Math.sin(this.elapsed * 30) * 0.3)).strokeEllipse(x, y, ent.radius * 2, ent.radius * 1.2);
   }
 
   /** 등장 착지: 반경 안 졸개를 처치(경험치·드롭·처치 수 없음), 플레이어 피해 없음, 충격파 + 한마디 */
@@ -3118,9 +3128,9 @@ export class GameScene extends Phaser.Scene implements GameContext {
     const left = this.bossPhase === 'leap' ? this.bossTimer + sl.air / rage : this.bossTimer;
     const k = Phaser.Math.Clamp(1 - left / total, 0, 1);
     const { x, y } = this.bossTo;
-    this.fx.fillStyle(0xff2a3a, 0.1 + 0.15 * k).fillEllipse(x, y, sl.radius * 2, sl.radius * 1.2);
-    this.fx.fillStyle(0xff2a3a, 0.25).fillEllipse(x, y, sl.radius * 2 * k, sl.radius * 1.2 * k);
-    this.fx.lineStyle(2, 0xff2a3a, 0.5 + Math.sin(this.elapsed * 30) * 0.3).strokeEllipse(x, y, sl.radius * 2, sl.radius * 1.2);
+    this.fx.fillStyle(0xff2a3a, MARK_A * (0.1 + 0.15 * k)).fillEllipse(x, y, sl.radius * 2, sl.radius * 1.2);
+    this.fx.fillStyle(0xff2a3a, MARK_A * 0.25).fillEllipse(x, y, sl.radius * 2 * k, sl.radius * 1.2 * k);
+    this.fx.lineStyle(2, 0xff2a3a, MARK_A * (0.5 + Math.sin(this.elapsed * 30) * 0.3)).strokeEllipse(x, y, sl.radius * 2, sl.radius * 1.2);
   }
 
   /** 점프 내리찍기 착지: 범위 안이면 피해 + 밀려남, 충격파·흔들림 */
@@ -3581,6 +3591,8 @@ export class GameScene extends Phaser.Scene implements GameContext {
         ship: this.add.image(sx, ty - SHIP_LIFT, this.textures.exists('dropship_move') ? 'dropship_move' : 'dropship').setDepth(30),
         shadow: this.add.ellipse(sx, ty + 8, 92, 20, 0x000000, 0.35).setDepth(9),
         wash: this.textures.exists('fx_ship_wash_move') ? this.add.image(sx, ty, 'fx_ship_wash_move', '0').setOrigin(0).setDepth(29.9) : null,
+        washH: this.textures.exists('fx_ship_wash') ? this.add.image(sx, ty, 'fx_ship_wash', '0').setOrigin(0).setDepth(29.9).setAlpha(0) : null,
+        tilt: SHIP_TILT_N,
         dust: this.textures.exists('fx_ship_dust') ? this.add.image(sx, ty + 8, 'fx_ship_dust', '0').setOrigin(88 / 176, 30 / 40).setDepth(9.5).setVisible(false) : null,
       };
       const warn = this.add
@@ -3603,12 +3615,11 @@ export class GameScene extends Phaser.Scene implements GameContext {
       if (k >= 1) {
         r.phase = 'hover';
         r.t = 0;
-        r.ship.setTexture('dropship');
         // 착륙(정지) 엔진 소리
         Sound.play('shiphover');
       }
     } else if (r.phase === 'hover') {
-      this.fx.fillStyle(COLORS.yellow, 0.1).fillEllipse(r.tx, r.ty, 100, 54);
+      this.fx.fillStyle(0xff2a3a, 0.1).fillEllipse(r.tx, r.ty, 100, 54);
       if (r.t >= R.hover) {
         // 역할군별 대원 투입. 체력은 일반 몬스터와 같은 곡선·챕터 배율을 따르되,
         // 첫 습격 시각(raidStart, 5:30)의 곡선 값을 1로 맞춰 1챕터 첫 습격 4명 합계가 enemies.json 기본값(20,000)이 되게 한다
@@ -3649,7 +3660,6 @@ export class GameScene extends Phaser.Scene implements GameContext {
         r.phase = 'out';
         r.t = 0;
         r.sx = r.ship.x;
-        if (this.textures.exists('dropship_move')) r.ship.setTexture('dropship_move');
       }
     } else {
       const k = Math.min(1, r.t / R.flyOut);
@@ -3658,6 +3668,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
         r.ship.destroy();
         r.shadow.destroy();
         r.wash?.destroy();
+        r.washH?.destroy();
         r.dust?.destroy();
         this.raid = null;
         // 다음 습격 쿨타임은 이번에 내린 요원이 모두 사살된 뒤부터 돈다 (updateRaid 앞부분에서 확인)
@@ -3668,15 +3679,20 @@ export class GameScene extends Phaser.Scene implements GameContext {
     }
     r.ship.y = r.ty - SHIP_LIFT + bob;
     r.shadow.setPosition(r.ship.x, r.ty + 8);
-    // 엔진 후류: 이동 중 기운 것, 정지 중 수직 (프레임 왼쪽 위 = 이송기 그림 왼쪽 위 - (12, 4)), 12fps 반복
+    // 엔진 기울기: 도착해 멈추면 전진 자세(5) → 정지 자세(0), 떠날 때 0 → 5. 프레임당 SHIP_TILT_MS
+    const want = r.phase === 'hover' ? 0 : SHIP_TILT_N;
+    r.tilt = want > r.tilt ? Math.min(want, r.tilt + (dt * 1000) / SHIP_TILT_MS) : Math.max(want, r.tilt - (dt * 1000) / SHIP_TILT_MS);
+    const tk = `dropship_tilt_${String(Math.round(r.tilt)).padStart(2, '0')}`;
+    if (this.textures.exists(tk)) r.ship.setTexture(tk);
+    else r.ship.setTexture(r.phase === 'hover' || !this.textures.exists('dropship_move') ? 'dropship' : 'dropship_move');
+    // 엔진 후류: 이동 중 기운 것, 정지 중 수직 (프레임 왼쪽 위 = 이송기 그림 왼쪽 위 - (12, 4)), 12fps 반복.
+    // 엔진이 기우는 동안엔 두 후류를 기울기에 맞춰 겹쳐(수직 ↔ 기운 것) 방향이 함께 돌아가 보이게 한다
     const fr = String(Math.floor(this.elapsed * 12));
-    if (r.wash) {
-      const key = r.phase === 'hover' ? 'fx_ship_wash' : 'fx_ship_wash_move';
-      if (this.textures.exists(key)) {
-        r.wash.setTexture(key, String(+fr % 12));
-        r.wash.setPosition(r.ship.x - r.ship.width / 2 - 12, r.ship.y - r.ship.height / 2 - 4);
-      }
-    }
+    const wx = r.ship.x - r.ship.width / 2 - 12;
+    const wy = r.ship.y - r.ship.height / 2 - 4;
+    const mk = Phaser.Math.Clamp(r.tilt / SHIP_TILT_N, 0, 1);
+    if (r.wash) r.wash.setFrame(String(+fr % 12)).setPosition(wx, wy).setAlpha(r.washH ? mk : 1);
+    if (r.washH) r.washH.setFrame(String(+fr % 12)).setPosition(wx, wy).setAlpha(1 - mk);
     // 바닥 먼지: 떠 있는 동안에만
     if (r.dust) r.dust.setVisible(r.phase === 'hover').setPosition(r.ship.x, r.ty + 8).setFrame(String(+fr % 24));
     if (r.phase !== 'out') {
