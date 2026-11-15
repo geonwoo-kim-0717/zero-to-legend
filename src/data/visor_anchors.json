@@ -1,0 +1,626 @@
+{
+"trooper_hacker": {
+"color": "green",
+"px": 5,
+"x": 19.3,
+"y": 8.1
+},
+"trooper_hacker_aim": {
+"color": "green",
+"px": 8,
+"x": 45.5,
+"y": 24.4
+},
+"trooper_hacker_atk_00": {
+"color": "green",
+"px": 5,
+"x": 23.7,
+"y": 10.9
+},
+"trooper_hacker_atk_01": {
+"color": "green",
+"px": 6,
+"x": 26.0,
+"y": 11.8
+},
+"trooper_hacker_atk_02": {
+"color": "green",
+"px": 6,
+"x": 26.0,
+"y": 12.8
+},
+"trooper_hacker_atk_03": {
+"color": "green",
+"px": 5,
+"x": 25.3,
+"y": 10.9
+},
+"trooper_hacker_atk_04": {
+"color": "green",
+"px": 5,
+"x": 22.7,
+"y": 12.9
+},
+"trooper_hacker_atk_05": {
+"color": "green",
+"px": 5,
+"x": 22.7,
+"y": 13.9
+},
+"trooper_hacker_atk_06": {
+"color": "green",
+"px": 6,
+"x": 26.0,
+"y": 10.8
+},
+"trooper_hacker_atk_07": {
+"color": "green",
+"px": 6,
+"x": 26.0,
+"y": 11.8
+},
+"trooper_hacker_charge": {
+"color": "green",
+"px": 8,
+"x": 45.5,
+"y": 24.4
+},
+"trooper_hacker_drop": {
+"color": "green",
+"px": 7,
+"x": 22.6,
+"y": 14.2
+},
+"trooper_hacker_land": {
+"color": "green",
+"px": 7,
+"x": 31.5,
+"y": 25.2
+},
+"trooper_hacker_w2": {
+"color": "green",
+"px": 5,
+"x": 19.3,
+"y": 8.1
+},
+"trooper_hacker_walk_00": {
+"color": "green",
+"px": 5,
+"x": 27.7,
+"y": 11.9
+},
+"trooper_hacker_walk_01": {
+"color": "green",
+"px": 5,
+"x": 27.7,
+"y": 11.9
+},
+"trooper_hacker_walk_02": {
+"color": "green",
+"px": 3,
+"x": 28.2,
+"y": 12.8
+},
+"trooper_hacker_walk_03": {
+"color": "green",
+"px": 3,
+"x": 27.5,
+"y": 12.5
+},
+"trooper_hacker_walk_04": {
+"color": "green",
+"px": 5,
+"x": 27.7,
+"y": 11.9
+},
+"trooper_hacker_walk_05": {
+"color": "green",
+"px": 5,
+"x": 27.7,
+"y": 11.9
+},
+"trooper_hacker_walk_06": {
+"color": "green",
+"px": 4,
+"x": 27.5,
+"y": 11.8
+},
+"trooper_hacker_walk_07": {
+"color": "green",
+"px": 5,
+"x": 27.7,
+"y": 11.9
+},
+"trooper_hacker_walk_08": {
+"color": "green",
+"px": 2,
+"x": 28.0,
+"y": 12.5
+},
+"trooper_hacker_walk_09": {
+"color": "green",
+"px": 4,
+"x": 27.5,
+"y": 12.0
+},
+"trooper_hacker_walk_10": {
+"color": "green",
+"px": 5,
+"x": 27.7,
+"y": 11.9
+},
+"trooper_hacker_walk_11": {
+"color": "green",
+"px": 5,
+"x": 27.7,
+"y": 11.9
+},
+"trooper_melee": {
+"color": "red",
+"px": 9,
+"x": 17.1,
+"y": 6.9
+},
+"trooper_melee_aim": {
+"color": "red",
+"px": 9,
+"x": 26.1,
+"y": 15.9
+},
+"trooper_melee_atk_00": {
+"color": "red",
+"px": 1,
+"x": 27.5,
+"y": 3.5
+},
+"trooper_melee_atk_01": {
+"color": "red",
+"px": 1,
+"x": 24.5,
+"y": 3.5
+},
+"trooper_melee_atk_02": {
+"color": "red",
+"px": 1,
+"x": 24.5,
+"y": 4.5
+},
+"trooper_melee_atk_03": {
+"color": "red",
+"px": 9,
+"x": 23.6,
+"y": 9.6
+},
+"trooper_melee_atk_04": {
+"color": "red",
+"px": 7,
+"x": 24.2,
+"y": 13.9
+},
+"trooper_melee_atk_05": {
+"color": "red",
+"px": 7,
+"x": 25.2,
+"y": 13.9
+},
+"trooper_melee_atk_06": {
+"color": "red",
+"px": 7,
+"x": 26.2,
+"y": 12.9
+},
+"trooper_melee_atk_07": {
+"color": "red",
+"px": 7,
+"x": 26.2,
+"y": 13.9
+},
+"trooper_melee_charge": {
+"color": "red",
+"px": 9,
+"x": 26.1,
+"y": 15.9
+},
+"trooper_melee_drop": {
+"color": "red",
+"px": 12,
+"x": 23.9,
+"y": 13.3
+},
+"trooper_melee_land": {
+"color": "red",
+"px": 9,
+"x": 24.1,
+"y": 20.4
+},
+"trooper_melee_w2": {
+"color": "red",
+"px": 9,
+"x": 17.1,
+"y": 6.9
+},
+"trooper_melee_walk_00": {
+"color": "red",
+"px": 11,
+"x": 25.1,
+"y": 6.4
+},
+"trooper_melee_walk_01": {
+"color": "red",
+"px": 9,
+"x": 25.4,
+"y": 6.3
+},
+"trooper_melee_walk_02": {
+"color": "red",
+"px": 11,
+"x": 25.1,
+"y": 6.4
+},
+"trooper_melee_walk_03": {
+"color": "red",
+"px": 10,
+"x": 25.0,
+"y": 7.5
+},
+"trooper_melee_walk_04": {
+"color": "red",
+"px": 10,
+"x": 25.0,
+"y": 7.5
+},
+"trooper_melee_walk_05": {
+"color": "red",
+"px": 9,
+"x": 24.7,
+"y": 7.1
+},
+"trooper_melee_walk_06": {
+"color": "red",
+"px": 11,
+"x": 25.4,
+"y": 6.3
+},
+"trooper_melee_walk_07": {
+"color": "red",
+"px": 10,
+"x": 25.0,
+"y": 6.3
+},
+"trooper_melee_walk_08": {
+"color": "red",
+"px": 10,
+"x": 24.9,
+"y": 6.8
+},
+"trooper_melee_walk_09": {
+"color": "red",
+"px": 10,
+"x": 25.0,
+"y": 7.5
+},
+"trooper_melee_walk_10": {
+"color": "red",
+"px": 10,
+"x": 25.0,
+"y": 7.5
+},
+"trooper_melee_walk_11": {
+"color": "red",
+"px": 12,
+"x": 25.2,
+"y": 7.3
+},
+"trooper_sniper": {
+"color": "green",
+"px": 7,
+"x": 18.2,
+"y": 10.9
+},
+"trooper_sniper_aim": {
+"color": "green",
+"px": 5,
+"x": 19.7,
+"y": 10.1
+},
+"trooper_sniper_atk_00": {
+"color": "green",
+"px": 4,
+"x": 21.0,
+"y": 11.0
+},
+"trooper_sniper_atk_01": {
+"color": "green",
+"px": 7,
+"x": 18.2,
+"y": 10.9
+},
+"trooper_sniper_atk_02": {
+"color": "green",
+"px": 7,
+"x": 18.2,
+"y": 11.9
+},
+"trooper_sniper_atk_03": {
+"color": "green",
+"px": 4,
+"x": 19.0,
+"y": 13.0
+},
+"trooper_sniper_atk_04": {
+"color": "green",
+"px": 5,
+"x": 19.7,
+"y": 10.1
+},
+"trooper_sniper_atk_05": {
+"color": "green",
+"px": 5,
+"x": 18.9,
+"y": 10.7
+},
+"trooper_sniper_atk_06": {
+"color": "green",
+"px": 7,
+"x": 18.2,
+"y": 10.9
+},
+"trooper_sniper_atk_07": {
+"color": "green",
+"px": 7,
+"x": 18.2,
+"y": 11.9
+},
+"trooper_sniper_charge": {
+"color": "green",
+"px": 5,
+"x": 18.9,
+"y": 10.7
+},
+"trooper_sniper_drop": {
+"color": "green",
+"px": 6,
+"x": 18.0,
+"y": 14.8
+},
+"trooper_sniper_land": {
+"color": "green",
+"px": 7,
+"x": 20.2,
+"y": 18.9
+},
+"trooper_sniper_w2": {
+"color": "green",
+"px": 7,
+"x": 18.2,
+"y": 10.9
+},
+"trooper_sniper_walk_00": {
+"color": "green",
+"px": 7,
+"x": 18.2,
+"y": 10.9
+},
+"trooper_sniper_walk_01": {
+"color": "green",
+"px": 7,
+"x": 18.2,
+"y": 10.9
+},
+"trooper_sniper_walk_02": {
+"color": "green",
+"px": 7,
+"x": 18.2,
+"y": 11.9
+},
+"trooper_sniper_walk_03": {
+"color": "green",
+"px": 7,
+"x": 18.2,
+"y": 11.9
+},
+"trooper_sniper_walk_04": {
+"color": "green",
+"px": 7,
+"x": 18.2,
+"y": 11.9
+},
+"trooper_sniper_walk_05": {
+"color": "green",
+"px": 7,
+"x": 18.2,
+"y": 10.9
+},
+"trooper_sniper_walk_06": {
+"color": "green",
+"px": 7,
+"x": 18.2,
+"y": 10.9
+},
+"trooper_sniper_walk_07": {
+"color": "green",
+"px": 7,
+"x": 18.2,
+"y": 10.9
+},
+"trooper_sniper_walk_08": {
+"color": "green",
+"px": 7,
+"x": 18.2,
+"y": 11.9
+},
+"trooper_sniper_walk_09": {
+"color": "green",
+"px": 7,
+"x": 18.2,
+"y": 11.9
+},
+"trooper_sniper_walk_10": {
+"color": "green",
+"px": 7,
+"x": 18.2,
+"y": 11.9
+},
+"trooper_sniper_walk_11": {
+"color": "green",
+"px": 7,
+"x": 18.2,
+"y": 10.9
+},
+"trooper_tank": {
+"color": "red",
+"px": 2,
+"x": 28.0,
+"y": 13.5
+},
+"trooper_tank_aim": {
+"color": "red",
+"px": 3,
+"x": 25.5,
+"y": 16.5
+},
+"trooper_tank_atk_00": {
+"color": "red",
+"px": 1,
+"x": 26.5,
+"y": 13.5
+},
+"trooper_tank_atk_01": {
+"color": "red",
+"px": 4,
+"x": 29.5,
+"y": 13.8
+},
+"trooper_tank_atk_02": {
+"color": "red",
+"px": 4,
+"x": 29.5,
+"y": 14.8
+},
+"trooper_tank_atk_03": {
+"color": "red",
+"px": 4,
+"x": 29.0,
+"y": 15.5
+},
+"trooper_tank_atk_04": {
+"color": "red",
+"px": 3,
+"x": 25.5,
+"y": 16.5
+},
+"trooper_tank_atk_05": {
+"color": "red",
+"px": 3,
+"x": 26.5,
+"y": 16.5
+},
+"trooper_tank_atk_06": {
+"color": "red",
+"px": 3,
+"x": 26.5,
+"y": 15.5
+},
+"trooper_tank_atk_07": {
+"color": "red",
+"px": 1,
+"x": 26.5,
+"y": 13.5
+},
+"trooper_tank_charge": {
+"color": "red",
+"px": 3,
+"x": 26.5,
+"y": 16.5
+},
+"trooper_tank_drop": {
+"color": "red",
+"px": 6,
+"x": 29.8,
+"y": 14.5
+},
+"trooper_tank_land": {
+"color": "red",
+"px": 5,
+"x": 27.1,
+"y": 15.7
+},
+"trooper_tank_w2": {
+"color": "red",
+"px": 3,
+"x": 28.5,
+"y": 13.5
+},
+"trooper_tank_walk_00": {
+"color": "red",
+"px": 2,
+"x": 28.0,
+"y": 13.5
+},
+"trooper_tank_walk_01": {
+"color": "red",
+"px": 1,
+"x": 27.5,
+"y": 12.5
+},
+"trooper_tank_walk_02": {
+"color": "red",
+"px": 1,
+"x": 27.5,
+"y": 12.5
+},
+"trooper_tank_walk_03": {
+"color": "red",
+"px": 1,
+"x": 27.5,
+"y": 12.5
+},
+"trooper_tank_walk_04": {
+"color": "red",
+"px": 1,
+"x": 27.5,
+"y": 12.5
+},
+"trooper_tank_walk_05": {
+"color": "red",
+"px": 1,
+"x": 27.5,
+"y": 12.5
+},
+"trooper_tank_walk_06": {
+"color": "red",
+"px": 3,
+"x": 28.5,
+"y": 13.5
+},
+"trooper_tank_walk_07": {
+"color": "red",
+"px": 3,
+"x": 28.5,
+"y": 13.5
+},
+"trooper_tank_walk_08": {
+"color": "red",
+"px": 6,
+"x": 29.0,
+"y": 20.5
+},
+"trooper_tank_walk_09": {
+"color": "red",
+"px": 1,
+"x": 27.5,
+"y": 12.5
+},
+"trooper_tank_walk_10": {
+"color": "red",
+"px": 1,
+"x": 27.5,
+"y": 12.5
+},
+"trooper_tank_walk_11": {
+"color": "red",
+"px": 1,
+"x": 27.5,
+"y": 13.5
+}
+}
