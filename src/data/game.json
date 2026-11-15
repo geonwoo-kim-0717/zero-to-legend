@@ -65,7 +65,7 @@
       "time": 300,
       "final": false,
       "title": "바실리 갱단 행동대장 '도살자' 코박",
-      "chargeSpeed": 300,
+      "chargeSpeed": 360,
       "summon": "thug",
       "summonCount": 4,
       "summonEvery": 9,
