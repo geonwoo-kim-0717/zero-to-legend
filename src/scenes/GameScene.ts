@@ -3112,7 +3112,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
       idx = w0 + Math.floor(k * (w1 - w0 + 1));
     } else if (ph === 'charge' && n('charge') > 0) {
       // 돌진: 처음 chargeFlashTime 동안 번쩍 프레임, 이후 돌진 프레임을 남은 시간에 맞춰
-      const total = P2?.chargeTime ?? def.chargeTime;
+      const total = (P2?.chargeTime ?? def.chargeTime) / (this.bossEnraged ? ((def as { enrage?: EnrageDef }).enrage?.mul ?? 1) : 1);
       const t = total - this.bossTimer;
       const [r0, r1] = A.chargeRun;
       motion = 'charge';
@@ -4631,7 +4631,8 @@ export class GameScene extends Phaser.Scene implements GameContext {
       if (this.bossTimer <= 0) {
         this.bossPhase = 'charge';
         Sound.play('bosscharge');
-        this.bossTimer = p2 ? p2.chargeTime : def.chargeTime;
+        // 분노면 속도가 rage배 빨라지는 만큼 시간을 줄여 돌진 거리는 그대로 (빠르게만)
+        this.bossTimer = (p2 ? p2.chargeTime : def.chargeTime) / rage;
       }
     } else {
       const sp = (p2 ? p2.chargeSpeed : def.chargeSpeed) * rage;
