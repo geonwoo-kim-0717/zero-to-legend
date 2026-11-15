@@ -104,6 +104,15 @@
         "swingFrames": [0, 3],
         "landFrames": [4, 8]
       },
+      "entrance": {
+        "note": "등장 연출: 화면 안·플레이어에서 minDist 이상인 곳 중 적이 가장 몰린 자리로 height px 위에서 fall초 동안 떨어진다(무적). 착지 반경(가로 radius, 세로 0.6배) 안 졸개 처치(보상 없음, 플레이어 피해 없음) 후 taunt초 동안 멈춰서 line 대사",
+        "minDist": 180,
+        "fall": 0.7,
+        "height": 260,
+        "radius": 90,
+        "taunt": 2,
+        "line": "boss.taunt.midboss"
+      },
       "enrage": {
         "note": "체력이 at 아래로 내려가면 붉게(tint) 변하고 이동·돌진 속도 ×mul, 예고 시간 ÷mul",
         "at": 0.4,

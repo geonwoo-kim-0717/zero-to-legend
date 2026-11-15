@@ -52,7 +52,7 @@ const ZONES = zonesData.zones;
 const ZR = gameData.zoneRules;
 /** 왼쪽 위 체력바 폭 */
 const HP_W = 120;
-type BossPhase = 'walk' | 'aim' | 'charge' | 'leap' | 'air' | 'slam';
+type BossPhase = 'walk' | 'aim' | 'charge' | 'leap' | 'air' | 'slam' | 'enter' | 'taunt';
 /** 블랙 실드 요원 공격 그림·이펙트 (아트 tools/art/sprites2026/scripts/troopers6/keys/atk_meta.json) */
 const TROOPER_ATK = {
   tank: { ms: [90, 110, 140, 70, 90, 120, 110, 100], size: [54, 48], fxStart: 4, anchor: [47, 27], fx: 'fx_shield_bash', fxN: 8, fxSize: [64, 40], pivot: [32, 18] },
@@ -67,6 +67,8 @@ const SHIP_LIFT = 44;
 type BossDef = (typeof gameData.bosses)[number];
 /** 점프 내리찍기 (game.json bosses[].slam) */
 type SlamDef = { minDist: number; leap: number; air: number; airSwing: number; recover: number; height: number; radius: number; damage: number; knock: number; leapFrames: number[]; airFrames: number[]; airRise: number; swingFrames: number[]; landFrames: number[] };
+/** 등장 연출 (game.json bosses[].entrance): 화면 위에서 적이 몰린 곳으로 떨어져 졸개를 처치하고 한마디 */
+type EntranceDef = { minDist: number; fall: number; height: number; radius: number; taunt: number; line: string };
 /** 분노 (game.json bosses[].enrage) */
 type EnrageDef = { at: number; mul: number; tint: string };
 /** 보스 동작별 프레임 설정 (game.json bosses[].anim) */
@@ -676,7 +678,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
   // ───────────────────────────── GameContext ─────────────────────────────
   damage(e: Enemy, amount: number, tag?: DamageTag): boolean {
     if (!e.active) return false;
-    if (e === this.boss && this.bossShieldT > 0) return false;
+    if (e === this.boss && (this.bossShieldT > 0 || this.bossPhase === 'enter')) return false;
     // 회피 기동 중인 진압대는 피해를 받지 않음
     if (e.dodgeT > 0) return false;
     // 강하·착지 충격 중인 진압대는 무적
@@ -714,27 +716,28 @@ export class GameScene extends Phaser.Scene implements GameContext {
   }
 
   // ───────────── 적 말풍선 (블랙 실드 출동 대사) ─────────────
-  private shouts: { e: Enemy; box: Phaser.GameObjects.Text; t: number; delay: number; below: boolean }[] = [];
+  private shouts: { e: Enemy; box: Phaser.GameObjects.Text; t: number; delay: number; below: boolean; life: number; lift: number }[] = [];
 
-  private shout(e: Enemy, text: string, delay: number, below = false): void {
+  /** life: 보이는 시간(초), lift: 몸 위로 더 올릴 거리(px, 키 큰 보스용) */
+  private shout(e: Enemy, text: string, delay: number, below = false, life = 1.5, lift = 0): void {
     const box = this.add
       .text(e.x, e.y, text, { ...TEXT, fontSize: '9px', color: '#ffffff', backgroundColor: '#3a0a12', padding: { x: 5, y: 3 }, strokeThickness: 0 })
       .setOrigin(0.5, below ? 0 : 1)
       .setDepth(96)
       .setVisible(false);
-    this.shouts.push({ e, box, t: 0, delay, below });
+    this.shouts.push({ e, box, t: 0, delay, below, life, lift });
   }
 
   private updateShouts(dt: number): void {
     for (const s of this.shouts) {
       s.t += dt;
       const live = s.t - s.delay;
-      if (!s.e.active || live > 1.5) {
+      if (!s.e.active || live > s.life) {
         s.box.destroy();
         continue;
       }
       if (live < 0) continue;
-      s.box.setVisible(true).setPosition(s.e.x, s.below ? s.e.y + s.e.radius + 8 : s.e.y - s.e.radius - 10).setAlpha(live > 1.2 ? (1.5 - live) / 0.3 : 1);
+      s.box.setVisible(true).setPosition(s.e.x, s.below ? s.e.y + s.e.radius + 8 : s.e.y - s.e.radius - 10 - s.lift).setAlpha(live > s.life - 0.3 ? (s.life - live) / 0.3 : 1);
     }
     this.shouts = this.shouts.filter((s) => s.box.active);
   }
@@ -1765,7 +1768,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
       const rr = p.radius + e.radius;
       // 근접 요원은 몸으로 부딪혀선 피해를 주지 않고 진압봉 휘두르기로만 (돌진은 이동)
       const swingOnly = !!(gameData.melee as Record<string, MeleeDef>)[e.id]?.swing;
-      const airborne = e === this.boss && (this.bossPhase === 'leap' || this.bossPhase === 'air');
+      const airborne = e === this.boss && (this.bossPhase === 'leap' || this.bossPhase === 'air' || this.bossPhase === 'enter');
       if (!swingOnly && !airborne && e.charmT <= 0 && p.invuln <= 0 && (p.x - e.x) ** 2 + (p.y - e.y) ** 2 < rr * rr) {
         const hp0 = p.hp;
         this.hurtPlayer(e.damage, { kind: e.isBoss ? 'boss' : 'contact', id: e.id });
@@ -2983,6 +2986,29 @@ export class GameScene extends Phaser.Scene implements GameContext {
       const [r0, r1] = A.chargeRun;
       motion = 'charge';
       idx = t < A.chargeFlashTime ? A.chargeFlash : r0 + Math.min(r1 - r0, Math.floor(((t - A.chargeFlashTime) / Math.max(0.01, total - A.chargeFlashTime)) * (r1 - r0 + 1)));
+    } else if ((ph === 'enter' || ph === 'taunt') && sl) {
+      // 등장: 높은 곳에서 떨어지며(공중 프레임 → 마지막 airSwing초는 휘두르기) 착지 → 착지 자세 뒤 서서 말하기
+      const ent = (def as { entrance?: EntranceDef }).entrance!;
+      const span = (r: number[], k: number) => r[0] + Math.min(r[1] - r[0], Math.floor(Phaser.Math.Clamp(k, 0, 0.999) * (r[1] - r[0] + 1)));
+      if (ph === 'enter') {
+        if (this.bossTimer > sl.airSwing) {
+          motion = 'leap';
+          idx = sl.airFrames[1];
+        } else {
+          motion = 'slam';
+          idx = span(sl.swingFrames, 1 - this.bossTimer / sl.airSwing);
+        }
+        lift = (this.bossTimer / ent.fall) ** 1.6 * ent.height;
+      } else {
+        const t = ent.taunt - this.bossTimer;
+        if (t < sl.recover) {
+          motion = 'slam';
+          idx = span(sl.landFrames, t / sl.recover);
+        } else {
+          motion = 'walk';
+          idx = 0;
+        }
+      }
     } else if ((ph === 'leap' || ph === 'air' || ph === 'slam') && sl) {
       // 점프 내리찍기: 웅크렸다 도약(leap) → 공중(도약 마지막 장, 착지 직전엔 칼 휘두르기) → 착지(slam)
       const rage = this.bossEnraged ? ((def as { enrage?: EnrageDef }).enrage?.mul ?? 1) : 1;
@@ -3016,7 +3042,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
     if (!this.textures.exists(key)) return false;
     if (b.sprite.texture.key !== key) b.sprite.setTexture(key);
     // 그림은 오른쪽을 본다. 뒤집으면 허리 위치(originX)도 반대쪽으로
-    const flip = ph === 'charge' || ph === 'aim' || ph === 'leap' || ph === 'air' || ph === 'slam' ? this.bossDir.x < 0 : this.player.x < b.x;
+    const flip = ph === 'charge' || ph === 'aim' || ph === 'leap' || ph === 'air' || ph === 'slam' || ph === 'enter' ? this.bossDir.x < 0 : this.player.x < b.x;
     const ox = M[motion].originX;
     b.sprite.setFlipX(flip).setOrigin(flip ? 1 - ox : ox, 1);
     const sc = this.bossAnimScale(def, motion);
@@ -3033,6 +3059,56 @@ export class GameScene extends Phaser.Scene implements GameContext {
     if (!A) return BOSS_SCALE;
     const m = motion ?? this.boss?.sprite.texture.key.match(/_(walk|leap|charge|slam|hook)_\d+$/)?.[1] ?? 'walk';
     return BOSS_SCALE * A.scale * (A.motionScale[m] ?? 1);
+  }
+
+  /** 등장 자리: 화면 안, 플레이어에서 minDist 이상인 적 가운데 반경 안에 적이 가장 많은 곳 (없으면 플레이어 오른쪽) */
+  private entranceSpot(ent: EntranceDef): { x: number; y: number } {
+    const p = this.player;
+    // 화면 안쪽 (위에서 떨어지는 모습이 보이게 위쪽은 넉넉히)
+    const c = this.cameras.main;
+    const cands = this.enemyPool.items.filter((e) => e.active && !e.isBoss && !e.id.startsWith('trooper_') && e.x > c.scrollX + 40 && e.x < c.scrollX + VIEW_W - 40 && e.y > c.scrollY + 90 && e.y < c.scrollY + VIEW_H - 20 && Math.hypot(e.x - p.x, e.y - p.y) >= ent.minDist);
+    let best: { x: number; y: number } | null = null;
+    let bestN = -1;
+    for (const c of cands) {
+      let n = 0;
+      for (const o of cands) if ((o.x - c.x) ** 2 + (o.y - c.y) ** 2 <= ent.radius ** 2) n++;
+      if (n > bestN) {
+        bestN = n;
+        best = { x: c.x, y: c.y };
+      }
+    }
+    if (best) return best;
+    if (this.arena) return { x: this.arena.x + this.arena.w - 60, y: p.y };
+    return { x: p.x + Math.max(ent.minDist, 220), y: p.y };
+  }
+
+  /** 등장 낙하 자리 표시 (점프 내리찍기와 같은 모양, 졸개 처치 반경) */
+  private drawEntranceMark(ent: EntranceDef): void {
+    const k = Phaser.Math.Clamp(1 - this.bossTimer / ent.fall, 0, 1);
+    const { x, y } = this.bossTo;
+    this.fx.fillStyle(0xff2a3a, 0.1 + 0.15 * k).fillEllipse(x, y, ent.radius * 2, ent.radius * 1.2);
+    this.fx.fillStyle(0xff2a3a, 0.25).fillEllipse(x, y, ent.radius * 2 * k, ent.radius * 1.2 * k);
+    this.fx.lineStyle(2, 0xff2a3a, 0.5 + Math.sin(this.elapsed * 30) * 0.3).strokeEllipse(x, y, ent.radius * 2, ent.radius * 1.2);
+  }
+
+  /** 등장 착지: 반경 안 졸개를 처치(경험치·드롭·처치 수 없음), 플레이어 피해 없음, 충격파 + 한마디 */
+  private entranceLand(b: Enemy, ent: EntranceDef, sl?: SlamDef): void {
+    for (const e of this.enemyPool.items) {
+      if (!e.active || e === b || e.isBoss || e.id.startsWith('trooper_')) continue;
+      const nx = (e.x - b.x) / ent.radius;
+      const ny = (e.y - b.y) / (ent.radius * 0.6);
+      if (nx * nx + ny * ny > 1) continue;
+      this.burst(e.x, e.y, 0xff2a3a, 6);
+      e.kill();
+    }
+    const ring = this.add.ellipse(b.x, b.y, ent.radius * 2, ent.radius * 1.2).setStrokeStyle(3, 0xffa040, 0.9).setDepth(11);
+    ring.setScale(0.3);
+    this.tweens.add({ targets: ring, scale: 1.25, alpha: 0, duration: 420, ease: 'Quad.easeOut', onComplete: () => ring.destroy() });
+    this.burst(b.x, b.y, 0xffa040, 24);
+    this.shake(300, 0.016);
+    Sound.play('explode');
+    // 말풍선: 머리 위 (그림 높이만큼 올림), 등장 연출 동안
+    this.shout(b, tr(ent.line as Parameters<typeof tr>[0]), 0.15, false, ent.taunt, 10);
   }
 
   /** 점프 내리찍기 착지 범위: 떨어질 자리에 붉은 원, 착지가 가까울수록 안쪽이 차오른다 */
@@ -3774,6 +3850,17 @@ export class GameScene extends Phaser.Scene implements GameContext {
     this.bossPhase = 'walk';
     this.bossTimer = def.firstWalk;
     this.bossSummon = def.firstSummon;
+    const ent = (def as { entrance?: EntranceDef }).entrance;
+    if (ent && this.boss) {
+      // 등장: 화면 위에서 적이 가장 몰린 자리로 떨어진다 (떨어지는 동안 무적)
+      const at = this.entranceSpot(ent);
+      this.boss.x = at.x;
+      this.boss.y = at.y;
+      this.bossTo = { ...at };
+      this.bossDir = { x: p.x < at.x ? -1 : 1, y: 0 };
+      this.bossPhase = 'enter';
+      this.bossTimer = ent.fall;
+    }
     this.hud.bossName.setText(enemiesData[id].name).setColor(def.final ? '#ff2a3a' : '#ff8a1f');
     Sound.play('bosswarn');
     this.time.delayedCall(450, () => Sound.play('bosswarn'));
@@ -3852,7 +3939,24 @@ export class GameScene extends Phaser.Scene implements GameContext {
     }
     const rage = this.bossEnraged && en ? en.mul : 1;
     const sl = (def as { slam?: SlamDef }).slam;
-    if (this.bossPhase === 'walk') {
+    const ent = (def as { entrance?: EntranceDef }).entrance;
+    if (ent && (this.bossPhase === 'enter' || this.bossPhase === 'taunt')) {
+      if (this.bossPhase === 'enter') {
+        b.x = this.bossTo.x;
+        b.y = this.bossTo.y;
+        this.drawEntranceMark(ent);
+      }
+      if (this.bossTimer <= 0) {
+        if (this.bossPhase === 'enter') {
+          this.entranceLand(b, ent, sl);
+          this.bossPhase = 'taunt';
+          this.bossTimer = ent.taunt;
+        } else {
+          this.bossPhase = 'walk';
+          this.bossTimer = def.firstWalk;
+        }
+      }
+    } else if (this.bossPhase === 'walk') {
       b.x += (dx / d) * b.speed * rage * slow * dt;
       b.y += (dy / d) * b.speed * rage * slow * dt;
       if (this.bossTimer <= 0) {
@@ -3960,7 +4064,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
     this.animateBoss(b, def, dt);
     // 보스가 화면에서 너무 멀어지면 다시 가까이
     const pd = Math.hypot(p.x - b.x, p.y - b.y) || 1;
-    if (!this.arena && pd > 520 && this.bossPhase !== 'leap' && this.bossPhase !== 'air') {
+    if (!this.arena && pd > 520 && this.bossPhase !== 'leap' && this.bossPhase !== 'air' && this.bossPhase !== 'enter' && this.bossPhase !== 'taunt') {
       b.x = p.x - ((p.x - b.x) / pd) * 300;
       b.y = p.y - ((p.y - b.y) / pd) * 300;
     }
