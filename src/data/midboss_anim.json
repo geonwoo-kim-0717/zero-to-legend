@@ -1,34 +1,37 @@
 {
  "walk": {
-  "frames": 12,
+  "frames": 8,
+  "w": 64,
+  "h": 88,
+  "originX": 0.484,
+  "originY": 1
+ },
+ "leap": {
+  "frames": 9,
   "w": 72,
-  "h": 64,
-  "originX": 0.5,
-  "originY": 1,
-  "pivotPx": 36.0
+  "h": 112,
+  "originX": 0.444,
+  "originY": 1
  },
  "charge": {
-  "frames": 8,
-  "w": 168,
-  "h": 96,
-  "originX": 0.565,
-  "originY": 1,
-  "pivotPx": 95.0
+  "frames": 9,
+  "w": 120,
+  "h": 64,
+  "originX": 0.55,
+  "originY": 1
  },
  "slam": {
   "frames": 9,
-  "w": 120,
-  "h": 152,
-  "originX": 0.492,
-  "originY": 1,
-  "pivotPx": 59.0
+  "w": 88,
+  "h": 112,
+  "originX": 0.477,
+  "originY": 1
  },
  "hook": {
   "frames": 8,
-  "w": 168,
-  "h": 136,
-  "originX": 0.411,
-  "originY": 1,
-  "pivotPx": 69.0
+  "w": 120,
+  "h": 96,
+  "originX": 0.408,
+  "originY": 1
  }
 }
