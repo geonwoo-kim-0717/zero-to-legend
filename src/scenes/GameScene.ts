@@ -3280,10 +3280,12 @@ export class GameScene extends Phaser.Scene implements GameContext {
       this.hookTrail?.setVisible(false);
       return;
     }
-    const M = BOSS_ANIM[def.id]?.hook as { chainTile?: { w: number; h: number; barRow: number }; head?: { w: number; h: number; join: number[] } } | undefined;
+    const M = BOSS_ANIM[def.id]?.hook as { chainTile?: { w: number; h: number; barRow?: number; barRows?: number[] }; head?: { w: number; h: number; join: number[] } } | undefined;
     // 사슬 반복 그림 크기는 아트 json(chainTile)을 따른다 (그림이 바뀌어도 그대로 맞춤)
     const th = M?.chainTile?.h ?? this.textures.get('midboss_hook_chain').getSourceImage().height;
-    const bar = M?.chainTile ? (M.chainTile.barRow + 0.5) / M.chainTile.h : 0.5;
+    // 사슬 위쪽 = 손 지점 - barRow(또는 barRows[0]) px (아트 배치 규칙)
+    const ct = M?.chainTile;
+    const bar = ct ? (ct.barRows ? ct.barRows[0] : ct.barRow! + 0.5) / ct.h : 0.5;
     this.hookChain ??= this.add.tileSprite(0, 0, 8, th, 'midboss_hook_chain').setDepth(12.5);
     this.hookHead ??= this.add.image(0, 0, 'midboss_hook_head').setDepth(12.6);
     const hand = this.hookHand(b, def);
