@@ -660,9 +660,8 @@ export class GameScene extends Phaser.Scene implements GameContext {
     kb.on('keydown-P', () => this.togglePause());
     if (Ads.provider !== 'crazygames') kb.on('keydown-ESC', () => this.togglePause());
     kb.on('keydown-ENTER', () => this.state === 'dialog' && this.advanceDialog());
-    kb.on('keydown-SPACE', () => this.state === 'dialog' && this.advanceDialog());
-    // 대화 중 Esc = 건너뛰기 (대화 중에는 일시정지가 안 되므로 겹치지 않음)
-    if (Ads.provider !== 'crazygames') kb.on('keydown-ESC', () => this.state === 'dialog' && this.skipDialog());
+    // 대화: ENTER·탭 = 다음 줄, 스페이스 = 건너뛰기
+    kb.on('keydown-SPACE', () => this.state === 'dialog' && this.skipDialog());
     kb.on('keydown-F1', () => (this.debug = !this.debug));
     kb.on('keydown-BACKTICK', () => (this.debug = !this.debug));
     // 디버그 전용 치트 (F1으로 디버그를 켰을 때만)
@@ -2693,10 +2692,12 @@ export class GameScene extends Phaser.Scene implements GameContext {
     box.add(this.add.rectangle(24, VIEW_H - 112, VIEW_W - 48, 96, 0x0d0820, 0.95).setOrigin(0).setStrokeStyle(2, COLORS.magenta));
     const text = this.add.text(118, VIEW_H - 84, '', { ...TEXT, fontSize: '13px', wordWrap: { width: VIEW_W - 170, useAdvancedWrap: true }, lineSpacing: 4 });
     box.add(text);
-    // 건너뛰기 버튼: 대화를 바로 끝낸다 (Esc도 같음)
+    // 건너뛰기 버튼: 대화를 바로 끝낸다 (스페이스도 같음)
     const skip = this.add
-      .text(VIEW_W - 30, VIEW_H - 136, isTouch() || Ads.provider === 'crazygames' ? tr('dialog.skip.touch') : tr('dialog.skip'), { ...TEXT, fontSize: '11px', color: '#e8f7ff', backgroundColor: '#1a1030', padding: { x: 8, y: 3 } })
+      .text(VIEW_W - 30, VIEW_H - 136, isTouch() ? tr('dialog.skip.touch') : tr('dialog.skip'), { ...TEXT, fontSize: '11px', color: '#e8f7ff', backgroundColor: '#1a1030', padding: { x: 8, y: 3 } })
       .setOrigin(1, 0)
+      // 컨테이너가 화면 고정이어도 클릭 판정은 자기 scrollFactor를 따르므로 버튼도 화면 고정으로
+      .setScrollFactor(0)
       .setInteractive({ useHandCursor: true });
     skip.on('pointerdown', (_p: Phaser.Input.Pointer, _x: number, _y: number, e: Phaser.Types.Input.EventData) => {
       e.stopPropagation();
@@ -2733,6 +2734,8 @@ export class GameScene extends Phaser.Scene implements GameContext {
       d.box.destroy();
       this.dialog = null;
       this.state = 'play';
+      // 대화 중에 눌린 스페이스(건너뛰기)·대시 버튼이 대화가 끝나자마자 대시로 나가지 않게 비운다
+      this.controls.consumeDash();
       Sound.duck(1);
       d.done();
       return;

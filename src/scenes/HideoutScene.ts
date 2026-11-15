@@ -81,9 +81,9 @@ export class HideoutScene extends Phaser.Scene {
 
     const kb = this.input.keyboard!;
     kb.on('keydown-ENTER', () => (this.board ? undefined : this.dlg ? this.dlgNext() : this.deploy()));
-    kb.on('keydown-SPACE', () => this.dlg && this.dlgNext());
-    // 대화 중 Esc = 대화 건너뛰기, 아니면 타이틀로
-    if (Ads.provider !== 'crazygames') kb.on('keydown-ESC', () => (this.dlg ? this.dlgSkip() : this.scene.start('Title')));
+    // 대화: ENTER·탭 = 다음 줄, 스페이스 = 건너뛰기
+    kb.on('keydown-SPACE', () => this.dlg && this.dlgSkip());
+    if (Ads.provider !== 'crazygames') kb.on('keydown-ESC', () => !this.dlg && this.scene.start('Title'));
     TABS.forEach((id, i) => kb.on(`keydown-${['ONE', 'TWO', 'THREE', 'FOUR'][i]}`, () => !this.dlg && !this.board && this.setTab(id)));
     kb.on('keydown-LEFT', () => !this.dlg && this.tab === 'bar' && this.cycleRunner(-1));
     kb.on('keydown-RIGHT', () => !this.dlg && this.tab === 'bar' && this.cycleRunner(1));
@@ -155,7 +155,7 @@ export class HideoutScene extends Phaser.Scene {
       d.box.add(this.add.text(VIEW_W - 34, y + 74, `${d.i + 1}/${d.lines.length}  ▶`, T(10, '#8a7aa8')).setOrigin(1, 0));
       // 건너뛰기: 남은 줄을 넘긴다 (선택지가 있으면 선택지 줄까지)
       const sk = this.add
-        .text(VIEW_W - 26, y - 22, isTouch() || Ads.provider === 'crazygames' ? tr('dialog.skip.touch') : tr('dialog.skip'), { ...T(11, '#e8f7ff'), backgroundColor: '#1a1030', padding: { x: 8, y: 3 } })
+        .text(VIEW_W - 26, y - 22, isTouch() ? tr('dialog.skip.touch') : tr('dialog.skip'), { ...T(11, '#e8f7ff'), backgroundColor: '#1a1030', padding: { x: 8, y: 3 } })
         .setOrigin(1, 0)
         .setInteractive({ useHandCursor: true });
       sk.on('pointerup', (_p: Phaser.Input.Pointer, _x: number, _y: number, e: Phaser.Types.Input.EventData) => {
