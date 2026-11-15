@@ -14,7 +14,7 @@ import { EnemyBullet } from '../entities/EnemyBullet';
 import { Pool } from '../systems/Pool';
 import { SpatialGrid } from '../systems/SpatialGrid';
 import { Spawner, hpScaleAt } from '../systems/Spawner';
-import { pickBoss, type BossAct } from '../systems/BossBrain';
+import { pickBoss, pickBasili, type BossAct, type BasiliAct } from '../systems/BossBrain';
 import { InputController } from '../systems/InputController';
 import { createWeapon, type WeaponBase, type WeaponId } from '../weapons';
 import type { GameContext, Stats, DamageTag, FxOpts } from '../weapons/types';
@@ -53,7 +53,7 @@ const ZONES = zonesData.zones;
 const ZR = gameData.zoneRules;
 /** 왼쪽 위 체력바 폭 */
 const HP_W = 120;
-type BossPhase = 'walk' | 'aim' | 'charge' | 'leap' | 'air' | 'slam' | 'enter' | 'taunt' | 'hookAim' | 'hookFly' | 'hookPull' | 'hookGap' | 'hookBack';
+type BossPhase = 'walk' | 'aim' | 'charge' | 'leap' | 'air' | 'slam' | 'enter' | 'taunt' | 'hookAim' | 'hookFly' | 'hookPull' | 'hookGap' | 'hookBack' | 'walkIn' | 'phaseShift' | 'gatling' | 'call' | 'stomp';
 /** 블랙 실드 요원 공격 그림·이펙트 (아트 tools/art/sprites2026/scripts/troopers6/keys/atk_meta.json) */
 const TROOPER_ATK = {
   tank: { ms: [90, 110, 140, 70, 90, 120, 110, 100], size: [54, 48], fxStart: 4, anchor: [47, 27], fx: 'fx_shield_bash', fxN: 8, fxSize: [64, 40], pivot: [32, 18] },
@@ -76,7 +76,19 @@ const SHIP_TILT_N = 5;
 const SHIP_TILT_MS = 80;
 type EntranceDef = { minDist: number; fall: number; height: number; radius: number; taunt: number; holdLast: number; line: string };
 /** 갈고리 (game.json bosses[].hook): 중간 거리에서 예고선 → 갈고리 발사 → 맞으면 끌어와 틈 뒤 내리찍기, 빗나가면 감아들임 */
-type HookDef = { minDist: number; maxDist: number; aim: number; range: number; speed: number; damage: number; pullTime: number; pullTo: number; gap: number; backSpeed: number; throwTime: number; throwFrames: number[]; pullFrames: number[] };
+type HookDef = { hitMul?: number; minDist: number; maxDist: number; aim: number; range: number; speed: number; damage: number; pullTime: number; pullTo: number; gap: number; backSpeed: number; throwTime: number; throwFrames: number[]; pullFrames: number[] };
+/** 바실리 패턴 (game.json bosses[].basili) */
+type BasiliDef = {
+  walkIn: { speed: number; step: number };
+  phaseShift: number;
+  gatling: { spin: number; time: number; rate: number; fan: number; turn: number; speed: number; damage: number; life: number };
+  call: { gesture: number; id: string; count: number; radius: number; orbit: number };
+  stomp: { lift: number; radius: number; time: number; band: number; damage: number };
+  p2: { gatlingRate: number; gatlingSpeed: number; guards: number; stompRings: number; ringGap: number };
+  glow: { color: string; x: number; y: number; size: number; alpha: number };
+};
+/** 바실리 동작 중 조준 그림(_aim)을 쓰는 단계 (새 그림이 오기 전 임시) */
+const BASILI_AIM = new Set(['gatling', 'call', 'stomp', 'phaseShift']);
 /** 분노 (game.json bosses[].enrage) */
 type EnrageDef = { at: number; mul: number; tint: string };
 /** 보스 동작별 프레임 설정 (game.json bosses[].anim) */
@@ -250,6 +262,16 @@ export class GameScene extends Phaser.Scene implements GameContext {
   private bossPVel = { x: 0, y: 0 };
   private bossPPrev = { x: 0, y: 0 };
   private bossDbg: Phaser.GameObjects.Text | null = null;
+  /** 바실리: 개틀링 조준각·발사 누적, 호위, 충격파 고리, 지난 호출 시각, 2페이즈 발전기 빛, 다음 발걸음 */
+  private gatAim = 0;
+  private gatAcc = 0;
+  private basiliGuards: Enemy[] = [];
+  private stompRings: { x: number; y: number; t: number; hit: boolean }[] = [];
+  private basiliLastCall = 0;
+  private basiliGlow: Phaser.GameObjects.Image | null = null;
+  private walkInStep = 0;
+  private walkInTo = 0;
+  private basiliLast: BasiliAct = 'walk';
   /** 갈고리: 손에서 뻗은 길이, 방향, 맞은 자리(끌어오기 시작점), 경과 시간, 사슬·머리 그림 */
   private hook = { len: 0, ax: 1, ay: 0, px: 0, py: 0, t: 0 };
   private hookChain: Phaser.GameObjects.TileSprite | null = null;
@@ -549,6 +571,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
     this.hookHead = null;
     this.hookTrail = null;
     this.bossDbg = null;
+    this.basiliGlow = null;
     this.bossDef = null;
     this.bossesSpawned = 0;
     this.god = false;
@@ -724,7 +747,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
   // ───────────────────────────── GameContext ─────────────────────────────
   damage(e: Enemy, amount: number, tag?: DamageTag): boolean {
     if (!e.active) return false;
-    if (e === this.boss && (this.bossShieldT > 0 || this.bossPhase === 'enter')) return false;
+    if (e === this.boss && (this.bossShieldT > 0 || this.bossPhase === 'enter' || this.bossPhase === 'walkIn' || this.bossPhase === 'phaseShift')) return false;
     // 회피 기동 중인 진압대는 피해를 받지 않음
     if (e.dodgeT > 0) return false;
     // 강하·착지 충격 중인 진압대는 무적
@@ -1840,7 +1863,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
       const rr = p.radius + e.radius;
       // 근접 요원은 몸으로 부딪혀선 피해를 주지 않고 진압봉 휘두르기로만 (돌진은 이동)
       const swingOnly = !!(gameData.melee as Record<string, MeleeDef>)[e.id]?.swing;
-      const airborne = e === this.boss && (this.bossPhase === 'leap' || this.bossPhase === 'air' || this.bossPhase === 'enter');
+      const airborne = e === this.boss && (this.bossPhase === 'leap' || this.bossPhase === 'air' || this.bossPhase === 'enter' || this.bossPhase === 'walkIn');
       if (!swingOnly && !airborne && e.charmT <= 0 && p.invuln <= 0 && (p.x - e.x) ** 2 + (p.y - e.y) ** 2 < rr * rr) {
         const hp0 = p.hp;
         this.hurtPlayer(e.damage, { kind: e.isBoss ? 'boss' : 'contact', id: e.id });
@@ -2071,6 +2094,8 @@ export class GameScene extends Phaser.Scene implements GameContext {
       this.hookChain?.setVisible(false);
       this.hookHead?.setVisible(false);
       this.hookTrail?.setVisible(false);
+      this.basiliGlow?.setVisible(false);
+      this.stompRings = [];
       this.bossDef = null;
       e.kill();
       const color = def.final ? 0xff2a3a : COLORS.orange;
@@ -3047,14 +3072,16 @@ export class GameScene extends Phaser.Scene implements GameContext {
   private animateBoss(b: Enemy, def: BossDef, dt: number): void {
     if (this.animateBossFrames(b, def, dt)) return;
     const ph = this.bossPhase;
-    const f = ph === 'aim' || this.bossAtkT > 0 ? 'aim' : ph === 'charge' ? 'charge' : Math.floor(this.elapsed * 4) % 2 ? 'w1' : 'w2';
+    const f = ph === 'aim' || this.bossAtkT > 0 || BASILI_AIM.has(ph) ? 'aim' : ph === 'charge' ? 'charge' : Math.floor(this.elapsed * (ph === 'walkIn' ? 3 : 4)) % 2 ? 'w1' : 'w2';
     const key = `${def.id}_${f}`;
     if (this.textures.exists(key) && b.sprite.texture.key !== key) b.sprite.setTexture(key);
     const core = def.id === 'boss3';
     const bob = core ? Math.sin(this.elapsed * 2.5) * 3 : f === 'w1' || f === 'w2' ? -Math.abs(Math.sin(this.elapsed * 8)) * 1.5 : 0;
-    const jitter = ph === 'aim' && !Settings.reducedFx ? (Math.random() - 0.5) * 2 : 0;
+    // 예고 떨림: 돌진 조준, 발구르기 발 들기, 2페이즈 전환 (전환은 더 세게)
+    const shakeAmp = ph === 'phaseShift' ? 4 : ph === 'aim' || ph === 'stomp' ? 2 : 0;
+    const jitter = shakeAmp && !Settings.reducedFx ? (Math.random() - 0.5) * shakeAmp : 0;
     b.sprite.setPosition(b.x + jitter, b.y + bob);
-    if (!core) b.sprite.setFlipX(ph === 'charge' ? this.bossDir.x < 0 : this.player.x < b.x);
+    if (!core) b.sprite.setFlipX(ph === 'charge' ? this.bossDir.x < 0 : ph === 'gatling' ? Math.cos(this.gatAim) < 0 : this.player.x < b.x);
   }
 
   /**
@@ -3264,7 +3291,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
       const cx = hand.x + h.ax * along;
       const cy = hand.y + h.ay * along;
       // 대시(무적) 중이거나 방금 맞아 무적이면 그대로 지나간다
-      if (p.invuln <= 0 && !p.dashing && (p.x - cx) ** 2 + (p.y - cy) ** 2 < (p.radius + 8) ** 2) {
+      if (p.invuln <= 0 && !p.dashing && (p.x - cx) ** 2 + (p.y - cy) ** 2 < ((p.radius + 8) * (hk.hitMul ?? 1)) ** 2) {
         this.hurtPlayer(hk.damage, { kind: 'boss', id: b.id });
         // 갈고리 머리는 맞은 자리에서 멈춘다 (이번 프레임에 더 나간 만큼 되돌림)
         h.len = along;
@@ -3366,6 +3393,203 @@ export class GameScene extends Phaser.Scene implements GameContext {
         .setFlipY(left)
         .setAlpha(Math.min(1, len / 48));
     }
+  }
+
+  // ───────────── 바실리 (최종 보스) ─────────────
+  /** 단계와 상관없이 매 프레임: 호위 궤도, 충격파 고리, 2페이즈 발전기 빛 */
+  private updateBasiliAlways(b: Enemy, bz: BasiliDef, dt: number): void {
+    const p = this.player;
+    // 호위: 바실리 둘레를 돌며 따라다닌다 (적 AI가 움직인 뒤 자리로 끌어당김)
+    this.basiliGuards = this.basiliGuards.filter((e) => e.active && e.id === bz.call.id);
+    const n = this.basiliGuards.length;
+    this.basiliGuards.forEach((e, i) => {
+      const a = this.elapsed * bz.call.orbit + (i / Math.max(1, n)) * Math.PI * 2;
+      const tx = b.x + Math.cos(a) * bz.call.radius;
+      const ty = b.y + Math.sin(a) * bz.call.radius * 0.7;
+      const k = Math.min(1, dt * 10);
+      e.x += (tx - e.x) * k;
+      e.y += (ty - e.y) * k;
+    });
+    // 충격파 고리: 퍼지면서 고리 띠에 닿으면 피해 (한 고리에 한 번, 대시·무적이면 넘어감)
+    const S = bz.stomp;
+    for (const r of this.stompRings) {
+      r.t += dt;
+      if (r.t < 0) continue;
+      const k = Math.min(1, r.t / S.time);
+      const rad = k * S.radius;
+      const alpha = 1 - k;
+      this.fx.lineStyle(4, 0xffa040, 0.85 * alpha).strokeEllipse(r.x, r.y, rad * 2, rad * 1.2);
+      this.fx.lineStyle(10, 0xff6a2a, 0.18 * alpha).strokeEllipse(r.x, r.y, rad * 2, rad * 1.2);
+      if (!r.hit && p.invuln <= 0 && !p.dashing) {
+        const q = Math.hypot(p.x - r.x, (p.y - r.y) / 0.6);
+        if (Math.abs(q - rad) < S.band + p.radius) {
+          r.hit = true;
+          this.hurtPlayer(S.damage, { kind: 'boss', id: b.id });
+        }
+      }
+    }
+    this.stompRings = this.stompRings.filter((r) => r.t < S.time);
+    // 2페이즈: 발전기 청록 빛 (새 그림이 오기 전엔 몸 가운데에 덧입힘)
+    if (this.bossPhase2 || this.bossPhase === 'phaseShift') {
+      const G = bz.glow;
+      this.basiliGlow ??= this.add.image(0, 0, this.softGlowKey()).setBlendMode(Phaser.BlendModes.ADD).setDepth(12.4);
+      const grow = this.bossPhase === 'phaseShift' ? Phaser.Math.Clamp(1 - this.bossTimer / bz.phaseShift, 0, 1) : 1;
+      const pulse = Settings.reducedFx ? 1 : 0.8 + Math.sin(this.elapsed * 6) * 0.2;
+      const sx = b.sprite.flipX ? -1 : 1;
+      this.basiliGlow
+        .setTint(Number(G.color))
+        .setVisible(true)
+        .setPosition(b.sprite.x + G.x * sx * b.sprite.scaleX, b.sprite.y + G.y * b.sprite.scaleY)
+        .setDisplaySize(G.size * grow * b.sprite.scaleX, G.size * grow * b.sprite.scaleY)
+        .setAlpha(G.alpha * pulse * grow);
+    }
+  }
+
+  /** 바실리 전용 단계 (등장·전환·걷기 판단·개틀링·호출·발구르기). 처리했으면 true, 조준·돌진은 false로 공통 코드에 맡김 */
+  private updateBasili(b: Enemy, def: BossDef, bz: BasiliDef, dt: number, dx: number, dy: number, d: number, tg: { x: number; y: number }, p2: Phase2 | null): boolean {
+    const ph = this.bossPhase;
+    const p = this.player;
+    const slow = this.overdrive ? OD.enemySpeedMul : 1;
+    const toWalk = () => {
+      this.bossPhase = 'walk';
+      this.bossTimer = def.walkTime;
+    };
+    if (ph === 'walkIn') {
+      // 화면 밖에서 걸어 들어오기: 발 디딜 때마다 쿵
+      b.x = Math.max(this.walkInTo, b.x - bz.walkIn.speed * dt);
+      if ((this.walkInStep -= dt) <= 0) {
+        this.walkInStep = bz.walkIn.step;
+        this.shake(90, 0.007);
+        this.playSheet('fx_land_dust', 18, b.x, b.y + b.radius, 56 / 112, 30 / 40, 14, 9.5);
+        Sound.play('trooperland');
+      }
+      if (b.x <= this.walkInTo) {
+        this.bossLastAttack = this.elapsed;
+        this.bossPhase = 'walk';
+        this.bossTimer = def.firstWalk;
+      }
+      return true;
+    }
+    if (ph === 'phaseShift') {
+      if (!Settings.reducedFx && Math.random() < 0.25) this.shake(60, 0.006);
+      if (this.bossTimer <= 0) {
+        this.screenFlash(0x00f0ff, 0.25, 300);
+        this.bossPulse(b);
+        this.bossLastAttack = this.elapsed;
+        toWalk();
+      }
+      return true;
+    }
+    if (ph === 'walk') {
+      b.x += (dx / d) * b.speed * slow * dt;
+      b.y += (dy / d) * b.speed * slow * dt;
+      if ((this.bossThinkT -= dt) <= 0) {
+        this.bossThinkT = gameData.bossBrain.think;
+        const { act, scores } = pickBasili({
+          d,
+          playerHp: Math.max(0, p.hp) / p.maxHp,
+          moving: Phaser.Math.Clamp(Math.hypot(this.bossPVel.x, this.bossPVel.y) / PLAYER.speed, 0, 1),
+          fleeing: Phaser.Math.Clamp((this.bossPVel.x * dx + this.bossPVel.y * dy) / d / PLAYER.speed, 0, 1),
+          dashSpent: p.dashCd > 0,
+          sinceAttack: this.elapsed - this.bossLastAttack,
+          sinceCall: this.elapsed - this.basiliLastCall,
+          guards: this.basiliGuards.length,
+          last: this.basiliLast,
+          current: this.bossAct as BasiliAct,
+        });
+        this.bossScores = scores as Partial<Record<BossAct, number>>;
+        if (act !== 'walk') {
+          this.basiliLast = act;
+          this.bossDir = { x: dx / d, y: dy / d };
+          if (act === 'charge') {
+            this.bossLastAttack = this.elapsed;
+            this.bossPhase = 'aim';
+            this.bossTimer = p2 ? p2.aimTime : def.aimTime;
+            this.bossCharges = p2 ? p2.chargeCount : 1;
+          } else if (act === 'gatling') {
+            this.bossLastAttack = this.elapsed;
+            this.bossPhase = 'gatling';
+            this.bossTimer = bz.gatling.spin + bz.gatling.time;
+            this.gatAim = Math.atan2(dy, dx);
+            this.gatAcc = 0;
+            Sound.play('lungewarn');
+          } else if (act === 'stomp') {
+            this.bossLastAttack = this.elapsed;
+            this.bossPhase = 'stomp';
+            this.bossTimer = bz.stomp.lift;
+            Sound.play('lungewarn');
+          } else if (act === 'call') {
+            this.bossPhase = 'call';
+            this.bossTimer = bz.call.gesture;
+            this.basiliLastCall = this.elapsed;
+          }
+        }
+      }
+      return true;
+    }
+    if (ph === 'gatling') {
+      const G = bz.gatling;
+      // 플레이어 쪽으로 천천히 돈다 (초당 turn도)
+      const want = Math.atan2(dy, dx);
+      const turn = Phaser.Math.DegToRad(G.turn) * dt;
+      this.gatAim = Phaser.Math.Angle.RotateTo(this.gatAim, want, turn);
+      if (this.bossTimer < G.time) {
+        const rate = p2 ? bz.p2.gatlingRate : G.rate;
+        const speed = G.speed * (p2 ? bz.p2.gatlingSpeed : 1);
+        this.gatAcc += dt * rate;
+        const mx = b.x + Math.cos(this.gatAim) * b.radius * 1.1;
+        const my = b.y - b.radius * 0.2 + Math.sin(this.gatAim) * b.radius * 0.8;
+        while (this.gatAcc >= 1) {
+          this.gatAcc -= 1;
+          // 부채꼴로 흔들며 연사
+          const a = this.gatAim + Math.sin(this.elapsed * 9) * Phaser.Math.DegToRad(G.fan / 2) + (Math.random() - 0.5) * 0.06;
+          this.eShot(b.id).fire(mx, my, a, speed, G.damage, G.life);
+          this.burst(mx, my, 0xfff23a, 2);
+          if (Math.random() < 0.35) Sound.play('enemyshot');
+        }
+        // 총구 불꽃
+        this.fx.fillStyle(0xfff23a, 0.5 + Math.random() * 0.4).fillCircle(mx, my, 3 + Math.random() * 2);
+      } else {
+        // 돌아가기 시작: 총구 쪽 예고선
+        this.fx.lineStyle(1.5, 0xff2a3a, MARK_A * 0.6).lineBetween(b.x, b.y, b.x + Math.cos(this.gatAim) * 200, b.y + Math.sin(this.gatAim) * 200);
+      }
+      if (this.bossTimer <= 0) toWalk();
+      return true;
+    }
+    if (ph === 'call') {
+      if (this.bossTimer <= 0) {
+        // 손짓: 호위가 둘레에 나타남 (체력은 보스 부하와 같은 기준)
+        const n = p2 ? bz.p2.guards : bz.call.count;
+        const hp = hpScaleAt(this.elapsed - this.zoneStart) * this.zone.hpMul;
+        for (let i = 0; i < n; i++) {
+          const a = (i / n) * Math.PI * 2;
+          const e = this.spawnEnemy(bz.call.id as EnemyId, b.x + Math.cos(a) * bz.call.radius, b.y + Math.sin(a) * bz.call.radius * 0.7, hp);
+          if (e) this.basiliGuards.push(e);
+        }
+        this.bossPulse(b);
+        Sound.play('bosswarn');
+        toWalk();
+      }
+      return true;
+    }
+    if (ph === 'stomp') {
+      // 발 들기 예고: 퍼질 범위 표시
+      const S = bz.stomp;
+      const k = Phaser.Math.Clamp(1 - this.bossTimer / S.lift, 0, 1);
+      this.fx.lineStyle(2, 0xff2a3a, MARK_A * (0.3 + 0.3 * k)).strokeEllipse(b.x, b.y, S.radius * 2, S.radius * 1.2);
+      this.fx.fillStyle(0xff2a3a, MARK_A * 0.15 * k).fillEllipse(b.x, b.y, S.radius * 2 * k, S.radius * 1.2 * k);
+      if (this.bossTimer <= 0) {
+        const rings = p2 ? bz.p2.stompRings : 1;
+        for (let i = 0; i < rings; i++) this.stompRings.push({ x: b.x, y: b.y, t: -i * bz.p2.ringGap, hit: false });
+        this.shake(260, 0.016);
+        this.playSheet('fx_land_dust', 18, b.x, b.y + b.radius, 56 / 112, 30 / 40, 12, 9.5);
+        this.burst(b.x, b.y + b.radius * 0.5, 0x8a7a6a, 18);
+        Sound.play('explode');
+        toWalk();
+      }
+      return true;
+    }
+    return false;
   }
 
   /** 빛번짐용 부드러운 원 텍스처 (흰색 방사형 그라데이션, Add 합성 + 틴트로 씀) */
@@ -4143,6 +4367,11 @@ export class GameScene extends Phaser.Scene implements GameContext {
     this.bossThinkT = 0;
     this.bossPrevPhase = 'walk';
     this.bossAct = 'walk';
+    this.basiliGuards = [];
+    this.basiliLast = 'walk';
+    this.stompRings = [];
+    this.basiliLastCall = this.elapsed - 999;
+    this.basiliGlow?.setVisible(false);
     this.bossScores = {};
     this.bossSummoned = [];
     this.bossPVel = { x: 0, y: 0 };
@@ -4167,6 +4396,14 @@ export class GameScene extends Phaser.Scene implements GameContext {
       this.bossDir = { x: p.x < at.x ? -1 : 1, y: 0 };
       this.bossPhase = 'enter';
       this.bossTimer = ent.fall;
+    }
+    const bz = (def as { basili?: BasiliDef }).basili;
+    if (bz && this.boss) {
+      // 등장: 화면 오른쪽 밖에서 쿵쿵 걸어 들어온다 (그동안 무적)
+      this.walkInTo = this.boss.x;
+      this.boss.x = Math.max(this.boss.x, this.cameras.main.scrollX + VIEW_W + 50);
+      this.bossPhase = 'walkIn';
+      this.walkInStep = 0;
     }
     this.hud.bossName.setText(enemiesData[id].name).setColor(def.final ? '#ff2a3a' : '#ff8a1f');
     Sound.play('bosswarn');
@@ -4201,6 +4438,12 @@ export class GameScene extends Phaser.Scene implements GameContext {
       this.bossVolley = 1;
       // 아르코난 코어: 2페이즈에 들어가면 방어벽을 세워 잠깐 무적
       this.bossShieldT = (ph as { shield?: number }).shield ?? 0;
+      // 바실리: 코트를 찢는 전환 동작 (무적, 하던 공격 취소)
+      const bz2 = (def as { basili?: BasiliDef }).basili;
+      if (bz2) {
+        this.bossPhase = 'phaseShift';
+        this.bossTimer = bz2.phaseShift;
+      }
     }
     if (this.bossShieldT > 0) {
       this.bossShieldT -= dt;
@@ -4247,7 +4490,11 @@ export class GameScene extends Phaser.Scene implements GameContext {
     const rage = this.bossEnraged && en ? en.mul : 1;
     const sl = (def as { slam?: SlamDef }).slam;
     const ent = (def as { entrance?: EntranceDef }).entrance;
-    if (ent && (this.bossPhase === 'enter' || this.bossPhase === 'taunt')) {
+    const bz = (def as { basili?: BasiliDef }).basili;
+    if (bz) this.updateBasiliAlways(b, bz, dt);
+    if (bz && this.updateBasili(b, def, bz, dt, dx, dy, d, tg, p2)) {
+      // 바실리 전용 단계 처리됨 (조준·돌진은 아래 공통 코드)
+    } else if (ent && (this.bossPhase === 'enter' || this.bossPhase === 'taunt')) {
       if (this.bossPhase === 'enter') {
         b.x = this.bossTo.x;
         b.y = this.bossTo.y;
@@ -4388,7 +4635,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
         }
       }
     }
-    const vol: Volley | undefined = p2 ?? (def as { volley?: Volley }).volley;
+    const vol: Volley | undefined = p2 && (p2 as Partial<Volley>).volleyEvery ? p2 : (def as { volley?: Volley }).volley;
     if (vol && (this.bossVolley -= dt) <= 0) {
       // 탄막: 보스 주위로 탄을 원형으로 발사 (매번 조금씩 회전)
       this.bossVolley = vol.volleyEvery;
@@ -4400,7 +4647,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
       }
       Sound.play('enemyshot');
     }
-    if (this.arena) {
+    if (this.arena && this.bossPhase !== 'walkIn') {
       const a = this.arena;
       b.x = Phaser.Math.Clamp(b.x, a.x + b.radius, a.x + a.w - b.radius);
       b.y = Phaser.Math.Clamp(b.y, a.y + b.radius, a.y + a.h - b.radius);
@@ -4442,7 +4689,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
     this.bossPrevPhase = this.bossPhase;
     // 보스가 화면에서 너무 멀어지면 다시 가까이
     const pd = Math.hypot(p.x - b.x, p.y - b.y) || 1;
-    if (!this.arena && pd > 520 && this.bossPhase !== 'leap' && this.bossPhase !== 'air' && this.bossPhase !== 'enter' && this.bossPhase !== 'taunt') {
+    if (!this.arena && pd > 520 && this.bossPhase !== 'leap' && this.bossPhase !== 'air' && this.bossPhase !== 'enter' && this.bossPhase !== 'taunt' && this.bossPhase !== 'walkIn') {
       b.x = p.x - ((p.x - b.x) / pd) * 300;
       b.y = p.y - ((p.y - b.y) / pd) * 300;
     }

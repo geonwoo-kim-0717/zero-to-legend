@@ -69,3 +69,51 @@ export function pickBoss(s: BossSense): { act: BossAct; scores: Record<BossAct, 
   }
   return { act, scores };
 }
+
+// ─── 바실리(최종 보스) ───
+export type BasiliAct = 'walk' | 'gatling' | 'charge' | 'call' | 'stomp';
+
+export interface BasiliSense {
+  d: number;
+  playerHp: number;
+  moving: number;
+  fleeing: number;
+  dashSpent: boolean;
+  sinceAttack: number;
+  /** 지난 호출 뒤 지난 시간 (초) */
+  sinceCall: number;
+  /** 살아 있는 호위 수 */
+  guards: number;
+  /** 지난번에 쓴 공격 (같은 공격 연속 억제) */
+  last: BasiliAct;
+  current: BasiliAct;
+}
+
+export function pickBasili(s: BasiliSense): { act: BasiliAct; scores: Record<BasiliAct, number> } {
+  const Z = B.basili;
+  const ready = ramp(s.sinceAttack, B.minGap, B.maxGap);
+  const finish = clamp01(1 - s.playerHp) ** 1.5;
+  const opening = Math.max(1 - s.moving, s.dashSpent ? 1 : 0);
+  const R = Z.range;
+  // 개틀링: 중간~먼 거리, 멈춰 있거나 대시를 막 썼을 때
+  const gatling = band(s.d, R.gatlingMin, R.gatlingMax, R.soft) * ready * (0.6 + 0.4 * opening) * Z.w.gatling;
+  // 박치기: 가까울 때, 도망치는 중이면 내려감
+  const charge = band(s.d, 0, R.chargeMax, R.soft) * ready * (1 - 0.6 * s.fleeing) * (0.8 + 0.2 * finish) * Z.w.charge;
+  // 발구르기: 아주 가까이 붙었을 때 (밀어내기)
+  const stomp = band(s.d, 0, R.stompMax, R.soft) * ready * (0.8 + 0.2 * finish) * Z.w.stomp;
+  // 호출: 호위가 모두 죽었고 지난 호출 뒤 충분히 지났을 때
+  const call = s.guards > 0 ? 0 : ramp(s.sinceCall, Z.callMin, Z.callMax) * Z.w.call;
+  const walk = (B.walkBase + B.walkIdle * (1 - ready)) * B.w.walk;
+  const scores: Record<BasiliAct, number> = { walk: clamp01(walk), gatling: clamp01(gatling), charge: clamp01(charge), call: clamp01(call), stomp: clamp01(stomp) };
+  if (s.last !== 'walk' && s.last !== 'call') scores[s.last] *= Z.repeat;
+  let act: BasiliAct = 'walk';
+  let best = -1;
+  for (const [a, v] of Object.entries(scores) as [BasiliAct, number][]) {
+    const w = v + (a === s.current ? B.stick : 0);
+    if (w > best) {
+      best = w;
+      act = a;
+    }
+  }
+  return { act, scores };
+}

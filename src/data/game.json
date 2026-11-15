@@ -72,7 +72,7 @@
       "rewardXp": 40,
       "firstWalk": 3,
       "walkTime": 4,
-      "aimTime": 0.8,
+      "aimTime": 0.6,
       "chargeTime": 0.7,
       "firstSummon": 6,
       "zone": "slum",
@@ -116,7 +116,7 @@
         "line": "boss.taunt.midboss"
       },
       "hook": {
-        "note": "갈고리: 걷기가 끝났을 때 플레이어가 minDist~maxDist 거리면(그보다 멀면 점프 내리찍기, 가까우면 돌진). 예고선 aim초 → 갈고리 speed px/s로 range까지 → 맞으면 피해 damage + pullTime초 동안 보스 앞 pullTo px까지 끌려옴(대시하면 끊김) → gap초 틈(칼 들어 올림) → 내리찍기(slam의 반경·피해). 빗나가면 backSpeed로 감아들임. throwFrames 던지기(throwTime초), pullFrames 당기기",
+        "note": "갈고리: 걷기가 끝났을 때 플레이어가 minDist~maxDist 거리면(그보다 멀면 점프 내리찍기, 가까우면 돌진). 예고선 aim초 → 갈고리 speed px/s로 range까지 → 맞으면 피해 damage + pullTime초 동안 보스 앞 pullTo px까지 끌려옴(대시하면 끊김) → gap초 틈(칼 들어 올림) → 내리찍기(slam의 반경·피해). 빗나가면 backSpeed로 감아들임. hitMul: 명중 판정 반경 배율. throwFrames 던지기(throwTime초), pullFrames 당기기",
         "minDist": 120,
         "maxDist": 200,
         "aim": 0.6,
@@ -127,6 +127,7 @@
         "pullTo": 30,
         "gap": 0.4,
         "backSpeed": 700,
+        "hitMul": 1.1,
         "throwTime": 0.14,
         "throwFrames": [0, 2],
         "pullFrames": [3, 7]
@@ -144,29 +145,36 @@
       "final": true,
       "title": "갱단 두목 카를로 '레드' 바실리",
       "chargeSpeed": 330,
-      "summon": "drone",
+      "summon": "thug",
       "summonCount": 6,
       "summonEvery": 8,
       "rewardXp": 0,
       "firstWalk": 3,
       "walkTime": 4,
       "aimTime": 0.8,
-      "chargeTime": 0.7,
+      "chargeTime": 0.5,
       "firstSummon": 6,
       "phase2": {
         "at": 0.5,
-        "chargeCount": 3,
-        "aimTime": 0.45,
-        "chargeTime": 0.55,
-        "chargeSpeed": 380,
-        "volleyEvery": 3,
-        "volleyCount": 16,
-        "bulletSpeed": 120,
-        "bulletDamage": 12
+        "chargeCount": 2,
+        "aimTime": 0.5,
+        "chargeTime": 0.5,
+        "chargeSpeed": 360
       },
       "arena": {
         "w": 560,
         "h": 300
+      },
+      "brain": "basili",
+      "basili": {
+        "note": "바실리 패턴. walkIn: 화면 밖에서 speed px/s로 걸어 들어옴(step초마다 쿵, 무적). phaseShift: 2페이즈 전환 무적 시간. gatling: spin초 회전 후 time초 동안 초당 rate발, 부채꼴 fan도로 흔들며 초당 turn도씩 플레이어 쪽으로 회전(탄속 speed, 피해 damage). call: gesture초 손짓 → id를 count마리 반경 radius로 두르고 orbit rad/s로 돎. stomp: lift초 발 들기(예고) → 충격파 고리가 time초 동안 radius까지 퍼짐(고리 두께 band, 피해 damage, 대시로 넘음). p2: 2페이즈 값. glow: 2페이즈 발전기 빛(그림 중심 기준 x,y px)",
+        "walkIn": { "speed": 55, "step": 0.55 },
+        "phaseShift": 1.2,
+        "gatling": { "spin": 0.4, "time": 2.2, "rate": 10, "fan": 50, "turn": 40, "speed": 170, "damage": 8, "life": 3 },
+        "call": { "gesture": 0.6, "id": "thug", "count": 4, "radius": 46, "orbit": 0.8 },
+        "stomp": { "lift": 0.7, "radius": 220, "time": 0.8, "band": 12, "damage": 20 },
+        "p2": { "gatlingRate": 14, "gatlingSpeed": 1.15, "guards": 6, "stompRings": 2, "ringGap": 0.35 },
+        "glow": { "color": "0x00f0ff", "x": 0, "y": -6, "size": 44, "alpha": 0.55 }
       },
       "zone": "slum"
     },
@@ -498,7 +506,7 @@
     "think": 0.25,
     "stick": 0.05,
     "hitMemory": 0.8,
-    "dodgeGap": 1.0,
+    "dodgeGap": 3.0,
     "retreatExtra": 120,
     "pref": { "tank": 24, "melee": 40, "hacker": 170, "sniper": 240 },
     "reach": { "bash": 34, "swing": 38, "lungeMin": 70, "lungeMax": 200, "hack": 230, "shoot": 330 },
@@ -646,7 +654,15 @@
     "summonMax": 12,
     "walkBase": 0.25,
     "walkIdle": 0.5,
-    "w": { "walk": 1, "charge": 0.95, "hook": 0.95, "slam": 0.9, "summon": 0.8 }
+    "w": { "walk": 1, "charge": 0.95, "hook": 0.95, "slam": 0.9, "summon": 0.8 },
+    "basili": {
+      "note": "바실리 점수 AI: 개틀링 gatlingMin~gatlingMax, 박치기 0~chargeMax, 발구르기 0~stompMax(soft만큼 부드럽게). 호출은 호위가 모두 죽었을 때 지난 호출 뒤 callMin~callMax초. repeat: 방금 쓴 공격 점수 배율(같은 공격 연속 억제)",
+      "range": { "gatlingMin": 90, "gatlingMax": 320, "chargeMax": 170, "stompMax": 100, "soft": 50 },
+      "callMin": 15,
+      "callMax": 20,
+      "w": { "gatling": 1, "charge": 0.9, "stomp": 0.85, "call": 0.9 },
+      "repeat": 0.7
+    }
   },
   "shipGlow": {
     "note": "수송선 빛번짐: 엔진 후류 글로우(WebGL, 색·바깥 세기·여백 px), 바닥 빨간 조명 빛번짐(Add 합성 원 크기·밝기)",
