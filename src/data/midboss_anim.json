@@ -68,10 +68,10 @@
    ]
   ],
   "chainTile": {
-   "w": 8,
-   "h": 7,
-   "barRow": 3,
-   "note": "chain left edge at chainEnd.x-1, bar row on chainEnd.y; tile repeats every 8px, any crop stays connected"
+   "w": 11,
+   "h": 5,
+   "barRow": 2,
+   "note": "chain left edge at chainEnd.x-1, top at chainEnd.y-2; tile repeats every 11px (2 links), any crop stays connected"
   },
   "head": {
    "w": 17,
@@ -80,7 +80,7 @@
     0,
     2
    ],
-   "note": "place head so its pixel (0,2) sits on the chain's last pixel (x = chainEnd.x-2+len, y = chainEnd.y-2); flies right, flip for left"
+   "note": "place head so its pixel (0,2) sits on the chain's last pixel: (chainEnd.x-2+len, chainEnd.y-2); flies right, flip for left"
   },
   "fx": {
    "fx_hook_trail": {
