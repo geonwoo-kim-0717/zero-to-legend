@@ -167,14 +167,14 @@
       },
       "brain": "basili",
       "basili": {
-        "note": "바실리 패턴. walkIn: 화면 밖에서 speed px/s로 걸어 들어옴(step초마다 쿵, 무적). phaseShift: 2페이즈 전환 무적 시간. gatling: spin초 회전 후 time초 동안 초당 rate발, 부채꼴 fan도로 흔들며 초당 turn도씩 플레이어 쪽으로 회전(탄속 speed, 피해 damage). call: gesture초 손짓 → id를 count마리 반경 radius로 두르고 orbit rad/s로 돎. stomp: lift초 발 들기(예고) → 충격파 고리가 time초 동안 radius까지 퍼짐(고리 두께 band, 피해 damage, 대시로 넘음). p2: 2페이즈 값. glow: 2페이즈 발전기 빛(그림 중심 기준 x,y px)",
+        "note": "바실리 패턴. walkIn: 화면 밖에서 speed px/s로 걸어 들어옴(step초마다 쿵, 무적). phaseShift: 2페이즈 전환 무적 시간. gatling: spin초 회전 후 time초 동안 초당 rate발, 부채꼴 fan도로 흔들며 초당 turn도씩 플레이어 쪽으로 회전(탄속 speed, 피해 damage). call: gesture초 손짓 → id를 count마리 반경 radius로 두르고 orbit rad/s로 돎. stomp: lift초 발 들기(예고) → 충격파 고리가 time초 동안 radius까지 퍼짐(고리 두께 band, 피해 damage, 대시로 넘음). p2: 2페이즈 값. glow: 2페이즈 발전기 빛(전환 동안 from 청록 → color 빨강, 가운데 core는 흰빛에 가까운 빨강, 그림 중심 기준 x,y px)",
         "walkIn": { "speed": 55, "step": 0.55 },
         "phaseShift": 1.2,
         "gatling": { "spin": 0.4, "time": 2.2, "rate": 10, "fan": 50, "turn": 40, "speed": 170, "damage": 8, "life": 3 },
         "call": { "gesture": 0.6, "id": "thug", "count": 4, "radius": 46, "orbit": 0.8 },
         "stomp": { "lift": 0.7, "radius": 220, "time": 0.8, "band": 12, "damage": 20 },
         "p2": { "gatlingRate": 14, "gatlingSpeed": 1.15, "guards": 6, "stompRings": 2, "ringGap": 0.35 },
-        "glow": { "color": "0x00f0ff", "x": 0, "y": -6, "size": 44, "alpha": 0.55 }
+        "glow": { "from": "0x00f0ff", "color": "0xff3040", "core": "0xffe4e4", "x": 0, "y": -6, "size": 44, "alpha": 0.6 }
       },
       "zone": "slum"
     },

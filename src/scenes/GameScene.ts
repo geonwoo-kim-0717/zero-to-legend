@@ -85,7 +85,7 @@ type BasiliDef = {
   call: { gesture: number; id: string; count: number; radius: number; orbit: number };
   stomp: { lift: number; radius: number; time: number; band: number; damage: number };
   p2: { gatlingRate: number; gatlingSpeed: number; guards: number; stompRings: number; ringGap: number };
-  glow: { color: string; x: number; y: number; size: number; alpha: number };
+  glow: { from: string; color: string; core: string; x: number; y: number; size: number; alpha: number };
 };
 /** 바실리 동작 중 조준 그림(_aim)을 쓰는 단계 (새 그림이 오기 전 임시) */
 const BASILI_AIM = new Set(['gatling', 'call', 'stomp', 'phaseShift']);
@@ -269,6 +269,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
   private stompRings: { x: number; y: number; t: number; hit: boolean }[] = [];
   private basiliLastCall = 0;
   private basiliGlow: Phaser.GameObjects.Image | null = null;
+  private basiliCore: Phaser.GameObjects.Image | null = null;
   private walkInStep = 0;
   private walkInTo = 0;
   private basiliLast: BasiliAct = 'walk';
@@ -572,6 +573,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
     this.hookTrail = null;
     this.bossDbg = null;
     this.basiliGlow = null;
+    this.basiliCore = null;
     this.bossDef = null;
     this.bossesSpawned = 0;
     this.god = false;
@@ -2095,6 +2097,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
       this.hookHead?.setVisible(false);
       this.hookTrail?.setVisible(false);
       this.basiliGlow?.setVisible(false);
+      this.basiliCore?.setVisible(false);
       this.stompRings = [];
       this.bossDef = null;
       e.kill();
@@ -3429,19 +3432,28 @@ export class GameScene extends Phaser.Scene implements GameContext {
       }
     }
     this.stompRings = this.stompRings.filter((r) => r.t < S.time);
-    // 2페이즈: 발전기 청록 빛 (새 그림이 오기 전엔 몸 가운데에 덧입힘)
+    // 2페이즈: 발전기 빛. 전환 동안 청록 → 빨강으로 바뀌고, 가운데는 흰빛에 가까운 빨강 (새 그림이 오기 전엔 몸 가운데에 덧입힘)
     if (this.bossPhase2 || this.bossPhase === 'phaseShift') {
       const G = bz.glow;
       this.basiliGlow ??= this.add.image(0, 0, this.softGlowKey()).setBlendMode(Phaser.BlendModes.ADD).setDepth(12.4);
-      const grow = this.bossPhase === 'phaseShift' ? Phaser.Math.Clamp(1 - this.bossTimer / bz.phaseShift, 0, 1) : 1;
+      this.basiliCore ??= this.add.image(0, 0, this.softGlowKey()).setBlendMode(Phaser.BlendModes.ADD).setDepth(12.45);
+      const k = this.bossPhase === 'phaseShift' ? Phaser.Math.Clamp(1 - this.bossTimer / bz.phaseShift, 0, 1) : 1;
+      const c0 = Phaser.Display.Color.ValueToColor(Number(G.from));
+      const c1 = Phaser.Display.Color.ValueToColor(Number(G.color));
+      const mix = Phaser.Display.Color.Interpolate.ColorWithColor(c0, c1, 100, Math.round(k * 100));
+      const tint = Phaser.Display.Color.GetColor(mix.r, mix.g, mix.b);
       const pulse = Settings.reducedFx ? 1 : 0.8 + Math.sin(this.elapsed * 6) * 0.2;
       const sx = b.sprite.flipX ? -1 : 1;
-      this.basiliGlow
-        .setTint(Number(G.color))
-        .setVisible(true)
-        .setPosition(b.sprite.x + G.x * sx * b.sprite.scaleX, b.sprite.y + G.y * b.sprite.scaleY)
-        .setDisplaySize(G.size * grow * b.sprite.scaleX, G.size * grow * b.sprite.scaleY)
-        .setAlpha(G.alpha * pulse * grow);
+      const x = b.sprite.x + G.x * sx * b.sprite.scaleX;
+      const y = b.sprite.y + G.y * b.sprite.scaleY;
+      const size = G.size * (0.6 + 0.4 * k);
+      this.basiliGlow.setTint(tint).setVisible(true).setPosition(x, y).setDisplaySize(size * b.sprite.scaleX, size * b.sprite.scaleY).setAlpha(G.alpha * pulse);
+      this.basiliCore
+        .setTint(Number(G.core))
+        .setVisible(k > 0.5)
+        .setPosition(x, y)
+        .setDisplaySize(size * 0.35 * b.sprite.scaleX, size * 0.35 * b.sprite.scaleY)
+        .setAlpha(G.alpha * pulse * (k - 0.5) * 2);
     }
   }
 
@@ -4372,6 +4384,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
     this.stompRings = [];
     this.basiliLastCall = this.elapsed - 999;
     this.basiliGlow?.setVisible(false);
+    this.basiliCore?.setVisible(false);
     this.bossScores = {};
     this.bossSummoned = [];
     this.bossPVel = { x: 0, y: 0 };
