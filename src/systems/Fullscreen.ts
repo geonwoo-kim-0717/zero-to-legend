@@ -26,8 +26,38 @@ export function enterFullscreen(scene: Phaser.Scene): void {
 }
 
 export function toggleFullscreen(scene: Phaser.Scene): void {
-  if (scene.scale.isFullscreen) scene.scale.stopFullscreen();
-  else enterFullscreen(scene);
+  if (scene.scale.isFullscreen) {
+    // 사용자가 직접 끈 경우는 다시 자동으로 켜지 않는다
+    wantFullscreen = false;
+    scene.scale.stopFullscreen();
+  } else enterFullscreen(scene);
+}
+
+/** 한 번 전체화면에 들어간 뒤 (사용자가 버튼으로 끄기 전까지) 전체화면을 유지하고 싶은지 */
+let wantFullscreen = false;
+
+/**
+ * 모바일: 회전·뒤로가기 등으로 전체화면이 풀린 뒤 다시 가로가 되면 전체화면으로 되돌린다.
+ * 브라우저는 사용자 입력 없이 전체화면 요청을 거부하는 경우가 많아서,
+ * 가로가 되는 순간 한 번 시도하고, 거부되면 가로 상태에서 첫 터치 때 다시 요청한다.
+ */
+export function initAutoFullscreen(game: Phaser.Game, enabled: boolean): void {
+  if (!enabled || !isTouch()) return;
+  const sm = game.scale;
+  if (!sm.fullscreen.available) return;
+  sm.on(Phaser.Scale.Events.ENTER_FULLSCREEN, () => (wantFullscreen = true));
+  const landscape = () => window.matchMedia?.('(orientation: landscape)').matches ?? window.innerWidth > window.innerHeight;
+  const restore = () => {
+    if (!wantFullscreen || sm.isFullscreen || !landscape()) return;
+    sm.startFullscreen({ navigationUI: 'hide' });
+    (screen.orientation as LockableOrientation | undefined)?.lock?.('landscape').catch(() => undefined);
+  };
+  // 가로가 되는 순간 (허용하는 브라우저는 여기서 바로 전체화면)
+  const onTurn = () => setTimeout(restore, 300);
+  window.matchMedia?.('(orientation: landscape)').addEventListener?.('change', onTurn);
+  window.addEventListener('orientationchange', onTurn);
+  // 거부됐으면 가로 상태의 첫 터치에서 (터치를 뗄 때가 브라우저가 허락하는 사용자 입력)
+  window.addEventListener('touchend', restore, { capture: true, passive: true });
 }
 
 /** 화면 위쪽에 잠깐 안내 문구 */

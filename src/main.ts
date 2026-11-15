@@ -7,6 +7,7 @@ import { ResultScene } from './scenes/ResultScene';
 import { HideoutScene } from './scenes/HideoutScene';
 import { Ads } from './systems/Ads';
 import { I18n } from './i18n';
+import { initAutoFullscreen } from './systems/Fullscreen';
 
 const game = new Phaser.Game({
   type: Phaser.AUTO,
@@ -31,6 +32,8 @@ refit();
 
 I18n.init();
 void Ads.init();
+// 모바일 전체화면이 풀린 뒤 가로로 돌아오면 다시 전체화면 (포털은 자체 전체화면을 쓰므로 제외)
+initAutoFullscreen(game, Ads.provider !== 'crazygames');
 
 // 개발 중 브라우저 콘솔/자동 테스트에서 접근하기 위함
 if (import.meta.env.DEV || new URLSearchParams(location.search).has('debug')) (window as unknown as { game: Phaser.Game }).game = game;
