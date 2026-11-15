@@ -1,0 +1,23 @@
+diff --git a/src/scenes/GameScene.ts b/src/scenes/GameScene.ts
+index 8c32737..81822f6 100644
+--- a/src/scenes/GameScene.ts
++++ b/src/scenes/GameScene.ts
+@@ -2595,6 +2595,18 @@ export class GameScene extends Phaser.Scene implements GameContext {
+     const base = e.tex;
+     const hasAtk = this.textures.exists(`${base}_atk_00`);
+     if (hasAtk && this.animateTrooper(e, d)) return;
++    // [LOCAL PREVIEW] video walk frames
++    if (this.textures.exists(`${base}_walk_00`)) {
++      let n = 0;
++      while (this.textures.exists(`${base}_walk_${String(n).padStart(2, '0')}`)) n++;
++      const wk = `${base}_walk_${String(Math.floor(this.elapsed * 12 + e.x * 0.03) % n).padStart(2, '0')}`;
++      if (e.sprite.originY !== 1) {
++        e.footOff = this.textures.get(e.tex).getSourceImage().height / 2;
++        e.sprite.setOrigin(0.5, 1);
++      }
++      if (e.sprite.texture.key !== wk) e.sprite.setTexture(wk);
++      return;
++    }
+     if (e.sprite.originY === 1) e.sprite.setOrigin(0.5);
+     if (!this.textures.exists(`${base}_w2`)) return;
+     e.atkT = Math.max(0, e.atkT - dt);
