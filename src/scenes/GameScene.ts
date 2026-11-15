@@ -14,6 +14,7 @@ import { EnemyBullet } from '../entities/EnemyBullet';
 import { Pool } from '../systems/Pool';
 import { SpatialGrid } from '../systems/SpatialGrid';
 import { Spawner, hpScaleAt } from '../systems/Spawner';
+import { pickBoss, type BossAct } from '../systems/BossBrain';
 import { InputController } from '../systems/InputController';
 import { createWeapon, type WeaponBase, type WeaponId } from '../weapons';
 import type { GameContext, Stats, DamageTag, FxOpts } from '../weapons/types';
@@ -238,6 +239,16 @@ export class GameScene extends Phaser.Scene implements GameContext {
   private bossFrom = { x: 0, y: 0 };
   private bossTo = { x: 0, y: 0 };
   private bossEnraged = false;
+  /** 보스 점수 AI(BossBrain): 지난 공격·소환 시각, 다음 판단까지, 지금 행동, 마지막 점수, 소환한 부하, 플레이어 속도 */
+  private bossLastAttack = 0;
+  private bossLastSummon = 0;
+  private bossThinkT = 0;
+  private bossAct: BossAct = 'walk';
+  private bossScores: Partial<Record<BossAct, number>> = {};
+  private bossSummoned: Enemy[] = [];
+  private bossPVel = { x: 0, y: 0 };
+  private bossPPrev = { x: 0, y: 0 };
+  private bossDbg: Phaser.GameObjects.Text | null = null;
   /** 갈고리: 손에서 뻗은 길이, 방향, 맞은 자리(끌어오기 시작점), 경과 시간, 사슬·머리 그림 */
   private hook = { len: 0, ax: 1, ay: 0, px: 0, py: 0, t: 0 };
   private hookChain: Phaser.GameObjects.TileSprite | null = null;
@@ -334,6 +345,15 @@ export class GameScene extends Phaser.Scene implements GameContext {
     const show = this.debug || AI_SHOW;
     for (const [e, t] of this.squadDbg) if (!show || !e.active) t.setVisible(false);
     this.drawDirectorPanel(show);
+    // 보스 점수 AI: 머리 위에 상위 3개
+    const bb = this.boss;
+    const bOn = show && !!bb && !!(this.bossDef as { brain?: boolean } | null)?.brain && Object.keys(this.bossScores).length > 0;
+    if (bOn && bb) {
+      this.bossDbg ??= this.add.text(0, 0, '', { ...TEXT, fontSize: '7px', color: '#fff23a', strokeThickness: 2, align: 'center' }).setOrigin(0.5, 1).setDepth(150);
+      const top = (Object.entries(this.bossScores) as [string, number][]).sort((a, c) => c[1] - a[1]).slice(0, 3);
+      const line = `${this.bossPhase}\n` + top.map(([a, v]) => `${a} ${v.toFixed(2)}`).join('\n');
+      this.bossDbg.setText(line).setPosition(bb.x, bb.sprite.y - bb.sprite.displayHeight - 4).setVisible(true);
+    } else this.bossDbg?.setVisible(false);
     if (!show) return;
     for (const e of this.enemyPool.items) {
       if (!e.active || !e.id.startsWith('trooper_')) continue;
@@ -408,6 +428,8 @@ export class GameScene extends Phaser.Scene implements GameContext {
     washH: Phaser.GameObjects.Image | null;
     /** 엔진 기울기 0(정지·수직)~5(전진), 프레임 dropship_tilt_NN */
     tilt: number;
+    /** 바닥 빨간 조명의 빛번짐 (Add 합성 부드러운 원) */
+    floorGlow: Phaser.GameObjects.Image | null;
     dust: Phaser.GameObjects.Image | null;
     shadow: Phaser.GameObjects.Ellipse;
     markers: { x: number; y: number }[];
@@ -526,6 +548,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
     this.hookChain = null;
     this.hookHead = null;
     this.hookTrail = null;
+    this.bossDbg = null;
     this.bossDef = null;
     this.bossesSpawned = 0;
     this.god = false;
@@ -2414,6 +2437,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
       this.raid.ship.destroy();
       this.raid.wash?.destroy();
       this.raid.washH?.destroy();
+      this.raid.floorGlow?.destroy();
       this.raid.dust?.destroy();
       this.raid.shadow.destroy();
       this.raid = null;
@@ -3286,6 +3310,25 @@ export class GameScene extends Phaser.Scene implements GameContext {
     }
   }
 
+  /** 빛번짐용 부드러운 원 텍스처 (흰색 방사형 그라데이션, Add 합성 + 틴트로 씀) */
+  private softGlowKey(): string {
+    const key = 'fx_soft_glow';
+    if (!this.textures.exists(key)) {
+      const n = 64;
+      const cv = this.textures.createCanvas(key, n, n)!;
+      const cx = cv.getContext();
+      const g = cx.createRadialGradient(n / 2, n / 2, 0, n / 2, n / 2, n / 2);
+      g.addColorStop(0, 'rgba(255,255,255,1)');
+      g.addColorStop(0.35, 'rgba(255,255,255,0.55)');
+      g.addColorStop(0.7, 'rgba(255,255,255,0.15)');
+      g.addColorStop(1, 'rgba(255,255,255,0)');
+      cx.fillStyle = g;
+      cx.fillRect(0, 0, n, n);
+      cv.refresh();
+    }
+    return key;
+  }
+
   /** 점프 내리찍기 착지 범위: 떨어질 자리에 붉은 원, 착지가 가까울수록 안쪽이 차오른다 */
   private drawSlamMark(sl: SlamDef): void {
     const rage = this.bossEnraged ? ((this.bossDef as { enrage?: EnrageDef }).enrage?.mul ?? 1) : 1;
@@ -3757,6 +3800,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
         shadow: this.add.ellipse(sx, ty + 8, 92, 20, 0x000000, 0.35).setDepth(9),
         wash: this.textures.exists('fx_ship_wash_move') ? this.add.image(sx, ty, 'fx_ship_wash_move', '0').setOrigin(0).setDepth(29.9) : null,
         washH: this.textures.exists('fx_ship_wash') ? this.add.image(sx, ty, 'fx_ship_wash', '0').setOrigin(0).setDepth(29.9).setAlpha(0) : null,
+        floorGlow: this.add.image(tx, ty, this.softGlowKey()).setBlendMode(Phaser.BlendModes.ADD).setTint(0xff2a3a).setDepth(8.9).setAlpha(0),
         tilt: SHIP_TILT_N,
         dust: this.textures.exists('fx_ship_dust') ? this.add.image(sx, ty + 8, 'fx_ship_dust', '0').setOrigin(88 / 176, 30 / 40).setDepth(9.5).setVisible(false) : null,
       };
@@ -3834,6 +3878,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
         r.shadow.destroy();
         r.wash?.destroy();
         r.washH?.destroy();
+        r.floorGlow?.destroy();
         r.dust?.destroy();
         this.raid = null;
         // 다음 습격 쿨타임은 이번에 내린 요원이 모두 사살된 뒤부터 돈다 (updateRaid 앞부분에서 확인)
@@ -3858,6 +3903,20 @@ export class GameScene extends Phaser.Scene implements GameContext {
     const mk = Phaser.Math.Clamp(r.tilt / SHIP_TILT_N, 0, 1);
     if (r.wash) r.wash.setFrame(String(+fr % 12)).setPosition(wx, wy).setAlpha(r.washH ? mk : 1);
     if (r.washH) r.washH.setFrame(String(+fr % 12)).setPosition(wx, wy).setAlpha(1 - mk);
+    // 엔진 후류 빛번짐 (WebGL 글로우, 한 번만 붙임)
+    for (const w of [r.wash, r.washH]) if (w && w.preFX && !w.getData('glow')) {
+      const G = gameData.shipGlow;
+      w.preFX.padding = G.washPad;
+      w.preFX.addGlow(Number(G.washColor), G.washOuter, 0, false, 0.1, 12);
+      w.setData('glow', 1);
+    }
+    // 바닥 빨간 조명 빛번짐: 떠 있을수록(엔진이 수직일수록) 밝게, 살짝 일렁임
+    if (r.floorGlow) {
+      const G = gameData.shipGlow;
+      const k = r.phase === 'out' ? 1 - mk : r.phase === 'hover' ? 1 - mk : 0;
+      const fl = Settings.reducedFx ? 1 : 0.9 + Math.sin(this.elapsed * 7) * 0.06 + Math.sin(this.elapsed * 13.3) * 0.04;
+      r.floorGlow.setPosition(r.tx, r.ty).setDisplaySize(G.floorW, G.floorH).setAlpha(G.floorAlpha * k * fl);
+    }
     // 바닥 먼지: 떠 있는 동안에만
     if (r.dust) r.dust.setVisible(r.phase === 'hover').setPosition(r.ship.x, r.ty + 8).setFrame(String(+fr % 24));
     if (r.phase !== 'out') {
@@ -4021,6 +4080,14 @@ export class GameScene extends Phaser.Scene implements GameContext {
     }
     this.bossPhase2 = false;
     this.bossEnraged = false;
+    this.bossLastAttack = this.elapsed;
+    this.bossLastSummon = this.elapsed;
+    this.bossThinkT = 0;
+    this.bossAct = 'walk';
+    this.bossScores = {};
+    this.bossSummoned = [];
+    this.bossPVel = { x: 0, y: 0 };
+    this.bossPPrev = { x: p.x, y: p.y };
     this.bossShieldT = 0;
     this.bossMissile = 2;
     this.bossAtkT = 0;
@@ -4141,8 +4208,56 @@ export class GameScene extends Phaser.Scene implements GameContext {
     } else if (this.bossPhase === 'walk') {
       b.x += (dx / d) * b.speed * rage * slow * dt;
       b.y += (dy / d) * b.speed * rage * slow * dt;
-      if (this.bossTimer <= 0) {
-        const hk = (def as { hook?: HookDef }).hook;
+      const hk = (def as { hook?: HookDef }).hook;
+      // 공격 시작 (점수 AI·거리 규칙 공통)
+      const start = (kind: 'charge' | 'hook' | 'slam') => {
+        this.bossLastAttack = this.elapsed;
+        this.bossDir = { x: dx / d, y: dy / d };
+        if (kind === 'hook' && hk) {
+          this.bossPhase = 'hookAim';
+          this.bossTimer = hk.aim / rage;
+          this.hook = { len: 0, ax: dx / d, ay: dy / d, px: 0, py: 0, t: 0 };
+        } else if (kind === 'slam' && sl) {
+          this.bossPhase = 'leap';
+          this.bossTimer = sl.leap / rage;
+          this.bossFrom = { x: b.x, y: b.y };
+          this.bossTo = { x: tg.x, y: tg.y };
+        } else {
+          this.bossPhase = 'aim';
+          this.bossTimer = (p2 ? p2.aimTime : def.aimTime) / rage;
+          this.bossCharges = p2 ? p2.chargeCount : 1;
+        }
+      };
+      if ((def as { brain?: boolean }).brain) {
+        // 점수 AI: 걷는 동안 think초마다 행동 점수를 매겨 가장 높은 행동
+        if ((this.bossThinkT -= dt) <= 0) {
+          this.bossThinkT = gameData.bossBrain.think;
+          const sumId = def.summon;
+          this.bossSummoned = this.bossSummoned.filter((e) => e.active && e.id === sumId);
+          const { act, scores } = pickBoss({
+            d,
+            playerHp: Math.max(0, p.hp) / p.maxHp,
+            moving: Phaser.Math.Clamp(Math.hypot(this.bossPVel.x, this.bossPVel.y) / PLAYER.speed, 0, 1),
+            fleeing: Phaser.Math.Clamp((this.bossPVel.x * dx + this.bossPVel.y * dy) / d / PLAYER.speed, 0, 1),
+            dashSpent: p.dashCd > 0,
+            sinceAttack: this.elapsed - this.bossLastAttack,
+            sinceSummon: this.elapsed - this.bossLastSummon,
+            minions: Phaser.Math.Clamp(this.bossSummoned.length / Math.max(1, def.summonCount), 0, 1),
+            rage,
+            current: this.bossAct,
+          });
+          this.bossScores = scores;
+          this.bossAct = act;
+          if (act === 'summon') {
+            this.bossLastSummon = this.elapsed;
+            this.bossSummon = 0;
+            this.bossAct = 'walk';
+          } else if (act !== 'walk') {
+            start(act);
+            this.bossAct = 'walk';
+          }
+        }
+      } else if (this.bossTimer <= 0) {
         if (hk && d >= hk.minDist && d < hk.maxDist) {
           // 중간 거리: 갈고리 (던지기 전 방향을 정해 예고선)
           this.bossPhase = 'hookAim';
@@ -4232,7 +4347,16 @@ export class GameScene extends Phaser.Scene implements GameContext {
       b.y = Phaser.Math.Clamp(b.y, a.y + b.radius, a.y + a.h - b.radius);
     }
 
-    this.bossSummon -= dt;
+    // 점수 AI 보스는 소환도 점수로 고른다 (고르면 bossSummon = 0)
+    if (!(def as { brain?: boolean }).brain) this.bossSummon -= dt;
+    else if (this.bossSummon > 0) this.bossSummon = 1e9;
+    // 플레이어 이동 속도 (점수 AI 입력, 부드럽게)
+    if (dt > 0) {
+      const k = Math.min(1, dt * 6);
+      this.bossPVel.x += ((p.x - this.bossPPrev.x) / dt - this.bossPVel.x) * k;
+      this.bossPVel.y += ((p.y - this.bossPPrev.y) / dt - this.bossPVel.y) * k;
+    }
+    this.bossPPrev = { x: p.x, y: p.y };
     if (this.bossSummon <= 0) {
       this.bossSummon = def.summonEvery;
       this.bossPulse(b);
@@ -4250,6 +4374,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
         const a = (i / n) * Math.PI * 2;
         const e = this.spawnEnemy(id as EnemyId, b.x + Math.cos(a) * 40, b.y + Math.sin(a) * 40, this.bossMinionHp);
         if (refill && e) this.bossMinions.push({ e, id });
+        if (e) this.bossSummoned.push(e);
       });
     }
     this.animateBoss(b, def, dt);
