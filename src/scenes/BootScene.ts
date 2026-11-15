@@ -57,6 +57,9 @@ const SHEETS: Record<string, [number, number, number, number]> = {
   fx_baton_slash: [136, 104, 10, 3],
   fx_hack_pulse: [64, 48, 10, 3],
   fx_sniper_muzzle: [96, 72, 23, 5],
+  fx_hook_trail: [48, 9, 3, 3],
+  fx_hook_flash: [11, 11, 3, 3],
+  fx_hook_hit: [9, 9, 3, 3],
 };
 
 /** data URI 이미지를 텍스처로 등록 */

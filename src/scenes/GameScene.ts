@@ -52,7 +52,7 @@ const ZONES = zonesData.zones;
 const ZR = gameData.zoneRules;
 /** 왼쪽 위 체력바 폭 */
 const HP_W = 120;
-type BossPhase = 'walk' | 'aim' | 'charge' | 'leap' | 'air' | 'slam' | 'enter' | 'taunt';
+type BossPhase = 'walk' | 'aim' | 'charge' | 'leap' | 'air' | 'slam' | 'enter' | 'taunt' | 'hookAim' | 'hookFly' | 'hookPull' | 'hookGap' | 'hookBack';
 /** 블랙 실드 요원 공격 그림·이펙트 (아트 tools/art/sprites2026/scripts/troopers6/keys/atk_meta.json) */
 const TROOPER_ATK = {
   tank: { ms: [90, 110, 140, 70, 90, 120, 110, 100], size: [54, 48], fxStart: 4, anchor: [47, 27], fx: 'fx_shield_bash', fxN: 8, fxSize: [64, 40], pivot: [32, 18] },
@@ -74,6 +74,8 @@ const MARK_A = (gameData as { bossMarkAlpha?: number }).bossMarkAlpha ?? 1;
 const SHIP_TILT_N = 5;
 const SHIP_TILT_MS = 80;
 type EntranceDef = { minDist: number; fall: number; height: number; radius: number; taunt: number; line: string };
+/** 갈고리 (game.json bosses[].hook): 중간 거리에서 예고선 → 갈고리 발사 → 맞으면 끌어와 틈 뒤 내리찍기, 빗나가면 감아들임 */
+type HookDef = { minDist: number; maxDist: number; aim: number; range: number; speed: number; damage: number; pullTime: number; pullTo: number; gap: number; backSpeed: number; throwTime: number; throwFrames: number[]; pullFrames: number[] };
 /** 분노 (game.json bosses[].enrage) */
 type EnrageDef = { at: number; mul: number; tint: string };
 /** 보스 동작별 프레임 설정 (game.json bosses[].anim) */
@@ -236,6 +238,10 @@ export class GameScene extends Phaser.Scene implements GameContext {
   private bossFrom = { x: 0, y: 0 };
   private bossTo = { x: 0, y: 0 };
   private bossEnraged = false;
+  /** 갈고리: 손에서 뻗은 길이, 방향, 맞은 자리(끌어오기 시작점), 경과 시간, 사슬·머리 그림 */
+  private hook = { len: 0, ax: 1, ay: 0, px: 0, py: 0, t: 0 };
+  private hookChain: Phaser.GameObjects.TileSprite | null = null;
+  private hookHead: Phaser.GameObjects.Image | null = null;
   /** 최종 보스전의 붉은 홀로그램 경계 (월드 좌표) */
   private arena: { x: number; y: number; w: number; h: number; t: number } | null = null;
   private arenaG!: Phaser.GameObjects.Graphics;
@@ -515,6 +521,9 @@ export class GameScene extends Phaser.Scene implements GameContext {
     this.bountySent = false;
     this.chatterT = 15;
     this.boss = null;
+    // 갈고리 사슬·머리는 장면과 함께 사라졌으므로 다시 만든다
+    this.hookChain = null;
+    this.hookHead = null;
     this.bossDef = null;
     this.bossesSpawned = 0;
     this.god = false;
@@ -2005,6 +2014,8 @@ export class GameScene extends Phaser.Scene implements GameContext {
     if (e.isBoss) {
       const def = this.bossDef!;
       this.boss = null;
+      this.hookChain?.setVisible(false);
+      this.hookHead?.setVisible(false);
       this.bossDef = null;
       e.kill();
       const color = def.final ? 0xff2a3a : COLORS.orange;
@@ -2982,6 +2993,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
     const n = (m: string) => M[m]?.frames ?? 0;
     const P2 = this.bossPhase2 ? (def as { phase2?: Phase2 }).phase2 : undefined;
     const sl = (def as { slam?: SlamDef }).slam;
+    const hkA = (def as { hook?: HookDef }).hook;
     let lift = 0;
     if (ph === 'aim' && n('charge') > 0) {
       // 예고: 예고 프레임(chargeWind)을 예고 시간에 맞춰 한 번 재생
@@ -2996,6 +3008,23 @@ export class GameScene extends Phaser.Scene implements GameContext {
       const [r0, r1] = A.chargeRun;
       motion = 'charge';
       idx = t < A.chargeFlashTime ? A.chargeFlash : r0 + Math.min(r1 - r0, Math.floor(((t - A.chargeFlashTime) / Math.max(0.01, total - A.chargeFlashTime)) * (r1 - r0 + 1)));
+    } else if (ph.startsWith('hook') && hkA) {
+      const span = (r: number[], k: number) => r[0] + Math.min(r[1] - r[0], Math.floor(Phaser.Math.Clamp(k, 0, 0.999) * (r[1] - r[0] + 1)));
+      const h = this.hook;
+      if (ph === 'hookAim') {
+        motion = 'hook';
+        idx = hkA.throwFrames[0];
+      } else if (ph === 'hookFly') {
+        motion = 'hook';
+        idx = span(hkA.throwFrames, h.t / hkA.throwTime);
+      } else if (ph === 'hookGap') {
+        // 끌어온 뒤 칼을 들어 올리는 예비 동작 (내리찍기 공중 프레임)
+        motion = 'slam';
+        idx = sl ? span(sl.swingFrames, 1 - this.bossTimer / (hkA.gap / (this.bossEnraged ? ((def as { enrage?: EnrageDef }).enrage?.mul ?? 1) : 1))) : 0;
+      } else {
+        motion = 'hook';
+        idx = span(hkA.pullFrames, ph === 'hookPull' ? 1 - this.bossTimer / hkA.pullTime : h.t / 0.3);
+      }
     } else if ((ph === 'enter' || ph === 'taunt') && sl) {
       // 등장: 높은 곳에서 떨어지며(공중 프레임 → 마지막 airSwing초는 휘두르기) 착지 → 착지 자세 뒤 서서 말하기
       const ent = (def as { entrance?: EntranceDef }).entrance!;
@@ -3052,7 +3081,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
     if (!this.textures.exists(key)) return false;
     if (b.sprite.texture.key !== key) b.sprite.setTexture(key);
     // 그림은 오른쪽을 본다. 뒤집으면 허리 위치(originX)도 반대쪽으로
-    const flip = ph === 'charge' || ph === 'aim' || ph === 'leap' || ph === 'air' || ph === 'slam' || ph === 'enter' ? this.bossDir.x < 0 : this.player.x < b.x;
+    const flip = ph === 'charge' || ph === 'aim' || ph === 'leap' || ph === 'air' || ph === 'slam' || ph === 'enter' || ph.startsWith('hook') ? this.bossDir.x < 0 : this.player.x < b.x;
     const ox = M[motion].originX;
     b.sprite.setFlipX(flip).setOrigin(flip ? 1 - ox : ox, 1);
     const sc = this.bossAnimScale(def, motion);
@@ -3060,6 +3089,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
     b.footOff = A.footY;
     const jitter = ph === 'aim' && !Settings.reducedFx ? (Math.random() - 0.5) * 2 : 0;
     b.sprite.setPosition(b.x + jitter, b.y + A.footY - lift);
+    this.drawHook(b, def);
     return true;
   }
 
@@ -3119,6 +3149,124 @@ export class GameScene extends Phaser.Scene implements GameContext {
     Sound.play('explode');
     // 말풍선: 머리 위 (그림 높이만큼 올림), 등장 연출 동안
     this.shout(b, tr(ent.line as Parameters<typeof tr>[0]), 0.15, false, ent.taunt, 10);
+  }
+
+  /** 지금 보스 그림에서 사슬이 손에서 나오는 점 (월드 좌표). 아트 midboss_anim.json hook.chainEnd */
+  private hookHand(b: Enemy, def: BossDef): { x: number; y: number } {
+    const M = BOSS_ANIM[def.id]?.hook as { w: number; h: number; chainEnd?: number[][] } | undefined;
+    const f = Number(b.sprite.texture.key.match(/_hook_(\d+)$/)?.[1] ?? 0);
+    const ce = M?.chainEnd?.[f];
+    if (!M || !ce) return { x: b.x, y: b.y };
+    const sp = b.sprite;
+    const lx = (sp.flipX ? M.w - ce[0] : ce[0]) - sp.originX * M.w;
+    const ly = ce[1] - sp.originY * M.h;
+    return { x: sp.x + lx * sp.scaleX, y: sp.y + ly * sp.scaleY };
+  }
+
+  /** 갈고리 진행: 예고 → 날아감 → (맞음) 끌어오기 → 틈 → 내리찍기 / (빗나감·대시로 끊음) 감아들이기 */
+  private updateHook(b: Enemy, def: BossDef, dt: number, rage: number, sl?: SlamDef): void {
+    const hk = (def as { hook?: HookDef }).hook!;
+    const p = this.player;
+    const h = this.hook;
+    h.t += dt;
+    const hand = this.hookHand(b, def);
+    const ph = this.bossPhase;
+    if (ph === 'hookAim') {
+      this.fx.lineStyle(2, 0xff2a3a, MARK_A * (0.4 + Math.sin(this.elapsed * 40) * 0.3));
+      this.fx.lineBetween(hand.x, hand.y, hand.x + h.ax * hk.range, hand.y + h.ay * hk.range);
+      if (this.bossTimer <= 0) {
+        this.bossPhase = 'hookFly';
+        h.t = 0;
+        Sound.play('lunge');
+        this.playSheet('fx_hook_flash', 3, hand.x, hand.y, 0.5, 0.5, 20, 13);
+      }
+    } else if (ph === 'hookFly') {
+      h.len = Math.min(hk.range, h.len + hk.speed * dt);
+      const hx = hand.x + h.ax * h.len;
+      const hy = hand.y + h.ay * h.len;
+      // 대시(무적) 중이거나 방금 맞아 무적이면 그대로 지나간다
+      if (p.invuln <= 0 && !p.dashing && (p.x - hx) ** 2 + (p.y - hy) ** 2 < (p.radius + 8) ** 2) {
+        this.hurtPlayer(hk.damage, { kind: 'boss', id: b.id });
+        this.playSheet('fx_hook_hit', 3, hx, hy, 0.5, 0.5, 20, 13);
+        this.shake(120, 0.01);
+        this.bossPhase = 'hookPull';
+        this.bossTimer = hk.pullTime;
+        h.t = 0;
+        h.px = p.x;
+        h.py = p.y;
+      } else if (h.len >= hk.range) {
+        this.playSheet('fx_hook_hit', 3, hx, hy, 0.5, 0.5, 20, 13);
+        this.bossPhase = 'hookBack';
+        h.t = 0;
+      }
+    } else if (ph === 'hookPull') {
+      if (p.dashing) {
+        // 대시로 사슬을 끊고 빠져나간다
+        this.bossPhase = 'hookBack';
+        h.t = 0;
+      } else {
+        const k = Phaser.Math.Clamp(1 - this.bossTimer / hk.pullTime, 0, 1);
+        const e = k * k;
+        const tx = b.x + h.ax * hk.pullTo;
+        const ty = b.y + h.ay * hk.pullTo;
+        p.x = Phaser.Math.Linear(h.px, tx, e);
+        p.y = Phaser.Math.Linear(h.py, ty, e);
+        h.len = Math.max(0, Math.hypot(p.x - hand.x, p.y - hand.y));
+        if (this.bossTimer <= 0) {
+          // 끌려온 뒤 피할 틈: 이 동안 칼을 들어 올린다
+          this.bossPhase = 'hookGap';
+          this.bossTimer = hk.gap / rage;
+          h.len = 0;
+          h.t = 0;
+        }
+      }
+    } else if (ph === 'hookGap') {
+      if (this.bossTimer <= 0) {
+        if (sl) {
+          this.bossPhase = 'slam';
+          this.bossTimer = sl.recover;
+          this.slamLand(b, sl);
+        } else {
+          this.bossPhase = 'walk';
+          this.bossTimer = def.walkTime;
+        }
+      }
+    } else if (ph === 'hookBack') {
+      h.len = Math.max(0, h.len - hk.backSpeed * dt);
+      if (h.len <= 0) {
+        this.bossPhase = 'walk';
+        this.bossTimer = def.walkTime;
+      }
+    }
+  }
+
+  /** 사슬(반복 그림)과 갈고리 머리: 손에서 갈고리 방향으로 len만큼 */
+  private drawHook(b: Enemy, def: BossDef): void {
+    const on = this.bossPhase === 'hookFly' || this.bossPhase === 'hookPull' || this.bossPhase === 'hookBack';
+    if (!on || this.hook.len <= 1 || !this.textures.exists('midboss_hook_chain')) {
+      this.hookChain?.setVisible(false);
+      this.hookHead?.setVisible(false);
+      return;
+    }
+    const M = BOSS_ANIM[def.id]?.hook as { chainTile?: { h: number; barRow: number }; head?: { w: number; h: number; join: number[] } } | undefined;
+    const bar = M?.chainTile ? (M.chainTile.barRow + 0.5) / M.chainTile.h : 0.5;
+    this.hookChain ??= this.add.tileSprite(0, 0, 8, 7, 'midboss_hook_chain').setDepth(12.5);
+    this.hookHead ??= this.add.image(0, 0, 'midboss_hook_head').setDepth(12.6);
+    const hand = this.hookHand(b, def);
+    const a = Math.atan2(this.hook.ay, this.hook.ax);
+    const left = this.hook.ax < 0;
+    const len = this.hook.len;
+    // 왼쪽으로 던지면 그림이 뒤집히지 않게 세로로 뒤집는다
+    this.hookChain.setVisible(true).setPosition(hand.x, hand.y).setSize(len, 7).setOrigin(0, bar).setRotation(a).setFlipY(left);
+    const j = M?.head?.join ?? [0, 2];
+    const hw = M?.head?.w ?? 17;
+    const hh = M?.head?.h ?? 12;
+    this.hookHead
+      .setVisible(true)
+      .setPosition(hand.x + Math.cos(a) * len, hand.y + Math.sin(a) * len)
+      .setOrigin(j[0] / hw, left ? 1 - (j[1] + 0.5) / hh : (j[1] + 0.5) / hh)
+      .setRotation(a)
+      .setFlipY(left);
   }
 
   /** 점프 내리찍기 착지 범위: 떨어질 자리에 붉은 원, 착지가 가까울수록 안쪽이 차오른다 */
@@ -3976,7 +4124,14 @@ export class GameScene extends Phaser.Scene implements GameContext {
       b.x += (dx / d) * b.speed * rage * slow * dt;
       b.y += (dy / d) * b.speed * rage * slow * dt;
       if (this.bossTimer <= 0) {
-        if (sl && d >= sl.minDist) {
+        const hk = (def as { hook?: HookDef }).hook;
+        if (hk && d >= hk.minDist && d < hk.maxDist) {
+          // 중간 거리: 갈고리 (던지기 전 방향을 정해 예고선)
+          this.bossPhase = 'hookAim';
+          this.bossTimer = hk.aim / rage;
+          this.bossDir = { x: dx / d, y: dy / d };
+          this.hook = { len: 0, ax: dx / d, ay: dy / d, px: 0, py: 0, t: 0 };
+        } else if (sl && d >= sl.minDist) {
           // 멀면 점프 내리찍기: 지금 플레이어 자리에 떨어진다 (뛰기 전에 자리를 정해 바닥에 표시)
           this.bossPhase = 'leap';
           this.bossTimer = sl.leap / rage;
@@ -4009,6 +4164,8 @@ export class GameScene extends Phaser.Scene implements GameContext {
           this.slamLand(b, sl);
         }
       }
+    } else if (this.bossPhase.startsWith('hook')) {
+      this.updateHook(b, def, dt, rage, sl);
     } else if (this.bossPhase === 'slam') {
       if (this.bossTimer <= 0) {
         this.bossPhase = 'walk';

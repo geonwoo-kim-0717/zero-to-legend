@@ -113,6 +113,22 @@
         "taunt": 2,
         "line": "boss.taunt.midboss"
       },
+      "hook": {
+        "note": "갈고리: 걷기가 끝났을 때 플레이어가 minDist~maxDist 거리면(그보다 멀면 점프 내리찍기, 가까우면 돌진). 예고선 aim초 → 갈고리 speed px/s로 range까지 → 맞으면 피해 damage + pullTime초 동안 보스 앞 pullTo px까지 끌려옴(대시하면 끊김) → gap초 틈(칼 들어 올림) → 내리찍기(slam의 반경·피해). 빗나가면 backSpeed로 감아들임. throwFrames 던지기(throwTime초), pullFrames 당기기",
+        "minDist": 120,
+        "maxDist": 200,
+        "aim": 0.6,
+        "range": 260,
+        "speed": 600,
+        "damage": 10,
+        "pullTime": 0.35,
+        "pullTo": 30,
+        "gap": 0.4,
+        "backSpeed": 700,
+        "throwTime": 0.14,
+        "throwFrames": [0, 2],
+        "pullFrames": [3, 7]
+      },
       "enrage": {
         "note": "체력이 at 아래로 내려가면 붉게(tint) 변하고 이동·돌진 속도 ×mul, 예고 시간 ÷mul",
         "at": 0.4,
