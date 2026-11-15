@@ -172,7 +172,7 @@
         "phaseShift": 1.2,
         "gatling": { "spin": 0.4, "time": 2.2, "rate": 10, "fan": 50, "turn": 40, "speed": 170, "damage": 8, "life": 3 },
         "call": { "gesture": 0.6, "id": "thug", "count": 4, "radius": 46, "orbit": 0.8 },
-        "stomp": { "lift": 0.7, "radius": 220, "time": 0.8, "band": 12, "damage": 20 },
+        "stomp": { "lift": 0.7, "radius": 100, "time": 0.8, "band": 12, "damage": 20 },
         "p2": { "gatlingRate": 14, "gatlingSpeed": 1.15, "guards": 6, "stompRings": 2, "ringGap": 0.35 },
         "glow": { "from": "0x00f0ff", "color": "0xff3040", "core": "0xffe4e4", "x": 0, "y": -6, "size": 44, "alpha": 0.6 }
       },
