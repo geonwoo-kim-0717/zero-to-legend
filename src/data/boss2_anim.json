@@ -695,8 +695,11 @@
        14
       ]
      ],
-     "pod": null,
-     "podHidden": false
+     "pod": [
+      44,
+      30
+     ],
+     "podHidden": true
     },
     "14": {
      "cannon": [
@@ -748,7 +751,10 @@
        17
       ]
      ],
-     "pod": null,
+     "pod": [
+      59,
+      21
+     ],
      "podHidden": true
     }
    }
@@ -930,8 +936,21 @@
  },
  "demoOrder": "데모(기관총 8연발 → 미사일 → 플라즈마 2발)는 보여 주기용 순서이고 게임 패턴 순서가 아님",
  "missing": {
-  "turretRise": "없음(Flow 영상 대기). 임시: closed → p1 몸통 교체",
-  "phase2Transition": "없음(Flow 영상 대기). 임시: p1 → p2 몸통 교체",
-  "sfx": "후보 3개 있음, 사용자 채택 전이라 미포함"
+  "jump": "점프·낙하 동작 영상 제작 중(사용자). 그 전까지 임시: closed 몸통+다리를 코드로 들었다 내려찍기",
+  "sfx": "후보 3개, 사용자 채택 전이라 미포함"
+ },
+ "turretRise": {
+  "key": "boss2_rise_00..10",
+  "frames": 11,
+  "fps": 8,
+  "canvas": "몸통 겹(144x123), 다른 몸통과 같은 위치·bodyOffset 규칙",
+  "note": "00=boss2_body_closed와 같음, 10=boss2_p1_turret_02와 같음. 포탑 방향 02(오른쪽 아래)에서만 재생 — 다른 방향이면 먼저 02로 돌린 뒤 하강/상승. 하강은 역재생. 01~04 프레임에 뚜껑이 풀리며 틈에서 주황 불빛(영상 연출)"
+ },
+ "phase2Transition": {
+  "key": "boss2_deploy_00..10",
+  "frames": 11,
+  "fps": 8,
+  "canvas": "몸통 겹(144x123)",
+  "note": "00=boss2_p1_turret_02, 10=boss2_p2_turret_02. 해치가 열리고 기관총 포탑이 솟고 미사일 포드가 붙음. 포탑 방향 02에서 재생"
  }
 }
