@@ -66,6 +66,7 @@
       "final": false,
       "title": "바실리 갱단 행동대장 '도살자' 코박",
       "chargeSpeed": 360,
+      "chargeOver": 60,
       "summon": "thug",
       "summonCount": 4,
       "summonEvery": 9,
@@ -116,7 +117,7 @@
         "line": "boss.taunt.midboss"
       },
       "hook": {
-        "note": "갈고리: 걷기가 끝났을 때 플레이어가 minDist~maxDist 거리면(그보다 멀면 점프 내리찍기, 가까우면 돌진). 예고선 aim초 → 갈고리 speed px/s로 range까지 → 맞으면 피해 damage + pullTime초 동안 보스 앞 pullTo px까지 끌려옴(대시하면 끊김) → gap초 틈(칼 들어 올림) → 내리찍기(slam의 반경·피해). 빗나가면 backSpeed로 감아들임. hitMul: 명중 판정 반경 배율. throwFrames 던지기(throwTime초), pullFrames 당기기",
+        "note": "갈고리: 걷기가 끝났을 때 플레이어가 minDist~maxDist 거리면(그보다 멀면 점프 내리찍기, 가까우면 돌진). 예고선 aim초 → 갈고리 speed px/s로 range까지 → 맞으면 피해 damage + pullTime초 동안 보스 앞 pullTo px까지 끌려옴(대시하면 끊김) → gap초 틈(칼 들어 올림) → 내리찍기(slam의 반경·피해). 빗나가면 backSpeed로 감아들임. hitMul: 명중 판정 반경 배율. lockBefore: 예고선이 플레이어를 따라가다 발사 몇 초 전에 멈추는지. throwFrames 던지기(throwTime초), pullFrames 당기기",
         "minDist": 120,
         "maxDist": 200,
         "aim": 0.6,
@@ -128,6 +129,7 @@
         "gap": 0.4,
         "backSpeed": 700,
         "hitMul": 1.1,
+        "lockBefore": 0.15,
         "throwTime": 0.14,
         "throwFrames": [0, 2],
         "pullFrames": [3, 7]
@@ -645,11 +647,12 @@
   "maxedAbilityChance": 0.15,
   "enemyDamageGrowthPerMin": 0.04,
   "bossBrain": {
-    "note": "보스 점수 AI(brain: true인 보스). 걷는 동안 think초마다 판단. 공격 준비도 = 지난 공격 뒤 minGap~maxGap초(분노면 ÷배율). range: 돌진 0~chargeMax, 갈고리 hookMin~hookMax, 점프 slamMin 이상(soft만큼 부드럽게). 소환: 지난 소환 뒤 summonMin~summonMax초 + 부하가 적을수록. 걷기 = walkBase + walkIdle×(1-준비도). stick은 하던 행동 가산점",
+    "note": "보스 점수 AI(brain: true인 보스). 걷는 동안 think초마다 판단. 공격 준비도 = 지난 공격이 끝난 뒤 minGap~maxGap초(코박 분노·바실리 2페이즈는 minGap~maxGap2초). range: 돌진 0~chargeMax, 갈고리 hookMin~hookMax, 점프 slamMin 이상(soft만큼 부드럽게). 소환: 지난 소환 뒤 summonMin~summonMax초 + 부하가 적을수록. 걷기 = walkBase + walkIdle×(1-준비도). stick은 하던 행동 가산점",
     "think": 0.25,
     "stick": 0.05,
-    "minGap": 1.6,
-    "maxGap": 4.5,
+    "minGap": 1,
+    "maxGap": 3,
+    "maxGap2": 2,
     "range": { "chargeMax": 130, "hookMin": 110, "hookMax": 220, "slamMin": 190, "soft": 40 },
     "summonMin": 6,
     "summonMax": 12,

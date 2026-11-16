@@ -77,7 +77,7 @@ const SHIP_TILT_N = 5;
 const SHIP_TILT_MS = 80;
 type EntranceDef = { minDist: number; fall: number; height: number; radius: number; taunt: number; holdLast: number; line: string };
 /** 갈고리 (game.json bosses[].hook): 중간 거리에서 예고선 → 갈고리 발사 → 맞으면 끌어와 틈 뒤 내리찍기, 빗나가면 감아들임 */
-type HookDef = { hitMul?: number; minDist: number; maxDist: number; aim: number; range: number; speed: number; damage: number; pullTime: number; pullTo: number; gap: number; backSpeed: number; throwTime: number; throwFrames: number[]; pullFrames: number[] };
+type HookDef = { hitMul?: number; lockBefore?: number; minDist: number; maxDist: number; aim: number; range: number; speed: number; damage: number; pullTime: number; pullTo: number; gap: number; backSpeed: number; throwTime: number; throwFrames: number[]; pullFrames: number[] };
 /** 바실리 패턴 (game.json bosses[].basili) */
 type BasiliDef = {
   walkIn: { speed: number; step: number };
@@ -255,6 +255,8 @@ export class GameScene extends Phaser.Scene implements GameContext {
   private bossFrom = { x: 0, y: 0 };
   private bossTo = { x: 0, y: 0 };
   private bossEnraged = false;
+  /** 이번 돌진의 전체 시간 (거리 비례 돌진이면 매번 다름, 프레임 재생용) */
+  private bossChargeTotal = 0;
   /** 보스 점수 AI(BossBrain): 지난 공격·소환 시각, 다음 판단까지, 지금 행동, 마지막 점수, 소환한 부하, 플레이어 속도 */
   private bossLastAttack = 0;
   private bossLastSummon = 0;
@@ -3148,7 +3150,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
       idx = w0 + Math.floor(k * (w1 - w0 + 1));
     } else if (ph === 'charge' && n('charge') > 0) {
       // 돌진: 처음 chargeFlashTime 동안 번쩍 프레임, 이후 돌진 프레임을 남은 시간에 맞춰
-      const total = (P2?.chargeTime ?? def.chargeTime) / (this.bossEnraged ? ((def as { enrage?: EnrageDef }).enrage?.mul ?? 1) : 1);
+      const total = this.bossChargeTotal > 0 ? this.bossChargeTotal : (P2?.chargeTime ?? def.chargeTime) / (this.bossEnraged ? ((def as { enrage?: EnrageDef }).enrage?.mul ?? 1) : 1);
       const t = total - this.bossTimer;
       const [r0, r1] = A.chargeRun;
       motion = 'charge';
@@ -3312,6 +3314,15 @@ export class GameScene extends Phaser.Scene implements GameContext {
     const hand = this.hookHand(b, def);
     const ph = this.bossPhase;
     if (ph === 'hookAim') {
+      // 예고선이 플레이어를 따라가다가 발사 lockBefore초 전에 멈춘다 (비켜설 틈)
+      if (this.bossTimer > (hk.lockBefore ?? 0)) {
+        const tx = (this.untracked ? this.decoy.x : p.x) - b.x;
+        const ty = (this.untracked ? this.decoy.y : p.y) - b.y;
+        const dd = Math.hypot(tx, ty) || 1;
+        h.ax = tx / dd;
+        h.ay = ty / dd;
+        this.bossDir = { x: h.ax, y: h.ay };
+      }
       this.fx.lineStyle(2, 0xff2a3a, MARK_A * (0.4 + Math.sin(this.elapsed * 40) * 0.3));
       this.fx.lineBetween(hand.x, hand.y, hand.x + h.ax * hk.range, hand.y + h.ay * hk.range);
       if (this.bossTimer <= 0) {
@@ -3546,6 +3557,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
           sinceAttack: this.elapsed - this.bossLastAttack,
           sinceCall: this.elapsed - this.basiliLastCall,
           guards: this.basiliGuards.length,
+          p2: !!p2,
           last: this.basiliLast,
           current: this.bossAct as BasiliAct,
         });
@@ -4849,6 +4861,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
             sinceSummon: this.elapsed - this.bossLastSummon,
             minions: Phaser.Math.Clamp(this.bossSummoned.length / Math.max(1, def.summonCount), 0, 1),
             rage,
+            p2: this.bossEnraged,
             current: this.bossAct,
           });
           this.bossScores = scores;
@@ -4919,6 +4932,10 @@ export class GameScene extends Phaser.Scene implements GameContext {
         Sound.play('bosscharge');
         // 분노면 속도가 rage배 빨라지는 만큼 시간을 줄여 돌진 거리는 그대로 (빠르게만)
         this.bossTimer = (p2 ? p2.chargeTime : def.chargeTime) / rage;
+        // 코박: 돌진 거리 = 플레이어까지 거리 + chargeOver px (속도는 그대로, 시간이 달라짐)
+        const over = (def as { chargeOver?: number }).chargeOver;
+        if (over !== undefined) this.bossTimer = (d + over) / ((p2 ? p2.chargeSpeed : def.chargeSpeed) * rage);
+        this.bossChargeTotal = this.bossTimer;
       }
     } else {
       const sp = (p2 ? p2.chargeSpeed : def.chargeSpeed) * rage;

@@ -25,8 +25,10 @@ export interface BossSense {
   sinceSummon: number;
   /** 살아 있는 부하 비율 0~1 (목표 수 대비) */
   minions: number;
-  /** 분노 배율 (공격 간격을 이만큼 줄인다) */
+  /** 분노 배율 (속도·예고용) */
   rage: number;
+  /** 분노 중인지 (공격 준비가 maxGap2초에 다 참) */
+  p2: boolean;
   /** 지금 하던 행동 (관성 가산점용) */
   current: BossAct;
 }
@@ -37,8 +39,8 @@ const ramp = (x: number, a: number, b: number) => clamp01((x - a) / (b - a));
 const band = (x: number, lo: number, hi: number, soft: number) => (x < lo ? ramp(x, lo - soft, lo) : x > hi ? ramp(x, hi + soft, hi) : 1);
 
 export function scoreBoss(s: BossSense): Record<BossAct, number> {
-  // 공격 준비도: 지난 공격 뒤 minGap까지 0, maxGap에서 1 (분노면 간격이 짧아짐)
-  const ready = ramp(s.sinceAttack, B.minGap / s.rage, B.maxGap / s.rage);
+  // 공격 준비도: 지난 공격이 끝난 뒤 minGap까지 0, maxGap에서 1 (분노면 maxGap2에서 1)
+  const ready = ramp(s.sinceAttack, B.minGap, s.p2 ? B.maxGap2 : B.maxGap);
   // 마무리 욕심: 플레이어 체력이 낮을수록
   const finish = clamp01(1 - s.playerHp) ** 1.5;
   // 노리기 좋은 때: 멈춰 있거나 방금 대시를 써서 피할 수단이 없을 때
@@ -84,6 +86,8 @@ export interface BasiliSense {
   sinceCall: number;
   /** 살아 있는 호위 수 */
   guards: number;
+  /** 2페이즈인지 (공격 준비가 maxGap2초에 다 참) */
+  p2: boolean;
   /** 지난번에 쓴 공격 (같은 공격 연속 억제) */
   last: BasiliAct;
   current: BasiliAct;
@@ -91,7 +95,7 @@ export interface BasiliSense {
 
 export function pickBasili(s: BasiliSense): { act: BasiliAct; scores: Record<BasiliAct, number> } {
   const Z = B.basili;
-  const ready = ramp(s.sinceAttack, B.minGap, B.maxGap);
+  const ready = ramp(s.sinceAttack, B.minGap, s.p2 ? B.maxGap2 : B.maxGap);
   const finish = clamp01(1 - s.playerHp) ** 1.5;
   const opening = Math.max(1 - s.moving, s.dashSpent ? 1 : 0);
   const R = Z.range;
