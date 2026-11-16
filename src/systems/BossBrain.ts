@@ -57,7 +57,7 @@ export function scoreBoss(s: BossSense): Record<BossAct, number> {
   const summon = ramp(s.sinceSummon, B.summonMin, B.summonMax) * (1 - s.minions) ** 1.5 * B.w.summon;
   // 걷기: 기본값 (공격 준비가 덜 됐을수록 높음)
   // 콤보: 방금 끝난 공격에 이어 쓸 공격은 준비도 대신 거리만 보고 콤보 가중치로 (거리가 맞으면 거의 확정)
-  const C = B.combo.weight;
+  const C = s.p2 ? B.combo.weight2 : B.combo.weight;
   const cb = s.combo ?? [];
   // 콤보가 열려 있으면 걷기는 기본값만 (공격 직후의 높은 걷기 점수가 콤보를 막지 않게)
   const walk = (B.walkBase + (cb.length ? 0 : B.walkIdle * (1 - ready))) * B.w.walk;
@@ -129,7 +129,7 @@ export function pickBasili(s: BasiliSense): { act: BasiliAct; scores: Record<Bas
   if (s.last !== 'walk' && s.last !== 'call') scores[s.last] *= Z.repeat;
   // 콤보: 방금 끝난 공격에 이어 쓸 공격은 준비도·연속 억제 대신 거리만 보고 콤보 가중치로
   const cb = s.combo ?? [];
-  const C = B.combo.weight;
+  const C = s.p2 ? B.combo.weight2 : B.combo.weight;
   const CR = B.combo.range.basili as Record<string, number[]>;
   for (const a of cb as BasiliAct[]) if (CR[a]) scores[a] = clamp01(Math.max(scores[a], band(s.d, CR[a][0], CR[a][1], B.combo.range.soft) * C));
   let act: BasiliAct = 'walk';
