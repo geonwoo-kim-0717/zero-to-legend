@@ -3588,6 +3588,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
           // 총구 화염 그림: 발사마다 무작위 1장을 잠깐
           this.basiliFlashT = bz.anim.flashTime;
           this.basiliFlashF = Math.floor(Math.random() * 5);
+          this.ejectCasing(b);
           if (!this.textures.exists('fx_boss_muzzle')) this.burst(mx, my, 0xfff23a, 2);
           if (Math.random() < 0.35) Sound.play('enemyshot');
         }
@@ -3648,11 +3649,23 @@ export class GameScene extends Phaser.Scene implements GameContext {
     return false;
   }
 
+  /** 개틀링 탄피: 드럼 위 배출구(port)에서 한 발에 하나 (변형 3줄 중 무작위, 왼쪽을 보면 반전) */
+  private ejectCasing(b: Enemy): void {
+    const F = (bossAnim as { fx?: { fx_boss_casing?: { frameW: number; frameH: number; frames: number; rows: number; fps: number; start: number[] } } }).fx?.fx_boss_casing;
+    if (!F || !this.textures.exists('fx_boss_casing')) return;
+    const pt = this.basiliPoint(b, 'port');
+    if (!pt) return;
+    const flip = b.sprite.flipX;
+    const row = Math.floor(Math.random() * F.rows);
+    const ox = (flip ? F.frameW - F.start[0] : F.start[0]) / F.frameW;
+    this.playSheet('fx_boss_casing', F.frames, pt.x, pt.y, ox, F.start[1] / F.frameH, F.fps, b.sprite.depth + 0.05, flip, BOSS_SCALE, row * F.frames);
+  }
+
   /** 바실리 지금 그림 안의 점(발전기·총구)을 월드 좌표로. 그림이 없거나 점 정보가 없으면 undefined, 그 프레임에서 가려졌으면 null */
-  private basiliPoint(b: Enemy, kind: 'generator' | 'muzzle'): { x: number; y: number } | null | undefined {
+  private basiliPoint(b: Enemy, kind: 'generator' | 'muzzle' | 'port'): { x: number; y: number } | null | undefined {
     const m = b.sprite.texture.key.match(/^boss_(walk|gatling|slam|stomp|phase|p2_walk|p2_gatling)_(?:lit_)?(\d+)$/);
     if (!m) return undefined;
-    const M = (BOSS_ANIM.boss as Record<string, { w: number; h: number; generator?: FramePts; muzzle?: FramePts }>)[m[1]];
+    const M = (BOSS_ANIM.boss as Record<string, { w: number; h: number; generator?: FramePts; muzzle?: FramePts; port?: FramePts }>)[m[1]];
     const list = M?.[kind];
     if (!M || !list) return undefined;
     const pt = list[Number(m[2])];
@@ -3720,7 +3733,8 @@ export class GameScene extends Phaser.Scene implements GameContext {
       idx = 0;
     } else if (ph === 'gatling') {
       const G = bz.gatling;
-      motion = 'gatling';
+      // 2페이즈 개틀링 그림이 있으면 2페이즈에선 그걸로
+      motion = this.bossPhase2 && this.textures.exists('boss_p2_gatling_00') ? 'p2_gatling' : 'gatling';
       if (this.bossTimer > G.time) idx = span(gatP.raise, (G.spin + G.time - this.bossTimer) / G.spin);
       else {
         idx = loop(gatP.fireLoop, G.time - this.bossTimer, A.fireFps);
@@ -3729,8 +3743,9 @@ export class GameScene extends Phaser.Scene implements GameContext {
     }
     this.basiliFlashT = Math.max(0, this.basiliFlashT - dt);
     // 총구 화염이 보이는 동안은 빛을 미리 칠한 프레임(boss_gatling_lit_NN)으로
-    const lit = firing && this.basiliFlashT > 0 && this.textures.exists(`boss_gatling_lit_${String(idx).padStart(2, '0')}`);
-    const key = lit ? `boss_gatling_lit_${String(idx).padStart(2, '0')}` : `boss_${motion}_${String(idx).padStart(2, '0')}`;
+    const litKey = `boss_${motion}_lit_${String(idx).padStart(2, '0')}`;
+    const lit = firing && this.basiliFlashT > 0 && this.textures.exists(litKey);
+    const key = lit ? litKey : `boss_${motion}_${String(idx).padStart(2, '0')}`;
     if (!this.textures.exists(key)) return false;
     if (b.sprite.texture.key !== key) b.sprite.setTexture(key);
     const flip = ph === 'charge' || ph === 'aim' ? this.bossDir.x < 0 : ph === 'gatling' ? Math.cos(this.gatAim) < 0 : this.player.x < b.x;
@@ -4241,9 +4256,9 @@ export class GameScene extends Phaser.Scene implements GameContext {
   }
 
   /** 한 번 재생하는 시트 효과 (프레임 '0'..'n-1') */
-  private playSheet(key: string, n: number, x: number, y: number, ox: number, oy: number, fps: number, depth: number, flip = false, scale = 1): void {
+  private playSheet(key: string, n: number, x: number, y: number, ox: number, oy: number, fps: number, depth: number, flip = false, scale = 1, first = 0): void {
     if (!this.textures.exists(key)) return;
-    const img = this.add.image(x, y, key, '0').setOrigin(ox, oy).setDepth(depth).setFlipX(flip).setScale(scale);
+    const img = this.add.image(x, y, key, String(first)).setOrigin(ox, oy).setDepth(depth).setFlipX(flip).setScale(scale);
     const t0 = this.elapsed;
     const tick = () => {
       const f = Math.floor((this.elapsed - t0) * fps);
@@ -4252,7 +4267,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
         img.destroy();
         return;
       }
-      img.setFrame(String(f));
+      img.setFrame(String(first + f));
     };
     this.events.on('update', tick);
   }

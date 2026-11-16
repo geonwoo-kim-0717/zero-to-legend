@@ -59,6 +59,7 @@ const SHEETS: Record<string, [number, number, number, number]> = {
   fx_sniper_muzzle: [96, 72, 23, 5],
   fx_boss_muzzle: [24, 30, 5, 5],
   fx_boss_stomp: [180, 143, 37, 8],
+  fx_boss_casing: [35, 62, 84, 28],
   fx_hook_trail: [48, 9, 3, 3],
   fx_hook_flash: [11, 11, 3, 3],
   fx_hook_hit: [9, 9, 3, 3],
