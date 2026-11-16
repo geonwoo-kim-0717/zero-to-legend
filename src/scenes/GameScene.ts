@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { BASE_TEXT, setupCamera } from '../ui/text';
-import { VIEW_W, VIEW_H, PLAYER, GRID_CELL, COLORS, MAX_ENEMY_RADIUS } from '../config';
+import { VIEW_W, VIEW_H, PLAYER, GRID_CELL, COLORS, MAX_ENEMY_RADIUS, ZOOM } from '../config';
 import gameData from '../data/game.json';
 import passivesData from '../data/passives.json';
 import abilitiesData from '../data/abilities.json';
@@ -92,6 +92,8 @@ type BasiliDef = {
 };
 /** 바실리 동작 중 조준 그림(_aim)을 쓰는 단계 (새 그림이 오기 전 임시) */
 const BASILI_AIM = new Set(['gatling', 'call', 'stomp', 'stompRec', 'phaseShift']);
+/** 보스 클로즈업 연출 (game.json bosses[].cine): 등장·2페이즈 대사(문구 키), 확대 배율, 대사 한 줄 시간, 말풍선 높이 */
+type CineDef = { intro?: string[]; p2?: string[]; zoom: number; lineTime: number; lift: number };
 /** 분노 (game.json bosses[].enrage) */
 type EnrageDef = { at: number; mul: number; tint: string };
 /** 보스 동작별 프레임 설정 (game.json bosses[].anim) */
@@ -255,6 +257,8 @@ export class GameScene extends Phaser.Scene implements GameContext {
   private bossFrom = { x: 0, y: 0 };
   private bossTo = { x: 0, y: 0 };
   private bossEnraged = false;
+  /** 보스 클로즈업 진행 상태 (null이면 없음) */
+  private cine: { b: Enemy; t: number; dur: number; delay: number; lines: string[]; said: number; each: number; zoom: number; lift: number; hidden: Phaser.GameObjects.GameObject[]; bars: Phaser.GameObjects.Rectangle[]; sx: number; sy: number } | null = null;
   /** 콤보: 마지막 공격 종류, 열린 콤보(이어 쓸 수 있는 공격의 출발점)와 마감 시각, 지금 공격이 콤보로 나간 것인지 */
   private bossLastKind = '';
   private comboFrom = '';
@@ -717,7 +721,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
     if (Ads.provider !== 'crazygames') kb.on('keydown-ESC', () => this.togglePause());
     kb.on('keydown-ENTER', () => this.state === 'dialog' && this.advanceDialog());
     // 대화: ENTER·탭 = 다음 줄, 스페이스 = 건너뛰기
-    kb.on('keydown-SPACE', () => this.state === 'dialog' && this.skipDialog());
+    kb.on('keydown-SPACE', () => (this.state === 'dialog' ? this.skipDialog() : this.cine && this.skipCine()));
     kb.on('keydown-F1', () => (this.debug = !this.debug));
     kb.on('keydown-BACKTICK', () => (this.debug = !this.debug));
     // 디버그 전용 치트 (F1으로 디버그를 켰을 때만)
@@ -741,6 +745,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
     this.input.on('pointerup', (_p: Phaser.Input.Pointer, over: Phaser.GameObjects.GameObject[]) => {
       if (this.state === 'paused' && over.length === 0 && !this.portrait()) this.togglePause();
       else if (this.state === 'dialog' && over.length === 0) this.advanceDialog();
+      else if (this.cine && this.state === 'play') this.skipCine();
     });
     // 휴대폰을 세로로 돌리면 일시정지 (화면이 작아져 조작이 어려움)
     const mq = window.matchMedia?.('(orientation: portrait)');
@@ -780,7 +785,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
   // ───────────────────────────── GameContext ─────────────────────────────
   damage(e: Enemy, amount: number, tag?: DamageTag): boolean {
     if (!e.active) return false;
-    if (e === this.boss && (this.bossShieldT > 0 || this.bossPhase === 'enter' || this.bossPhase === 'walkIn' || this.bossPhase === 'phaseShift')) return false;
+    if (e === this.boss && (this.cine || this.bossShieldT > 0 || this.bossPhase === 'enter' || this.bossPhase === 'walkIn' || this.bossPhase === 'phaseShift')) return false;
     // 회피 기동 중인 진압대는 피해를 받지 않음
     if (e.dodgeT > 0) return false;
     // 강하·착지 충격 중인 진압대는 무적
@@ -1537,6 +1542,11 @@ export class GameScene extends Phaser.Scene implements GameContext {
 
   /** 게임 시간 한 걸음 (realDt: 오버클럭 감속 전의 시간) */
   private step(realDt: number): void {
+    // 보스 클로즈업 중에는 세상 시간을 멈추고 연출만 진행 (주인공·적·탄 정지, 보스 무적)
+    if (this.cine) {
+      this.updateCine(realDt);
+      return;
+    }
     // 뉴럴 오버클럭 발동 직후: 시간이 느려졌다가 원래 속도로 돌아온다
     let timeScale = 1;
     if (this.slowmo > 0) {
@@ -1946,7 +1956,8 @@ export class GameScene extends Phaser.Scene implements GameContext {
   private hurtPlayer(dmg: number, src?: HitSrc): void {
     const p = this.player;
     // 투명(광학 위장·고스트 대시) 중에는 어떤 공격도 통하지 않는다
-    if (this.god || this.untracked) return;
+    // 투명 중·보스 클로즈업 중에는 피해 없음
+    if (this.god || this.untracked || this.cine) return;
     if (src) this.lastHit = src;
     dmg *= 1 + this.heat * meta.heat.damagePer;
     // 적 공격력도 챕터 안에서 분마다 조금씩 오른다 (챕터마다 0부터)
@@ -3295,7 +3306,9 @@ export class GameScene extends Phaser.Scene implements GameContext {
     this.shake(300, 0.016);
     Sound.play('explode');
     // 말풍선: 머리 위 (그림 높이만큼 올림), 등장 연출 동안
-    this.shout(b, tr(ent.line as Parameters<typeof tr>[0]), 0.15, false, ent.taunt, 10);
+    const cineDef = (this.bossDef as { cine?: CineDef } | null)?.cine;
+    if (cineDef?.intro) this.startCine(b, [ent.line, ...cineDef.intro], 0.3);
+    else this.shout(b, tr(ent.line as Parameters<typeof tr>[0]), 0.15, false, ent.taunt, 10);
   }
 
   /** 지금 보스 그림에서 사슬이 손에서 나오는 점 (월드 좌표). 아트 midboss_anim.json hook.chainEnd */
@@ -3536,6 +3549,9 @@ export class GameScene extends Phaser.Scene implements GameContext {
         this.bossLastAttack = this.elapsed;
         this.bossPhase = 'walk';
         this.bossTimer = def.firstWalk;
+        // 걸어 들어와 멈춘 뒤 클로즈업 + 등장 대사
+        const cd = (def as { cine?: CineDef }).cine;
+        if (cd?.intro) this.startCine(b, cd.intro, 0.2);
       }
       return true;
     }
@@ -3743,6 +3759,84 @@ export class GameScene extends Phaser.Scene implements GameContext {
     const CB = gameData.bossBrain.combo;
     const table = ((this.bossDef as { basili?: unknown } | null)?.basili ? CB.basili : CB.kovac) as Record<string, string[]>;
     return table[this.comboFrom] ?? [];
+  }
+
+  /** 보스 클로즈업 시작: 세상 시간을 멈추고 카메라가 보스로 다가가 확대, delay초 뒤부터 대사를 한 줄씩. 화면 고정 UI는 숨김 */
+  private startCine(b: Enemy, keys: string[], delay: number): void {
+    const cd = (this.bossDef as { cine?: CineDef } | null)?.cine;
+    if (!cd || this.cine) return;
+    const cam = this.cameras.main;
+    // 바닥 배경·먼 배경(화면 고정 타일)은 남기고 UI만 숨긴다
+    const keep = new Set<unknown>([this.bg, this.skyline]);
+    const hidden = this.children.list.filter((o) => !keep.has(o) && (o as unknown as { scrollFactorX: number }).scrollFactorX === 0 && (o as unknown as { visible: boolean }).visible);
+    for (const o of hidden) (o as unknown as { setVisible: (v: boolean) => void }).setVisible(false);
+    const bars = [0, 1].map(() => this.add.rectangle(0, 0, 10, 10, 0x000000, 1).setOrigin(0).setScrollFactor(0).setDepth(300));
+    // AI 점수 표시(머리 위 글씨)는 대사와 겹치지 않게 숨김 (연출이 끝나면 표시 코드가 다시 켬)
+    this.bossDbg?.setVisible(false);
+    for (const t of this.squadDbg.values()) t.setVisible(false);
+    // 진행 중인 플레이어 대시 입력은 비운다
+    this.controls.consumeDash();
+    this.cine = { b, t: 0, dur: delay + keys.length * cd.lineTime + 0.4, delay, lines: keys, said: 0, each: cd.lineTime, zoom: cd.zoom, lift: cd.lift, hidden, bars, sx: cam.scrollX, sy: cam.scrollY };
+  }
+
+  /** 클로즈업 진행 (step 대신). 들어갈 때·나올 때 0.4초씩 확대·축소, 보스 그림은 계속 움직임 */
+  private updateCine(dt: number): void {
+    const c = this.cine!;
+    const b = c.b;
+    const def = this.bossDef;
+    c.t += dt;
+    this.fx.clear();
+    // 2페이즈 전환 동작은 연출 중에도 재생 (전환 시간이 연출 앞부분)
+    if (this.bossPhase === 'phaseShift') this.bossTimer = Math.max(0.0001, this.bossTimer - dt);
+    if (def && b.active) this.animateBoss(b, def, this.bossPhase === 'phaseShift' ? dt : 0);
+    // 대사: delay초 뒤부터 lineTime마다 한 줄
+    while (c.said < c.lines.length && c.t >= c.delay + c.said * c.each) {
+      this.shout(b, tr(c.lines[c.said] as Parameters<typeof tr>[0]), 0, false, c.each, c.lift);
+      c.said++;
+    }
+    this.updateShouts(dt);
+    // 확대: 처음 0.4초 들어가고 마지막 0.4초 나옴
+    const kin = Phaser.Math.Easing.Cubic.Out(Math.min(1, c.t / 0.4));
+    const kout = Phaser.Math.Easing.Cubic.In(Math.min(1, Math.max(0, (c.dur - c.t) / 0.4)));
+    const k = Math.min(kin, kout);
+    const cam = this.cameras.main;
+    const z = ZOOM * (1 + (c.zoom - 1) * k);
+    const vw = (VIEW_W * ZOOM) / z;
+    const vh = (VIEW_H * ZOOM) / z;
+    const p = this.player;
+    const tx = Phaser.Math.Linear(p.x, b.x, k);
+    const ty = Phaser.Math.Linear(p.y, b.y - 10, k);
+    cam.setZoom(z);
+    cam.setScroll(tx - vw / 2, ty - vh / 2);
+    // 화면 고정 배경 타일은 카메라 위치를 따라 무늬만 옮긴다 (평소 step과 같음)
+    this.bg.tilePositionX = cam.scrollX;
+    this.bg.tilePositionY = cam.scrollY;
+    this.skyline.tilePositionX = cam.scrollX * 0.25;
+    // 위아래 검은 띠 (화면 고정 그림도 확대되므로 배율로 나눠 크기를 맞춤)
+    const barH = (VIEW_H * 0.11 * k * ZOOM) / z;
+    c.bars[0].setPosition(0, 0).setSize(vw + 2, barH);
+    c.bars[1].setPosition(0, vh - barH).setSize(vw + 2, barH + 1);
+    if (c.t >= c.dur) this.endCine();
+  }
+
+  /** 클로즈업 건너뛰기: 남은 대사는 넘기고 바로 빠져나옴 */
+  private skipCine(): void {
+    const c = this.cine;
+    if (!c) return;
+    // 2페이즈 전환 동작은 끝까지 맞춰 둔다
+    if (this.bossPhase === 'phaseShift') this.bossTimer = 0.0001;
+    c.said = c.lines.length;
+    for (const s of this.shouts) if (s.e === c.b) s.t = s.delay + s.life;
+    c.t = Math.max(c.t, c.dur - 0.4);
+  }
+
+  private endCine(): void {
+    const c = this.cine!;
+    this.cine = null;
+    for (const o of c.hidden) if ((o as unknown as { active: boolean }).active) (o as unknown as { setVisible: (v: boolean) => void }).setVisible(true);
+    // 일시정지 메뉴용 설정 버튼 등 원래 숨어 있던 것은 그대로 (숨겼던 것만 되돌림)
+    for (const r of c.bars) r.destroy();
+    this.cameras.main.setZoom(ZOOM);
   }
 
   /** 개틀링 탄피: 드럼 위 배출구(port)에서 한 발에 하나 (변형 3줄 중 무작위, 왼쪽을 보면 반전) */
@@ -4776,6 +4870,9 @@ export class GameScene extends Phaser.Scene implements GameContext {
       if (bz2) {
         this.bossPhase = 'phaseShift';
         this.bossTimer = bz2.phaseShift;
+        // 전환 동작(코트 찢기)을 클로즈업으로 보여 준 뒤 대사
+        const cd = (def as { cine?: CineDef }).cine;
+        if (cd?.p2) this.startCine(b, cd.p2, bz2.phaseShift);
       }
     }
     if (this.bossShieldT > 0) {
@@ -4819,6 +4916,9 @@ export class GameScene extends Phaser.Scene implements GameContext {
       this.screenFlash(0xff2a3a, 0.2, 300);
       this.shake(350, 0.012);
       this.bossPulse(b);
+      // 분노(2페이즈) 클로즈업 + 대사
+      const cd = (def as { cine?: CineDef }).cine;
+      if (cd?.p2) this.startCine(b, cd.p2, 0.2);
     }
     const rage = this.bossEnraged && en ? en.mul : 1;
     const sl = (def as { slam?: SlamDef }).slam;
