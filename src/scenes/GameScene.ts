@@ -88,7 +88,7 @@ type BasiliDef = {
   p2: { gatlingRate: number; gatlingSpeed: number; guards: number; stompRings: number; ringGap: number };
   glow: { from: string; color: string; core: string; x: number; y: number; size: number; alpha: number };
   /** 동작별 프레임 그림 재생 (boss_walk/gatling/slam_NN, 프레임 정보는 boss_anim.json) */
-  anim: { walkFps: number; ready: number; windupFps: number; fireFps: number; flashTime: number; stompRecover: number; footY: number; recoil: number; shadow: { w: number; h: number; alpha: number }; flash: { size: number; color: string }; reflect: { color: string; alpha: number }; squash: number };
+  anim: { walkFps: number; ready: number; windupFps: number; fireFps: number; flashTime: number; kickTime: number; stompRecover: number; footY: number; recoil: number; shadow: { w: number; h: number; alpha: number }; flash: { size: number; color: string }; reflect: { color: string; alpha: number }; squash: number };
 };
 /** 바실리 동작 중 조준 그림(_aim)을 쓰는 단계 (새 그림이 오기 전 임시) */
 const BASILI_AIM = new Set(['gatling', 'call', 'stomp', 'stompRec', 'phaseShift']);
@@ -270,6 +270,10 @@ export class GameScene extends Phaser.Scene implements GameContext {
   /** 바실리: 개틀링 조준각·발사 누적, 호위, 충격파 고리, 지난 호출 시각, 2페이즈 발전기 빛, 다음 발걸음 */
   private gatAim = 0;
   private gatAcc = 0;
+  /** 마지막 발사의 사격 그림 번호 (그림은 다음 발까지 이 장을 유지) */
+  private gatShotFrame = -1;
+  /** 개틀링 반동 세기 (발사 순간 1, 짧게 0으로) */
+  private basiliKick = 0;
   private basiliGuards: Enemy[] = [];
   private stompRings: { x: number; y: number; t: number; hit: boolean }[] = [];
   private basiliLastCall = 0;
@@ -3551,6 +3555,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
             this.bossTimer = bz.gatling.spin + bz.gatling.time;
             this.gatAim = Math.atan2(dy, dx);
             this.gatAcc = 0;
+            this.gatShotFrame = -1;
             Sound.play('lungewarn');
           } else if (act === 'stomp') {
             this.bossLastAttack = this.elapsed;
@@ -3575,20 +3580,27 @@ export class GameScene extends Phaser.Scene implements GameContext {
       if (this.bossTimer < G.time) {
         const rate = p2 ? bz.p2.gatlingRate : G.rate;
         const speed = G.speed * (p2 ? bz.p2.gatlingSpeed : 1);
-        this.gatAcc += dt * rate;
         // 총구: 그림이 있으면 프레임별 총구 위치(boss_anim.json muzzle), 없으면 몸 앞
         const mp = this.basiliPoint(b, 'muzzle');
         const mx = mp ? mp.x : b.x + Math.cos(this.gatAim) * b.radius * 1.1;
         const my = mp ? mp.y : b.y - b.radius * 0.2 + Math.sin(this.gatAim) * b.radius * 0.8;
-        while (this.gatAcc >= 1) {
-          this.gatAcc -= 1;
+        // 사격 그림 한 장 = 한 발 (사격 시작 순간 첫 발, 이후 초당 rate장). 한 발마다 같은 프레임에 빛 칠한 몸·화염 1장·탄피 1개 (아트 shots 규칙)
+        const SH = (bossAnim as { gatling?: { shots?: { perFrame: Record<string, { flash: number; casingRow: number }>; flashHoldMs: number } }; p2_gatling?: { shots?: { perFrame: Record<string, { flash: number; casingRow: number }>; flashHoldMs: number } } })[this.bossPhase2 ? 'p2_gatling' : 'gatling']?.shots;
+        const loopR = (BOSS_ANIM.boss as Record<string, { phases?: Record<string, number[]> }>).gatling?.phases?.fireLoop ?? [5, 8];
+        const due = Math.floor((G.time - this.bossTimer) * rate) + 1;
+        while (this.gatAcc < due) {
+          const frame = loopR[0] + (this.gatAcc % (loopR[1] - loopR[0] + 1));
+          this.gatAcc++;
+          this.gatShotFrame = frame;
           // 부채꼴로 흔들며 연사
           const a = this.gatAim + Math.sin(this.elapsed * 9) * Phaser.Math.DegToRad(G.fan / 2) + (Math.random() - 0.5) * 0.06;
           this.eShot(b.id).fire(mx, my, a, speed, G.damage, G.life);
-          // 총구 화염 그림: 발사마다 무작위 1장을 잠깐
-          this.basiliFlashT = bz.anim.flashTime;
-          this.basiliFlashF = Math.floor(Math.random() * 5);
-          this.ejectCasing(b);
+          const pf = SH?.perFrame[String(frame)];
+          this.basiliFlashT = SH ? SH.flashHoldMs / 1000 : bz.anim.flashTime;
+          this.basiliFlashF = pf ? pf.flash : Math.floor(Math.random() * 5);
+          this.ejectCasing(b, pf ? pf.casingRow : undefined);
+          // 반동도 같은 발사에 한 번 (몸이 뒤로 밀렸다가 돌아옴)
+          this.basiliKick = 1;
           if (!this.textures.exists('fx_boss_muzzle')) this.burst(mx, my, 0xfff23a, 2);
           if (Math.random() < 0.35) Sound.play('enemyshot');
         }
@@ -3650,13 +3662,13 @@ export class GameScene extends Phaser.Scene implements GameContext {
   }
 
   /** 개틀링 탄피: 드럼 위 배출구(port)에서 한 발에 하나 (변형 3줄 중 무작위, 왼쪽을 보면 반전) */
-  private ejectCasing(b: Enemy): void {
+  private ejectCasing(b: Enemy, rowPick?: number): void {
     const F = (bossAnim as { fx?: { fx_boss_casing?: { frameW: number; frameH: number; frames: number; rows: number; fps: number; start: number[] } } }).fx?.fx_boss_casing;
     if (!F || !this.textures.exists('fx_boss_casing')) return;
     const pt = this.basiliPoint(b, 'port');
     if (!pt) return;
     const flip = b.sprite.flipX;
-    const row = Math.floor(Math.random() * F.rows);
+    const row = rowPick ?? Math.floor(Math.random() * F.rows);
     const ox = (flip ? F.frameW - F.start[0] : F.start[0]) / F.frameW;
     this.playSheet('fx_boss_casing', F.frames, pt.x, pt.y, ox, F.start[1] / F.frameH, F.fps, b.sprite.depth + 0.05, flip, BOSS_SCALE, row * F.frames);
   }
@@ -3737,7 +3749,8 @@ export class GameScene extends Phaser.Scene implements GameContext {
       motion = this.bossPhase2 && this.textures.exists('boss_p2_gatling_00') ? 'p2_gatling' : 'gatling';
       if (this.bossTimer > G.time) idx = span(gatP.raise, (G.spin + G.time - this.bossTimer) / G.spin);
       else {
-        idx = loop(gatP.fireLoop, G.time - this.bossTimer, A.fireFps);
+        // 사격 그림은 발사와 1대1: 마지막 발사의 장을 보여 준다
+        idx = this.gatShotFrame >= 0 ? this.gatShotFrame : gatP.fireLoop[0];
         firing = true;
       }
     }
@@ -3759,9 +3772,10 @@ export class GameScene extends Phaser.Scene implements GameContext {
     const shakeAmp = ph === 'phaseShift' ? 2 : ph === 'aim' ? 2 : 0;
     let jx = shakeAmp && !Settings.reducedFx ? (Math.random() - 0.5) * shakeAmp : 0;
     let jy = 0;
-    // 개틀링 반동: 총구 반대쪽으로 빠르게 흔들림
+    // 개틀링 반동: 발사와 1대1. 발사 순간 총구 반대쪽으로 밀렸다가 kickTime초 동안 돌아옴
+    this.basiliKick = Math.max(0, this.basiliKick - dt / A.kickTime);
     if (firing && !Settings.reducedFx) {
-      const r = A.recoil * (0.5 + 0.5 * Math.sin(this.elapsed * 60));
+      const r = A.recoil * this.basiliKick;
       jx -= Math.cos(this.gatAim) * r;
       jy -= Math.sin(this.gatAim) * r * 0.5;
     }
