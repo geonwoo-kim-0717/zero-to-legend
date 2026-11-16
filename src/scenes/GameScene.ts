@@ -14,7 +14,7 @@ import { EnemyBullet } from '../entities/EnemyBullet';
 import { Pool } from '../systems/Pool';
 import { SpatialGrid } from '../systems/SpatialGrid';
 import { Spawner, hpScaleAt } from '../systems/Spawner';
-import { pickBoss, pickBasili, type BossAct, type BasiliAct } from '../systems/BossBrain';
+import { pickBoss, pickBasili, pickGregor, type BossAct, type BasiliAct, type GregorAct } from '../systems/BossBrain';
 import { InputController } from '../systems/InputController';
 import { createWeapon, type WeaponBase, type WeaponId } from '../weapons';
 import type { GameContext, Stats, DamageTag, FxOpts } from '../weapons/types';
@@ -54,7 +54,7 @@ const ZONES = zonesData.zones;
 const ZR = gameData.zoneRules;
 /** 왼쪽 위 체력바 폭 */
 const HP_W = 120;
-type BossPhase = 'walk' | 'aim' | 'charge' | 'leap' | 'air' | 'slam' | 'enter' | 'taunt' | 'hookAim' | 'hookFly' | 'hookPull' | 'hookGap' | 'hookBack' | 'walkIn' | 'phaseShift' | 'gatling' | 'call' | 'stomp' | 'stompRec';
+type BossPhase = 'walk' | 'aim' | 'charge' | 'leap' | 'air' | 'slam' | 'enter' | 'taunt' | 'hookAim' | 'hookFly' | 'hookPull' | 'hookGap' | 'hookBack' | 'walkIn' | 'phaseShift' | 'gatling' | 'call' | 'stomp' | 'stompRec' | 'drop' | 'sweepAim' | 'sweep';
 /** 블랙 실드 요원 공격 그림·이펙트 (아트 tools/art/sprites2026/scripts/troopers6/keys/atk_meta.json) */
 const TROOPER_ATK = {
   tank: { ms: [90, 110, 140, 70, 90, 120, 110, 100], size: [54, 48], fxStart: 4, anchor: [47, 27], fx: 'fx_shield_bash', fxN: 8, fxSize: [64, 40], pivot: [32, 18] },
@@ -91,7 +91,9 @@ type BasiliDef = {
   anim: { walkFps: number; ready: number; windupFps: number; fireFps: number; flashTime: number; kickTime: number; stompRecover: number; footY: number; recoil: number; shadow: { w: number; h: number; alpha: number }; flash: { size: number; color: string }; reflect: { color: string; alpha: number }; squash: number };
 };
 /** 바실리 동작 중 조준 그림(_aim)을 쓰는 단계 (새 그림이 오기 전 임시) */
-const BASILI_AIM = new Set(['gatling', 'call', 'stomp', 'stompRec', 'phaseShift']);
+const BASILI_AIM = new Set(['gatling', 'call', 'stomp', 'stompRec', 'phaseShift', 'drop', 'sweepAim', 'sweep']);
+/** 그레고르 패턴 (game.json bosses[].gregor) */
+type GregorDef = { drop: { count: number; countRage: number; spread: number; warn: number; radius: number; damage: number; height: number; stagger: number }; sweep: { angle: number; range: number; aim: number; swing: number; damage: number; knock: number } };
 /** 보스 클로즈업 연출 (game.json bosses[].cine): 등장·2페이즈 대사(문구 키), 확대 배율, 대사 한 줄 시간, 말풍선 높이 */
 type CineDef = { intro?: string[]; p2?: string[]; zoom: number; lineTime: number; lift: number; standFrame?: number };
 /** 분노 (game.json bosses[].enrage) */
@@ -604,6 +606,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
     this.hookHead = null;
     this.hookTrail = null;
     this.bossDbg = null;
+    this.containers = [];
     this.basiliGlow = null;
     this.basiliCore = null;
     this.basiliShadow = null;
@@ -2146,6 +2149,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
       this.basiliReflect?.setVisible(false);
       this.basiliHalo?.setVisible(false);
       this.stompRings = [];
+      this.containers = [];
       this.bossDef = null;
       e.kill();
       const color = def.final ? 0xff2a3a : COLORS.orange;
@@ -3758,7 +3762,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
   private comboNow(): string[] {
     if (!this.comboFrom || this.elapsed > this.comboUntil) return [];
     const CB = gameData.bossBrain.combo;
-    const table = ((this.bossDef as { basili?: unknown } | null)?.basili ? CB.basili : CB.kovac) as Record<string, string[]>;
+    const table = this.comboTable(this.bossDef);
     return table[this.comboFrom] ?? [];
   }
 
@@ -3853,6 +3857,150 @@ export class GameScene extends Phaser.Scene implements GameContext {
     // 일시정지 메뉴용 설정 버튼 등 원래 숨어 있던 것은 그대로 (숨겼던 것만 되돌림)
     for (const r of c.bars) r.destroy();
     this.cameras.main.setZoom(ZOOM);
+  }
+
+  /** 보스별 콤보 표 (game.json bossBrain.combo의 kovac / basili / gregor) */
+  private comboTable(def: BossDef | null): Record<string, string[]> {
+    const CB = gameData.bossBrain.combo as unknown as Record<string, Record<string, string[]>>;
+    const brain = (def as { brain?: unknown } | null)?.brain;
+    return CB[brain === 'basili' ? 'basili' : brain === 'gregor' ? 'gregor' : 'kovac'] ?? {};
+  }
+
+  /** 그레고르 컨테이너: 떨어질 자리, 남은 시간, 이미 떨어졌는지 */
+  private containers: { x: number; y: number; t: number; hit: boolean }[] = [];
+
+  /** 컨테이너 낙하 진행: 바닥 그림자(예고) → 위에서 떨어져 반경 안 피해 + 먼지·흔들림 */
+  private updateContainers(b: Enemy, gz: GregorDef, dt: number): void {
+    const D = gz.drop;
+    const p = this.player;
+    for (const c of this.containers) {
+      c.t -= dt;
+      if (c.t > 0) {
+        const k = Phaser.Math.Clamp(1 - c.t / D.warn, 0, 1);
+        // 그림자: 떨어질수록 진해지고 커짐
+        this.fx.fillStyle(0x000000, 0.25 + 0.35 * k).fillEllipse(c.x, c.y, D.radius * 2 * (0.4 + 0.6 * k), D.radius * 1.2 * (0.4 + 0.6 * k));
+        this.fx.lineStyle(1.5, 0xff2a3a, MARK_A * (0.4 + 0.4 * k)).strokeEllipse(c.x, c.y, D.radius * 2, D.radius * 1.2);
+        // 마지막 0.3초: 위에서 컨테이너가 내려옴 (임시 도형)
+        if (c.t < 0.3) {
+          const h = (c.t / 0.3) * D.height;
+          this.fx.fillStyle(0x5a6270, 1).fillRect(c.x - D.radius * 0.8, c.y - h - D.radius * 1.1, D.radius * 1.6, D.radius * 1.1);
+          this.fx.lineStyle(2, 0xff8a1f, 1).strokeRect(c.x - D.radius * 0.8, c.y - h - D.radius * 1.1, D.radius * 1.6, D.radius * 1.1);
+        }
+      } else if (!c.hit) {
+        c.hit = true;
+        const nx = (p.x - c.x) / D.radius;
+        const ny = (p.y - c.y) / (D.radius * 0.6);
+        if (p.invuln <= 0 && nx * nx + ny * ny <= 1) this.hurtPlayer(D.damage, { kind: 'boss', id: b.id });
+        this.playSheet('fx_land_dust', 18, c.x, c.y + 4, 56 / 112, 30 / 40, 14, 9.5);
+        this.shake(140, 0.01);
+        Sound.play('explode');
+      }
+    }
+    this.containers = this.containers.filter((c) => c.t > -0.05 || !c.hit);
+  }
+
+  /** 그레고르 전용 단계: 걷기 판단·컨테이너 낙하·팔 훑기. 조준·돌진은 false로 공통 코드에 맡김 */
+  private updateGregor(b: Enemy, def: BossDef, gz: GregorDef, dt: number, dx: number, dy: number, d: number, rage: number): boolean {
+    const ph = this.bossPhase;
+    const p = this.player;
+    const slow = this.overdrive ? OD.enemySpeedMul : 1;
+    const toWalk = () => {
+      this.bossPhase = 'walk';
+      this.bossTimer = def.walkTime;
+    };
+    if (ph === 'walk') {
+      b.x += (dx / d) * b.speed * rage * slow * dt;
+      b.y += (dy / d) * b.speed * rage * slow * dt;
+      if ((this.bossThinkT -= dt) <= 0) {
+        this.bossThinkT = gameData.bossBrain.think;
+        this.bossSummoned = this.bossSummoned.filter((e) => e.active && e.id === def.summon);
+        const { act, scores } = pickGregor({
+          d,
+          playerHp: Math.max(0, p.hp) / p.maxHp,
+          moving: Phaser.Math.Clamp(Math.hypot(this.bossPVel.x, this.bossPVel.y) / PLAYER.speed, 0, 1),
+          fleeing: Phaser.Math.Clamp((this.bossPVel.x * dx + this.bossPVel.y * dy) / d / PLAYER.speed, 0, 1),
+          dashSpent: p.dashCd > 0,
+          sinceAttack: this.elapsed - this.bossLastAttack,
+          sinceSummon: this.elapsed - this.bossLastSummon,
+          minions: Phaser.Math.Clamp(this.bossSummoned.length / Math.max(1, def.summonCount), 0, 1),
+          p2: this.bossEnraged,
+          current: this.bossAct as GregorAct,
+          combo: this.comboNow(),
+        });
+        this.bossScores = scores as Partial<Record<BossAct, number>>;
+        if (act === 'summon') {
+          this.bossLastSummon = this.elapsed;
+          this.bossSummon = 0;
+        } else if (act !== 'walk') {
+          if (this.comboNow().includes(act)) this.comboChained = true;
+          this.comboFrom = '';
+          this.bossLastAttack = this.elapsed;
+          this.bossLastKind = act;
+          this.bossDir = { x: dx / d, y: dy / d };
+          if (act === 'charge') {
+            this.bossPhase = 'aim';
+            this.bossTimer = def.aimTime / rage;
+            this.bossCharges = 1;
+          } else if (act === 'sweep') {
+            this.bossPhase = 'sweepAim';
+            this.bossTimer = gz.sweep.aim / rage;
+            Sound.play('lungewarn');
+          } else if (act === 'drop') {
+            // 컨테이너: 하나는 플레이어 자리, 나머지는 주변에 흩어서, 조금씩 시차를 두고
+            const n = this.bossEnraged ? gz.drop.countRage : gz.drop.count;
+            for (let i = 0; i < n; i++) {
+              const a = Math.random() * Math.PI * 2;
+              const r = i === 0 ? 0 : gz.drop.spread * (0.4 + 0.6 * Math.random());
+              this.containers.push({ x: p.x + Math.cos(a) * r, y: p.y + Math.sin(a) * r * 0.7, t: gz.drop.warn / rage + i * gz.drop.stagger, hit: false });
+            }
+            this.bossPhase = 'drop';
+            this.bossTimer = 0.6;
+            this.bossPulse(b);
+            Sound.play('bosswarn');
+          }
+        }
+      }
+      return true;
+    }
+    if (ph === 'drop') {
+      // 손짓(조준 그림)으로 크레인을 부르는 짧은 동작
+      if (this.bossTimer <= 0) toWalk();
+      return true;
+    }
+    if (ph === 'sweepAim' || ph === 'sweep') {
+      const S = gz.sweep;
+      const a0 = Math.atan2(this.bossDir.y, this.bossDir.x);
+      const half = Phaser.Math.DegToRad(S.angle / 2);
+      if (ph === 'sweepAim') {
+        // 예고: 부채꼴 범위 (차오름)
+        const k = Phaser.Math.Clamp(1 - this.bossTimer / (S.aim / rage), 0, 1);
+        this.fx.fillStyle(0xff2a3a, MARK_A * (0.1 + 0.2 * k)).slice(b.x, b.y, S.range, a0 - half, a0 + half, false).fillPath();
+        this.fx.lineStyle(2, 0xff2a3a, MARK_A * (0.5 + Math.sin(this.elapsed * 30) * 0.3)).slice(b.x, b.y, S.range, a0 - half, a0 + half, false).strokePath();
+        if (this.bossTimer <= 0) {
+          this.bossPhase = 'sweep';
+          this.bossTimer = S.swing;
+          Sound.play('slash');
+          // 판정: 부채꼴 안이면 피해 + 밀려남, 아니면 빗나감(콤보: 컨테이너 낙하로 이어짐)
+          const px = p.x - b.x;
+          const py = p.y - b.y;
+          const pd = Math.hypot(px, py);
+          const diff = Math.abs(Phaser.Math.Angle.Wrap(Math.atan2(py, px) - a0));
+          if (pd <= S.range + p.radius && diff <= half && p.invuln <= 0 && !p.dashing) {
+            this.hurtPlayer(S.damage, { kind: 'boss', id: b.id });
+            p.x += (px / (pd || 1)) * S.knock;
+            p.y += (py / (pd || 1)) * S.knock;
+          } else this.bossLastKind = 'sweepMiss';
+        }
+      } else {
+        // 휘두르는 선: 부채꼴을 한쪽에서 반대쪽으로 쓸고 지나감
+        const k = Phaser.Math.Clamp(1 - this.bossTimer / S.swing, 0, 1);
+        const a = a0 - half + k * half * 2;
+        this.fx.lineStyle(5, 0xffd0a0, 0.9 * (1 - k * 0.5)).lineBetween(b.x, b.y, b.x + Math.cos(a) * S.range, b.y + Math.sin(a) * S.range);
+        if (this.bossTimer <= 0) toWalk();
+      }
+      return true;
+    }
+    return false;
   }
 
   /** 개틀링 탄피: 드럼 위 배출구(port)에서 한 발에 하나 (변형 3줄 중 무작위, 왼쪽을 보면 반전) */
@@ -4852,6 +5000,10 @@ export class GameScene extends Phaser.Scene implements GameContext {
     Sound.play('bosswarn');
     this.time.delayedCall(450, () => Sound.play('bosswarn'));
     Sound.music('boss', 1200);
+    // 등장 연출이 따로 없는 보스(그레고르 등): 나타나자마자 클로즈업 + 등장 대사
+    this.containers = [];
+    const cdi = (def as { cine?: CineDef; entrance?: unknown; basili?: unknown }).cine;
+    if (this.boss && cdi?.intro && !(def as { entrance?: unknown }).entrance && !(def as { basili?: unknown }).basili) this.startCine(this.boss, cdi.intro, 0.4);
   }
 
   private updateBoss(dt: number): void {
@@ -4941,8 +5093,12 @@ export class GameScene extends Phaser.Scene implements GameContext {
     const ent = (def as { entrance?: EntranceDef }).entrance;
     const bz = (def as { basili?: BasiliDef }).basili;
     if (bz) this.updateBasiliAlways(b, bz, dt);
+    const gz = (def as { gregor?: GregorDef }).gregor;
+    if (gz) this.updateContainers(b, gz, dt);
     if (bz && this.updateBasili(b, def, bz, dt, dx, dy, d, tg, p2)) {
       // 바실리 전용 단계 처리됨 (조준·돌진은 아래 공통 코드)
+    } else if (gz && this.updateGregor(b, def, gz, dt, dx, dy, d, rage)) {
+      // 그레고르 전용 단계 처리됨 (조준·돌진은 아래 공통 코드)
     } else if (ent && (this.bossPhase === 'enter' || this.bossPhase === 'taunt')) {
       if (this.bossPhase === 'enter') {
         b.x = this.bossTo.x;
@@ -5149,7 +5305,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
       this.bossLastAttack = this.elapsed;
       // 콤보: 방금 끝난 공격에 이어 쓸 공격이 있으면 잠깐(window초) 열어 둔다. 콤보로 나간 공격 뒤에는 다시 열지 않음 (한 번만 이어짐)
       const CB = gameData.bossBrain.combo;
-      const table = ((def as { basili?: unknown }).basili ? CB.basili : CB.kovac) as Record<string, string[]>;
+      const table = this.comboTable(def);
       if (!this.comboChained && table[this.bossLastKind]) {
         this.comboFrom = this.bossLastKind;
         this.comboUntil = this.elapsed + CB.window;

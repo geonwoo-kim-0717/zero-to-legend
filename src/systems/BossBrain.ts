@@ -143,3 +143,54 @@ export function pickBasili(s: BasiliSense): { act: BasiliAct; scores: Record<Bas
   }
   return { act, scores };
 }
+
+// ─── 그레고르(2챕터 중간보스) ───
+export type GregorAct = 'walk' | 'charge' | 'sweep' | 'drop' | 'summon';
+
+export interface GregorSense {
+  d: number;
+  playerHp: number;
+  moving: number;
+  fleeing: number;
+  dashSpent: boolean;
+  sinceAttack: number;
+  sinceSummon: number;
+  /** 살아 있는 부하 비율 0~1 */
+  minions: number;
+  /** 분노 중인지 (공격 준비가 maxGap2초에 다 참, 콤보 가중치 weight2) */
+  p2: boolean;
+  current: GregorAct;
+  /** 지금 콤보로 이어 쓸 수 있는 공격 */
+  combo?: string[];
+}
+
+export function pickGregor(s: GregorSense): { act: GregorAct; scores: Record<GregorAct, number> } {
+  const Z = B.gregor;
+  const ready = ramp(s.sinceAttack, B.minGap, s.p2 ? B.maxGap2 : B.maxGap);
+  const finish = clamp01(1 - s.playerHp) ** 1.5;
+  const opening = Math.max(1 - s.moving, s.dashSpent ? 1 : 0);
+  const R = Z.range;
+  // 팔 훑기: 가까울 때 (부채꼴 안)
+  const sweep = band(s.d, 0, R.sweepMax, R.soft) * ready * (0.8 + 0.2 * finish) * Z.w.sweep;
+  // 무한궤도 돌진: 중간 거리, 도망치면 내려감
+  const charge = band(s.d, R.chargeMin, R.chargeMax, R.soft) * ready * (1 - 0.6 * s.fleeing) * (0.8 + 0.2 * finish) * Z.w.charge;
+  // 컨테이너 낙하: 멀거나, 멈춰 있거나 도망칠 때
+  const drop = ramp(s.d, R.dropMin, R.dropMin + R.soft * 2) * ready * (0.6 + 0.4 * Math.max(opening, s.fleeing)) * Z.w.drop;
+  const summon = ramp(s.sinceSummon, B.summonMin, B.summonMax) * (1 - s.minions) ** 1.5 * Z.w.summon;
+  const cb = s.combo ?? [];
+  const walk = (cb.length ? B.combo.walk : B.walkBase + B.walkIdle * (1 - ready)) * B.w.walk;
+  const scores: Record<GregorAct, number> = { walk: clamp01(walk), charge: clamp01(charge), sweep: clamp01(sweep), drop: clamp01(drop), summon: clamp01(summon) };
+  const C = s.p2 ? B.combo.weight2 : B.combo.weight;
+  const CR = B.combo.range.gregor as Record<string, number[]>;
+  for (const a of cb as GregorAct[]) if (CR[a]) scores[a] = clamp01(Math.max(scores[a], band(s.d, CR[a][0], CR[a][1], B.combo.range.soft) * C));
+  let act: GregorAct = 'walk';
+  let best = -1;
+  for (const [a, v] of Object.entries(scores) as [GregorAct, number][]) {
+    const w = v + (a === s.current ? B.stick : 0);
+    if (w > best) {
+      best = w;
+      act = a;
+    }
+  }
+  return { act, scores };
+}

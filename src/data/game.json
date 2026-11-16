@@ -188,8 +188,9 @@
       "zone": "industrial",
       "time": 300,
       "final": false,
-      "title": "공장 경비 로봇 GRP-7 그래플러",
+      "title": "빚에 팔려 크레인이 된 작업반장 '강철손' 그레고르",
       "chargeSpeed": 300,
+      "chargeOver": 80,
       "summon": "kamikaze",
       "summonCount": 6,
       "summonEvery": 8,
@@ -198,7 +199,15 @@
       "walkTime": 3.5,
       "aimTime": 0.7,
       "chargeTime": 0.7,
-      "firstSummon": 5
+      "firstSummon": 5,
+      "brain": "gregor",
+      "cine": { "note": "클로즈업: 등장 직후 intro, 분노 p2", "intro": ["boss.intro.midboss2.1", "boss.intro.midboss2.2"], "p2": ["boss.p2.midboss2"], "zoom": 1.6, "lineTime": 1.6, "lift": 12 },
+      "enrage": { "note": "체력이 at 아래로 내려가면 붉게 변하고 이동·돌진 ×mul, 공격 준비 1~2초", "at": 0.4, "mul": 1.3, "tint": "0xff7a7a" },
+      "gregor": {
+        "note": "그레고르 패턴. drop: 컨테이너 count개(분노 countRage)가 플레이어 주변 spread px 안에 떨어짐 — 바닥 그림자 warn초 예고 뒤 반경 radius에 피해 damage. sweep: 부채꼴(angle도, 사거리 range) 예고 aim초 뒤 swing초 동안 휘두름, 피해 damage·밀려남 knock px",
+        "drop": { "count": 3, "countRage": 5, "spread": 110, "warn": 1.0, "radius": 36, "damage": 20, "height": 220, "stagger": 0.15 },
+        "sweep": { "angle": 120, "range": 130, "aim": 0.7, "swing": 0.3, "damage": 18, "knock": 40 }
+      }
     },
     {
       "id": "boss2",
@@ -661,9 +670,10 @@
       "weight": 0.6,
       "weight2": 0.9,
       "walk": 0.5,
-      "range": { "soft": 30, "kovac": { "charge": [0, 190], "slam": [190, 2000], "hook": [80, 260] }, "basili": { "stomp": [0, 160], "gatling": [60, 400] } },
+      "range": { "soft": 30, "kovac": { "charge": [0, 190], "slam": [190, 2000], "hook": [80, 260] }, "basili": { "stomp": [0, 160], "gatling": [60, 400] }, "gregor": { "drop": [0, 2000], "sweep": [0, 150] } },
       "kovac": { "hookMiss": ["charge", "slam"], "slam": ["hook"] },
-      "basili": { "charge": ["stomp"], "stomp": ["gatling"] }
+      "basili": { "charge": ["stomp"], "stomp": ["gatling"] },
+      "gregor": { "sweepMiss": ["drop"], "charge": ["sweep"] }
     },
     "range": { "chargeMax": 130, "hookMin": 110, "hookMax": 220, "slamMin": 190, "soft": 40 },
     "summonMin": 6,
@@ -671,6 +681,11 @@
     "walkBase": 0.25,
     "walkIdle": 0.5,
     "w": { "walk": 1, "charge": 0.95, "hook": 0.95, "slam": 0.9, "summon": 0.8 },
+    "gregor": {
+      "note": "그레고르 점수 AI: 팔 훑기 0~sweepMax, 무한궤도 돌진 chargeMin~chargeMax, 컨테이너 낙하 dropMin부터(soft만큼 부드럽게). 부하 소환은 코박과 같은 규칙(summonMin~summonMax)",
+      "range": { "sweepMax": 120, "chargeMin": 110, "chargeMax": 240, "dropMin": 180, "soft": 40 },
+      "w": { "sweep": 0.95, "charge": 0.9, "drop": 0.9, "summon": 0.8 }
+    },
     "basili": {
       "note": "바실리 점수 AI: 개틀링 gatlingMin~gatlingMax, 박치기 0~chargeMax, 발구르기 0~stompMax(soft만큼 부드럽게). 호출은 호위가 모두 죽었을 때 지난 호출 뒤 callMin~callMax초. repeat: 방금 쓴 공격 점수 배율(같은 공격 연속 억제)",
       "range": { "gatlingMin": 90, "gatlingMax": 320, "chargeMax": 170, "stompMax": 100, "soft": 50 },
