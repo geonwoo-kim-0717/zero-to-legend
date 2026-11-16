@@ -108,7 +108,17 @@
    null,
    null
   ],
-  "source": "video (Scenario) + pixelation, walk palette"
+  "source": "video (Scenario) + pixelation, walk palette",
+  "lit": {
+   "frames": [
+    5,
+    6,
+    7,
+    8
+   ],
+   "files": "boss_gatling_lit_05~08",
+   "note": "same size and origin as boss_gatling_05~08; flash-lit version (front warm, far side darker). Show the lit frame while a muzzle flash is visible, the normal frame between shots."
+  }
  },
  "slam": {
   "frames": 8,
@@ -369,5 +379,37 @@
   ],
   "generatorNote": "white-hot core centre per frame [x,y]; phase-2 red glow overlay anchor",
   "source": "1P walk frames with generator, barrel heat and coat tears copied 1:1 from phase frame 12, aligned per body part"
+ },
+ "fx": {
+  "fx_boss_muzzle": {
+   "frameW": 24,
+   "frameH": 30,
+   "frames": 5,
+   "anchor": [
+    0,
+    12
+   ],
+   "note": "anchor = muzzle point (left edge, barrel centre). Place anchor on gatling.muzzle; pick a random frame per shot, show 1-2 game frames each. Facing left: flip X."
+  },
+  "fx_boss_muzzle_glow": {
+   "w": 45,
+   "h": 45,
+   "anchor": [
+    22,
+    22
+   ],
+   "note": "halo behind/around the flash, centred on the muzzle; normal or ADD blend, same timing as the flash"
+  },
+  "fx_boss_stomp": {
+   "frameW": 180,
+   "frameH": 143,
+   "frames": 37,
+   "fps": 15,
+   "origin": [
+    90,
+    100
+   ],
+   "note": "origin = floor point under the stomping foot; start on stomp.impactFrame (7); flash + crescent shock waves + dust cloud + rocks. Source: pixelfx impacts/ground-slam (MIT), see src/assets/FX_CREDITS.md"
+  }
  }
 }
