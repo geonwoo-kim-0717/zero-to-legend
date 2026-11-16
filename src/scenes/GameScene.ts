@@ -3643,8 +3643,17 @@ export class GameScene extends Phaser.Scene implements GameContext {
       this.fx.lineStyle(2, 0xff2a3a, MARK_A * (0.3 + 0.3 * k)).strokeEllipse(b.x, b.y, S.radius * 2, S.radius * 1.2);
       this.fx.fillStyle(0xff2a3a, MARK_A * 0.15 * k).fillEllipse(b.x, b.y, S.radius * 2 * k, S.radius * 1.2 * k);
       if (this.bossTimer <= 0) {
-        const rings = p2 ? bz.p2.stompRings : 1;
-        for (let i = 0; i < rings; i++) this.stompRings.push({ x: b.x, y: b.y, t: -i * bz.p2.ringGap, hit: false });
+        // 충격파 피해 고리: 앞발 아래에서. 2페이즈는 이펙트와 같이 보는 방향 앞쪽으로 이어서 (offsetsX·delayFrames)
+        const footX = this.stompFoot(b).x;
+        const RF = (bossAnim as unknown as { fx?: { fx_boss_stomp_p2?: { fps: number; offsetsX?: number[]; delayFrames?: number[] } } }).fx?.fx_boss_stomp_p2;
+        const ringDir = b.sprite.flipX ? -1 : 1;
+        if (p2) {
+          const offs = RF?.offsetsX ?? [0, 70];
+          for (let i = 0; i < Math.min(bz.p2.stompRings, offs.length); i++) {
+            const delay = RF ? (RF.delayFrames?.[i] ?? 0) / RF.fps : i * bz.p2.ringGap;
+            this.stompRings.push({ x: footX + offs[i] * ringDir, y: b.y, t: -delay, hit: false });
+          }
+        } else this.stompRings.push({ x: footX, y: b.y, t: 0, hit: false });
         this.shake(260, 0.016);
         this.basiliSquash = bz.anim.squash;
         if (this.textures.exists('fx_boss_stomp')) {
