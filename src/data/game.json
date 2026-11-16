@@ -680,6 +680,9 @@
   "fixerWarnShow": 3.3,
   "maxedAbilityChance": 0.15,
   "enemyDamageGrowthPerMin": 0.04,
+  "bossHitKnock": 20,
+  "startCards": [0, 1, 2],
+  "startCardsNote": "임시 'N챕터부터 시작' 버튼: 챕터 번호(0부터)별로 시작할 때 고르는 전설·신화 확정 카드 수",
   "bossBrain": {
     "note": "보스 점수 AI(brain: true인 보스). 걷는 동안 think초마다 판단. 공격 준비도 = 지난 공격이 끝난 뒤 minGap~maxGap초(코박 분노·바실리 2페이즈는 minGap~maxGap2초). range: 돌진 0~chargeMax, 갈고리 hookMin~hookMax, 점프 slamMin 이상(soft만큼 부드럽게). 소환: 지난 소환 뒤 summonMin~summonMax초 + 부하가 적을수록. 걷기 = walkBase + walkIdle×(1-준비도). stick은 하던 행동 가산점",
     "think": 0.25,

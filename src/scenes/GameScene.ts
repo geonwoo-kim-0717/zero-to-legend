@@ -568,7 +568,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
     this.bossPhase2 = false;
     this.raid = null;
     this.raidCount = 0;
-    this.nextRaid = ZONES[0].raidStart + Math.random() * gameData.raid.firstDelayMax;
+    this.nextRaid = ZONES[Phaser.Math.Clamp(Number((this.scene.settings.data as { startZone?: number } | undefined)?.startZone ?? 0), 0, ZONES.length - 1)].raidStart + Math.random() * gameData.raid.firstDelayMax;
     this.raidWaitClear = false;
     this.raidSpec = null;
     this.raidHpMul = 1;
@@ -588,7 +588,9 @@ export class GameScene extends Phaser.Scene implements GameContext {
     this.revives = Save.clinicLevel('revive');
     this.regen = Save.clinicValue('regen');
     this.run = { kills: 0, droneKills: 0, meleeKills: 0, trooperKills: 0, midbossKills: 0, bossKills: 0, hexKills: 0, coreKills: 0, time: 0, level: 1, zone: 1 };
-    this.zoneIdx = 0;
+    // 임시: 아지트의 'N챕터부터' 버튼으로 시작하면 그 챕터에서 (scene data startZone)
+    const startZone = Phaser.Math.Clamp(Number((this.scene.settings.data as { startZone?: number } | undefined)?.startZone ?? 0), 0, ZONES.length - 1);
+    this.zoneIdx = startZone;
     this.zoneStart = 0;
     this.transitionT = 0;
     this.raidsInZone = 0;
@@ -724,7 +726,12 @@ export class GameScene extends Phaser.Scene implements GameContext {
     const z0 = ZONES[0] as Zone & { intro?: Line[]; introFirst?: Line[]; introRetry?: Line[]; introClear?: Line[] };
     const sd = Save.data;
     const lines = sd.stats.runs === 0 ? z0.introFirst : sd.lastWin ? z0.introClear : sd.lastZone >= 1 ? z0.introRetry : z0.intro;
-    this.startDialog(lines ?? z0.intro ?? [], () => undefined);
+    if (this.zoneIdx > 0) {
+      // 챕터 바로 시작(임시): 그 챕터 브리핑 뒤 전설·신화 확정 카드를 startCards[챕터]번 고름
+      const zs = ZONES[this.zoneIdx] as Zone & { intro?: Line[] };
+      this.bossRewards = (gameData as unknown as { startCards: number[] }).startCards[this.zoneIdx] ?? 0;
+      this.startDialog(zs.intro ?? [], () => undefined);
+    } else this.startDialog(lines ?? z0.intro ?? [], () => undefined);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.game.events.off(Phaser.Core.Events.BLUR, this.onBlur, this);
       this.levelUi.hide();
@@ -2059,6 +2066,15 @@ export class GameScene extends Phaser.Scene implements GameContext {
     // 투명 중·보스 클로즈업 중에는 피해 없음
     if (this.god || this.untracked || this.cine) return;
     if (src) this.lastHit = src;
+    // 보스(몸통·공격·탄 모두)에게 맞으면 보스 반대쪽으로 bossHitKnock px 밀림
+    const kb = this.boss;
+    if (src && kb && src.id === kb.id) {
+      const kx = p.x - kb.x;
+      const ky = p.y - kb.y;
+      const kd = Math.hypot(kx, ky) || 1;
+      p.x += (kx / kd) * gameData.bossHitKnock;
+      p.y += (ky / kd) * gameData.bossHitKnock;
+    }
     dmg *= 1 + this.heat * meta.heat.damagePer;
     // 적 공격력도 챕터 안에서 분마다 조금씩 오른다 (챕터마다 0부터)
     // (보스 몸통·돌진은 제외: 보스는 늘 챕터 끝에 나와서 이 보정이 통째로 얹히면 다섯 대에 끝난다)
@@ -5081,7 +5097,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
       // 보스마다 스토리에 맞춘 문자 (없으면 공용 문구)
       const own = `phone.boss.${nextBoss.id}` as Parameters<typeof tr>[0];
       const msg = tr(own);
-      this.phoneText(msg !== own ? msg : tr(nextBoss.final ? 'phone.boss' : 'phone.midboss', { name, ga: josa(name, '이', '가') }), `${nextBoss.id}_w1`);
+      this.phoneText(msg !== own ? msg : tr(nextBoss.final ? 'phone.boss' : 'phone.midboss', { name, ga: josa(name, '이', '가') }), this.textures.exists(`${nextBoss.id}_portrait`) ? `${nextBoss.id}_portrait` : `${nextBoss.id}_w1`);
     }
     if (!this.raid && !this.boss && this.warnedRaid !== this.nextRaid && this.elapsed >= this.nextRaid - lead) {
       // 보스가 곧 나올 차례면 습격은 미뤄지므로 그때는 알리지 않는다
@@ -5123,7 +5139,9 @@ export class GameScene extends Phaser.Scene implements GameContext {
     if (tex) {
       box.add(this.add.rectangle(8, 29, pic, pic, 0x1a1040, 1).setOrigin(0).setStrokeStyle(1, COLORS.magenta));
       const img = this.add.image(8 + pic / 2, 29 + pic / 2, tex);
-      img.setScale(Math.min(3, Math.floor(((pic - 6) / Math.max(img.width, img.height)) * 4) / 4 || 0.5));
+      // 보스 초상(새 그림, 몸 전체)은 칸에 꼭 맞게, 그 밖의 작은 그림은 0.25 단위 배율
+      const fit = (pic - 4) / Math.max(img.width, img.height);
+      img.setScale(tex.endsWith('_portrait') ? fit : Math.min(3, Math.floor(fit * 4 * ((pic - 6) / (pic - 4))) / 4 || 0.5));
       box.add(img);
     }
     box.add(text);

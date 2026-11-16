@@ -77,6 +77,22 @@ export class HideoutScene extends Phaser.Scene {
     go.setInteractive({ useHandCursor: true }).on('pointerup', () => this.deploy());
     go.on('pointerover', () => go.setFillStyle(0xff5ae0, 1));
     go.on('pointerout', () => go.setFillStyle(COLORS.magenta, 0.9));
+    // 임시: 클리어한 챕터 다음부터 바로 시작 (바실리를 잡았으면 2챕터, XM-4를 잡았으면 3챕터)
+    const st = Save.data.stats;
+    const from: [number, boolean][] = [
+      [1, st.bossKills > 0],
+      [2, st.hexKills > 0],
+    ];
+    let fx = VIEW_W - 12;
+    for (const [z, ok] of from.reverse()) {
+      if (!ok) continue;
+      const label = I18n.lang === 'ko' ? `${z + 1}챕터부터` : `From Ch.${z + 1}`;
+      const b = this.add.text(fx, VIEW_H - 52, label, { ...T(11, '#ffffff'), backgroundColor: '#5a1a6a', padding: { x: 6, y: 3 } }).setOrigin(1, 1);
+      b.setInteractive({ useHandCursor: true }).on('pointerup', () => this.deploy(z));
+      b.on('pointerover', () => b.setBackgroundColor('#8a2aa0'));
+      b.on('pointerout', () => b.setBackgroundColor('#5a1a6a'));
+      fx -= b.width + 6;
+    }
     this.add.tileSprite(0, 0, VIEW_W, VIEW_H, 'scan').setOrigin(0).setDepth(300);
 
     const kb = this.input.keyboard!;
@@ -807,9 +823,10 @@ export class HideoutScene extends Phaser.Scene {
     } else notify(this, tr('save.bad'));
   }
 
-  private deploy(): void {
+  /** 출격. startZone: 임시 'N챕터부터' 버튼 (0 = 처음부터). 장면 데이터는 다음 시작에도 남으므로 늘 넘긴다 */
+  private deploy(startZone = 0): void {
     if (!Save.isUnlocked(Save.runner())) Save.data.runner = 'zero';
     Sound.play('start');
-    this.scene.start('Game');
+    this.scene.start('Game', { startZone });
   }
 }
