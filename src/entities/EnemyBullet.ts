@@ -22,6 +22,12 @@ export class EnemyBullet {
   homeDelay = 0;
   /** 쏜 적의 id와 탄 종류 (게임오버 화면의 사인 표시용) */
   src = '';
+  /** 추적 선회 속도 (라디안/초) */
+  turn = 3;
+  /** 방향별 시트 탄(열 = 16방향, 행 = 불꽃 프레임 3): 시트 키. 없으면 회전하는 보통 그림 */
+  dirSheet = '';
+  /** 꼬리 연기 간격용 */
+  trailT = 0;
   srcKind: 'bullet' | 'missile' = 'bullet';
 
   fire(x: number, y: number, angle: number, speed: number, damage: number, life: number, scale = 1, texture = 'ebullet'): void {
@@ -35,10 +41,27 @@ export class EnemyBullet {
     this.radius = 3 * scale;
     this.homeDist = 0;
     this.homeDelay = 0;
+    this.turn = 3;
+    this.dirSheet = '';
+    this.trailT = 0;
     if (this.sprite.texture.key !== texture) this.sprite.setTexture(texture).setBlendMode(texture === 'ebullet' ? Phaser.BlendModes.ADD : Phaser.BlendModes.NORMAL);
     this.sprite.setPosition(x, y).setVisible(true).setRotation(angle).setScale(scale);
     // 그림이 있는 탄(보스 미사일 등)은 그림 두께에 맞춘 판정 (21x10 미사일 → 약 4.5)
     if (texture !== 'ebullet') this.radius = Math.max(this.radius, 4, (this.sprite.height * scale) * 0.45);
+  }
+
+  /** 방향별 시트 그림으로 바꿈 (XM-4 미사일). 판정 반지름 r */
+  useDirSheet(key: string, r: number): void {
+    this.dirSheet = key;
+    this.sprite.setTexture(key, '0').setBlendMode(Phaser.BlendModes.NORMAL).setRotation(0).setScale(1);
+    this.radius = r;
+    this.pickDirFrame();
+  }
+
+  private pickDirFrame(): void {
+    const dir = (((Math.round(Math.atan2(this.vy, this.vx) / (Math.PI / 8)) % 16) + 16) % 16);
+    const row = Math.floor(this.flick * 16) % 3;
+    this.sprite.setFrame(String(row * 16 + dir));
   }
 
   /** 목표 쪽으로 방향을 튼다 (속도는 그대로). 추적 거리를 다 쓰면 직진 */
@@ -46,10 +69,10 @@ export class EnemyBullet {
     const sp = Math.hypot(this.vx, this.vy) || 1;
     const cur = Math.atan2(this.vy, this.vx);
     const want = Math.atan2(ty - this.y, tx - this.x);
-    const a = cur + Phaser.Math.Clamp(Phaser.Math.Angle.Wrap(want - cur), -3 * dt, 3 * dt);
+    const a = cur + Phaser.Math.Clamp(Phaser.Math.Angle.Wrap(want - cur), -this.turn * dt, this.turn * dt);
     this.vx = Math.cos(a) * sp;
     this.vy = Math.sin(a) * sp;
-    this.sprite.setRotation(a);
+    if (!this.dirSheet) this.sprite.setRotation(a);
     this.homeDist -= sp * dt;
   }
 
@@ -58,7 +81,10 @@ export class EnemyBullet {
 
   update(dt: number): void {
     const key = this.sprite.texture.key;
-    if (key !== 'ebullet' && (this.flick += dt) >= 0.08) {
+    if (this.dirSheet) {
+      this.flick += dt;
+      this.pickDirFrame();
+    } else if (key !== 'ebullet' && (this.flick += dt) >= 0.08) {
       this.flick = 0;
       const base = key.endsWith('_2') ? key.slice(0, -2) : key;
       const alt = `${base}_2`;

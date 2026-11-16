@@ -22,6 +22,7 @@ import meta from '../data/meta.json';
 import zonesData from '../data/zones.json';
 import midbossAnim from '../data/midboss_anim.json';
 import bossAnim from '../data/boss_anim.json';
+import boss2Anim from '../data/boss2_anim.json';
 import wavesData from '../data/waves.json';
 import type { Wave } from '../systems/Spawner';
 import { Save, type Runner, type RunnerId, type SpecialId, type RunStats } from '../systems/Save';
@@ -96,10 +97,13 @@ const BASILI_AIM = new Set(['gatling', 'call', 'stomp', 'stompRec', 'phaseShift'
 /** XM-4 패턴 (game.json bosses[].xm4) */
 type Xm4Def = {
   turn: number;
-  mg: { aim: number; time: number; rate: number; fan: number; speed: number; damage: number; life: number; barrelGap: number };
-  plasma: { shots: number; warn: number; fly: number; gap: number; radius: number; damage: number; spreadNext: number };
+  mg: { aim: number; burst: number; interval: number; fan: number; speed: number; damage: number; life: number };
+  plasma: { shots: number; warn: number; fly: number; gap: number; radius: number; radiusY: number; damage: number; spreadNext: number };
   missileTime: number;
-  p2: { mgRate: number; plasmaShots: number; plasmaWarn: number; missileCount: number };
+  missileTurn: number;
+  closedTime: number;
+  footOff: number;
+  p2: { plasmaShots: number; plasmaWarn: number; missileCount: number };
 };
 type GregorDef = { drop: { count: number; countRage: number; spread: number; warn: number; radius: number; damage: number; height: number; stagger: number }; sweep: { angle: number; range: number; aim: number; swing: number; damage: number; knock: number } };
 /** 보스 클로즈업 연출 (game.json bosses[].cine): 등장·2페이즈 대사(문구 키), 확대 배율, 대사 한 줄 시간, 말풍선 높이 */
@@ -615,8 +619,9 @@ export class GameScene extends Phaser.Scene implements GameContext {
     this.hookTrail = null;
     this.bossDbg = null;
     this.containers = [];
-    this.plasmaShells = [];
+    this.clearPlasma();
     this.basiliGlow = null;
+    this.xmLayers = null;
     this.basiliCore = null;
     this.basiliShadow = null;
     this.basiliFlash = null;
@@ -2159,7 +2164,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
       this.basiliHalo?.setVisible(false);
       this.stompRings = [];
       this.containers = [];
-    this.plasmaShells = [];
+    this.clearPlasma();
       this.bossDef = null;
       e.kill();
       const color = def.final ? 0xff2a3a : COLORS.orange;
@@ -3141,6 +3146,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
 
   /** 보스 모션: 걷기 2프레임, 돌진 예고(떨림), 돌진 자세, 코어는 둥실 떠 있음 */
   private animateBoss(b: Enemy, def: BossDef, dt: number): void {
+    if (this.animateXm4(b, def, dt)) return;
     if (this.animateBossFrames(b, def, dt)) return;
     if (this.animateBasiliFrames(b, def, dt)) return;
     const ph = this.bossPhase;
@@ -3887,7 +3893,13 @@ export class GameScene extends Phaser.Scene implements GameContext {
   private xmPlasmaNext = 0;
   private xmLast: Xm4Act = 'walk';
   /** XM-4 플라즈마 탄: 착탄점, 예고 남은 시간, 날아가는 중(포구에서 출발점), 터졌는지 */
-  private plasmaShells: { x: number; y: number; t: number; fx: number; fy: number; fly: number; hit: boolean }[] = [];
+  private plasmaShells: { x: number; y: number; t: number; fx: number; fy: number; hit: boolean; warn?: Phaser.GameObjects.Image; bolt?: Phaser.GameObjects.Image }[] = [];
+  /** XM-4 그림 겹 (아래·뒷다리·앞다리·기관총 반사광). 몸통은 보스 스프라이트 */
+  private xmLayers: { under: Phaser.GameObjects.Image; back: Phaser.GameObjects.Image; front: Phaser.GameObjects.Image; lit: Phaser.GameObjects.Image } | null = null;
+  private xmWalkPh = 0;
+  private xmBornT = 0;
+  private xmFlashT = 0;
+  private xmCasingRow = 0;
 
   /** 그레고르 컨테이너: 떨어질 자리, 남은 시간, 이미 떨어졌는지 */
   private containers: { x: number; y: number; t: number; hit: boolean }[] = [];
@@ -3922,49 +3934,198 @@ export class GameScene extends Phaser.Scene implements GameContext {
     this.containers = this.containers.filter((c) => c.t > -0.05 || !c.hit);
   }
 
-  /** XM-4 포탑 위치와 포구 (임시: 몸 위쪽 가운데. 그림이 오면 xm4_anchors.json 기준으로 바꿈). side: -1/1 왼쪽·오른쪽 포신 */
-  private xmMuzzle(b: Enemy, side: number, gap: number): { x: number; y: number } {
-    const tx = b.x;
-    const ty = b.y - b.radius * 0.7;
-    const c = Math.cos(this.xmAim);
-    const sn = Math.sin(this.xmAim);
-    return { x: tx + c * b.radius * 0.9 - sn * side * gap * 0.5, y: ty + sn * b.radius * 0.6 + c * side * gap * 0.5 };
+  /** XM-4 그림 정보 (boss2_anim.json). 그림이 없으면 null (임시 도형) */
+  private xmArt(): typeof boss2Anim | null {
+    return this.textures.exists('boss2_under_00') && this.textures.exists('boss2_p1_turret_00') ? boss2Anim : null;
   }
 
-  /** XM-4 플라즈마 탄: 예고 원(차오름) → 포구에서 직선으로 아주 빠르게 → 착탄 폭발 */
+  /** XM-4 포탑 방향 번호 0~15 (0 = 화면 오른쪽, 시계 방향 22.5도. 3/4 시점이라 세로를 0.55로 눌린 것으로 보고 계산) */
+  private xmDir(): number {
+    const a = Math.atan2(Math.sin(this.xmAim) / 0.55, Math.cos(this.xmAim));
+    return (((Math.round(a / (Math.PI / 8)) % 16) + 16) % 16);
+  }
+
+  /** XM-4 몸통 겹 왼쪽 위 (월드). 다리 캔버스 원점(발 가운데)이 발 위치, 몸통은 걷기 프레임마다 bodyOffset만큼 */
+  private xmBodyTL(b: Enemy): { x: number; y: number } {
+    const A = boss2Anim;
+    const f = Math.floor(this.xmWalkPh) % A.walk.frames;
+    const off = A.walk.bodyOffset[f];
+    const foot = b.sprite.y;
+    return { x: b.x - A.origin.legsCanvas[0] + off[0], y: foot - A.origin.legsCanvas[1] + off[1] };
+  }
+
+  /** XM-4 포구·포드 위치 (월드)와 몸통 뒤에 가려지는지. 그림이 없으면 몸 위 가운데에서 포탑 방향으로 */
+  private xmPoint(b: Enemy, kind: 'cannon' | 'mg' | 'pod', side: number): { x: number; y: number; hidden: boolean } {
+    const art = this.xmArt();
+    if (!art) {
+      const c = Math.cos(this.xmAim);
+      const sn = Math.sin(this.xmAim);
+      const g = side ? 4 : -4;
+      return { x: b.x + c * b.radius * 0.9 - sn * g, y: b.y - b.radius * 0.7 + sn * b.radius * 0.6 + c * g, hidden: false };
+    }
+    const tl = this.xmBodyTL(b);
+    const dirs = art.anchors.dirs as unknown as Record<string, Record<string, Record<string, unknown>>>;
+    const D = dirs[this.bossPhase2 ? 'p2' : 'p1'][String(this.xmDir()).padStart(2, '0')] as { cannon: number[][]; cannonHidden: boolean; mg?: number[][]; pod?: number[] | null; podHidden?: boolean };
+    let pt: number[] | null | undefined;
+    let hidden = false;
+    if (kind === 'cannon') {
+      pt = D.cannon[side];
+      hidden = D.cannonHidden;
+    } else if (kind === 'mg') pt = D.mg?.[side];
+    else {
+      pt = D.pod;
+      hidden = !!D.podHidden;
+    }
+    // 포드 점이 없는 방향: 포탑 가운데
+    if (!pt) pt = [72, 30];
+    return { x: tl.x + pt[0], y: tl.y + pt[1], hidden };
+  }
+
+  /** 방향 시트 한 번 재생: 열 = dir, 행 = 프레임 (row*cols + dir) */
+  private playDirSheet(key: string, dir: number, rows: number, cols: number, x: number, y: number, ox: number, oy: number, fps: number, depth: number, flip = false): void {
+    if (!this.textures.exists(key)) return;
+    const img = this.add.image(x, y, key, String(dir)).setOrigin(ox, oy).setDepth(depth).setFlipX(flip);
+    const t0 = this.elapsed;
+    const tick = () => {
+      const f = Math.floor((this.elapsed - t0) * fps);
+      if (f >= rows || !img.active) {
+        this.events.off('update', tick);
+        img.destroy();
+        return;
+      }
+      img.setFrame(String(f * cols + dir));
+    };
+    this.events.on('update', tick);
+  }
+
+  /** XM-4 그림 겹 쌓기: 아래 → 뒷다리 → 몸통(보스 스프라이트) → 반사광 → 앞다리. 그림이 없으면 false */
+  private animateXm4(b: Enemy, def: BossDef, dt: number): boolean {
+    const art = this.xmArt();
+    const xz = (def as { xm4?: Xm4Def }).xm4;
+    if (!art || !xz) return false;
+    const ph = this.bossPhase;
+    const A = art.walk;
+    if (ph === 'walk') this.xmWalkPh = (this.xmWalkPh + dt * A.fps) % A.frames;
+    const f = Math.floor(this.xmWalkPh) % A.frames;
+    const nn = String(f).padStart(2, '0');
+    // 점프 낙하: 공중 포물선
+    const sl = (def as { slam?: SlamDef }).slam;
+    const lift = ph === 'air' && sl ? Math.sin(Phaser.Math.Clamp(1 - this.bossTimer / sl.air, 0, 1) * Math.PI) * sl.height : 0;
+    const foot = b.y + xz.footOff - lift;
+    if (!this.xmLayers) {
+      const mk = (depth: number) => this.add.image(0, 0, 'boss2_under_00').setDepth(depth);
+      this.xmLayers = { under: mk(11.96), back: mk(11.97), front: mk(12.02), lit: mk(12.01).setVisible(false) };
+    }
+    const L = this.xmLayers;
+    const ox = art.origin.legsCanvas[0] / art.canvas.legs[0];
+    const oy = art.origin.legsCanvas[1] / art.canvas.legs[1];
+    L.under.setTexture(`boss2_under_${nn}`).setOrigin(ox, oy).setPosition(b.x, foot).setVisible(true);
+    L.back.setTexture(`boss2_legs_back_${nn}`).setOrigin(ox, oy).setPosition(b.x, foot).setVisible(true);
+    L.front.setTexture(`boss2_legs_front_${nn}`).setOrigin(ox, oy).setPosition(b.x, foot).setVisible(true);
+    // 몸통: 나타난 직후·점프 중엔 뚜껑 닫힘(포탑 올리는 동작 그림이 오기 전 임시로 바로 교체), 그 밖엔 포탑 방향 그림
+    const closed = this.elapsed - this.xmBornT < xz.closedTime || ph === 'leap' || ph === 'air' || ph === 'slam';
+    const dir = String(this.xmDir()).padStart(2, '0');
+    const body = closed ? 'boss2_body_closed' : `boss2_${this.bossPhase2 ? 'p2' : 'p1'}_turret_${dir}`;
+    const off = A.bodyOffset[f];
+    const [bw, bh] = art.canvas.body;
+    // 몸통 원점 = 다리 원점 - bodyOffset (몸통 왼쪽 위가 다리 왼쪽 위 + offset에 오게)
+    const box = (art.origin.legsCanvas[0] - off[0]) / bw;
+    const boy = (art.origin.legsCanvas[1] - off[1]) / bh;
+    if (b.sprite.texture.key !== body) b.sprite.setTexture(body);
+    b.sprite.setOrigin(box, boy).setPosition(b.x, foot).setFlipX(false).setScale(1);
+    b.footOff = xz.footOff;
+    // 기관총 반사광: 섬광 0~1프레임 = 1행(강), 2프레임 = 2행(약), 2페이즈 몸통 위에만
+    if (this.xmFlashT > 0 && this.bossPhase2 && !closed && this.textures.exists('fx_boss2_mg_lit')) {
+      const row = this.xmFlashT > 1 / 30 ? 0 : 1;
+      L.lit.setTexture('fx_boss2_mg_lit', String(row * 16 + this.xmDir())).setOrigin(box, boy).setPosition(b.x, foot).setVisible(true);
+    } else L.lit.setVisible(false);
+    // 피격 번쩍임 등 몸통 색을 다리에도
+    const tint = b.sprite.isTinted ? b.sprite.tintTopLeft : null;
+    for (const o of [L.under, L.back, L.front]) {
+      if (tint !== null) o.setTint(tint);
+      else o.clearTint();
+      o.setAlpha(b.sprite.alpha);
+    }
+    return true;
+  }
+
+  /** XM-4 그림 겹 숨기기 (보스가 죽거나 사라질 때) */
+  private hideXm4Layers(): void {
+    if (!this.xmLayers) return;
+    for (const o of Object.values(this.xmLayers)) o.setVisible(false);
+  }
+
+  /** XM-4 플라즈마 탄: 예고 원 → 쌍열포 섬광 → 직선으로 아주 빠르게 → 광역 폭발 */
   private updatePlasma(b: Enemy, xz: Xm4Def, dt: number): void {
     const P = xz.plasma;
     const p = this.player;
+    const art = !!this.xmArt();
     for (const s of this.plasmaShells) {
+      const was = s.t;
       s.t -= dt;
       if (s.t > 0) {
-        const warn = this.bossPhase2 ? xz.p2.plasmaWarn : P.warn;
-        const k = Phaser.Math.Clamp(1 - s.t / warn, 0, 1);
-        this.fx.lineStyle(1.5, 0x40f0ff, MARK_A * (0.5 + 0.4 * Math.sin(this.elapsed * 30))).strokeEllipse(s.x, s.y, P.radius * 2, P.radius * 1.2);
-        this.fx.fillStyle(0x40f0ff, MARK_A * 0.25 * k).fillEllipse(s.x, s.y, P.radius * 2 * k, P.radius * 1.2 * k);
+        if (art && this.textures.exists('fx_boss2_plasma_warn')) {
+          if (!s.warn) s.warn = this.add.image(s.x, s.y, 'fx_boss2_plasma_warn', '0').setOrigin(0.5, 0.5).setDepth(9.5);
+          s.warn.setFrame(String(Math.floor(this.elapsed * 12) % 8));
+        } else {
+          const warn = this.bossPhase2 ? xz.p2.plasmaWarn : P.warn;
+          const k = Phaser.Math.Clamp(1 - s.t / warn, 0, 1);
+          this.fx.lineStyle(1.5, 0x40f0ff, MARK_A * (0.5 + 0.4 * Math.sin(this.elapsed * 30))).strokeEllipse(s.x, s.y, P.radius * 2, P.radiusY * 2);
+          this.fx.fillStyle(0x40f0ff, MARK_A * 0.25 * k).fillEllipse(s.x, s.y, P.radius * 2 * k, P.radiusY * 2 * k);
+        }
       } else if (s.t > -P.fly) {
-        // 날아가는 중: 길게 늘어진 플라즈마 (임시 도형)
+        if (was > 0) {
+          // 발사 순간: 쌍열포 A/B 번갈아 섬광, 그 포구에서 출발
+          this.xmBarrel = 1 - this.xmBarrel;
+          const mz = this.xmPoint(b, 'cannon', this.xmBarrel);
+          s.fx = mz.x;
+          s.fy = mz.y;
+          this.playDirSheet('fx_boss2_cannon_flash', this.xmDir(), 3, 16, mz.x, mz.y, 0.5, 0.5, 30, mz.hidden ? 11.98 : 12.05);
+          this.shake(60, 0.004);
+          Sound.play('enemyshot');
+        }
         const k = Phaser.Math.Clamp(-s.t / P.fly, 0, 1);
         const x = Phaser.Math.Linear(s.fx, s.x, k);
         const y = Phaser.Math.Linear(s.fy, s.y, k);
-        const bx = Phaser.Math.Linear(s.fx, s.x, Math.max(0, k - 0.35));
-        const by = Phaser.Math.Linear(s.fy, s.y, Math.max(0, k - 0.35));
-        this.fx.lineStyle(6, 0x40f0ff, 0.5).lineBetween(bx, by, x, y);
-        this.fx.lineStyle(2, 0xe0ffff, 1).lineBetween(bx, by, x, y);
+        if (art && this.textures.exists('fx_boss2_plasma_bolt')) {
+          const a = Math.atan2(s.y - s.fy, s.x - s.fx);
+          const dir = (((Math.round(a / (Math.PI / 8)) % 16) + 16) % 16);
+          if (!s.bolt) s.bolt = this.add.image(x, y, 'fx_boss2_plasma_bolt', String(dir)).setOrigin(0.5, 0.5).setDepth(16);
+          s.bolt.setPosition(x, y).setFrame(String((Math.floor(this.elapsed * 30) % 3) * 16 + dir));
+        } else {
+          const bx = Phaser.Math.Linear(s.fx, s.x, Math.max(0, k - 0.35));
+          const by = Phaser.Math.Linear(s.fy, s.y, Math.max(0, k - 0.35));
+          this.fx.lineStyle(6, 0x40f0ff, 0.5).lineBetween(bx, by, x, y);
+          this.fx.lineStyle(2, 0xe0ffff, 1).lineBetween(bx, by, x, y);
+        }
       } else if (!s.hit) {
         s.hit = true;
+        s.warn?.destroy();
+        s.bolt?.destroy();
         const nx = (p.x - s.x) / P.radius;
-        const ny = (p.y - s.y) / (P.radius * 0.6);
+        const ny = (p.y - s.y) / P.radiusY;
         if (p.invuln <= 0 && nx * nx + ny * ny <= 1) this.hurtPlayer(P.damage, { kind: 'blast', id: b.id });
-        this.burst(s.x, s.y, 0x40f0ff, 16);
-        const ring = this.add.ellipse(s.x, s.y, P.radius * 2, P.radius * 1.2).setStrokeStyle(3, 0x40f0ff, 0.9).setDepth(11);
-        ring.setScale(0.3);
-        this.tweens.add({ targets: ring, scale: 1.2, alpha: 0, duration: 300, ease: 'Quad.easeOut', onComplete: () => ring.destroy() });
+        if (art && this.textures.exists('fx_boss2_plasma_boom')) this.playSheet('fx_boss2_plasma_boom', 52, s.x, s.y, 112 / 224, 100 / 200, 30, 15);
+        else {
+          this.burst(s.x, s.y, 0x40f0ff, 16);
+          const ring = this.add.ellipse(s.x, s.y, P.radius * 2, P.radiusY * 2).setStrokeStyle(3, 0x40f0ff, 0.9).setDepth(11);
+          ring.setScale(0.3);
+          this.tweens.add({ targets: ring, scale: 1.2, alpha: 0, duration: 300, ease: 'Quad.easeOut', onComplete: () => ring.destroy() });
+        }
         this.shake(120, 0.008);
         Sound.play('explode');
       }
     }
     this.plasmaShells = this.plasmaShells.filter((s) => !s.hit);
+  }
+
+  /** 플라즈마 탄 정리 (보스 죽음·장면 시작) */
+  private clearPlasma(): void {
+    for (const s of this.plasmaShells) {
+      s.warn?.destroy();
+      s.bolt?.destroy();
+    }
+    this.plasmaShells = [];
   }
 
   /** XM-4 전용 단계: 걷기 판단·기관총·플라즈마 포격·미사일. 점프 낙하(leap·air·slam)는 false로 공통 코드에 맡김 */
@@ -3977,12 +4138,16 @@ export class GameScene extends Phaser.Scene implements GameContext {
       this.bossPhase = 'walk';
       this.bossTimer = def.walkTime;
     };
-    // 포탑: 늘 플레이어 쪽으로 천천히 돈다 (기관총 사격 중에도)
-    this.xmAim = Phaser.Math.Angle.RotateTo(this.xmAim, Math.atan2(dy, dx), Phaser.Math.DegToRad(xz.turn) * dt);
-    // 임시 포탑 표시: 포신 방향 선 (그림이 오면 포탑 16방향 그림으로)
-    const m0 = this.xmMuzzle(b, 0, 0);
-    this.fx.lineStyle(4, 0x2a2f38, 1).lineBetween(b.x, b.y - b.radius * 0.7, m0.x, m0.y);
-    this.fx.lineStyle(1.5, 0xff8a1f, 0.9).lineBetween(b.x, b.y - b.radius * 0.7, m0.x, m0.y);
+    if (this.xmFlashT > 0) this.xmFlashT -= dt;
+    // 포탑: 늘 플레이어 쪽으로 천천히 돈다 (포탑 기준점에서 플레이어까지 화면 각도)
+    const tc = this.xmArt() ? { x: b.x, y: b.sprite.y - 90 } : { x: b.x, y: b.y - b.radius * 0.7 };
+    this.xmAim = Phaser.Math.Angle.RotateTo(this.xmAim, Math.atan2(p.y - tc.y, p.x - tc.x), Phaser.Math.DegToRad(xz.turn) * dt);
+    if (!this.xmArt()) {
+      // 그림이 없을 때 임시 포탑 표시
+      const m0 = this.xmPoint(b, 'cannon', 0);
+      this.fx.lineStyle(4, 0x2a2f38, 1).lineBetween(b.x, b.y - b.radius * 0.7, m0.x, m0.y);
+      this.fx.lineStyle(1.5, 0xff8a1f, 0.9).lineBetween(b.x, b.y - b.radius * 0.7, m0.x, m0.y);
+    }
     if (ph === 'walk') {
       b.x += (dx / d) * b.speed * slow * dt;
       b.y += (dy / d) * b.speed * slow * dt;
@@ -4004,7 +4169,10 @@ export class GameScene extends Phaser.Scene implements GameContext {
           combo: this.comboNow(),
         });
         this.bossScores = scores as Partial<Record<BossAct, number>>;
-        if (act === 'summon') {
+        // 나타난 직후 뚜껑이 닫혀 있는 동안은 걷기만
+        if (this.elapsed - this.xmBornT < xz.closedTime) {
+          /* 대기 */
+        } else if (act === 'summon') {
           this.bossLastSummon = this.elapsed;
           this.bossSummon = 0;
         } else if (act !== 'walk') {
@@ -4024,7 +4192,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
             this.xmPlasmaNext = 0;
             this.bossTimer = 99;
           } else if (act === 'missile') {
-            // 공통 미사일 발사 코드에 맡김 (이번 프레임에 발사)
+            // 공통 미사일 발사 코드에 맡김 (다음 프레임에 포드에서 발사)
             this.bossMissile = 0;
             this.bossPhase = 'missileFire';
             this.bossTimer = xz.missileTime;
@@ -4040,27 +4208,37 @@ export class GameScene extends Phaser.Scene implements GameContext {
       return true;
     }
     if (ph === 'mgAim') {
-      const m = this.xmMuzzle(b, 0, 0);
+      const m = this.xmPoint(b, 'mg', 0);
       this.fx.lineStyle(1.5, 0xff2a3a, MARK_A * (0.4 + Math.sin(this.elapsed * 40) * 0.3)).lineBetween(m.x, m.y, m.x + Math.cos(this.xmAim) * 260, m.y + Math.sin(this.xmAim) * 260);
       if (this.bossTimer <= 0) {
         this.bossPhase = 'mg';
-        this.bossTimer = xz.mg.time;
+        this.bossTimer = xz.mg.burst * xz.mg.interval;
         this.xmMgAcc = 0;
       }
       return true;
     }
     if (ph === 'mg') {
       const M = xz.mg;
-      const rate = p2 ? xz.p2.mgRate : M.rate;
-      const due = Math.floor((M.time - this.bossTimer) * rate) + 1;
+      const due = Math.min(M.burst, Math.floor((M.burst * M.interval - this.bossTimer) / M.interval) + 1);
       while (this.xmMgAcc < due) {
         this.xmMgAcc++;
-        // 좌우 포신 번갈아, 부채꼴로 흔들며
+        // 총구 A/B 번갈아, 부채꼴로 흔들며. 한 발 = 섬광 3프레임 + 반사광 + 탄피 1개
         this.xmBarrel = 1 - this.xmBarrel;
-        const mz = this.xmMuzzle(b, this.xmBarrel ? 1 : -1, M.barrelGap);
+        const mz = this.xmPoint(b, 'mg', this.xmBarrel);
         const a = this.xmAim + Math.sin(this.elapsed * 11) * Phaser.Math.DegToRad(M.fan / 2) + (Math.random() - 0.5) * 0.05;
         this.eShot(b.id).fire(mz.x, mz.y, a, M.speed, M.damage, M.life);
-        this.fx.fillStyle(0xfff23a, 0.9).fillCircle(mz.x, mz.y, 3);
+        const dir = this.xmDir();
+        if (this.textures.exists('fx_boss2_mg_flash')) {
+          this.playDirSheet('fx_boss2_mg_flash', dir, 3, 16, mz.x, mz.y, 0.5, 0.5, 30, 12.05);
+          this.xmFlashT = 3 / 30;
+          // 탄피: 시작점을 두 총구 가운데에, 포탑이 왼쪽(05~11)을 보면 좌우 반전
+          const F = boss2Anim.fx.fx_boss2_casing;
+          const ma = this.xmPoint(b, 'mg', 0);
+          const mb = this.xmPoint(b, 'mg', 1);
+          const flip = dir >= 5 && dir <= 11;
+          this.xmCasingRow = (this.xmCasingRow + 1) % 3;
+          this.playSheet('fx_boss2_casing', 34, (ma.x + mb.x) / 2, (ma.y + mb.y) / 2, (flip ? F.cell[0] - F.start[0] : F.start[0]) / F.cell[0], F.start[1] / F.cell[1], F.fps, 12.04, flip, 1, this.xmCasingRow * 34);
+        } else this.fx.fillStyle(0xfff23a, 0.9).fillCircle(mz.x, mz.y, 3);
         if (Math.random() < 0.5) Sound.play('enemyshot');
       }
       if (this.bossTimer <= 0) toWalk();
@@ -4075,14 +4253,12 @@ export class GameScene extends Phaser.Scene implements GameContext {
         const lead = n > 0 ? P.spreadNext : 0;
         const tgx = p.x + (this.bossPVel.x / v) * lead * Math.min(1, v / PLAYER.speed);
         const tgy = p.y + (this.bossPVel.y / v) * lead * Math.min(1, v / PLAYER.speed);
-        this.xmBarrel = 1 - this.xmBarrel;
-        const mz = this.xmMuzzle(b, this.xmBarrel ? 1 : -1, 10);
-        this.plasmaShells.push({ x: tgx, y: tgy, t: p2 ? xz.p2.plasmaWarn : P.warn, fx: mz.x, fy: mz.y, fly: P.fly, hit: false });
+        this.plasmaShells.push({ x: tgx, y: tgy, t: p2 ? xz.p2.plasmaWarn : P.warn, fx: b.x, fy: b.y, hit: false });
         this.xmPlasmaLeft--;
         this.xmPlasmaNext = P.gap;
         Sound.play('lungewarn');
       }
-      // 마지막 발을 쏜 뒤 (예고가 끝날 때까지 기다리지 않고) 잠깐 뒤 걷기
+      // 마지막 발 예고를 놓은 뒤 잠깐 있다가 걷기 (예고·발사는 계속 진행)
       if (this.xmPlasmaLeft <= 0 && this.xmPlasmaNext <= 0) toWalk();
       return true;
     }
@@ -4423,6 +4599,9 @@ export class GameScene extends Phaser.Scene implements GameContext {
     ring.setScale(0.3);
     this.tweens.add({ targets: ring, scale: 1.25, alpha: 0, duration: 380, ease: 'Quad.easeOut', onComplete: () => ring.destroy() });
     this.burst(b.x, b.y, 0xffa040, 18);
+    // XM-4 점프 착지: 바실리 발구르기 이펙트를 발밑에 (boss_anim.json fx origin)
+    const SF = (bossAnim as unknown as { fx?: Record<string, { frameW: number; frameH: number; frames: number; fps: number; origin: number[] }> }).fx?.fx_boss_stomp;
+    if (b.id === 'boss2' && SF && this.textures.exists('fx_boss_stomp')) this.playSheet('fx_boss_stomp', SF.frames, b.x, b.sprite.y, SF.origin[0] / SF.frameW, SF.origin[1] / SF.frameH, SF.fps, 12.1);
     this.shake(220, 0.014);
     Sound.play('explode');
   }
@@ -4510,9 +4689,20 @@ export class GameScene extends Phaser.Scene implements GameContext {
         else b.steer(p.x, p.y, dt * slow);
       }
       b.update(dt * slow);
-      if (!b.active) continue;
+      // XM-4 미사일: 꼬리 연기, 수명이 다하면 터짐
+      const xmMis = b.dirSheet === 'fx_boss2_missile';
+      if (xmMis && b.active && (b.trailT -= dt) <= 0) {
+        b.trailT = 0.05;
+        const sp = Math.hypot(b.vx, b.vy) || 1;
+        this.playSheet('fx_boss2_missile_smoke', 6, b.x - (b.vx / sp) * 8, b.y - (b.vy / sp) * 8, 0.5, 0.5, 20, 15.5);
+      }
+      if (!b.active) {
+        if (xmMis) this.playSheet('fx_boss2_missile_hit', 8, b.x, b.y, 0.5, 0.5, 20, 16);
+        continue;
+      }
       if (p.invuln <= 0 && !this.untracked && (b.x - p.x) ** 2 + (b.y - p.y) ** 2 < (p.radius + b.radius) ** 2) {
         b.kill();
+        if (xmMis) this.playSheet('fx_boss2_missile_hit', 8, b.x, b.y, 0.5, 0.5, 20, 16);
         // 반사 신경: 20% 확률로 피함
         if (this.pHas('reflex') && Math.random() < 0.2) {
           this.burst(p.x, p.y, COLORS.cyan, 4);
@@ -5165,6 +5355,10 @@ export class GameScene extends Phaser.Scene implements GameContext {
     this.bossMissile = 2;
     this.xmLast = 'walk';
     this.xmPlasmaLeft = 0;
+    this.xmBornT = this.elapsed;
+    this.xmWalkPh = 0;
+    this.xmFlashT = 0;
+    this.hideXm4Layers();
     this.bossAtkT = 0;
     this.bossMinionHp = 0;
     this.bossMinions = [];
@@ -5198,7 +5392,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
     Sound.music('boss', 1200);
     // 등장 연출이 따로 없는 보스(그레고르 등): 나타나자마자 클로즈업 + 등장 대사
     this.containers = [];
-    this.plasmaShells = [];
+    this.clearPlasma();
     const cdi = (def as { cine?: CineDef; entrance?: unknown; basili?: unknown }).cine;
     if (this.boss && cdi?.intro && !(def as { entrance?: unknown }).entrance && !(def as { basili?: unknown }).basili) this.startCine(this.boss, cdi.intro, 0.4);
   }
@@ -5266,9 +5460,13 @@ export class GameScene extends Phaser.Scene implements GameContext {
         const ox = Math.cos(base + Math.PI / 2) * side * b.radius * 1.2;
         const oy = Math.sin(base + Math.PI / 2) * side * b.radius * 1.2;
         const bl = this.eShot(b.id, 'missile');
-        bl.fire(b.x + ox, b.y - b.radius * 0.4 + oy, a, ms.speed, ms.damage, ms.homingDist / ms.speed + 1.5, look ? 1 : 1.8, look);
+        // XM-4: 등 위 미사일 포드에서 (그림 기준 위치), 작은 16방향 미사일
+        const pod = xz && this.xmArt() ? this.xmPoint(b, 'pod', 0) : null;
+        bl.fire(pod ? pod.x : b.x + ox, pod ? pod.y : b.y - b.radius * 0.4 + oy, a, ms.speed, ms.damage, ms.homingDist / ms.speed + 1.5, look ? 1 : 1.8, look);
         bl.homeDist = ms.homingDist;
         bl.homeDelay = (ms as { straight?: number }).straight ?? 0.5;
+        if (xz) bl.turn = Phaser.Math.DegToRad(xz.missileTurn);
+        if (pod && this.textures.exists('fx_boss2_missile')) bl.useDirSheet('fx_boss2_missile', 5);
       }
       Sound.play('enemyshot');
     }
@@ -5497,7 +5695,12 @@ export class GameScene extends Phaser.Scene implements GameContext {
       const n = list.length;
       list.forEach((id, i) => {
         const a = (i / n) * Math.PI * 2;
-        const e = this.spawnEnemy(id as EnemyId, b.x + Math.cos(a) * 40, b.y + Math.sin(a) * 40, this.bossMinionHp);
+        // XM-4: 드론이 등 뒤(droneSpawn, 몸통 겹 아래 깊이)에서 나와 흩어짐
+        const back = def.id === 'boss2' && this.xmArt() ? this.xmBodyTL(b) : null;
+        const sp = boss2Anim.droneSpawn.point;
+        const e = back
+          ? this.spawnEnemy(id as EnemyId, back.x + sp[0] + Math.cos(a) * 10, back.y + sp[1] + Math.sin(a) * 6, this.bossMinionHp)
+          : this.spawnEnemy(id as EnemyId, b.x + Math.cos(a) * 40, b.y + Math.sin(a) * 40, this.bossMinionHp);
         if (refill && e) this.bossMinions.push({ e, id });
         if (e) this.bossSummoned.push(e);
       });

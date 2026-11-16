@@ -225,7 +225,7 @@ export function pickXm4(s: Xm4Sense): { act: Xm4Act; scores: Record<Xm4Act, numb
   // 기관총: 가까이~중간 (언제나 쓸 수 있는 기본기)
   const mg = band(s.d, 0, R.mgMax, R.soft) * ready * (0.8 + 0.2 * finish) * Z.w.mg;
   // 플라즈마 포격: 중간 거리, 멈춰 있거나 대시를 막 썼을 때 (착탄점 예고 뒤 떨어짐)
-  const plasma = band(s.d, R.plasmaMin, R.plasmaMax, R.soft) * ready * (0.6 + 0.4 * opening) * Z.w.plasma;
+  const plasma = band(s.d, s.p2 ? R.plasmaMin : R.plasmaMinP1, R.plasmaMax, R.soft) * ready * (0.6 + 0.4 * opening) * Z.w.plasma;
   // 유도 미사일: 멀거나 도망칠 때
   const missile = ramp(s.d, R.missileMin, R.missileMin + R.soft * 2) * ready * (0.6 + 0.4 * s.fleeing) * Z.w.missile;
   // 점프 낙하: 아주 멀리 벌어졌을 때 거리 좁히기 (도망치거나 멈춰 있으면 더)
@@ -238,6 +238,8 @@ export function pickXm4(s: Xm4Sense): { act: Xm4Act; scores: Record<Xm4Act, numb
   const C = s.p2 ? B.combo.weight2 : B.combo.weight;
   const CR = B.combo.range.xm4 as Record<string, number[]>;
   for (const a of cb as Xm4Act[]) if (CR[a]) scores[a] = clamp01(Math.max(scores[a], band(s.d, CR[a][0], CR[a][1], B.combo.range.soft) * C));
+  // 1페이즈 몸통엔 기관총·미사일 포드가 없음 (콤보로도 못 씀)
+  if (!s.p2) scores.mg = scores.missile = 0;
   let act: Xm4Act = 'walk';
   let best = -1;
   for (const [a, v] of Object.entries(scores) as [Xm4Act, number][]) {

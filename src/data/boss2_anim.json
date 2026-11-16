@@ -1,0 +1,937 @@
+{
+ "note": "XM-4(2챕터 최종). 겹 4장 쌓기: under → legs_back(오른쪽 다리) → body(포탑 상태/방향) → legs_front(왼쪽 다리 3개). 좌표는 모두 픽셀, 원점 좌상단.",
+ "canvas": {
+  "legs": [
+   144,
+   125
+  ],
+  "body": [
+   144,
+   123
+  ],
+  "bodyOffsetInLegsCanvas": "walk.bodyOffset[frame] 만큼 몸통 겹을 다리 캔버스 기준으로 옮겨 그림"
+ },
+ "origin": {
+  "legsCanvas": [
+   74,
+   123
+  ],
+  "note": "발 전체 폭의 가운데, 바닥 줄(다리 캔버스). 게임 위치 = 이 점"
+ },
+ "walk": {
+  "frames": 12,
+  "fps": 5.5,
+  "loop": true,
+  "keys": {
+   "under": "boss2_under_NN",
+   "legsBack": "boss2_legs_back_NN",
+   "legsFront": "boss2_legs_front_NN"
+  },
+  "bodyOffset": [
+   [
+    0,
+    2
+   ],
+   [
+    0,
+    3
+   ],
+   [
+    0,
+    2
+   ],
+   [
+    0,
+    1
+   ],
+   [
+    0,
+    1
+   ],
+   [
+    0,
+    1
+   ],
+   [
+    0,
+    2
+   ],
+   [
+    0,
+    3
+   ],
+   [
+    0,
+    3
+   ],
+   [
+    0,
+    1
+   ],
+   [
+    0,
+    1
+   ],
+   [
+    0,
+    2
+   ]
+  ],
+  "note": "12프레임이 한 걸음 주기(약 2.2초). 몸통은 frame마다 bodyOffset [dx,dy] 만큼 이동해 출렁임"
+ },
+ "bodies": {
+  "closed": "boss2_body_closed",
+  "p1": "boss2_p1_turret_00..15 (포탑 올라온 1페이즈, 방향별)",
+  "p2": "boss2_p2_turret_00..15 (기관총·미사일 포드 달린 2페이즈, 방향별)"
+ },
+ "turretDir": {
+  "count": 16,
+  "step": 22.5,
+  "zero": "포신이 화면 오른쪽",
+  "order": "번호가 오를수록 화면 시계 방향(02=오른쪽 아래, 04=정면/아래, 08=왼쪽, 12=뒤/위)",
+  "pick": "3/4 시점이라 화면에서 세로가 약 0.55배로 눌림. 목표까지 화면 벡터 (dx,dy)면 dir = round(atan2(dy/0.55, dx)/22.5) mod 16"
+ },
+ "anchors": {
+  "coords": "몸통 겹 캔버스(144x123) 좌표. 다리 캔버스에 그릴 땐 bodyOffset 더함",
+  "cannon": "쌍열포 두 포신 끝 [A,B], 발사마다 A,B 번갈아",
+  "mg": "기관총 두 총구 [A,B], 번갈아",
+  "pod": "미사일 발사 지점(null이면 포탑 중심 사용)",
+  "hidden": "*Hidden=true 방향은 섬광/발사체를 몸통 겹보다 아래(legs_back 위)에 그림",
+  "dirs": {
+   "p1": {
+    "00": {
+     "cannon": [
+      [
+       128,
+       37
+      ],
+      [
+       127,
+       42
+      ]
+     ],
+     "cannonHidden": false
+    },
+    "01": {
+     "cannon": [
+      [
+       121,
+       45
+      ],
+      [
+       112,
+       50
+      ]
+     ],
+     "cannonHidden": false
+    },
+    "02": {
+     "cannon": [
+      [
+       108,
+       50
+      ],
+      [
+       97,
+       52
+      ]
+     ],
+     "cannonHidden": false
+    },
+    "03": {
+     "cannon": [
+      [
+       103,
+       51
+      ],
+      [
+       91,
+       52
+      ]
+     ],
+     "cannonHidden": false
+    },
+    "04": {
+     "cannon": [
+      [
+       60,
+       52
+      ],
+      [
+       76,
+       52
+      ]
+     ],
+     "cannonHidden": false
+    },
+    "05": {
+     "cannon": [
+      [
+       42,
+       50
+      ],
+      [
+       56,
+       52
+      ]
+     ],
+     "cannonHidden": false
+    },
+    "06": {
+     "cannon": [
+      [
+       26,
+       48
+      ],
+      [
+       40,
+       50
+      ]
+     ],
+     "cannonHidden": false
+    },
+    "07": {
+     "cannon": [
+      [
+       12,
+       43
+      ],
+      [
+       20,
+       47
+      ]
+     ],
+     "cannonHidden": false
+    },
+    "08": {
+     "cannon": [
+      [
+       11,
+       40
+      ],
+      [
+       15,
+       44
+      ]
+     ],
+     "cannonHidden": false
+    },
+    "09": {
+     "cannon": [
+      [
+       17,
+       32
+      ],
+      [
+       14,
+       35
+      ]
+     ],
+     "cannonHidden": false
+    },
+    "10": {
+     "cannon": [
+      [
+       41,
+       26
+      ],
+      [
+       26,
+       29
+      ]
+     ],
+     "cannonHidden": false
+    },
+    "11": {
+     "cannon": [
+      [
+       37,
+       27
+      ],
+      [
+       40,
+       28
+      ]
+     ],
+     "cannonHidden": true
+    },
+    "12": {
+     "cannon": [
+      [
+       68,
+       24
+      ],
+      [
+       76,
+       24
+      ]
+     ],
+     "cannonHidden": true
+    },
+    "13": {
+     "cannon": [
+      [
+       98,
+       26
+      ],
+      [
+       102,
+       28
+      ]
+     ],
+     "cannonHidden": true
+    },
+    "14": {
+     "cannon": [
+      [
+       102,
+       25
+      ],
+      [
+       115,
+       28
+      ]
+     ],
+     "cannonHidden": false
+    },
+    "15": {
+     "cannon": [
+      [
+       122,
+       30
+      ],
+      [
+       128,
+       36
+      ]
+     ],
+     "cannonHidden": false
+    }
+   },
+   "p2": {
+    "00": {
+     "cannon": [
+      [
+       130,
+       33
+      ],
+      [
+       133,
+       39
+      ]
+     ],
+     "cannonHidden": false,
+     "mg": [
+      [
+       86,
+       14
+      ],
+      [
+       85,
+       17
+      ]
+     ],
+     "pod": [
+      78,
+      23
+     ],
+     "podHidden": false
+    },
+    "01": {
+     "cannon": [
+      [
+       130,
+       41
+      ],
+      [
+       125,
+       45
+      ]
+     ],
+     "cannonHidden": false,
+     "mg": [
+      [
+       82,
+       20
+      ],
+      [
+       84,
+       18
+      ]
+     ],
+     "pod": [
+      95,
+      26
+     ],
+     "podHidden": false
+    },
+    "02": {
+     "cannon": [
+      [
+       108,
+       49
+      ],
+      [
+       96,
+       52
+      ]
+     ],
+     "cannonHidden": false,
+     "mg": [
+      [
+       81,
+       19
+      ],
+      [
+       77,
+       22
+      ]
+     ],
+     "pod": [
+      104,
+      34
+     ],
+     "podHidden": false
+    },
+    "03": {
+     "cannon": [
+      [
+       85,
+       53
+      ],
+      [
+       98,
+       50
+      ]
+     ],
+     "cannonHidden": false,
+     "mg": [
+      [
+       72,
+       20
+      ],
+      [
+       76,
+       18
+      ]
+     ],
+     "pod": [
+      103,
+      35
+     ],
+     "podHidden": false
+    },
+    "04": {
+     "cannon": [
+      [
+       71,
+       53
+      ],
+      [
+       86,
+       51
+      ]
+     ],
+     "cannonHidden": false,
+     "mg": [
+      [
+       67,
+       21
+      ],
+      [
+       71,
+       21
+      ]
+     ],
+     "pod": [
+      106,
+      36
+     ],
+     "podHidden": false
+    },
+    "05": {
+     "cannon": [
+      [
+       52,
+       52
+      ],
+      [
+       68,
+       53
+      ]
+     ],
+     "cannonHidden": false,
+     "mg": [
+      [
+       62,
+       22
+      ],
+      [
+       66,
+       22
+      ]
+     ],
+     "pod": [
+      98,
+      41
+     ],
+     "podHidden": false
+    },
+    "06": {
+     "cannon": [
+      [
+       32,
+       49
+      ],
+      [
+       46,
+       52
+      ]
+     ],
+     "cannonHidden": false,
+     "mg": [
+      [
+       63,
+       19
+      ],
+      [
+       68,
+       21
+      ]
+     ],
+     "pod": [
+      90,
+      35
+     ],
+     "podHidden": false
+    },
+    "07": {
+     "cannon": [
+      [
+       12,
+       44
+      ],
+      [
+       20,
+       47
+      ]
+     ],
+     "cannonHidden": false,
+     "mg": [
+      [
+       56,
+       16
+      ],
+      [
+       57,
+       19
+      ]
+     ],
+     "pod": [
+      78,
+      38
+     ],
+     "podHidden": false
+    },
+    "08": {
+     "cannon": [
+      [
+       8,
+       35
+      ],
+      [
+       8,
+       40
+      ]
+     ],
+     "cannonHidden": false,
+     "mg": [
+      [
+       56,
+       14
+      ],
+      [
+       57,
+       17
+      ]
+     ],
+     "pod": [
+      61,
+      41
+     ],
+     "podHidden": false
+    },
+    "09": {
+     "cannon": [
+      [
+       10,
+       31
+      ],
+      [
+       9,
+       35
+      ]
+     ],
+     "cannonHidden": false,
+     "mg": [
+      [
+       58,
+       15
+      ],
+      [
+       59,
+       18
+      ]
+     ],
+     "pod": [
+      46,
+      39
+     ],
+     "podHidden": false
+    },
+    "10": {
+     "cannon": [
+      [
+       19,
+       29
+      ],
+      [
+       24,
+       31
+      ]
+     ],
+     "cannonHidden": false,
+     "mg": [
+      [
+       61,
+       14
+      ],
+      [
+       63,
+       16
+      ]
+     ],
+     "pod": [
+      37,
+      36
+     ],
+     "podHidden": true
+    },
+    "11": {
+     "cannon": [
+      [
+       36,
+       28
+      ],
+      [
+       38,
+       29
+      ]
+     ],
+     "cannonHidden": true,
+     "mg": [
+      [
+       65,
+       13
+      ],
+      [
+       67,
+       14
+      ]
+     ],
+     "pod": [
+      39,
+      33
+     ],
+     "podHidden": true
+    },
+    "12": {
+     "cannon": [
+      [
+       68,
+       24
+      ],
+      [
+       76,
+       24
+      ]
+     ],
+     "cannonHidden": true,
+     "mg": [
+      [
+       70,
+       13
+      ],
+      [
+       75,
+       13
+      ]
+     ],
+     "pod": [
+      40,
+      35
+     ],
+     "podHidden": true
+    },
+    "13": {
+     "cannon": [
+      [
+       100,
+       26
+      ],
+      [
+       104,
+       28
+      ]
+     ],
+     "cannonHidden": true,
+     "mg": [
+      [
+       77,
+       13
+      ],
+      [
+       80,
+       14
+      ]
+     ],
+     "pod": null,
+     "podHidden": false
+    },
+    "14": {
+     "cannon": [
+      [
+       112,
+       29
+      ],
+      [
+       99,
+       25
+      ]
+     ],
+     "cannonHidden": false,
+     "mg": [
+      [
+       82,
+       14
+      ],
+      [
+       80,
+       16
+      ]
+     ],
+     "pod": [
+      52,
+      26
+     ],
+     "podHidden": true
+    },
+    "15": {
+     "cannon": [
+      [
+       128,
+       33
+      ],
+      [
+       117,
+       29
+      ]
+     ],
+     "cannonHidden": false,
+     "mg": [
+      [
+       88,
+       14
+      ],
+      [
+       87,
+       17
+      ]
+     ],
+     "pod": null,
+     "podHidden": true
+    }
+   }
+  },
+  "byUser": "사용자가 도구로 직접 찍은 값"
+ },
+ "fx": {
+  "fx_boss2_missile": {
+   "cell": [
+    22,
+    22
+   ],
+   "cols": 16,
+   "rows": 3,
+   "origin": [
+    11,
+    11
+   ],
+   "note": "열 = 방향(0=오른쪽, 시계 22.5도), 행 = 불꽃 프레임 0~2 반복"
+  },
+  "fx_boss2_missile_smoke": {
+   "cell": [
+    12,
+    12
+   ],
+   "cols": 6,
+   "origin": [
+    6,
+    6
+   ],
+   "note": "미사일 꼬리에 일정 간격으로 놓고 6프레임 재생 후 제거"
+  },
+  "fx_boss2_missile_hit": {
+   "cell": [
+    32,
+    32
+   ],
+   "cols": 8,
+   "origin": [
+    16,
+    16
+   ],
+   "fps": 20
+  },
+  "fx_boss2_mg_flash": {
+   "cell": [
+    22,
+    22
+   ],
+   "cols": 16,
+   "rows": 3,
+   "origin": [
+    11,
+    11
+   ],
+   "note": "origin을 xm4_anchors.json p2.mg 좌표에 맞춤. 열=포탑 방향, 행=프레임(발사마다 0→1→2) (3/4 시점 각도로 그림)"
+  },
+  "fx_boss2_mg_lit": {
+   "cell": [
+    144,
+    123
+   ],
+   "cols": 16,
+   "rows": 2,
+   "note": "포탑 외곽선 안쪽 1~2px만 옅게 데움. 몸통 겹과 같은 캔버스·위치. 1행=섬광 프레임0~1, 2행=프레임2"
+  },
+  "fx_boss2_cannon_flash": {
+   "cell": [
+    30,
+    30
+   ],
+   "cols": 16,
+   "rows": 3,
+   "origin": [
+    15,
+    15
+   ],
+   "note": "origin을 xm4_anchors.json cannon 좌표에 (3/4 시점 각도로 그림)"
+  },
+  "fx_boss2_plasma_bolt": {
+   "cell": [
+    40,
+    40
+   ],
+   "cols": 16,
+   "rows": 3,
+   "origin": [
+    20,
+    20
+   ],
+   "note": "예고 원이 끝나면 포구→착탄점 직선으로 매우 빠르게(예: 0.15초) 비행. 열=화면 방향(0=오른쪽, 시계 22.5도), 행=프레임 반복"
+  },
+  "fx_boss2_plasma_warn": {
+   "cell": [
+    104,
+    48
+   ],
+   "cols": 8,
+   "origin": [
+    52,
+    24
+   ],
+   "note": "착탄 지점 예고. 반복 재생, 범위 반지름 가로 50 세로 22"
+  },
+  "fx_boss2_plasma_boom": {
+   "cell": [
+    224,
+    200
+   ],
+   "cols": 7,
+   "frames": 52,
+   "fps": 30,
+   "origin": [
+    112,
+    100
+   ],
+   "note": "pixelfx plasma-explosion(MIT)을 청록으로 바꿈. 착탄 지점에 origin"
+  },
+  "fx_boss2_casing": {
+   "cell": [
+    72,
+    124
+   ],
+   "cols": 34,
+   "rows": 3,
+   "fps": 30,
+   "origin": [
+    52,
+    120
+   ],
+   "start": [
+    52,
+    16
+   ],
+   "note": "바실리 탄피와 같은 방식(3가지 변형 행). start를 기관총 쪽(mg2 사이)에 맞추고, 섬광 1번에 탄피 1개. 포탑이 왼쪽을 볼 때(방향 5~11)는 좌우 반전해서 뒤쪽으로 튀게"
+  }
+ },
+ "mgLit": "기관총 섬광 프레임 동안 fx_boss2_mg_lit의 (열=포탑 방향)을 몸통 겹 바로 위에 같은 위치로 덮어 그림. 섬광 0~1프레임=1행(강), 2프레임=2행(약), 섬광 끝나면 제거. 2페이즈 몸통 전용",
+ "droneSpawn": {
+  "point": [
+   51,
+   49
+  ],
+  "canvas": "몸통 겹 좌표(144x123)",
+  "note": "드론은 몸통 겹보다 아래(뒷다리와 같은 깊이)에 그려서 등 뒤에서 나오게. 위쪽 왼편(뒤)으로 빠져나온 뒤 플레이어 쪽으로"
+ },
+ "jump": {
+  "reuse": "fx_boss_stomp",
+  "note": "뚜껑 닫힌 몸통(closed)+다리 그대로 들어 올렸다 내려찍음. 착지에 fx_boss_stomp를 origin에"
+ },
+ "patternsAgreed": {
+  "missile": "작은 유도 미사일. 포드(pod)에서 발사, 꼬리에 fx_boss2_missile_smoke, 명중 시 fx_boss2_missile_hit. 2페이즈 무장",
+  "mg": "기관총 연사, 총구 A/B 번갈아, 발사 1번 = 섬광 3프레임 + 반사광(mgLit) + 탄피 1개(fx_boss2_casing, 변형 3행 번갈아, 포탑이 왼쪽(05~11)을 보면 좌우 반전). 2페이즈 무장",
+  "plasma": "예고 원(fx_boss2_plasma_warn) → 쌍열포 A/B 번갈아 섬광 → 직선으로 매우 빠르게 날아감(fx_boss2_plasma_bolt) → fx_boss2_plasma_boom 광역 폭발",
+  "jump": "뚜껑 닫고 점프 공격",
+  "drone": "4족 드론이 등 뒤(droneSpawn)에서 나옴, 별도 동작 그림 없음",
+  "phase2": "미사일 포드와 기관총 포탑이 2페이즈에서 등장. 2페이즈는 포탑 올린 채(p2 몸통) 이동"
+ },
+ "numbersProposed": {
+  "note": "사용자와 정한 수치 아님(아트 세션 제안)",
+  "plasma": {
+   "warnSec": 0.8,
+   "boltSec": 0.15,
+   "radius": [
+    50,
+    22
+   ],
+   "shots": 2
+  },
+  "mg": {
+   "shotIntervalMs": 120,
+   "burst": 8
+  },
+  "missile": {
+   "count": 4,
+   "speed": 160,
+   "turnRateDegPerSec": 120
+  }
+ },
+ "demoOrder": "데모(기관총 8연발 → 미사일 → 플라즈마 2발)는 보여 주기용 순서이고 게임 패턴 순서가 아님",
+ "missing": {
+  "turretRise": "없음(Flow 영상 대기). 임시: closed → p1 몸통 교체",
+  "phase2Transition": "없음(Flow 영상 대기). 임시: p1 → p2 몸통 교체",
+  "sfx": "후보 3개 있음, 사용자 채택 전이라 미포함"
+ }
+}

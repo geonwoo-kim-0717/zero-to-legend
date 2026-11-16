@@ -64,6 +64,17 @@ const SHEETS: Record<string, [number, number, number, number]> = {
   fx_hook_trail: [48, 9, 3, 3],
   fx_hook_flash: [11, 11, 3, 3],
   fx_hook_hit: [9, 9, 3, 3],
+  // XM-4 (boss2_anim.json fx): 방향 시트는 열 = 16방향, 행 = 프레임
+  fx_boss2_missile: [22, 22, 48, 16],
+  fx_boss2_missile_smoke: [12, 12, 6, 6],
+  fx_boss2_missile_hit: [32, 32, 8, 8],
+  fx_boss2_mg_flash: [22, 22, 48, 16],
+  fx_boss2_mg_lit: [144, 123, 32, 16],
+  fx_boss2_cannon_flash: [30, 30, 48, 16],
+  fx_boss2_plasma_bolt: [40, 40, 48, 16],
+  fx_boss2_plasma_warn: [104, 48, 8, 8],
+  fx_boss2_plasma_boom: [224, 200, 52, 7],
+  fx_boss2_casing: [72, 124, 102, 34],
 };
 
 /** data URI 이미지를 텍스처로 등록 */
