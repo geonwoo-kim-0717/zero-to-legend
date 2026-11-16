@@ -53,7 +53,9 @@ for src,dst in C['frames']:
     # target pixels on this frame's weapon axis: rigid patches never paint over the weapon (it is in front)
     HB=np.zeros((H,W),bool); fidx=str(C['frames'].index([src,dst]))
     for h in C.get('heat',[]):
-        ax=h['axes'].get(fidx)
+        ax=h.get('axes',{}).get(fidx)
+        if ax is None and h.get('track_box'):
+            _,tdx,tdy=align(t,h['track_box'],h.get('track_R',6)); (q0,q1)=h['ref_axis']; ax=[[q0[0]+tdx,q0[1]+tdy],[q1[0]+tdx,q1[1]+tdy]]; h.setdefault('_auto',{})[fidx]=ax
         if ax is None: continue
         (bx0,by0),(bx1,by1)=ax; uu=np.array([bx1-bx0,by1-by0],float); LL=np.linalg.norm(uu); uu/=LL
         yy_,xx_=np.mgrid[0:H,0:W]; vx_,vy_=xx_-bx0,yy_-by0; s__=(vx_*uu[0]+vy_*uu[1])/LL; d__=np.abs(-vx_*uu[1]+vy_*uu[0])
@@ -108,7 +110,7 @@ for src,dst in C['frames']:
                     if any(coat(q) for q in near): f[y,x]=b; done[y,x]=True; nr+=1
         rep['regions'][R_['name']]=dict(offset=(dx,dy),err=round(float(err),1),copied=n,lut=nl,added=nr)
     for h in C.get('heat',[]):
-        ax=h['axes'].get(str(C['frames'].index([src,dst])))
+        ax=h.get('axes',{}).get(str(C['frames'].index([src,dst]))) or h.get('_auto',{}).get(str(C['frames'].index([src,dst])))
         if ax is None: continue
         (ax0,ay0),(ax1,ay1)=h['ref_axis']; A=np.array([ax0,ay0]); T_=np.array([ax1,ay1]); Lr=np.linalg.norm(T_-A); u=(T_-A)/Lr; nn=np.array([-u[1],u[0]])
         bands={}
