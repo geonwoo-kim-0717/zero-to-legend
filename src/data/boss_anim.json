@@ -308,7 +308,12 @@
   },
   "impactFrame": 7,
   "timingNote": "lift 0-5 slow (hold 4-5), 6 fast, 7 impact: shockwave + screen shake + squash, 8-11 settle",
-  "source": "video (Scenario): circled slam-video frame -> user stomp image, pixelated on the walk scale; dust removed"
+  "source": "video (Scenario): circled slam-video frame -> user stomp image, pixelated on the walk scale; dust removed",
+  "footImpact": [
+   77,
+   95
+  ],
+  "footNote": "floor point under the stomping (front) foot in stomp frames 07-11; put the stomp FX origin here"
  },
  "phase": {
   "frames": 13,
@@ -456,18 +461,18 @@
    "note": "halo behind/around the flash, centred on the muzzle; normal or ADD blend, same timing as the flash"
   },
   "fx_boss_stomp": {
-   "frameW": 180,
-   "frameH": 143,
+   "frameW": 208,
+   "frameH": 172,
    "frames": 37,
-   "fps": 15,
-   "origin": [
-    90,
-    100
-   ],
-   "note": "origin = floor point under the stomping foot; start on stomp.impactFrame (7); flash + crescent shock waves + dust cloud + rocks. Source: pixelfx impacts/ground-slam (MIT), see src/assets/FX_CREDITS.md",
    "cols": 8,
    "rows": 5,
-   "layout": "grid 8 columns, left to right then top to bottom (repacked by main for the 4096 px texture limit)"
+   "fps": 15,
+   "origin": [
+    103,
+    129
+   ],
+   "layout": "grid 8 columns, left to right then top to bottom",
+   "note": "phase 1. Dimmer palette (user: lower the brightness). Draw 1:1 (do not apply boss scale); origin on stomp.footImpact; start on stomp.impactFrame (7). Source pixelfx impacts/ground-slam (MIT)."
   },
   "fx_boss_casing": {
    "frameW": 35,
@@ -484,6 +489,26 @@
     60
    ],
    "note": "one casing per shot; row = variation (pick at random). Put \"start\" on gatling.port (the casing leaves the ejection port there); origin is the floor point below it. Flip X when facing left. Same for phase 1 and 2. Source: tools/art/pixelfx/basili-casing.js (pixelfx, MIT)"
+  },
+  "fx_boss_stomp_p2": {
+   "frameW": 116,
+   "frameH": 99,
+   "frames": 37,
+   "cols": 8,
+   "rows": 5,
+   "fps": 15,
+   "origin": [
+    55,
+    75
+   ],
+   "layout": "grid 8 columns",
+   "width": 120,
+   "copies": 2,
+   "offsetsX": [
+    -50,
+    50
+   ],
+   "note": "phase 2: the same dim effect at 120 px wide, two copies 100 px apart, centred on stomp.footImpact (x-50 and x+50), both starting on frame 7. Draw 1:1."
   }
  },
  "p2_gatling": {
@@ -632,5 +657,28 @@
    "flashHoldMs": 50,
    "casingFps": 30
   }
+ },
+ "call": {
+  "frames": 13,
+  "w": 104,
+  "h": 106,
+  "originX": 0.433,
+  "originY": 1,
+  "phases": {
+   "raise": [
+    0,
+    3
+   ],
+   "circle": [
+    4,
+    9
+   ],
+   "lower": [
+    10,
+    12
+   ]
+  },
+  "guardSpawnFrame": 9,
+  "note": "index finger up, two small circles, arm down; guards appear on frame 9 (end of the circles)"
  }
 }

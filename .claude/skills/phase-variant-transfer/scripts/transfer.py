@@ -50,6 +50,14 @@ for src,dst in C['frames']:
     def teal_c(a):
         r,g,b=a[...,0],a[...,1],a[...,2]; m=(a[...,3]>0)&(g>r+60)&(b>r+60)&(g>150)
         ys,xs=np.where(m); return (xs.mean(),ys.mean()) if len(xs)>=6 else None
+    # target pixels on this frame's weapon axis: rigid patches never paint over the weapon (it is in front)
+    HB=np.zeros((H,W),bool); fidx=str(C['frames'].index([src,dst]))
+    for h in C.get('heat',[]):
+        ax=h['axes'].get(fidx)
+        if ax is None: continue
+        (bx0,by0),(bx1,by1)=ax; uu=np.array([bx1-bx0,by1-by0],float); LL=np.linalg.norm(uu); uu/=LL
+        yy_,xx_=np.mgrid[0:H,0:W]; vx_,vy_=xx_-bx0,yy_-by0; s__=(vx_*uu[0]+vy_*uu[1])/LL; d__=np.abs(-vx_*uu[1]+vy_*uu[0])
+        HB|=(s__>=-0.6)&(s__<=1.15)&(d__<=h.get('guard',h['width']+1))
     for R_ in C['regions']:
         box=R_['box']
         if R_.get('mode')=='patch':
@@ -66,6 +74,7 @@ for src,dst in C['frames']:
                     a,b=r1[Y,X],r2[Y,X]; x,y=X+dx,Y+dy
                     if np.array_equal(a,b) or b[3]==0 or not(0<=x<W and 0<=y<H) or done[y,x]: continue
                     c=t[y,x]
+                    if R_.get('avoid_heat',True) and HB[y,x]: continue
                     if c[3]>0 and not is_out(c): f[y,x]=b; done[y,x]=True; n+=1
             rep['regions'][R_['name']]=dict(offset=(dx,dy),patch=n); continue
         err,dx,dy=align(t,box,R_.get('R',4))
