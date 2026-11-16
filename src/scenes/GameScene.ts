@@ -1261,6 +1261,13 @@ export class GameScene extends Phaser.Scene implements GameContext {
           this.pendingLevels++;
         },
       ],
+      // 일반 몹 제거: 보스와 보스 소환 부하를 뺀 적을 보상 없이 치움
+      [
+        () => '일반몹 제거',
+        () => {
+          for (const e of this.enemyPool.items) if (e.active && !e.isBoss && !this.bossSummoned.includes(e) && !this.basiliGuards.includes(e)) e.kill();
+        },
+      ],
     ]);
     // 보스 소환: 그 보스의 구역으로 바꾸고 (있던 보스는 보상 없이 치움) 바로 소환
     const SHORT: Record<string, string> = { midboss: '코박', boss: '바실리', midboss2: '그레고르', boss2: 'XM-4', midboss3: '노라', boss3: '센서스' };
