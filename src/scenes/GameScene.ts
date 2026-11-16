@@ -14,7 +14,7 @@ import { EnemyBullet } from '../entities/EnemyBullet';
 import { Pool } from '../systems/Pool';
 import { SpatialGrid } from '../systems/SpatialGrid';
 import { Spawner, hpScaleAt } from '../systems/Spawner';
-import { pickBoss, pickBasili, pickGregor, type BossAct, type BasiliAct, type GregorAct } from '../systems/BossBrain';
+import { pickBoss, pickBasili, pickGregor, pickXm4, type BossAct, type BasiliAct, type GregorAct, type Xm4Act } from '../systems/BossBrain';
 import { InputController } from '../systems/InputController';
 import { createWeapon, type WeaponBase, type WeaponId } from '../weapons';
 import type { GameContext, Stats, DamageTag, FxOpts } from '../weapons/types';
@@ -54,7 +54,7 @@ const ZONES = zonesData.zones;
 const ZR = gameData.zoneRules;
 /** 왼쪽 위 체력바 폭 */
 const HP_W = 120;
-type BossPhase = 'walk' | 'aim' | 'charge' | 'leap' | 'air' | 'slam' | 'enter' | 'taunt' | 'hookAim' | 'hookFly' | 'hookPull' | 'hookGap' | 'hookBack' | 'walkIn' | 'phaseShift' | 'gatling' | 'call' | 'stomp' | 'stompRec' | 'drop' | 'sweepAim' | 'sweep';
+type BossPhase = 'walk' | 'aim' | 'charge' | 'leap' | 'air' | 'slam' | 'enter' | 'taunt' | 'hookAim' | 'hookFly' | 'hookPull' | 'hookGap' | 'hookBack' | 'walkIn' | 'phaseShift' | 'gatling' | 'call' | 'stomp' | 'stompRec' | 'drop' | 'sweepAim' | 'sweep' | 'mgAim' | 'mg' | 'plasma' | 'missileFire';
 /** 블랙 실드 요원 공격 그림·이펙트 (아트 tools/art/sprites2026/scripts/troopers6/keys/atk_meta.json) */
 const TROOPER_ATK = {
   tank: { ms: [90, 110, 140, 70, 90, 120, 110, 100], size: [54, 48], fxStart: 4, anchor: [47, 27], fx: 'fx_shield_bash', fxN: 8, fxSize: [64, 40], pivot: [32, 18] },
@@ -91,8 +91,16 @@ type BasiliDef = {
   anim: { walkFps: number; ready: number; windupFps: number; fireFps: number; flashTime: number; kickTime: number; stompRecover: number; footY: number; recoil: number; shadow: { w: number; h: number; alpha: number }; flash: { size: number; color: string }; reflect: { color: string; alpha: number }; squash: number };
 };
 /** 바실리 동작 중 조준 그림(_aim)을 쓰는 단계 (새 그림이 오기 전 임시) */
-const BASILI_AIM = new Set(['gatling', 'call', 'stomp', 'stompRec', 'phaseShift', 'drop', 'sweepAim', 'sweep']);
+const BASILI_AIM = new Set(['gatling', 'call', 'stomp', 'stompRec', 'phaseShift', 'drop', 'sweepAim', 'sweep', 'mgAim', 'mg', 'plasma', 'missileFire']);
 /** 그레고르 패턴 (game.json bosses[].gregor) */
+/** XM-4 패턴 (game.json bosses[].xm4) */
+type Xm4Def = {
+  turn: number;
+  mg: { aim: number; time: number; rate: number; fan: number; speed: number; damage: number; life: number; barrelGap: number };
+  plasma: { shots: number; warn: number; fly: number; gap: number; radius: number; damage: number; spreadNext: number };
+  missileTime: number;
+  p2: { mgRate: number; plasmaShots: number; plasmaWarn: number; missileCount: number };
+};
 type GregorDef = { drop: { count: number; countRage: number; spread: number; warn: number; radius: number; damage: number; height: number; stagger: number }; sweep: { angle: number; range: number; aim: number; swing: number; damage: number; knock: number } };
 /** 보스 클로즈업 연출 (game.json bosses[].cine): 등장·2페이즈 대사(문구 키), 확대 배율, 대사 한 줄 시간, 말풍선 높이 */
 type CineDef = { intro?: string[]; p2?: string[]; zoom: number; lineTime: number; lift: number; standFrame?: number };
@@ -607,6 +615,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
     this.hookTrail = null;
     this.bossDbg = null;
     this.containers = [];
+    this.plasmaShells = [];
     this.basiliGlow = null;
     this.basiliCore = null;
     this.basiliShadow = null;
@@ -2150,6 +2159,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
       this.basiliHalo?.setVisible(false);
       this.stompRings = [];
       this.containers = [];
+    this.plasmaShells = [];
       this.bossDef = null;
       e.kill();
       const color = def.final ? 0xff2a3a : COLORS.orange;
@@ -3142,7 +3152,10 @@ export class GameScene extends Phaser.Scene implements GameContext {
     // 예고 떨림: 돌진 조준, 발구르기 발 들기, 2페이즈 전환 (전환은 더 세게)
     const shakeAmp = ph === 'phaseShift' ? 4 : ph === 'aim' || ph === 'stomp' ? 2 : 0;
     const jitter = shakeAmp && !Settings.reducedFx ? (Math.random() - 0.5) * shakeAmp : 0;
-    b.sprite.setPosition(b.x + jitter, b.y + bob);
+    // 점프 낙하(그림 없는 보스): 공중에서 포물선으로 뜸
+    const slD = (def as { slam?: SlamDef }).slam;
+    const lift = ph === 'air' && slD ? Math.sin(Phaser.Math.Clamp(1 - this.bossTimer / slD.air, 0, 1) * Math.PI) * slD.height : 0;
+    b.sprite.setPosition(b.x + jitter, b.y + bob - lift);
     if (!core) b.sprite.setFlipX(ph === 'charge' ? this.bossDir.x < 0 : ph === 'gatling' ? Math.cos(this.gatAim) < 0 : this.player.x < b.x);
   }
 
@@ -3863,8 +3876,18 @@ export class GameScene extends Phaser.Scene implements GameContext {
   private comboTable(def: BossDef | null): Record<string, string[]> {
     const CB = gameData.bossBrain.combo as unknown as Record<string, Record<string, string[]>>;
     const brain = (def as { brain?: unknown } | null)?.brain;
-    return CB[brain === 'basili' ? 'basili' : brain === 'gregor' ? 'gregor' : 'kovac'] ?? {};
+    return CB[brain === 'basili' || brain === 'gregor' || brain === 'xm4' ? brain : 'kovac'] ?? {};
   }
+
+  /** XM-4 포탑 방향(라디안), 기관총 발사 수·번갈아 쓰는 포신, 플라즈마 남은 발·다음 발까지, 지난 공격 */
+  private xmAim = 0;
+  private xmMgAcc = 0;
+  private xmBarrel = 0;
+  private xmPlasmaLeft = 0;
+  private xmPlasmaNext = 0;
+  private xmLast: Xm4Act = 'walk';
+  /** XM-4 플라즈마 탄: 착탄점, 예고 남은 시간, 날아가는 중(포구에서 출발점), 터졌는지 */
+  private plasmaShells: { x: number; y: number; t: number; fx: number; fy: number; fly: number; hit: boolean }[] = [];
 
   /** 그레고르 컨테이너: 떨어질 자리, 남은 시간, 이미 떨어졌는지 */
   private containers: { x: number; y: number; t: number; hit: boolean }[] = [];
@@ -3897,6 +3920,177 @@ export class GameScene extends Phaser.Scene implements GameContext {
       }
     }
     this.containers = this.containers.filter((c) => c.t > -0.05 || !c.hit);
+  }
+
+  /** XM-4 포탑 위치와 포구 (임시: 몸 위쪽 가운데. 그림이 오면 xm4_anchors.json 기준으로 바꿈). side: -1/1 왼쪽·오른쪽 포신 */
+  private xmMuzzle(b: Enemy, side: number, gap: number): { x: number; y: number } {
+    const tx = b.x;
+    const ty = b.y - b.radius * 0.7;
+    const c = Math.cos(this.xmAim);
+    const sn = Math.sin(this.xmAim);
+    return { x: tx + c * b.radius * 0.9 - sn * side * gap * 0.5, y: ty + sn * b.radius * 0.6 + c * side * gap * 0.5 };
+  }
+
+  /** XM-4 플라즈마 탄: 예고 원(차오름) → 포구에서 직선으로 아주 빠르게 → 착탄 폭발 */
+  private updatePlasma(b: Enemy, xz: Xm4Def, dt: number): void {
+    const P = xz.plasma;
+    const p = this.player;
+    for (const s of this.plasmaShells) {
+      s.t -= dt;
+      if (s.t > 0) {
+        const warn = this.bossPhase2 ? xz.p2.plasmaWarn : P.warn;
+        const k = Phaser.Math.Clamp(1 - s.t / warn, 0, 1);
+        this.fx.lineStyle(1.5, 0x40f0ff, MARK_A * (0.5 + 0.4 * Math.sin(this.elapsed * 30))).strokeEllipse(s.x, s.y, P.radius * 2, P.radius * 1.2);
+        this.fx.fillStyle(0x40f0ff, MARK_A * 0.25 * k).fillEllipse(s.x, s.y, P.radius * 2 * k, P.radius * 1.2 * k);
+      } else if (s.t > -P.fly) {
+        // 날아가는 중: 길게 늘어진 플라즈마 (임시 도형)
+        const k = Phaser.Math.Clamp(-s.t / P.fly, 0, 1);
+        const x = Phaser.Math.Linear(s.fx, s.x, k);
+        const y = Phaser.Math.Linear(s.fy, s.y, k);
+        const bx = Phaser.Math.Linear(s.fx, s.x, Math.max(0, k - 0.35));
+        const by = Phaser.Math.Linear(s.fy, s.y, Math.max(0, k - 0.35));
+        this.fx.lineStyle(6, 0x40f0ff, 0.5).lineBetween(bx, by, x, y);
+        this.fx.lineStyle(2, 0xe0ffff, 1).lineBetween(bx, by, x, y);
+      } else if (!s.hit) {
+        s.hit = true;
+        const nx = (p.x - s.x) / P.radius;
+        const ny = (p.y - s.y) / (P.radius * 0.6);
+        if (p.invuln <= 0 && nx * nx + ny * ny <= 1) this.hurtPlayer(P.damage, { kind: 'blast', id: b.id });
+        this.burst(s.x, s.y, 0x40f0ff, 16);
+        const ring = this.add.ellipse(s.x, s.y, P.radius * 2, P.radius * 1.2).setStrokeStyle(3, 0x40f0ff, 0.9).setDepth(11);
+        ring.setScale(0.3);
+        this.tweens.add({ targets: ring, scale: 1.2, alpha: 0, duration: 300, ease: 'Quad.easeOut', onComplete: () => ring.destroy() });
+        this.shake(120, 0.008);
+        Sound.play('explode');
+      }
+    }
+    this.plasmaShells = this.plasmaShells.filter((s) => !s.hit);
+  }
+
+  /** XM-4 전용 단계: 걷기 판단·기관총·플라즈마 포격·미사일. 점프 낙하(leap·air·slam)는 false로 공통 코드에 맡김 */
+  private updateXm4(b: Enemy, def: BossDef, xz: Xm4Def, dt: number, dx: number, dy: number, d: number): boolean {
+    const ph = this.bossPhase;
+    const p = this.player;
+    const p2 = this.bossPhase2;
+    const slow = this.overdrive ? OD.enemySpeedMul : 1;
+    const toWalk = () => {
+      this.bossPhase = 'walk';
+      this.bossTimer = def.walkTime;
+    };
+    // 포탑: 늘 플레이어 쪽으로 천천히 돈다 (기관총 사격 중에도)
+    this.xmAim = Phaser.Math.Angle.RotateTo(this.xmAim, Math.atan2(dy, dx), Phaser.Math.DegToRad(xz.turn) * dt);
+    // 임시 포탑 표시: 포신 방향 선 (그림이 오면 포탑 16방향 그림으로)
+    const m0 = this.xmMuzzle(b, 0, 0);
+    this.fx.lineStyle(4, 0x2a2f38, 1).lineBetween(b.x, b.y - b.radius * 0.7, m0.x, m0.y);
+    this.fx.lineStyle(1.5, 0xff8a1f, 0.9).lineBetween(b.x, b.y - b.radius * 0.7, m0.x, m0.y);
+    if (ph === 'walk') {
+      b.x += (dx / d) * b.speed * slow * dt;
+      b.y += (dy / d) * b.speed * slow * dt;
+      if ((this.bossThinkT -= dt) <= 0) {
+        this.bossThinkT = gameData.bossBrain.think;
+        this.bossSummoned = this.bossSummoned.filter((e) => e.active && e.id === def.summon);
+        const { act, scores } = pickXm4({
+          d,
+          playerHp: Math.max(0, p.hp) / p.maxHp,
+          moving: Phaser.Math.Clamp(Math.hypot(this.bossPVel.x, this.bossPVel.y) / PLAYER.speed, 0, 1),
+          fleeing: Phaser.Math.Clamp((this.bossPVel.x * dx + this.bossPVel.y * dy) / d / PLAYER.speed, 0, 1),
+          dashSpent: p.dashCd > 0,
+          sinceAttack: this.elapsed - this.bossLastAttack,
+          sinceSummon: this.elapsed - this.bossLastSummon,
+          minions: Phaser.Math.Clamp(this.bossSummoned.length / Math.max(1, def.summonCount), 0, 1),
+          p2,
+          last: this.xmLast,
+          current: this.bossAct as Xm4Act,
+          combo: this.comboNow(),
+        });
+        this.bossScores = scores as Partial<Record<BossAct, number>>;
+        if (act === 'summon') {
+          this.bossLastSummon = this.elapsed;
+          this.bossSummon = 0;
+        } else if (act !== 'walk') {
+          if (this.comboNow().includes(act)) this.comboChained = true;
+          this.comboFrom = '';
+          this.bossLastAttack = this.elapsed;
+          this.bossLastKind = act;
+          this.xmLast = act;
+          this.bossDir = { x: dx / d, y: dy / d };
+          if (act === 'mg') {
+            this.bossPhase = 'mgAim';
+            this.bossTimer = xz.mg.aim;
+            Sound.play('lungewarn');
+          } else if (act === 'plasma') {
+            this.bossPhase = 'plasma';
+            this.xmPlasmaLeft = p2 ? xz.p2.plasmaShots : xz.plasma.shots;
+            this.xmPlasmaNext = 0;
+            this.bossTimer = 99;
+          } else if (act === 'missile') {
+            // 공통 미사일 발사 코드에 맡김 (이번 프레임에 발사)
+            this.bossMissile = 0;
+            this.bossPhase = 'missileFire';
+            this.bossTimer = xz.missileTime;
+          } else if (act === 'jump') {
+            const sl = (def as { slam?: SlamDef }).slam!;
+            this.bossPhase = 'leap';
+            this.bossTimer = sl.leap;
+            this.bossFrom = { x: b.x, y: b.y };
+            this.bossTo = { x: (this.untracked ? this.decoy : p).x, y: (this.untracked ? this.decoy : p).y };
+          }
+        }
+      }
+      return true;
+    }
+    if (ph === 'mgAim') {
+      const m = this.xmMuzzle(b, 0, 0);
+      this.fx.lineStyle(1.5, 0xff2a3a, MARK_A * (0.4 + Math.sin(this.elapsed * 40) * 0.3)).lineBetween(m.x, m.y, m.x + Math.cos(this.xmAim) * 260, m.y + Math.sin(this.xmAim) * 260);
+      if (this.bossTimer <= 0) {
+        this.bossPhase = 'mg';
+        this.bossTimer = xz.mg.time;
+        this.xmMgAcc = 0;
+      }
+      return true;
+    }
+    if (ph === 'mg') {
+      const M = xz.mg;
+      const rate = p2 ? xz.p2.mgRate : M.rate;
+      const due = Math.floor((M.time - this.bossTimer) * rate) + 1;
+      while (this.xmMgAcc < due) {
+        this.xmMgAcc++;
+        // 좌우 포신 번갈아, 부채꼴로 흔들며
+        this.xmBarrel = 1 - this.xmBarrel;
+        const mz = this.xmMuzzle(b, this.xmBarrel ? 1 : -1, M.barrelGap);
+        const a = this.xmAim + Math.sin(this.elapsed * 11) * Phaser.Math.DegToRad(M.fan / 2) + (Math.random() - 0.5) * 0.05;
+        this.eShot(b.id).fire(mz.x, mz.y, a, M.speed, M.damage, M.life);
+        this.fx.fillStyle(0xfff23a, 0.9).fillCircle(mz.x, mz.y, 3);
+        if (Math.random() < 0.5) Sound.play('enemyshot');
+      }
+      if (this.bossTimer <= 0) toWalk();
+      return true;
+    }
+    if (ph === 'plasma') {
+      const P = xz.plasma;
+      if ((this.xmPlasmaNext -= dt) <= 0 && this.xmPlasmaLeft > 0) {
+        // 착탄점: 첫 발은 플레이어 자리, 다음 발은 플레이어가 움직이는 쪽으로 조금 앞
+        const n = (p2 ? xz.p2.plasmaShots : P.shots) - this.xmPlasmaLeft;
+        const v = Math.hypot(this.bossPVel.x, this.bossPVel.y) || 1;
+        const lead = n > 0 ? P.spreadNext : 0;
+        const tgx = p.x + (this.bossPVel.x / v) * lead * Math.min(1, v / PLAYER.speed);
+        const tgy = p.y + (this.bossPVel.y / v) * lead * Math.min(1, v / PLAYER.speed);
+        this.xmBarrel = 1 - this.xmBarrel;
+        const mz = this.xmMuzzle(b, this.xmBarrel ? 1 : -1, 10);
+        this.plasmaShells.push({ x: tgx, y: tgy, t: p2 ? xz.p2.plasmaWarn : P.warn, fx: mz.x, fy: mz.y, fly: P.fly, hit: false });
+        this.xmPlasmaLeft--;
+        this.xmPlasmaNext = P.gap;
+        Sound.play('lungewarn');
+      }
+      // 마지막 발을 쏜 뒤 (예고가 끝날 때까지 기다리지 않고) 잠깐 뒤 걷기
+      if (this.xmPlasmaLeft <= 0 && this.xmPlasmaNext <= 0) toWalk();
+      return true;
+    }
+    if (ph === 'missileFire') {
+      if (this.bossTimer <= 0) toWalk();
+      return true;
+    }
+    return false;
   }
 
   /** 그레고르 전용 단계: 걷기 판단·컨테이너 낙하·팔 훑기. 조준·돌진은 false로 공통 코드에 맡김 */
@@ -4969,6 +5163,8 @@ export class GameScene extends Phaser.Scene implements GameContext {
     this.bossPPrev = { x: p.x, y: p.y };
     this.bossShieldT = 0;
     this.bossMissile = 2;
+    this.xmLast = 'walk';
+    this.xmPlasmaLeft = 0;
     this.bossAtkT = 0;
     this.bossMinionHp = 0;
     this.bossMinions = [];
@@ -5002,6 +5198,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
     Sound.music('boss', 1200);
     // 등장 연출이 따로 없는 보스(그레고르 등): 나타나자마자 클로즈업 + 등장 대사
     this.containers = [];
+    this.plasmaShells = [];
     const cdi = (def as { cine?: CineDef; entrance?: unknown; basili?: unknown }).cine;
     if (this.boss && cdi?.intro && !(def as { entrance?: unknown }).entrance && !(def as { basili?: unknown }).basili) this.startCine(this.boss, cdi.intro, 0.4);
   }
@@ -5051,12 +5248,15 @@ export class GameScene extends Phaser.Scene implements GameContext {
     }
     // 헥사워드: 플레이어를 일정 거리만큼 쫓아가는 유도 미사일
     const ms = (def as { missile?: { every: number; count?: number; spread?: number; speed: number; damage: number; homingDist: number } }).missile;
+    const xz = (def as { xm4?: Xm4Def }).xm4;
+    // XM-4: 점수 AI가 미사일을 고른 프레임(bossMissile = 0)에만 발사
+    if (xz && this.bossMissile !== 0) this.bossMissile = 1e9;
     if (ms && (this.bossMissile -= dt) <= 0) {
       this.bossMissile = ms.every;
       this.bossPulse(b);
       // 발사 순간 공격 모션(어깨 미사일 포드가 열린 프레임)을 잠깐 보여준다
       this.bossAtkT = 0.45;
-      const n = ms.count ?? 1;
+      const n = xz && this.bossPhase2 ? xz.p2.missileCount : (ms.count ?? 1);
       const base = Math.atan2(tg.y - b.y, tg.x - b.x);
       const look = this.textures.exists('boss_missile') ? 'boss_missile' : undefined;
       for (let i = 0; i < n; i++) {
@@ -5095,10 +5295,13 @@ export class GameScene extends Phaser.Scene implements GameContext {
     if (bz) this.updateBasiliAlways(b, bz, dt);
     const gz = (def as { gregor?: GregorDef }).gregor;
     if (gz) this.updateContainers(b, gz, dt);
+    if (xz) this.updatePlasma(b, xz, dt);
     if (bz && this.updateBasili(b, def, bz, dt, dx, dy, d, tg, p2)) {
       // 바실리 전용 단계 처리됨 (조준·돌진은 아래 공통 코드)
     } else if (gz && this.updateGregor(b, def, gz, dt, dx, dy, d, rage)) {
       // 그레고르 전용 단계 처리됨 (조준·돌진은 아래 공통 코드)
+    } else if (xz && this.updateXm4(b, def, xz, dt, dx, dy, d)) {
+      // XM-4 전용 단계 처리됨 (점프 낙하는 아래 공통 코드)
     } else if (ent && (this.bossPhase === 'enter' || this.bossPhase === 'taunt')) {
       if (this.bossPhase === 'enter') {
         b.x = this.bossTo.x;

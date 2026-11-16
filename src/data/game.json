@@ -215,6 +215,7 @@
       "time": 600,
       "final": true,
       "title": "블랙 실드 전투 메크 XM-4 스웜하운드",
+      "brain": "xm4",
       "chargeSpeed": 300,
       "summon": "sec_bot",
       "summonCount": 5,
@@ -225,22 +226,13 @@
       "aimTime": 0.9,
       "chargeTime": 0.6,
       "firstSummon": 5,
-      "phase2": {
-        "at": 0.5,
-        "chargeCount": 3,
-        "aimTime": 0.45,
-        "chargeTime": 0.55,
-        "chargeSpeed": 360,
-        "volleyEvery": 2.2,
-        "volleyCount": 18,
-        "bulletSpeed": 125,
-        "bulletDamage": 14
-      },
+      "phase2": { "note": "XM-4 2페이즈: 체력 at 아래. 공격 준비가 maxGap2초에 다 참, 콤보 weight2, xm4.p2 배율", "at": 0.5 },
       "arena": {
         "w": 560,
         "h": 300
       },
       "missile": {
+        "note": "XM-4는 점수 AI가 미사일을 고를 때만 발사(every 무시). 2페이즈 발 수는 xm4.p2.missileCount",
         "every": 4,
         "speed": 100,
         "damage": 10,
@@ -248,6 +240,31 @@
         "count": 4,
         "spread": 0.7,
         "straight": 0.5
+      },
+      "slam": {
+        "note": "XM-4 점프 낙하: 웅크림 leap초 → 공중 air초(높이 height) → 착지 피해(가로 radius, 세로 0.6배) + knock px 밀어냄 → recover초. 착지점은 뛰는 순간 플레이어 자리(바닥 표시). 프레임 값은 그림이 오면 채움",
+        "minDist": 0,
+        "leap": 0.5,
+        "air": 0.8,
+        "airSwing": 0.2,
+        "recover": 0.6,
+        "height": 90,
+        "radius": 95,
+        "damage": 28,
+        "knock": 44,
+        "leapFrames": [0, 0],
+        "airFrames": [0, 0],
+        "airRise": 0.3,
+        "swingFrames": [0, 0],
+        "landFrames": [0, 0]
+      },
+      "xm4": {
+        "note": "XM-4 패턴(임시 수치, 그림 오면 조정). 포탑은 늘 플레이어 쪽으로 turn도/초 회전. mg 기관총: aim초 예고선 → time초 동안 초당 rate발(좌우 포신 번갈아, 부채꼴 fan도), 탄 speed·damage·life. plasma 플라즈마 포격: 발마다 착탄점(그때 플레이어 자리)에 예고 원 warn초 → 포구에서 직선으로 fly초 만에 날아가 반경 radius 폭발(피해 damage), 발 사이 gap초. 2페이즈(p2)는 배율·발 수 교체",
+        "turn": 120,
+        "mg": { "aim": 0.5, "time": 1.6, "rate": 9, "fan": 24, "speed": 230, "damage": 6, "life": 2.2, "barrelGap": 7 },
+        "plasma": { "shots": 2, "warn": 0.9, "fly": 0.15, "gap": 0.35, "radius": 46, "damage": 22, "spreadNext": 40 },
+        "missileTime": 0.6,
+        "p2": { "mgRate": 13, "plasmaShots": 3, "plasmaWarn": 0.7, "missileCount": 6 }
       }
     },
     {
@@ -670,10 +687,11 @@
       "weight": 0.6,
       "weight2": 0.9,
       "walk": 0.5,
-      "range": { "soft": 30, "kovac": { "charge": [0, 190], "slam": [190, 2000], "hook": [80, 260] }, "basili": { "stomp": [0, 160], "gatling": [60, 400] }, "gregor": { "drop": [0, 2000], "sweep": [0, 150] } },
+      "range": { "soft": 30, "kovac": { "charge": [0, 190], "slam": [190, 2000], "hook": [80, 260] }, "basili": { "stomp": [0, 160], "gatling": [60, 400] }, "gregor": { "drop": [0, 2000], "sweep": [0, 150] }, "xm4": { "mg": [0, 200], "plasma": [0, 2000] } },
       "kovac": { "hookMiss": ["charge", "slam"], "slam": ["hook"] },
       "basili": { "charge": ["stomp"], "stomp": ["gatling"] },
-      "gregor": { "sweepMiss": ["drop"], "charge": ["sweep"] }
+      "gregor": { "sweepMiss": ["drop"], "charge": ["sweep"] },
+      "xm4": { "jump": ["mg"], "mg": ["plasma"] }
     },
     "range": { "chargeMax": 130, "hookMin": 110, "hookMax": 220, "slamMin": 190, "soft": 40 },
     "summonMin": 6,
@@ -685,6 +703,12 @@
       "note": "그레고르 점수 AI: 팔 훑기 0~sweepMax, 무한궤도 돌진 chargeMin~chargeMax, 컨테이너 낙하 dropMin부터(soft만큼 부드럽게). 부하 소환은 코박과 같은 규칙(summonMin~summonMax)",
       "range": { "sweepMax": 120, "chargeMin": 110, "chargeMax": 240, "dropMin": 180, "soft": 40 },
       "w": { "sweep": 0.95, "charge": 0.9, "drop": 0.9, "summon": 0.8 }
+    },
+    "xm4": {
+      "note": "XM-4 점수 AI(전투장 가로 560px 기준): 기관총 0~mgMax, 플라즈마 plasmaMin~plasmaMax, 미사일 missileMin부터, 점프 낙하 jumpMin부터(soft만큼 부드럽게). 소환은 코박과 같은 규칙. repeat: 방금 쓴 공격 점수 배율",
+      "range": { "mgMax": 150, "plasmaMin": 90, "plasmaMax": 210, "missileMin": 160, "jumpMin": 200, "soft": 40 },
+      "w": { "mg": 0.95, "plasma": 0.9, "missile": 0.9, "jump": 0.9, "summon": 0.8 },
+      "repeat": 0.7
     },
     "basili": {
       "note": "바실리 점수 AI: 개틀링 gatlingMin~gatlingMax, 박치기 0~chargeMax, 발구르기 0~stompMax(soft만큼 부드럽게). 호출은 호위가 모두 죽었을 때 지난 호출 뒤 callMin~callMax초. repeat: 방금 쓴 공격 점수 배율(같은 공격 연속 억제)",

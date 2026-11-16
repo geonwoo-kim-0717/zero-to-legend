@@ -194,3 +194,58 @@ export function pickGregor(s: GregorSense): { act: GregorAct; scores: Record<Gre
   }
   return { act, scores };
 }
+
+// ─── XM-4 스웜하운드(2챕터 최종 보스) ───
+export type Xm4Act = 'walk' | 'mg' | 'missile' | 'plasma' | 'jump' | 'summon';
+
+export interface Xm4Sense {
+  d: number;
+  playerHp: number;
+  moving: number;
+  fleeing: number;
+  dashSpent: boolean;
+  sinceAttack: number;
+  sinceSummon: number;
+  /** 살아 있는 부하 비율 0~1 */
+  minions: number;
+  /** 2페이즈인지 (공격 준비가 maxGap2초에 다 참, 콤보 가중치 weight2) */
+  p2: boolean;
+  /** 지난번에 쓴 공격 (같은 공격 연속 억제) */
+  last: Xm4Act;
+  current: Xm4Act;
+  combo?: string[];
+}
+
+export function pickXm4(s: Xm4Sense): { act: Xm4Act; scores: Record<Xm4Act, number> } {
+  const Z = B.xm4;
+  const ready = ramp(s.sinceAttack, B.minGap, s.p2 ? B.maxGap2 : B.maxGap);
+  const finish = clamp01(1 - s.playerHp) ** 1.5;
+  const opening = Math.max(1 - s.moving, s.dashSpent ? 1 : 0);
+  const R = Z.range;
+  // 기관총: 가까이~중간 (언제나 쓸 수 있는 기본기)
+  const mg = band(s.d, 0, R.mgMax, R.soft) * ready * (0.8 + 0.2 * finish) * Z.w.mg;
+  // 플라즈마 포격: 중간 거리, 멈춰 있거나 대시를 막 썼을 때 (착탄점 예고 뒤 떨어짐)
+  const plasma = band(s.d, R.plasmaMin, R.plasmaMax, R.soft) * ready * (0.6 + 0.4 * opening) * Z.w.plasma;
+  // 유도 미사일: 멀거나 도망칠 때
+  const missile = ramp(s.d, R.missileMin, R.missileMin + R.soft * 2) * ready * (0.6 + 0.4 * s.fleeing) * Z.w.missile;
+  // 점프 낙하: 아주 멀리 벌어졌을 때 거리 좁히기 (도망치거나 멈춰 있으면 더)
+  const jump = ramp(s.d, R.jumpMin, R.jumpMin + R.soft * 2) * ready * (0.6 + 0.4 * Math.max(s.fleeing, opening)) * (0.8 + 0.2 * finish) * Z.w.jump;
+  const summon = ramp(s.sinceSummon, B.summonMin, B.summonMax) * (1 - s.minions) ** 1.5 * Z.w.summon;
+  const cb = s.combo ?? [];
+  const walk = (cb.length ? B.combo.walk : B.walkBase + B.walkIdle * (1 - ready)) * B.w.walk;
+  const scores: Record<Xm4Act, number> = { walk: clamp01(walk), mg: clamp01(mg), missile: clamp01(missile), plasma: clamp01(plasma), jump: clamp01(jump), summon: clamp01(summon) };
+  if (s.last !== 'walk' && s.last !== 'summon') scores[s.last] *= Z.repeat;
+  const C = s.p2 ? B.combo.weight2 : B.combo.weight;
+  const CR = B.combo.range.xm4 as Record<string, number[]>;
+  for (const a of cb as Xm4Act[]) if (CR[a]) scores[a] = clamp01(Math.max(scores[a], band(s.d, CR[a][0], CR[a][1], B.combo.range.soft) * C));
+  let act: Xm4Act = 'walk';
+  let best = -1;
+  for (const [a, v] of Object.entries(scores) as [Xm4Act, number][]) {
+    const w = v + (a === s.current ? B.stick : 0);
+    if (w > best) {
+      best = w;
+      act = a;
+    }
+  }
+  return { act, scores };
+}
