@@ -21,6 +21,7 @@ import type { GameContext, Stats, DamageTag, FxOpts } from '../weapons/types';
 import meta from '../data/meta.json';
 import zonesData from '../data/zones.json';
 import midbossAnim from '../data/midboss_anim.json';
+import bossAnim from '../data/boss_anim.json';
 import wavesData from '../data/waves.json';
 import type { Wave } from '../systems/Spawner';
 import { Save, type Runner, type RunnerId, type SpecialId, type RunStats } from '../systems/Save';
@@ -86,6 +87,8 @@ type BasiliDef = {
   stomp: { lift: number; radius: number; time: number; band: number; damage: number };
   p2: { gatlingRate: number; gatlingSpeed: number; guards: number; stompRings: number; ringGap: number };
   glow: { from: string; color: string; core: string; x: number; y: number; size: number; alpha: number };
+  /** 동작별 프레임 그림 재생 (boss_walk/gatling/slam_NN, 프레임 정보는 boss_anim.json) */
+  anim: { walkFps: number; ready: number; windupFps: number; fireFps: number; footY: number; recoil: number; shadow: { w: number; h: number; alpha: number }; flash: { size: number; color: string }; reflect: { color: string; alpha: number }; squash: number };
 };
 /** 바실리 동작 중 조준 그림(_aim)을 쓰는 단계 (새 그림이 오기 전 임시) */
 const BASILI_AIM = new Set(['gatling', 'call', 'stomp', 'phaseShift']);
@@ -94,7 +97,9 @@ type EnrageDef = { at: number; mul: number; tint: string };
 /** 보스 동작별 프레임 설정 (game.json bosses[].anim) */
 type BossAnim = { walkFps: number; scale: number; motionScale: Record<string, number>; footY: number; chargeWind: number[]; chargeFlash: number; chargeRun: number[]; chargeFlashTime: number };
 /** 아트가 주는 보스 동작별 프레임 정보 (프레임 수·캔버스 크기·허리 위치) */
-const BOSS_ANIM: Record<string, Record<string, { frames: number; w: number; h: number; originX: number; originY: number }>> = { midboss: midbossAnim };
+const BOSS_ANIM: Record<string, Record<string, { frames: number; w: number; h: number; originX: number; originY: number }>> = { midboss: midbossAnim, boss: bossAnim as never };
+/** 그림 한 장 안의 점 목록 (프레임별 [x,y], 없으면 null) */
+type FramePts = (number[] | null)[];
 type SwingDef = { range: number; reach: number; windup: number; recover: number; cd: number; damageMul: number };
 type MeleeDef = { range: number; interval: number; windup: number; lungeTime: number; lungeSpeed: number; swing?: SwingDef };
 type Phase2 = { at: number; chargeCount: number; aimTime: number; chargeTime: number; chargeSpeed: number; volleyEvery: number; volleyCount: number; bulletSpeed: number; bulletDamage: number };
@@ -270,6 +275,11 @@ export class GameScene extends Phaser.Scene implements GameContext {
   private basiliLastCall = 0;
   private basiliGlow: Phaser.GameObjects.Image | null = null;
   private basiliCore: Phaser.GameObjects.Image | null = null;
+  /** 바실리 그림 효과: 발밑 그림자, 총구 화염, 화염 반사광(몸에 덧입힘), 발구르기 몸 눌림 남은 시간 */
+  private basiliShadow: Phaser.GameObjects.Ellipse | null = null;
+  private basiliFlash: Phaser.GameObjects.Image | null = null;
+  private basiliReflect: Phaser.GameObjects.Image | null = null;
+  private basiliSquash = 0;
   private walkInStep = 0;
   private walkInTo = 0;
   private basiliLast: BasiliAct = 'walk';
@@ -574,6 +584,9 @@ export class GameScene extends Phaser.Scene implements GameContext {
     this.bossDbg = null;
     this.basiliGlow = null;
     this.basiliCore = null;
+    this.basiliShadow = null;
+    this.basiliFlash = null;
+    this.basiliReflect = null;
     this.bossDef = null;
     this.bossesSpawned = 0;
     this.god = false;
@@ -2098,6 +2111,9 @@ export class GameScene extends Phaser.Scene implements GameContext {
       this.hookTrail?.setVisible(false);
       this.basiliGlow?.setVisible(false);
       this.basiliCore?.setVisible(false);
+      this.basiliShadow?.setVisible(false);
+      this.basiliFlash?.setVisible(false);
+      this.basiliReflect?.setVisible(false);
       this.stompRings = [];
       this.bossDef = null;
       e.kill();
@@ -3074,6 +3090,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
   /** 보스 모션: 걷기 2프레임, 돌진 예고(떨림), 돌진 자세, 코어는 둥실 떠 있음 */
   private animateBoss(b: Enemy, def: BossDef, dt: number): void {
     if (this.animateBossFrames(b, def, dt)) return;
+    if (this.animateBasiliFrames(b, def, dt)) return;
     const ph = this.bossPhase;
     const f = ph === 'aim' || this.bossAtkT > 0 || BASILI_AIM.has(ph) ? 'aim' : ph === 'charge' ? 'charge' : Math.floor(this.elapsed * (ph === 'walkIn' ? 3 : 4)) % 2 ? 'w1' : 'w2';
     const key = `${def.id}_${f}`;
@@ -3443,10 +3460,13 @@ export class GameScene extends Phaser.Scene implements GameContext {
       const mix = Phaser.Display.Color.Interpolate.ColorWithColor(c0, c1, 100, Math.round(k * 100));
       const tint = Phaser.Display.Color.GetColor(mix.r, mix.g, mix.b);
       const pulse = Settings.reducedFx ? 1 : 0.8 + Math.sin(this.elapsed * 6) * 0.2;
+      // 그림이 있으면 프레임별 발전기 위치(boss_anim.json generator), 가려진 프레임(null)이면 숨김
+      const gp = this.basiliPoint(b, 'generator');
       const sx = b.sprite.flipX ? -1 : 1;
-      const x = b.sprite.x + G.x * sx * b.sprite.scaleX;
-      const y = b.sprite.y + G.y * b.sprite.scaleY;
-      const size = G.size * (0.6 + 0.4 * k);
+      const hidden = gp === null;
+      const x = gp ? gp.x : b.sprite.x + G.x * sx * b.sprite.scaleX;
+      const y = gp ? gp.y : b.sprite.y + G.y * b.sprite.scaleY;
+      const size = G.size * (0.6 + 0.4 * k) * (hidden ? 0 : 1);
       this.basiliGlow.setTint(tint).setVisible(true).setPosition(x, y).setDisplaySize(size * b.sprite.scaleX, size * b.sprite.scaleY).setAlpha(G.alpha * pulse);
       this.basiliCore
         .setTint(Number(G.core))
@@ -3549,8 +3569,10 @@ export class GameScene extends Phaser.Scene implements GameContext {
         const rate = p2 ? bz.p2.gatlingRate : G.rate;
         const speed = G.speed * (p2 ? bz.p2.gatlingSpeed : 1);
         this.gatAcc += dt * rate;
-        const mx = b.x + Math.cos(this.gatAim) * b.radius * 1.1;
-        const my = b.y - b.radius * 0.2 + Math.sin(this.gatAim) * b.radius * 0.8;
+        // 총구: 그림이 있으면 프레임별 총구 위치(boss_anim.json muzzle), 없으면 몸 앞
+        const mp = this.basiliPoint(b, 'muzzle');
+        const mx = mp ? mp.x : b.x + Math.cos(this.gatAim) * b.radius * 1.1;
+        const my = mp ? mp.y : b.y - b.radius * 0.2 + Math.sin(this.gatAim) * b.radius * 0.8;
         while (this.gatAcc >= 1) {
           this.gatAcc -= 1;
           // 부채꼴로 흔들며 연사
@@ -3559,7 +3581,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
           this.burst(mx, my, 0xfff23a, 2);
           if (Math.random() < 0.35) Sound.play('enemyshot');
         }
-        // 총구 불꽃
+        // 총구 불꽃 (그림이 있으면 animateBasiliFrames가 빛번짐 화염을 덧그림)
         this.fx.fillStyle(0xfff23a, 0.5 + Math.random() * 0.4).fillCircle(mx, my, 3 + Math.random() * 2);
       } else {
         // 돌아가기 시작: 총구 쪽 예고선
@@ -3594,6 +3616,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
         const rings = p2 ? bz.p2.stompRings : 1;
         for (let i = 0; i < rings; i++) this.stompRings.push({ x: b.x, y: b.y, t: -i * bz.p2.ringGap, hit: false });
         this.shake(260, 0.016);
+        this.basiliSquash = bz.anim.squash;
         this.playSheet('fx_land_dust', 18, b.x, b.y + b.radius, 56 / 112, 30 / 40, 12, 9.5);
         this.burst(b.x, b.y + b.radius * 0.5, 0x8a7a6a, 18);
         Sound.play('explode');
@@ -3602,6 +3625,109 @@ export class GameScene extends Phaser.Scene implements GameContext {
       return true;
     }
     return false;
+  }
+
+  /** 바실리 지금 그림 안의 점(발전기·총구)을 월드 좌표로. 그림이 없거나 점 정보가 없으면 undefined, 그 프레임에서 가려졌으면 null */
+  private basiliPoint(b: Enemy, kind: 'generator' | 'muzzle'): { x: number; y: number } | null | undefined {
+    const m = b.sprite.texture.key.match(/^boss_(walk|gatling|slam)_(\d+)$/);
+    if (!m) return undefined;
+    const M = (BOSS_ANIM.boss as Record<string, { w: number; h: number; generator?: FramePts; muzzle?: FramePts }>)[m[1]];
+    const list = M?.[kind];
+    if (!M || !list) return undefined;
+    const pt = list[Number(m[2])];
+    if (!pt) return null;
+    const sp = b.sprite;
+    const lx = (sp.flipX ? M.w - pt[0] : pt[0]) - sp.originX * M.w;
+    const ly = pt[1] - sp.originY * M.h;
+    return { x: sp.x + lx * sp.scaleX, y: sp.y + ly * sp.scaleY };
+  }
+
+  /**
+   * 바실리 동작별 프레임 그림 (boss_walk/gatling/slam_NN). 아직 그림이 없는 동작은 가까운 장면으로 대신
+   * (호출·발구르기 = 걷기 첫 장, 2페이즈 전환 = 박치기 예고). 반동·총구 화염·반사광·그림자·발구르기 눌림은 코드로
+   */
+  private animateBasiliFrames(b: Enemy, def: BossDef, dt: number): boolean {
+    const bz = (def as { basili?: BasiliDef }).basili;
+    const M = BOSS_ANIM.boss as Record<string, { frames: number; w: number; h: number; originX: number; phases?: Record<string, number[]> }>;
+    if (!bz || !this.textures.exists('boss_walk_00')) return false;
+    const A = bz.anim;
+    const ph = this.bossPhase;
+    const P2 = this.bossPhase2 ? (def as { phase2?: Phase2 }).phase2 : undefined;
+    const span = (r: number[], k: number) => r[0] + Math.min(r[1] - r[0], Math.floor(Phaser.Math.Clamp(k, 0, 0.999) * (r[1] - r[0] + 1)));
+    const loop = (r: number[], t: number, fps: number) => r[0] + (Math.floor(t * fps) % (r[1] - r[0] + 1));
+    let motion = 'walk';
+    let idx = 0;
+    let firing = false;
+    const slamP = M.slam?.phases ?? { ready: [0, 1], windup: [2, 3], dash: [4, 7] };
+    const gatP = M.gatling?.phases ?? { raise: [0, 4], fireLoop: [5, 8] };
+    if (ph === 'walk' || ph === 'walkIn') {
+      b.walkPh = (b.walkPh + dt * A.walkFps) % M.walk.frames;
+      idx = Math.floor(b.walkPh);
+    } else if (ph === 'aim' || ph === 'phaseShift') {
+      // 박치기 예고: 준비 두 장 → 예고 두 장을 천천히 반복 (2페이즈 전환도 임시로 같은 장면)
+      const total = ph === 'aim' ? (P2?.aimTime ?? def.aimTime) : bz.phaseShift;
+      const t = total - this.bossTimer;
+      motion = 'slam';
+      idx = t < A.ready ? span(slamP.ready, t / A.ready) : loop(slamP.windup, t - A.ready, A.windupFps);
+    } else if (ph === 'charge') {
+      // 돌진: 돌진 네 장을 돌진 시간 앞쪽에 한 번, 마지막 장 유지
+      const total = P2?.chargeTime ?? def.chargeTime;
+      motion = 'slam';
+      idx = span(slamP.dash, (total - this.bossTimer) / (total * 0.6));
+    } else if (ph === 'gatling') {
+      const G = bz.gatling;
+      motion = 'gatling';
+      if (this.bossTimer > G.time) idx = span(gatP.raise, (G.spin + G.time - this.bossTimer) / G.spin);
+      else {
+        idx = loop(gatP.fireLoop, G.time - this.bossTimer, A.fireFps);
+        firing = true;
+      }
+    }
+    const key = `boss_${motion}_${String(idx).padStart(2, '0')}`;
+    if (!this.textures.exists(key)) return false;
+    if (b.sprite.texture.key !== key) b.sprite.setTexture(key);
+    const flip = ph === 'charge' || ph === 'aim' ? this.bossDir.x < 0 : ph === 'gatling' ? Math.cos(this.gatAim) < 0 : this.player.x < b.x;
+    const ox = M[motion].originX;
+    b.sprite.setFlipX(flip).setOrigin(flip ? 1 - ox : ox, 1);
+    // 발구르기 착지: 몸이 잠깐 눌림
+    this.basiliSquash = Math.max(0, this.basiliSquash - dt);
+    const sq = A.squash > 0 ? this.basiliSquash / A.squash : 0;
+    if (!this.tweens.isTweening(b.sprite)) b.sprite.setScale(BOSS_SCALE * (1 + 0.08 * sq), BOSS_SCALE * (1 - 0.12 * sq));
+    b.footOff = A.footY;
+    const shakeAmp = ph === 'phaseShift' ? 4 : ph === 'aim' || ph === 'stomp' ? 2 : 0;
+    let jx = shakeAmp && !Settings.reducedFx ? (Math.random() - 0.5) * shakeAmp : 0;
+    let jy = 0;
+    // 개틀링 반동: 총구 반대쪽으로 빠르게 흔들림
+    if (firing && !Settings.reducedFx) {
+      const r = A.recoil * (0.5 + 0.5 * Math.sin(this.elapsed * 60));
+      jx -= Math.cos(this.gatAim) * r;
+      jy -= Math.sin(this.gatAim) * r * 0.5;
+    }
+    b.sprite.setPosition(b.x + jx, b.y + A.footY + jy);
+    // 발밑 그림자
+    this.basiliShadow ??= this.add.ellipse(0, 0, A.shadow.w, A.shadow.h, 0x000000, A.shadow.alpha);
+    this.basiliShadow.setVisible(true).setPosition(b.x, b.y + A.footY - 2).setDepth(b.sprite.depth - 0.1).setScale(ph === 'charge' ? 1.1 : 1, 1);
+    // 총구 화염 (빛번짐) + 몸에 비치는 화염 반사광
+    const mp = firing ? this.basiliPoint(b, 'muzzle') : null;
+    this.basiliFlash ??= this.add.image(0, 0, this.softGlowKey()).setBlendMode(Phaser.BlendModes.ADD).setDepth(12.6);
+    this.basiliReflect ??= this.add.image(0, 0, key).setBlendMode(Phaser.BlendModes.ADD).setDepth(b.sprite.depth + 0.05);
+    if (mp) {
+      const fl = 0.6 + Math.random() * 0.4;
+      this.basiliFlash.setVisible(true).setTint(Number(A.flash.color)).setPosition(mp.x, mp.y).setDisplaySize(A.flash.size * fl * BOSS_SCALE, A.flash.size * fl * BOSS_SCALE).setAlpha(0.9 * fl);
+      this.basiliReflect
+        .setVisible(true)
+        .setTexture(key)
+        .setTintFill(Number(A.reflect.color))
+        .setFlipX(flip)
+        .setOrigin(b.sprite.originX, 1)
+        .setScale(b.sprite.scaleX, b.sprite.scaleY)
+        .setPosition(b.sprite.x, b.sprite.y)
+        .setAlpha(A.reflect.alpha * (0.4 + Math.random() * 0.6));
+    } else {
+      this.basiliFlash.setVisible(false);
+      this.basiliReflect.setVisible(false);
+    }
+    return true;
   }
 
   /** 빛번짐용 부드러운 원 텍스처 (흰색 방사형 그라데이션, Add 합성 + 틴트로 씀) */
