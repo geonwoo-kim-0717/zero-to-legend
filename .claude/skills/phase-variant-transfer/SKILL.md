@@ -37,6 +37,12 @@ Art session routine (Basili phase-2 walk and gatling). Output is PNG frames. Han
   - Region copies ignore the ref barrel area, so old barrel pixels never land on legs.
 - It drops loose bits of 6 px or fewer that the edit cut off, and prints one JSON report per frame.
 
+## Torn skirt when the pose differs
+When the coat skirt moves too much for a region copy (stomp, kneel), run `scripts/torn_hem.py`.
+It turns the skirt's bottom band into hanging strips with gaps, using the tatter colours of the approved frame, so the hem matches the walk.
+The strip pattern is tied to the skirt's left edge, so it stays put on the coat from frame to frame.
+(The script's frame loop is written for the stomp set; adapt the last lines for another motion.)
+
 ## Checks (all must pass before showing)
 - `parts` 1: one body. `bbox_in == bbox_out`: same size and ground line as phase 1.
 - `new_colours` 0: only phase-1 and reference colours.

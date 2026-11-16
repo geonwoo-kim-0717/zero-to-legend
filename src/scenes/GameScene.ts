@@ -3707,7 +3707,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
   private stompFoot(b: Enemy): { x: number; y: number } {
     const M = (bossAnim as { stomp?: { w: number; h: number; footImpact?: number[] } }).stomp;
     const sp = b.sprite;
-    if (!M?.footImpact || !sp.texture.key.startsWith('boss_stomp_')) return { x: b.x, y: sp.y };
+    if (!M?.footImpact || !/^boss_(p2_)?stomp_/.test(sp.texture.key)) return { x: b.x, y: sp.y };
     const pt = M.footImpact;
     const lx = (sp.flipX ? M.w - pt[0] : pt[0]) - sp.originX * M.w;
     const ly = pt[1] - sp.originY * M.h;
@@ -3728,7 +3728,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
 
   /** 바실리 지금 그림 안의 점(발전기·총구)을 월드 좌표로. 그림이 없거나 점 정보가 없으면 undefined, 그 프레임에서 가려졌으면 null */
   private basiliPoint(b: Enemy, kind: 'generator' | 'muzzle' | 'port'): { x: number; y: number } | null | undefined {
-    const m = b.sprite.texture.key.match(/^boss_(walk|gatling|slam|stomp|phase|call|p2_walk|p2_gatling)_(?:lit_)?(\d+)$/);
+    const m = b.sprite.texture.key.match(/^boss_(walk|gatling|slam|stomp|phase|call|p2_walk|p2_gatling|p2_stomp)_(?:lit_)?(\d+)$/);
     if (!m) return undefined;
     const M = (BOSS_ANIM.boss as Record<string, { w: number; h: number; generator?: FramePts; muzzle?: FramePts; port?: FramePts }>)[m[1]];
     const list = M?.[kind];
@@ -3775,7 +3775,8 @@ export class GameScene extends Phaser.Scene implements GameContext {
       // 발구르기: 발 들기·내려찍기(예고 시간 동안) → 착지(충격파) → 낮게 버팀
       const SP = stompM.phases ?? { lift: [0, 5], slam: [6, 6], recover: [8, 11] };
       const imp = stompM.impactFrame ?? 7;
-      motion = 'stomp';
+      // 2페이즈 발구르기 그림이 있으면 2페이즈에선 그걸로 (캔버스·착지 장·앞발 위치는 같음)
+      motion = this.bossPhase2 && M.p2_stomp && this.textures.exists('boss_p2_stomp_00') ? 'p2_stomp' : 'stomp';
       if (ph === 'stomp') idx = span([SP.lift[0], SP.slam[1]], 1 - this.bossTimer / bz.stomp.lift);
       else {
         const t = A.stompRecover - this.bossTimer;

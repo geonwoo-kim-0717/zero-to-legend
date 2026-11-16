@@ -684,5 +684,88 @@
   },
   "guardSpawnFrame": 9,
   "note": "index finger up, two small circles, arm down; guards appear on frame 9 (end of the circles)"
+ },
+ "p2_stomp": {
+  "frames": 12,
+  "w": 114,
+  "h": 96,
+  "originX": 0.465,
+  "originY": 1,
+  "phases": {
+   "lift": [
+    0,
+    5
+   ],
+   "slam": [
+    6,
+    6
+   ],
+   "impact": [
+    7,
+    7
+   ],
+   "recover": [
+    8,
+    11
+   ]
+  },
+  "impactFrame": 7,
+  "footImpact": [
+   77,
+   95
+  ],
+  "timingNote": "lift 0-5 slow (hold 4-5), 6 fast, 7 impact: shockwave + screen shake + squash, 8-11 settle",
+  "generator": [
+   [
+    67,
+    48
+   ],
+   [
+    63,
+    44
+   ],
+   [
+    62,
+    44
+   ],
+   [
+    60,
+    42
+   ],
+   [
+    59,
+    42
+   ],
+   [
+    61,
+    42
+   ],
+   [
+    72,
+    51
+   ],
+   [
+    71,
+    50
+   ],
+   [
+    75,
+    53
+   ],
+   [
+    74,
+    53
+   ],
+   [
+    74,
+    54
+   ],
+   [
+    74,
+    53
+   ]
+  ],
+  "source": "phase-1 stomp repainted with phase-variant-transfer (key frame from the approved phase-2 walk pair)",
+  "note": "use in phase 2 instead of boss_stomp_*; same canvas, origin, impact frame and foot point as stomp"
  }
 }

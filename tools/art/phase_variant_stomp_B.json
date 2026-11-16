@@ -1,0 +1,138 @@
+{
+ "ref1": "/home/user/zero-to-legend/src/assets/boss_stomp_00.png",
+ "ref2": "pvt/stomp/p2s_00.png",
+ "frames": [
+  [
+   "/home/user/zero-to-legend/src/assets/boss_stomp_00.png",
+   "pvt/stomp/p2s_00.png"
+  ],
+  [
+   "/home/user/zero-to-legend/src/assets/boss_stomp_01.png",
+   "pvt/stomp/p2s_01.png"
+  ],
+  [
+   "/home/user/zero-to-legend/src/assets/boss_stomp_02.png",
+   "pvt/stomp/p2s_02.png"
+  ],
+  [
+   "/home/user/zero-to-legend/src/assets/boss_stomp_03.png",
+   "pvt/stomp/p2s_03.png"
+  ],
+  [
+   "/home/user/zero-to-legend/src/assets/boss_stomp_04.png",
+   "pvt/stomp/p2s_04.png"
+  ],
+  [
+   "/home/user/zero-to-legend/src/assets/boss_stomp_05.png",
+   "pvt/stomp/p2s_05.png"
+  ],
+  [
+   "/home/user/zero-to-legend/src/assets/boss_stomp_06.png",
+   "pvt/stomp/p2s_06.png"
+  ],
+  [
+   "/home/user/zero-to-legend/src/assets/boss_stomp_07.png",
+   "pvt/stomp/p2s_07.png"
+  ],
+  [
+   "/home/user/zero-to-legend/src/assets/boss_stomp_08.png",
+   "pvt/stomp/p2s_08.png"
+  ],
+  [
+   "/home/user/zero-to-legend/src/assets/boss_stomp_09.png",
+   "pvt/stomp/p2s_09.png"
+  ],
+  [
+   "/home/user/zero-to-legend/src/assets/boss_stomp_10.png",
+   "pvt/stomp/p2s_10.png"
+  ],
+  [
+   "/home/user/zero-to-legend/src/assets/boss_stomp_11.png",
+   "pvt/stomp/p2s_11.png"
+  ]
+ ],
+ "regions": [
+  {
+   "name": "generator",
+   "mode": "patch",
+   "box": [
+    52,
+    32,
+    82,
+    62
+   ],
+   "radius": 12,
+   "centre": [
+    67,
+    48
+   ],
+   "R": 10
+  },
+  {
+   "name": "coat_upper",
+   "box": [
+    14,
+    14,
+    58,
+    56
+   ],
+   "R": 8,
+   "max_err": 40,
+   "tol": 40,
+   "nbr": 7,
+   "remove": true
+  },
+  {
+   "name": "coat_lower",
+   "box": [
+    10,
+    54,
+    70,
+    92
+   ],
+   "R": 8,
+   "max_err": 40,
+   "tol": 40,
+   "nbr": 7,
+   "remove": true
+  },
+  {
+   "name": "coat_right",
+   "box": [
+    62,
+    14,
+    96,
+    90
+   ],
+   "R": 8,
+   "max_err": 40,
+   "tol": 40,
+   "nbr": 7,
+   "remove": true
+  }
+ ],
+ "heat": [
+  {
+   "name": "barrel_heat",
+   "ref_axis": [
+    [
+     36,
+     58
+    ],
+    [
+     58,
+     79
+    ]
+   ],
+   "width": 5.5,
+   "guard": 6.5,
+   "track_box": [
+    31,
+    54,
+    63,
+    84
+   ],
+   "track_R": 12
+  }
+ ]
+}
