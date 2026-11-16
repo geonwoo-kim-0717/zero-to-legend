@@ -2767,11 +2767,18 @@ export class GameScene extends Phaser.Scene implements GameContext {
   /** 대화 건너뛰기: 남은 줄을 모두 넘기고 바로 끝낸다 */
   private skipDialog(): void {
     const d = this.dialog;
-    if (!d) return;
-    d.i = d.lines.length - 1;
-    d.shown = d.full.length;
-    this.advanceDialog();
+    if (!d || this.skipQueued) return;
+    // 입력 처리 도중에 버튼(대화창)을 지우지 않도록 다음 프레임에 끝낸다 (모바일 연타 대비)
+    this.skipQueued = true;
+    this.time.delayedCall(0, () => {
+      this.skipQueued = false;
+      if (this.dialog !== d) return;
+      d.i = d.lines.length - 1;
+      d.shown = d.full.length;
+      this.advanceDialog();
+    });
   }
+  private skipQueued = false;
 
   /** 글자가 다 나오지 않았으면 끝까지 보여주고, 다 나왔으면 다음 줄로 */
   private advanceDialog(): void {

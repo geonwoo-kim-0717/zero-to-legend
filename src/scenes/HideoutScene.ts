@@ -169,13 +169,20 @@ export class HideoutScene extends Phaser.Scene {
   /** 대화 건너뛰기: 선택지가 있으면 선택지 줄로, 없으면 대화를 끝낸다 */
   private dlgSkip(): void {
     const d = this.dlg;
-    if (!d) return;
-    if (d.choices) {
-      if (d.i >= d.lines.length - 1) return;
-      d.i = d.lines.length - 2;
-    } else d.i = d.lines.length - 1;
-    this.dlgNext();
+    if (!d || this.skipQueued) return;
+    // 입력 처리 도중에 버튼(대화창)을 지우지 않도록 다음 프레임에 넘긴다 (모바일 연타 대비)
+    this.skipQueued = true;
+    this.time.delayedCall(0, () => {
+      this.skipQueued = false;
+      if (this.dlg !== d) return;
+      if (d.choices) {
+        if (d.i >= d.lines.length - 1) return;
+        d.i = d.lines.length - 2;
+      } else d.i = d.lines.length - 1;
+      this.dlgNext();
+    });
   }
+  private skipQueued = false;
 
   /** 첫 게임오버 뒤 진·리퍼닥 안내 (모든 저장에 한 번) */
   private tutorial(): void {
