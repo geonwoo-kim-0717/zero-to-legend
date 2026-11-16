@@ -55,7 +55,7 @@ const ZONES = zonesData.zones;
 const ZR = gameData.zoneRules;
 /** 왼쪽 위 체력바 폭 */
 const HP_W = 120;
-type BossPhase = 'walk' | 'aim' | 'charge' | 'leap' | 'air' | 'slam' | 'enter' | 'taunt' | 'hookAim' | 'hookFly' | 'hookPull' | 'hookGap' | 'hookBack' | 'walkIn' | 'phaseShift' | 'gatling' | 'call' | 'stomp' | 'stompRec' | 'drop' | 'sweepAim' | 'sweep' | 'mgAim' | 'mg' | 'plasma' | 'missileFire';
+type BossPhase = 'walk' | 'aim' | 'charge' | 'leap' | 'air' | 'slam' | 'enter' | 'taunt' | 'hookAim' | 'hookFly' | 'hookPull' | 'hookGap' | 'hookBack' | 'walkIn' | 'phaseShift' | 'gatling' | 'call' | 'stomp' | 'stompRec' | 'drop' | 'sweepAim' | 'sweep' | 'mgAim' | 'mg' | 'plasma' | 'missileFire' | 'rise' | 'lower' | 'deploy';
 /** 블랙 실드 요원 공격 그림·이펙트 (아트 tools/art/sprites2026/scripts/troopers6/keys/atk_meta.json) */
 const TROOPER_ATK = {
   tank: { ms: [90, 110, 140, 70, 90, 120, 110, 100], size: [54, 48], fxStart: 4, anchor: [47, 27], fx: 'fx_shield_bash', fxN: 8, fxSize: [64, 40], pivot: [32, 18] },
@@ -101,7 +101,9 @@ type Xm4Def = {
   plasma: { shots: number; warn: number; fly: number; gap: number; radius: number; radiusY: number; damage: number; spreadNext: number };
   missileTime: number;
   missileTurn: number;
-  closedTime: number;
+  riseFps: number;
+  quickFps: number;
+  rotateTurn: number;
   footOff: number;
   p2: { plasmaShots: number; plasmaWarn: number; missileCount: number };
 };
@@ -3897,7 +3899,12 @@ export class GameScene extends Phaser.Scene implements GameContext {
   /** XM-4 그림 겹 (아래·뒷다리·앞다리·기관총 반사광). 몸통은 보스 스프라이트 */
   private xmLayers: { under: Phaser.GameObjects.Image; back: Phaser.GameObjects.Image; front: Phaser.GameObjects.Image; lit: Phaser.GameObjects.Image } | null = null;
   private xmWalkPh = 0;
-  private xmBornT = 0;
+  /** XM-4 몸통 동작: 포탑 상승(rise)·하강(lower)·2페이즈 전개(deploy) 재생 시간, 재생 fps, 02 방향으로 돌리는 중인지, 등장 상승·전개를 했는지 */
+  private xmAnimT = 0;
+  private xmAnimFps = 8;
+  private xmRotating = false;
+  private xmStarted = false;
+  private xmDeployed = false;
   private xmFlashT = 0;
   private xmCasingRow = 0;
 
@@ -3965,7 +3972,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
     }
     const tl = this.xmBodyTL(b);
     const dirs = art.anchors.dirs as unknown as Record<string, Record<string, Record<string, unknown>>>;
-    const D = dirs[this.bossPhase2 ? 'p2' : 'p1'][String(this.xmDir()).padStart(2, '0')] as { cannon: number[][]; cannonHidden: boolean; mg?: number[][]; pod?: number[] | null; podHidden?: boolean };
+    const D = dirs[this.xmDeployed ? 'p2' : 'p1'][String(this.xmDir()).padStart(2, '0')] as { cannon: number[][]; cannonHidden: boolean; mg?: number[][]; pod?: number[] | null; podHidden?: boolean };
     let pt: number[] | null | undefined;
     let hidden = false;
     if (kind === 'cannon') {
@@ -4022,10 +4029,22 @@ export class GameScene extends Phaser.Scene implements GameContext {
     L.under.setTexture(`boss2_under_${nn}`).setOrigin(ox, oy).setPosition(b.x, foot).setVisible(true);
     L.back.setTexture(`boss2_legs_back_${nn}`).setOrigin(ox, oy).setPosition(b.x, foot).setVisible(true);
     L.front.setTexture(`boss2_legs_front_${nn}`).setOrigin(ox, oy).setPosition(b.x, foot).setVisible(true);
-    // 몸통: 나타난 직후·점프 중엔 뚜껑 닫힘(포탑 올리는 동작 그림이 오기 전 임시로 바로 교체), 그 밖엔 포탑 방향 그림
-    const closed = this.elapsed - this.xmBornT < xz.closedTime || ph === 'leap' || ph === 'air' || ph === 'slam';
+    // 몸통: 포탑 상승·하강(1페이즈 점프 앞뒤, 등장)·2페이즈 전개 동작, 1페이즈 점프 중엔 뚜껑 닫힘, 그 밖엔 포탑 방향 그림
     const dir = String(this.xmDir()).padStart(2, '0');
-    const body = closed ? 'boss2_body_closed' : `boss2_${this.bossPhase2 ? 'p2' : 'p1'}_turret_${dir}`;
+    const RN = art.turretRise.frames;
+    const fr = Math.min(RN - 1, Math.floor(this.xmAnimT * this.xmAnimFps));
+    const nn2 = (i: number) => String(i).padStart(2, '0');
+    const p2Body = this.bossPhase2 && this.xmDeployed;
+    let body = `boss2_${p2Body ? 'p2' : 'p1'}_turret_${dir}`;
+    let closed = false;
+    if (ph === 'rise') body = `boss2_rise_${nn2(fr)}`;
+    else if (ph === 'lower') body = this.xmRotating ? body : `boss2_rise_${nn2(RN - 1 - fr)}`;
+    else if (ph === 'deploy') body = this.xmRotating ? `boss2_p1_turret_${dir}` : `boss2_deploy_${nn2(Math.min(art.phase2Transition.frames - 1, fr))}`;
+    else if ((ph === 'leap' || ph === 'air' || ph === 'slam') && !p2Body) {
+      body = 'boss2_body_closed';
+      closed = true;
+    }
+    if (!this.textures.exists(body)) body = `boss2_${p2Body ? 'p2' : 'p1'}_turret_${dir}`;
     const off = A.bodyOffset[f];
     const [bw, bh] = art.canvas.body;
     // 몸통 원점 = 다리 원점 - bodyOffset (몸통 왼쪽 위가 다리 왼쪽 위 + offset에 오게)
@@ -4035,7 +4054,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
     b.sprite.setOrigin(box, boy).setPosition(b.x, foot).setFlipX(false).setScale(1);
     b.footOff = xz.footOff;
     // 기관총 반사광: 섬광 0~1프레임 = 1행(강), 2프레임 = 2행(약), 2페이즈 몸통 위에만
-    if (this.xmFlashT > 0 && this.bossPhase2 && !closed && this.textures.exists('fx_boss2_mg_lit')) {
+    if (this.xmFlashT > 0 && p2Body && !closed && this.textures.exists('fx_boss2_mg_lit')) {
       const row = this.xmFlashT > 1 / 30 ? 0 : 1;
       L.lit.setTexture('fx_boss2_mg_lit', String(row * 16 + this.xmDir())).setOrigin(box, boy).setPosition(b.x, foot).setVisible(true);
     } else L.lit.setVisible(false);
@@ -4141,7 +4160,69 @@ export class GameScene extends Phaser.Scene implements GameContext {
     if (this.xmFlashT > 0) this.xmFlashT -= dt;
     // 포탑: 늘 플레이어 쪽으로 천천히 돈다 (포탑 기준점에서 플레이어까지 화면 각도)
     const tc = this.xmArt() ? { x: b.x, y: b.sprite.y - 90 } : { x: b.x, y: b.y - b.radius * 0.7 };
-    this.xmAim = Phaser.Math.Angle.RotateTo(this.xmAim, Math.atan2(p.y - tc.y, p.x - tc.x), Phaser.Math.DegToRad(xz.turn) * dt);
+    // 포탑 02 방향(오른쪽 아래)의 화면 각도: 상승·하강·전개 그림은 이 방향에서만
+    const a02 = Math.atan2(Math.sin(Math.PI / 4) * 0.55, Math.cos(Math.PI / 4));
+    const bodyBusy = ph === 'rise' || ph === 'lower' || ph === 'deploy' || ((ph === 'leap' || ph === 'air' || ph === 'slam') && !this.xmDeployed);
+    if (bodyBusy) {
+      if (this.xmRotating) {
+        this.xmAim = Phaser.Math.Angle.RotateTo(this.xmAim, a02, Phaser.Math.DegToRad(xz.rotateTurn) * dt);
+        if (Math.abs(Phaser.Math.Angle.Wrap(this.xmAim - a02)) < 0.01) this.xmRotating = false;
+      } else this.xmAim = a02;
+    } else this.xmAim = Phaser.Math.Angle.RotateTo(this.xmAim, Math.atan2(p.y - tc.y, p.x - tc.x), Phaser.Math.DegToRad(xz.turn) * dt);
+    const art = this.xmArt();
+    const RF = art ? art.turretRise.frames : 1;
+    // 등장: 뚜껑 닫힌 채 나타나 포탑을 올림
+    if (!this.xmStarted) {
+      this.xmStarted = true;
+      if (art) {
+        this.bossPhase = 'rise';
+        this.xmAnimT = 0;
+        this.xmAnimFps = xz.riseFps;
+        this.xmRotating = false;
+        return true;
+      }
+    }
+    // 2페이즈: 하던 공격(점프 제외)을 끊고 포탑을 02로 돌린 뒤 기관총·미사일 포드 전개
+    if (p2 && !this.xmDeployed && (ph === 'walk' || ph === 'mgAim' || ph === 'mg' || ph === 'plasma' || ph === 'missileFire')) {
+      if (art) {
+        this.bossPhase = 'deploy';
+        this.xmAnimT = 0;
+        this.xmAnimFps = xz.riseFps;
+        this.xmRotating = true;
+        this.xmPlasmaLeft = 0;
+        return true;
+      }
+      this.xmDeployed = true;
+    }
+    if (ph === 'rise' || ph === 'lower' || ph === 'deploy') {
+      if (!this.xmRotating) this.xmAnimT += dt;
+      const n = ph === 'deploy' ? art!.phase2Transition.frames : RF;
+      if (!this.xmRotating && this.xmAnimT >= n / this.xmAnimFps) {
+        if (ph === 'lower') {
+          // 뚜껑 닫힘 → 점프 (착지점은 지금 플레이어 자리)
+          const sl = (def as { slam?: SlamDef }).slam!;
+          this.bossPhase = 'leap';
+          this.bossTimer = sl.leap;
+          this.bossFrom = { x: b.x, y: b.y };
+          this.bossTo = { x: (this.untracked ? this.decoy : p).x, y: (this.untracked ? this.decoy : p).y };
+        } else {
+          if (ph === 'deploy') {
+            this.xmDeployed = true;
+            this.bossPulse(b);
+          }
+          this.bossLastAttack = this.elapsed;
+          toWalk();
+        }
+      }
+      return true;
+    }
+    // 1페이즈 점프 착지 뒤: 포탑을 다시 올림 (빠르게)
+    if (ph === 'slam' && this.bossTimer <= 0 && art && !this.xmDeployed) {
+      this.bossPhase = 'rise';
+      this.xmAnimT = 0;
+      this.xmAnimFps = xz.quickFps;
+      return true;
+    }
     if (!this.xmArt()) {
       // 그림이 없을 때 임시 포탑 표시
       const m0 = this.xmPoint(b, 'cannon', 0);
@@ -4169,10 +4250,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
           combo: this.comboNow(),
         });
         this.bossScores = scores as Partial<Record<BossAct, number>>;
-        // 나타난 직후 뚜껑이 닫혀 있는 동안은 걷기만
-        if (this.elapsed - this.xmBornT < xz.closedTime) {
-          /* 대기 */
-        } else if (act === 'summon') {
+        if (act === 'summon') {
           this.bossLastSummon = this.elapsed;
           this.bossSummon = 0;
         } else if (act !== 'walk') {
@@ -4197,11 +4275,20 @@ export class GameScene extends Phaser.Scene implements GameContext {
             this.bossPhase = 'missileFire';
             this.bossTimer = xz.missileTime;
           } else if (act === 'jump') {
-            const sl = (def as { slam?: SlamDef }).slam!;
-            this.bossPhase = 'leap';
-            this.bossTimer = sl.leap;
-            this.bossFrom = { x: b.x, y: b.y };
-            this.bossTo = { x: (this.untracked ? this.decoy : p).x, y: (this.untracked ? this.decoy : p).y };
+            if (art && !this.xmDeployed) {
+              // 1페이즈: 포탑을 02로 돌리고 내려 뚜껑을 닫은 뒤 점프 (빠르게)
+              this.bossPhase = 'lower';
+              this.xmAnimT = 0;
+              this.xmAnimFps = xz.quickFps;
+              this.xmRotating = true;
+            } else {
+              // 2페이즈: 포탑을 올린 채 점프
+              const sl = (def as { slam?: SlamDef }).slam!;
+              this.bossPhase = 'leap';
+              this.bossTimer = sl.leap;
+              this.bossFrom = { x: b.x, y: b.y };
+              this.bossTo = { x: (this.untracked ? this.decoy : p).x, y: (this.untracked ? this.decoy : p).y };
+            }
           }
         }
       }
@@ -5355,7 +5442,9 @@ export class GameScene extends Phaser.Scene implements GameContext {
     this.bossMissile = 2;
     this.xmLast = 'walk';
     this.xmPlasmaLeft = 0;
-    this.xmBornT = this.elapsed;
+    this.xmStarted = false;
+    this.xmDeployed = false;
+    this.xmRotating = false;
     this.xmWalkPh = 0;
     this.xmFlashT = 0;
     this.hideXm4Layers();
