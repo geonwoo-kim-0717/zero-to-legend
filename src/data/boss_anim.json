@@ -1,0 +1,170 @@
+{
+ "walk": {
+  "frames": 8,
+  "w": 96,
+  "h": 96,
+  "originX": 0.438,
+  "originY": 1,
+  "generator": [
+   [
+    54,
+    46
+   ],
+   [
+    56,
+    46
+   ],
+   [
+    57,
+    44
+   ],
+   [
+    57,
+    43
+   ],
+   [
+    58,
+    45
+   ],
+   [
+    57,
+    47
+   ],
+   [
+    56,
+    44
+   ],
+   [
+    56,
+    43
+   ]
+  ],
+  "generatorNote": "belly generator glow centre per frame [x,y] (null = hidden); use for the phase-2 red glow overlay",
+  "source": "PixelLab"
+ },
+ "gatling": {
+  "frames": 9,
+  "w": 102,
+  "h": 93,
+  "originX": 0.412,
+  "originY": 1,
+  "muzzle": [
+   null,
+   null,
+   null,
+   null,
+   [
+    80,
+    44
+   ],
+   [
+    80,
+    41
+   ],
+   [
+    80,
+    41
+   ],
+   [
+    80,
+    41
+   ],
+   [
+    80,
+    41
+   ]
+  ],
+  "muzzleNote": "muzzle [x,y] in frame pixels (just past the barrel tip), frames 0-3 = gun still rising (null); fire loop = frames 5-8",
+  "phases": {
+   "raise": [
+    0,
+    4
+   ],
+   "fireLoop": [
+    5,
+    8
+   ]
+  },
+  "generator": [
+   [
+    55,
+    42
+   ],
+   [
+    55,
+    43
+   ],
+   [
+    56,
+    43
+   ],
+   [
+    56,
+    42
+   ],
+   null,
+   null,
+   null,
+   null,
+   null
+  ],
+  "source": "video (Scenario) + pixelation, walk palette"
+ },
+ "slam": {
+  "frames": 8,
+  "w": 112,
+  "h": 95,
+  "originX": 0.5,
+  "originY": 1,
+  "generator": [
+   [
+    69,
+    44
+   ],
+   [
+    69,
+    44
+   ],
+   [
+    64,
+    42
+   ],
+   [
+    64,
+    42
+   ],
+   [
+    85,
+    53
+   ],
+   [
+    75,
+    53
+   ],
+   [
+    73,
+    53
+   ],
+   [
+    73,
+    52
+   ]
+  ],
+  "phases": {
+   "ready": [
+    0,
+    1
+   ],
+   "windup": [
+    2,
+    3
+   ],
+   "dash": [
+    4,
+    7
+   ]
+  },
+  "timingNote": "windup: loop frames 2-3 slowly during the aim/telegraph time; dash: 4-7 once, hold 7 while charging",
+  "source": "video (Scenario) + pixelation, front boot of frames 4-7 redrawn from frame 0"
+ }
+}
