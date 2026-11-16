@@ -28,6 +28,11 @@ The user judged effects drawn in code (muzzle flash, light spill, dust) as poor.
 - casings.
 Code only places and times them.
 
+## Layered sprites (legs / body)
+- Cut layers along the outline the user draws, not along boxes or polygons you guess. Map the drawing onto the source with feature matching, split by the strokes, and carry the cut to every frame with optical flow.
+- When a moving leg uncovers body that no source frame shows, add an under-fill layer from the video's own body pixels instead of leaving holes.
+- Check with a colour-coded layer sheet of every frame and a hole count before showing.
+
 ## 3. Commit and push
 - Stage only the files you made. Write a commit message describing the art, ending with the attribution lines from the system reminder.
 - Push with `git push -q origin art/ship-scale`, retrying up to 4 times with backoff.
