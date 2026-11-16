@@ -166,5 +166,208 @@
   },
   "timingNote": "windup: loop frames 2-3 slowly during the aim/telegraph time; dash: 4-7 once, hold 7 while charging",
   "source": "video (Scenario) + pixelation, front boot of frames 4-7 redrawn from frame 0"
+ },
+ "stomp": {
+  "frames": 12,
+  "w": 114,
+  "h": 96,
+  "originX": 0.465,
+  "originY": 1,
+  "generator": [
+   [
+    66,
+    44
+   ],
+   [
+    62,
+    40
+   ],
+   [
+    61,
+    39
+   ],
+   [
+    60,
+    39
+   ],
+   [
+    59,
+    38
+   ],
+   [
+    60,
+    38
+   ],
+   [
+    77,
+    49
+   ],
+   [
+    74,
+    48
+   ],
+   [
+    74,
+    49
+   ],
+   [
+    73,
+    49
+   ],
+   [
+    73,
+    50
+   ],
+   [
+    74,
+    50
+   ]
+  ],
+  "phases": {
+   "lift": [
+    0,
+    5
+   ],
+   "slam": [
+    6,
+    6
+   ],
+   "impact": [
+    7,
+    7
+   ],
+   "recover": [
+    8,
+    11
+   ]
+  },
+  "impactFrame": 7,
+  "timingNote": "lift 0-5 slow (hold 4-5), 6 fast, 7 impact: shockwave + screen shake + squash, 8-11 settle",
+  "source": "video (Scenario): circled slam-video frame -> user stomp image, pixelated on the walk scale; dust removed"
+ },
+ "phase": {
+  "frames": 13,
+  "w": 116,
+  "h": 96,
+  "originX": 0.457,
+  "originY": 1,
+  "generator": [
+   [
+    71,
+    45
+   ],
+   [
+    71,
+    46
+   ],
+   [
+    70,
+    47
+   ],
+   [
+    71,
+    48
+   ],
+   [
+    71,
+    49
+   ],
+   [
+    71,
+    49
+   ],
+   [
+    71,
+    49
+   ],
+   [
+    71,
+    49
+   ],
+   [
+    71,
+    48
+   ],
+   [
+    71,
+    48
+   ],
+   [
+    71,
+    48
+   ],
+   [
+    71,
+    48
+   ],
+   [
+    71,
+    50
+   ]
+  ],
+  "phases": {
+   "grab": [
+    0,
+    1
+   ],
+   "burst": [
+    2,
+    3
+   ],
+   "tear": [
+    4,
+    8
+   ],
+   "settle": [
+    9,
+    12
+   ]
+  },
+  "endFrame": 12,
+  "timingNote": "play once; 2-3 is the reactor burst (good moment for a flash/shake); switch to p2_walk after frame 12",
+  "source": "video (Scenario): tear pose -> phase-2 walk image, pixelated; loose shreds removed"
+ },
+ "p2_walk": {
+  "frames": 8,
+  "w": 96,
+  "h": 96,
+  "originX": 0.438,
+  "originY": 1,
+  "generator": [
+   [
+    56,
+    50
+   ],
+   [
+    56,
+    51
+   ],
+   [
+    57,
+    49
+   ],
+   [
+    58,
+    48
+   ],
+   [
+    58,
+    50
+   ],
+   [
+    57,
+    52
+   ],
+   [
+    56,
+    49
+   ],
+   [
+    56,
+    48
+   ]
+  ],
+  "generatorNote": "white-hot core centre per frame [x,y]; phase-2 red glow overlay anchor",
+  "source": "1P walk frames with generator, barrel heat and coat tears copied 1:1 from phase frame 12, aligned per body part"
  }
 }
