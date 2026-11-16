@@ -59,8 +59,8 @@ export function scoreBoss(s: BossSense): Record<BossAct, number> {
   // 콤보: 방금 끝난 공격에 이어 쓸 공격은 준비도 대신 거리만 보고 콤보 가중치로 (거리가 맞으면 거의 확정)
   const C = s.p2 ? B.combo.weight2 : B.combo.weight;
   const cb = s.combo ?? [];
-  // 콤보가 열려 있으면 걷기는 기본값만 (공격 직후의 높은 걷기 점수가 콤보를 막지 않게)
-  const walk = (B.walkBase + (cb.length ? 0 : B.walkIdle * (1 - ready))) * B.w.walk;
+  // 콤보가 열려 있으면 걷기는 combo.walk로 (콤보 점수가 이 값을 넘어야 이어짐)
+  const walk = (cb.length ? B.combo.walk : B.walkBase + B.walkIdle * (1 - ready)) * B.w.walk;
   // 콤보일 때 거리 조건은 combo.range (평소보다 넓게: 갈고리가 빗나간 중간 거리에서도 돌진·점프 중 하나가 맞도록)
   const CR = B.combo.range.kovac as Record<string, number[]>;
   const comboOf = (a: BossAct, v: number) => (cb.includes(a) && CR[a] ? Math.max(v, band(s.d, CR[a][0], CR[a][1], B.combo.range.soft) * C) : v);
@@ -124,7 +124,7 @@ export function pickBasili(s: BasiliSense): { act: BasiliAct; scores: Record<Bas
   const stomp = band(s.d, 0, R.stompMax, R.soft) * ready * (0.8 + 0.2 * finish) * Z.w.stomp;
   // 호출: 호위가 모두 죽었고 지난 호출 뒤 충분히 지났을 때
   const call = s.guards > 0 ? 0 : ramp(s.sinceCall, Z.callMin, Z.callMax) * Z.w.call;
-  const walk = (B.walkBase + ((s.combo ?? []).length ? 0 : B.walkIdle * (1 - ready))) * B.w.walk;
+  const walk = ((s.combo ?? []).length ? B.combo.walk : B.walkBase + B.walkIdle * (1 - ready)) * B.w.walk;
   const scores: Record<BasiliAct, number> = { walk: clamp01(walk), gatling: clamp01(gatling), charge: clamp01(charge), call: clamp01(call), stomp: clamp01(stomp) };
   if (s.last !== 'walk' && s.last !== 'call') scores[s.last] *= Z.repeat;
   // 콤보: 방금 끝난 공격에 이어 쓸 공격은 준비도·연속 억제 대신 거리만 보고 콤보 가중치로

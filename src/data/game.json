@@ -654,10 +654,11 @@
     "maxGap": 3,
     "maxGap2": 2,
     "combo": {
-      "note": "콤보: 공격이 끝난 뒤 window초 동안, 표에 있는 다음 공격은 공격 준비도를 기다리지 않고 '거리 조건 × weight(2페이즈·분노는 weight2)' 점수로 겨룬다(걷기보다 높으면 바로 이어짐). 콤보로 나간 공격 뒤에는 다시 열리지 않음(한 번만). 표: 끝난 공격 → 이어 쓸 공격. range: 콤보일 때 거리 조건 [가까운 끝, 먼 끝] px(평소보다 넓게, soft만큼 부드럽게)",
+      "note": "콤보: 공격이 끝난 뒤 window초 동안, 표에 있는 다음 공격은 공격 준비도를 기다리지 않고 '거리 조건 × weight(2페이즈·분노는 weight2)' 점수로 겨룬다(콤보가 열린 동안 걷기 점수는 walk, 이보다 높으면 바로 이어짐). 콤보로 나간 공격 뒤에는 다시 열리지 않음(한 번만). 표: 끝난 공격 → 이어 쓸 공격. range: 콤보일 때 거리 조건 [가까운 끝, 먼 끝] px(평소보다 넓게, soft만큼 부드럽게)",
       "window": 0.8,
       "weight": 0.6,
       "weight2": 0.9,
+      "walk": 0.5,
       "range": { "soft": 30, "kovac": { "charge": [0, 190], "slam": [190, 2000], "hook": [80, 260] }, "basili": { "stomp": [0, 160], "gatling": [60, 400] } },
       "kovac": { "hookMiss": ["charge", "slam"], "slam": ["hook"] },
       "basili": { "charge": ["stomp"], "stomp": ["gatling"] }
