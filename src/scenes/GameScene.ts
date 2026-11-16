@@ -88,7 +88,7 @@ type BasiliDef = {
   p2: { gatlingRate: number; gatlingSpeed: number; guards: number; stompRings: number; ringGap: number };
   glow: { from: string; color: string; core: string; x: number; y: number; size: number; alpha: number };
   /** 동작별 프레임 그림 재생 (boss_walk/gatling/slam_NN, 프레임 정보는 boss_anim.json) */
-  anim: { walkFps: number; ready: number; windupFps: number; fireFps: number; stompRecover: number; footY: number; recoil: number; shadow: { w: number; h: number; alpha: number }; flash: { size: number; color: string }; reflect: { color: string; alpha: number }; squash: number };
+  anim: { walkFps: number; ready: number; windupFps: number; fireFps: number; flashTime: number; stompRecover: number; footY: number; recoil: number; shadow: { w: number; h: number; alpha: number }; flash: { size: number; color: string }; reflect: { color: string; alpha: number }; squash: number };
 };
 /** 바실리 동작 중 조준 그림(_aim)을 쓰는 단계 (새 그림이 오기 전 임시) */
 const BASILI_AIM = new Set(['gatling', 'call', 'stomp', 'stompRec', 'phaseShift']);
@@ -280,6 +280,10 @@ export class GameScene extends Phaser.Scene implements GameContext {
   private basiliFlash: Phaser.GameObjects.Image | null = null;
   private basiliReflect: Phaser.GameObjects.Image | null = null;
   private basiliSquash = 0;
+  /** 총구 화염을 보여 줄 남은 시간·지금 화염 장 (발사마다 무작위 1장) */
+  private basiliFlashT = 0;
+  private basiliFlashF = 0;
+  private basiliHalo: Phaser.GameObjects.Image | null = null;
   private walkInStep = 0;
   private walkInTo = 0;
   private basiliLast: BasiliAct = 'walk';
@@ -587,6 +591,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
     this.basiliShadow = null;
     this.basiliFlash = null;
     this.basiliReflect = null;
+    this.basiliHalo = null;
     this.bossDef = null;
     this.bossesSpawned = 0;
     this.god = false;
@@ -2114,6 +2119,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
       this.basiliShadow?.setVisible(false);
       this.basiliFlash?.setVisible(false);
       this.basiliReflect?.setVisible(false);
+      this.basiliHalo?.setVisible(false);
       this.stompRings = [];
       this.bossDef = null;
       e.kill();
@@ -3579,11 +3585,14 @@ export class GameScene extends Phaser.Scene implements GameContext {
           // 부채꼴로 흔들며 연사
           const a = this.gatAim + Math.sin(this.elapsed * 9) * Phaser.Math.DegToRad(G.fan / 2) + (Math.random() - 0.5) * 0.06;
           this.eShot(b.id).fire(mx, my, a, speed, G.damage, G.life);
-          this.burst(mx, my, 0xfff23a, 2);
+          // 총구 화염 그림: 발사마다 무작위 1장을 잠깐
+          this.basiliFlashT = bz.anim.flashTime;
+          this.basiliFlashF = Math.floor(Math.random() * 5);
+          if (!this.textures.exists('fx_boss_muzzle')) this.burst(mx, my, 0xfff23a, 2);
           if (Math.random() < 0.35) Sound.play('enemyshot');
         }
-        // 총구 불꽃 (그림이 있으면 animateBasiliFrames가 빛번짐 화염을 덧그림)
-        this.fx.fillStyle(0xfff23a, 0.5 + Math.random() * 0.4).fillCircle(mx, my, 3 + Math.random() * 2);
+        // 총구 불꽃 (화염 그림이 없을 때만 도형으로)
+        if (!this.textures.exists('fx_boss_muzzle')) this.fx.fillStyle(0xfff23a, 0.5 + Math.random() * 0.4).fillCircle(mx, my, 3 + Math.random() * 2);
       } else {
         // 돌아가기 시작: 총구 쪽 예고선
         this.fx.lineStyle(1.5, 0xff2a3a, MARK_A * 0.6).lineBetween(b.x, b.y, b.x + Math.cos(this.gatAim) * 200, b.y + Math.sin(this.gatAim) * 200);
@@ -3618,8 +3627,13 @@ export class GameScene extends Phaser.Scene implements GameContext {
         for (let i = 0; i < rings; i++) this.stompRings.push({ x: b.x, y: b.y, t: -i * bz.p2.ringGap, hit: false });
         this.shake(260, 0.016);
         this.basiliSquash = bz.anim.squash;
-        this.playSheet('fx_land_dust', 18, b.x, b.y + b.radius, 56 / 112, 30 / 40, 12, 9.5);
-        this.burst(b.x, b.y + b.radius * 0.5, 0x8a7a6a, 18);
+        if (this.textures.exists('fx_boss_stomp')) {
+          // 발구르기 이펙트 그림: 섬광 → 초승달 충격파 → 먼지 → 돌 (발밑 바닥 기준, 보스 배율로)
+          this.playSheet('fx_boss_stomp', 37, b.x, b.y + bz.anim.footY, 90 / 180, 100 / 143, 15, b.sprite.depth + 0.1, b.sprite.flipX, BOSS_SCALE);
+        } else {
+          this.playSheet('fx_land_dust', 18, b.x, b.y + b.radius, 56 / 112, 30 / 40, 12, 9.5);
+          this.burst(b.x, b.y + b.radius * 0.5, 0x8a7a6a, 18);
+        }
         Sound.play('explode');
         // 착지 후 낮게 버티는 자세 (그림: 착지 장 → 버팀 장)
         this.bossPhase = 'stompRec';
@@ -3636,7 +3650,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
 
   /** 바실리 지금 그림 안의 점(발전기·총구)을 월드 좌표로. 그림이 없거나 점 정보가 없으면 undefined, 그 프레임에서 가려졌으면 null */
   private basiliPoint(b: Enemy, kind: 'generator' | 'muzzle'): { x: number; y: number } | null | undefined {
-    const m = b.sprite.texture.key.match(/^boss_(walk|gatling|slam|stomp|phase|p2_walk|p2_gatling)_(\d+)$/);
+    const m = b.sprite.texture.key.match(/^boss_(walk|gatling|slam|stomp|phase|p2_walk|p2_gatling)_(?:lit_)?(\d+)$/);
     if (!m) return undefined;
     const M = (BOSS_ANIM.boss as Record<string, { w: number; h: number; generator?: FramePts; muzzle?: FramePts }>)[m[1]];
     const list = M?.[kind];
@@ -3713,7 +3727,10 @@ export class GameScene extends Phaser.Scene implements GameContext {
         firing = true;
       }
     }
-    const key = `boss_${motion}_${String(idx).padStart(2, '0')}`;
+    this.basiliFlashT = Math.max(0, this.basiliFlashT - dt);
+    // 총구 화염이 보이는 동안은 빛을 미리 칠한 프레임(boss_gatling_lit_NN)으로
+    const lit = firing && this.basiliFlashT > 0 && this.textures.exists(`boss_gatling_lit_${String(idx).padStart(2, '0')}`);
+    const key = lit ? `boss_gatling_lit_${String(idx).padStart(2, '0')}` : `boss_${motion}_${String(idx).padStart(2, '0')}`;
     if (!this.textures.exists(key)) return false;
     if (b.sprite.texture.key !== key) b.sprite.setTexture(key);
     const flip = ph === 'charge' || ph === 'aim' ? this.bossDir.x < 0 : ph === 'gatling' ? Math.cos(this.gatAim) < 0 : this.player.x < b.x;
@@ -3737,13 +3754,39 @@ export class GameScene extends Phaser.Scene implements GameContext {
     // 발밑 그림자
     this.basiliShadow ??= this.add.ellipse(0, 0, A.shadow.w, A.shadow.h, 0x000000, A.shadow.alpha);
     this.basiliShadow.setVisible(true).setPosition(b.x, b.y + A.footY - 2).setDepth(b.sprite.depth - 0.1).setScale(ph === 'charge' ? 1.1 : 1, 1);
-    // 총구 화염 (빛번짐) + 몸에 비치는 화염 반사광
+    // 총구 화염 그림 + 후광 (그림이 있으면). 없으면 빛번짐 원 + 몸 반사광
     const mp = firing ? this.basiliPoint(b, 'muzzle') : null;
+    if (this.textures.exists('fx_boss_muzzle')) {
+      this.basiliFlash ??= this.add.image(0, 0, this.softGlowKey()).setBlendMode(Phaser.BlendModes.ADD).setDepth(12.6);
+      this.basiliReflect ??= this.add.image(0, 0, key).setBlendMode(Phaser.BlendModes.ADD).setDepth(b.sprite.depth + 0.05);
+      this.basiliReflect.setVisible(false);
+      this.basiliHalo ??= this.add.image(0, 0, 'fx_boss_muzzle_glow').setBlendMode(Phaser.BlendModes.ADD).setDepth(12.55);
+      const on = !!mp && this.basiliFlashT > 0;
+      if (on && mp) {
+        const s = BOSS_SCALE;
+        // 화염: 기준점 = 총구(왼쪽 끝, 총열 가운데). 왼쪽을 보면 좌우 반전
+        this.basiliFlash
+          .setVisible(true)
+          .setBlendMode(Phaser.BlendModes.NORMAL)
+          .setTexture('fx_boss_muzzle', String(this.basiliFlashF))
+          .clearTint()
+          .setFlipX(flip)
+          .setOrigin(flip ? 1 : 0, 12 / 30)
+          .setScale(s)
+          .setAlpha(1)
+          .setPosition(mp.x, mp.y);
+        this.basiliHalo.setVisible(true).setPosition(mp.x, mp.y).setScale(s).setAlpha(0.8);
+      } else {
+        this.basiliFlash.setVisible(false);
+        this.basiliHalo.setVisible(false);
+      }
+      return true;
+    }
     this.basiliFlash ??= this.add.image(0, 0, this.softGlowKey()).setBlendMode(Phaser.BlendModes.ADD).setDepth(12.6);
     this.basiliReflect ??= this.add.image(0, 0, key).setBlendMode(Phaser.BlendModes.ADD).setDepth(b.sprite.depth + 0.05);
     if (mp) {
       const fl = 0.6 + Math.random() * 0.4;
-      this.basiliFlash.setVisible(true).setTint(Number(A.flash.color)).setPosition(mp.x, mp.y).setDisplaySize(A.flash.size * fl * BOSS_SCALE, A.flash.size * fl * BOSS_SCALE).setAlpha(0.9 * fl);
+      this.basiliFlash.setVisible(true).setBlendMode(Phaser.BlendModes.ADD).setTexture(this.softGlowKey()).setOrigin(0.5).setTint(Number(A.flash.color)).setPosition(mp.x, mp.y).setDisplaySize(A.flash.size * fl * BOSS_SCALE, A.flash.size * fl * BOSS_SCALE).setAlpha(0.9 * fl);
       this.basiliReflect
         .setVisible(true)
         .setTexture(key)
@@ -4198,9 +4241,9 @@ export class GameScene extends Phaser.Scene implements GameContext {
   }
 
   /** 한 번 재생하는 시트 효과 (프레임 '0'..'n-1') */
-  private playSheet(key: string, n: number, x: number, y: number, ox: number, oy: number, fps: number, depth: number, flip = false): void {
+  private playSheet(key: string, n: number, x: number, y: number, ox: number, oy: number, fps: number, depth: number, flip = false, scale = 1): void {
     if (!this.textures.exists(key)) return;
-    const img = this.add.image(x, y, key, '0').setOrigin(ox, oy).setDepth(depth).setFlipX(flip);
+    const img = this.add.image(x, y, key, '0').setOrigin(ox, oy).setDepth(depth).setFlipX(flip).setScale(scale);
     const t0 = this.elapsed;
     const tick = () => {
       const f = Math.floor((this.elapsed - t0) * fps);
