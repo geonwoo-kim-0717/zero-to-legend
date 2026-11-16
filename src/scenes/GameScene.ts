@@ -93,7 +93,7 @@ type BasiliDef = {
 /** 바실리 동작 중 조준 그림(_aim)을 쓰는 단계 (새 그림이 오기 전 임시) */
 const BASILI_AIM = new Set(['gatling', 'call', 'stomp', 'stompRec', 'phaseShift']);
 /** 보스 클로즈업 연출 (game.json bosses[].cine): 등장·2페이즈 대사(문구 키), 확대 배율, 대사 한 줄 시간, 말풍선 높이 */
-type CineDef = { intro?: string[]; p2?: string[]; zoom: number; lineTime: number; lift: number };
+type CineDef = { intro?: string[]; p2?: string[]; zoom: number; lineTime: number; lift: number; standFrame?: number };
 /** 분노 (game.json bosses[].enrage) */
 type EnrageDef = { at: number; mul: number; tint: string };
 /** 보스 동작별 프레임 설정 (game.json bosses[].anim) */
@@ -397,7 +397,8 @@ export class GameScene extends Phaser.Scene implements GameContext {
   /** 디버그(F1): 블랙 실드 머리 위에 지금 행동과 상위 점수 표시 */
   private squadDbg = new Map<Enemy, Phaser.GameObjects.Text>();
   private drawSquadDebug(): void {
-    const show = this.debug || AI_SHOW;
+    // 보스 클로즈업 중에는 점수 글씨를 숨긴다 (대사와 겹치지 않게)
+    const show = (this.debug || AI_SHOW) && !this.cine;
     for (const [e, t] of this.squadDbg) if (!show || !e.active) t.setVisible(false);
     this.drawDirectorPanel(show);
     // 보스 점수 AI: 머리 위에 상위 3개
@@ -3789,6 +3790,19 @@ export class GameScene extends Phaser.Scene implements GameContext {
     // 2페이즈 전환 동작은 연출 중에도 재생 (전환 시간이 연출 앞부분)
     if (this.bossPhase === 'phaseShift') this.bossTimer = Math.max(0.0001, this.bossTimer - dt);
     if (def && b.active) this.animateBoss(b, def, this.bossPhase === 'phaseShift' ? dt : 0);
+    // 대사하는 동안은 서 있는 자세(걷기 그림 중 두 발이 모인 장)로 플레이어를 본다. 2페이즈 전환 동작 중에는 그 동작을 보여 줌
+    const cd = (def as { cine?: CineDef } | null)?.cine;
+    const transforming = this.bossPhase === 'phaseShift' && this.bossTimer > 0.001;
+    if (def && b.active && cd?.standFrame !== undefined && !transforming) {
+      const p2Walk = this.bossPhase2 && this.textures.exists(`${def.id}_p2_walk_00`);
+      const motion = p2Walk ? 'p2_walk' : 'walk';
+      const key = `${def.id}_${motion}_${String(cd.standFrame).padStart(2, '0')}`;
+      const M = BOSS_ANIM[def.id]?.[motion] ?? BOSS_ANIM[def.id]?.walk;
+      if (M && this.textures.exists(key)) {
+        const flip = this.player.x < b.x;
+        b.sprite.setTexture(key).setFlipX(flip).setOrigin(flip ? 1 - M.originX : M.originX, 1);
+      }
+    }
     // 대사: delay초 뒤부터 lineTime마다 한 줄
     while (c.said < c.lines.length && c.t >= c.delay + c.said * c.each) {
       this.shout(b, tr(c.lines[c.said] as Parameters<typeof tr>[0]), 0, false, c.each, c.lift);
@@ -3833,6 +3847,8 @@ export class GameScene extends Phaser.Scene implements GameContext {
   private endCine(): void {
     const c = this.cine!;
     this.cine = null;
+    // 코박 등장: 대사 뒤 남은 착지 자세는 건너뛰고 바로 걷기 (서 있다가 다시 웅크리지 않게)
+    if (this.bossPhase === 'taunt') this.bossTimer = 0;
     for (const o of c.hidden) if ((o as unknown as { active: boolean }).active) (o as unknown as { setVisible: (v: boolean) => void }).setVisible(true);
     // 일시정지 메뉴용 설정 버튼 등 원래 숨어 있던 것은 그대로 (숨겼던 것만 되돌림)
     for (const r of c.bars) r.destroy();

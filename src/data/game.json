@@ -78,7 +78,7 @@
       "firstSummon": 6,
       "zone": "slum",
       "brain": true,
-      "cine": { "note": "클로즈업 연출: 등장(착지 뒤 entrance.line 다음에 intro)·분노(p2) 대사, 확대 배율 zoom, 대사 한 줄 lineTime초, 말풍선 높이 lift. 그동안 세상 시간 정지", "intro": ["boss.intro.midboss"], "p2": ["boss.p2.midboss"], "zoom": 1.6, "lineTime": 1.6, "lift": 10 },
+      "cine": { "note": "클로즈업 연출: 등장(착지 뒤 entrance.line 다음에 intro)·분노(p2) 대사, 확대 배율 zoom, 대사 한 줄 lineTime초, 말풍선 높이 lift, 대사 중 서 있는 자세 = 걷기 standFrame번 장. 그동안 세상 시간 정지", "intro": ["boss.intro.midboss"], "p2": ["boss.p2.midboss"], "zoom": 1.6, "lineTime": 1.6, "lift": 10, "standFrame": 6 },
       "anim": {
         "note": "동작별 프레임 그림(midboss_<동작>_NN). 프레임 수·허리 위치(originX)는 아트가 주는 src/data/midboss_anim.json을 그대로 읽는다. scale은 bossScale에 곱하는 표시 배율(0.77×1.3≈1이면 그림 원본 크기), chargeWind/chargeFlash/chargeRun은 돌진 그림의 예고·번쩍·돌진 프레임 번호, chargeFlashTime은 번쩍 프레임을 보여줄 시간(초), motionScale은 동작별 추가 배율(그림 배율이 어긋났을 때 임시 보정용), footY는 판정 중심에서 발까지(px)",
         "walkFps": 12,
@@ -169,7 +169,7 @@
         "h": 300
       },
       "brain": "basili",
-      "cine": { "note": "클로즈업 연출: 걸어 들어온 뒤 intro, 2페이즈 전환 동작 뒤 p2 대사", "intro": ["boss.intro.boss.1", "boss.intro.boss.2"], "p2": ["boss.p2.boss"], "zoom": 1.6, "lineTime": 1.6, "lift": 22 },
+      "cine": { "note": "클로즈업 연출: 걸어 들어온 뒤 intro, 2페이즈 전환 동작 뒤 p2 대사", "intro": ["boss.intro.boss.1", "boss.intro.boss.2"], "p2": ["boss.p2.boss"], "zoom": 1.6, "lineTime": 1.6, "lift": 22, "standFrame": 3 },
       "basili": {
         "note": "바실리 패턴. walkIn: 화면 밖에서 speed px/s로 걸어 들어옴(step초마다 쿵, 무적). phaseShift: 2페이즈 전환 무적 시간. gatling: spin초 회전 후 time초 동안 초당 rate발, 부채꼴 fan도로 흔들며 초당 turn도씩 플레이어 쪽으로 회전(탄속 speed, 피해 damage). call: gesture초 손짓 → id를 count마리 반경 radius로 두르고 orbit rad/s로 돎. stomp: lift초 발 들기(예고) → 충격파 고리가 time초 동안 radius까지 퍼짐(고리 두께 band, 피해 damage, 대시로 넘음). p2: 2페이즈 값. glow: 2페이즈 발전기 빛(전환 동안 from 청록 → color 빨강, 가운데 core는 흰빛에 가까운 빨강, 그림 중심 기준 x,y px)",
         "walkIn": { "speed": 55, "step": 0.55 },
