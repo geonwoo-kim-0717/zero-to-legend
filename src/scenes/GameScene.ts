@@ -105,6 +105,7 @@ type Xm4Def = {
   quickFps: number;
   rotateTurn: number;
   footOff: number;
+  hitShake: number;
   p2: { plasmaShots: number; plasmaWarn: number; missileCount: number };
 };
 type GregorDef = { drop: { count: number; countRage: number; spread: number; warn: number; radius: number; damage: number; height: number; stagger: number }; sweep: { angle: number; range: number; aim: number; swing: number; damage: number; knock: number } };
@@ -133,6 +134,8 @@ function josa(name: string, a: string, b: string): string {
 
 /** AI 점수 표시 모드: 요원 행동 점수·스폰 디렉터 값을 화면에 띄운다 (주소에 ?ai, 또는 VITE_AI_SHOW=1 빌드) */
 const AI_SHOW = import.meta.env.VITE_AI_SHOW === '1' || new URLSearchParams(location.search).has('ai');
+/** 개발자 도구 버튼(배속·무적·보스 소환 등): AI 표시 모드 또는 주소에 ?debug */
+const DEV_TOOLS = new URLSearchParams(location.search).has('debug');
 /** 진압대 걷기 루프 재생 속도 (아트: 한 걸음 주기 1초) */
 const WALK_FPS = 12;
 
@@ -714,7 +717,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
     this.speedBtn = null;
     this.gameSpeed = Save.data.speedUnlocked && Save.data.speed2 ? 2 : 1;
     if (Save.data.speedUnlocked) this.makeSpeedBtn();
-    if (AI_SHOW) this.makeAiTools();
+    if (AI_SHOW || DEV_TOOLS) this.makeAiTools();
     // 1챕터 의뢰 브리핑
     // 첫 판: 진과 처음 만나는 대사 (아직 빚이 없다). 두 번째 판부터: 리퍼닥 수리비를 갚으라는 대사
     // 첫 판: 진과 첫 만남 · 지난 판 클리어: 새 주인 밑의 하층가 · 지난 판 2챕터 이상에서 쓰러짐: 바실리 백업 의체 · 그 밖: 빚 갚기
@@ -805,7 +808,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
   // ───────────────────────────── GameContext ─────────────────────────────
   damage(e: Enemy, amount: number, tag?: DamageTag): boolean {
     if (!e.active) return false;
-    if (e === this.boss && (this.cine || this.bossShieldT > 0 || this.bossPhase === 'enter' || this.bossPhase === 'walkIn' || this.bossPhase === 'phaseShift')) return false;
+    if (e === this.boss && (this.cine || this.bossGod || this.bossShieldT > 0 || this.bossPhase === 'enter' || this.bossPhase === 'walkIn' || this.bossPhase === 'phaseShift')) return false;
     // 회피 기동 중인 진압대는 피해를 받지 않음
     if (e.dodgeT > 0) return false;
     // 강하·착지 충격 중인 진압대는 무적
@@ -834,6 +837,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
     this.logDamage(Math.min(amount, Math.max(0, e.hp)));
     this.noteDps(Math.min(amount, Math.max(0, e.hp)));
     this.dmgNumber(e, amount, critMul);
+    if (e === this.boss) this.xmHitT = Math.max(this.xmHitT, 0.12);
     if (e.hit(amount)) {
       if (tag === 'melee') this.run.meleeKills++;
       this.killEnemy(e, tag);
@@ -1200,7 +1204,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
     for (let i = 0; i < v; i++) g.fillTriangle(7 + i * 8, cy - 5, 7 + i * 8, cy + 5, 14 + i * 8, cy);
   }
 
-  /** AI 점수 표시 빌드 전용: 3배속·무적 켜기/끄기·1분 건너뛰기 (관찰·테스트용, 저장하지 않음) */
+  /** 개발자 도구(AI 표시 빌드·?ai·?debug): 3배속·무적·1분 건너뛰기·보스 무적·레벨업·보스 소환 (관찰·테스트용, 저장하지 않음) */
   private makeAiTools(): void {
     const mk = (y: number, label: () => string, toggle: () => void) => {
       const t = this.add
@@ -1228,6 +1232,75 @@ export class GameScene extends Phaser.Scene implements GameContext {
     mk(84, () => `무적: ${this.god ? '켬' : '끔'}`, () => (this.god = !this.god));
     // 1분 건너뛰기: 게임 시간만 60초 앞으로 (스폰·보스·습격 시각이 그만큼 당겨짐)
     mk(102, () => '+1분', () => (this.elapsed += 60));
+    // 아래 왼쪽 줄: 보스 무적·레벨업·보스 소환 (오른쪽은 무전 창과 겹쳐서)
+    const row = (y: number, items: [() => string, () => void][]) => {
+      let x = 8;
+      for (const [label, act] of items) {
+        const t = this.add
+          .text(x, y, label(), { ...TEXT, fontSize: '10px', color: '#fff23a', backgroundColor: '#1a1030', padding: { x: 5, y: 2 } })
+          .setScrollFactor(0)
+          .setDepth(160)
+          .setInteractive({ useHandCursor: true });
+        t.on('pointerdown', (_p: Phaser.Input.Pointer, _x: number, _y: number, e: Phaser.Types.Input.EventData) => {
+          e.stopPropagation();
+          act();
+          t.setText(label());
+          Sound.play('select');
+        });
+        x += t.width + 4;
+      }
+    };
+    row(VIEW_H - 62, [
+      // 보스만 무적 (보스 패턴 관찰용)
+      [() => `보스 무적: ${this.bossGod ? '켬' : '끔'}`, () => (this.bossGod = !this.bossGod)],
+      // 레벨업 한 번 (카드 고르기 화면이 바로 뜸)
+      [
+        () => '레벨업 +1',
+        () => {
+          this.level++;
+          this.pendingLevels++;
+        },
+      ],
+    ]);
+    // 보스 소환: 그 보스의 구역으로 바꾸고 (있던 보스는 보상 없이 치움) 바로 소환
+    const SHORT: Record<string, string> = { midboss: '코박', boss: '바실리', midboss2: '그레고르', boss2: 'XM-4', midboss3: '노라', boss3: '센서스' };
+    const items = gameData.bosses.map((d) => [() => SHORT[d.id] ?? d.id, () => this.devSpawnBoss(d as BossDef)] as [() => string, () => void]);
+    row(VIEW_H - 44, [[() => '보스 소환 ▶', () => {}], ...items.slice(0, 3)]);
+    row(VIEW_H - 26, items.slice(3));
+  }
+
+  /** 개발자 도구: 보스 바로 소환 (구역 전환, 있던 보스는 보상 없이 치움) */
+  private devSpawnBoss(def: BossDef): void {
+    if (this.state !== 'play') return;
+    const e = this.boss;
+    if (e) {
+      if (this.cine) this.endCine();
+      this.boss = null;
+      this.hookChain?.setVisible(false);
+      this.hookHead?.setVisible(false);
+      this.hookTrail?.setVisible(false);
+      this.basiliGlow?.setVisible(false);
+      this.basiliCore?.setVisible(false);
+      this.basiliShadow?.setVisible(false);
+      this.basiliFlash?.setVisible(false);
+      this.basiliReflect?.setVisible(false);
+      this.basiliHalo?.setVisible(false);
+      this.stompRings = [];
+      this.containers = [];
+      this.clearPlasma();
+      this.hideXm4Layers();
+      this.bossDef = null;
+      e.kill();
+      this.hud.bossName.setText('');
+      this.clearArena();
+    }
+    const zi = ZONES.findIndex((z) => z.id === def.zone);
+    if (zi >= 0 && zi !== this.zoneIdx) {
+      this.zoneIdx = zi;
+      this.applyZone(false);
+    }
+    this.bossesSpawned = gameData.bosses.filter((b) => b.zone === def.zone).findIndex((b) => b.id === def.id);
+    this.spawnBoss(def);
   }
 
   /** 2챕터 첫 도달: 픽서가 넘겨 준 가속 모듈 제어 코드로 배속 버튼이 열린다 */
@@ -3907,6 +3980,10 @@ export class GameScene extends Phaser.Scene implements GameContext {
   private xmDeployed = false;
   private xmFlashT = 0;
   private xmCasingRow = 0;
+  /** XM-4 피격 흔들림 남은 시간 */
+  private xmHitT = 0;
+  /** 개발자 도구: 보스 무적 */
+  private bossGod = false;
 
   /** 그레고르 컨테이너: 떨어질 자리, 남은 시간, 이미 떨어졌는지 */
   private containers: { x: number; y: number; t: number; hit: boolean }[] = [];
@@ -3952,12 +4029,20 @@ export class GameScene extends Phaser.Scene implements GameContext {
     return (((Math.round(a / (Math.PI / 8)) % 16) + 16) % 16);
   }
 
+  /** XM-4 발 위치 (월드 y): 판정 원 중심 + footOff - 점프 높이. 그리는 위치와 같은 식이라 업데이트 도중에도 맞음 */
+  private xmFoot(b: Enemy): number {
+    const def = this.bossDef as { xm4?: Xm4Def; slam?: SlamDef } | null;
+    const sl = def?.slam;
+    const lift = this.bossPhase === 'air' && sl ? Math.sin(Phaser.Math.Clamp(1 - this.bossTimer / sl.air, 0, 1) * Math.PI) * sl.height : 0;
+    return b.y + (def?.xm4?.footOff ?? 0) - lift;
+  }
+
   /** XM-4 몸통 겹 왼쪽 위 (월드). 다리 캔버스 원점(발 가운데)이 발 위치, 몸통은 걷기 프레임마다 bodyOffset만큼 */
   private xmBodyTL(b: Enemy): { x: number; y: number } {
     const A = boss2Anim;
     const f = Math.floor(this.xmWalkPh) % A.walk.frames;
     const off = A.walk.bodyOffset[f];
-    const foot = b.sprite.y;
+    const foot = this.xmFoot(b);
     return { x: b.x - A.origin.legsCanvas[0] + off[0], y: foot - A.origin.legsCanvas[1] + off[1] };
   }
 
@@ -4016,9 +4101,18 @@ export class GameScene extends Phaser.Scene implements GameContext {
     const f = Math.floor(this.xmWalkPh) % A.frames;
     const nn = String(f).padStart(2, '0');
     // 점프 낙하: 공중 포물선
-    const sl = (def as { slam?: SlamDef }).slam;
-    const lift = ph === 'air' && sl ? Math.sin(Phaser.Math.Clamp(1 - this.bossTimer / sl.air, 0, 1) * Math.PI) * sl.height : 0;
-    const foot = b.y + xz.footOff - lift;
+    // 피격 흔들림: 맞은 직후 겹 전체를 몇 px 흔듦
+    let sx = 0;
+    let sy = 0;
+    if (this.xmHitT > 0) {
+      this.xmHitT -= dt;
+      if (!Settings.reducedFx) {
+        sx = Math.round((Math.random() - 0.5) * 2 * xz.hitShake);
+        sy = Math.round((Math.random() - 0.5) * xz.hitShake);
+      }
+    }
+    const foot = this.xmFoot(b) + sy;
+    const bx = b.x + sx;
     if (!this.xmLayers) {
       const mk = (depth: number) => this.add.image(0, 0, 'boss2_under_00').setDepth(depth);
       this.xmLayers = { under: mk(11.96), back: mk(11.97), front: mk(12.02), lit: mk(12.01).setVisible(false) };
@@ -4026,9 +4120,9 @@ export class GameScene extends Phaser.Scene implements GameContext {
     const L = this.xmLayers;
     const ox = art.origin.legsCanvas[0] / art.canvas.legs[0];
     const oy = art.origin.legsCanvas[1] / art.canvas.legs[1];
-    L.under.setTexture(`boss2_under_${nn}`).setOrigin(ox, oy).setPosition(b.x, foot).setVisible(true);
-    L.back.setTexture(`boss2_legs_back_${nn}`).setOrigin(ox, oy).setPosition(b.x, foot).setVisible(true);
-    L.front.setTexture(`boss2_legs_front_${nn}`).setOrigin(ox, oy).setPosition(b.x, foot).setVisible(true);
+    L.under.setTexture(`boss2_under_${nn}`).setOrigin(ox, oy).setPosition(bx, foot).setVisible(true);
+    L.back.setTexture(`boss2_legs_back_${nn}`).setOrigin(ox, oy).setPosition(bx, foot).setVisible(true);
+    L.front.setTexture(`boss2_legs_front_${nn}`).setOrigin(ox, oy).setPosition(bx, foot).setVisible(true);
     // 몸통: 포탑 상승·하강(1페이즈 점프 앞뒤, 등장)·2페이즈 전개 동작, 1페이즈 점프 중엔 뚜껑 닫힘, 그 밖엔 포탑 방향 그림
     const dir = String(this.xmDir()).padStart(2, '0');
     const RN = art.turretRise.frames;
@@ -4051,12 +4145,12 @@ export class GameScene extends Phaser.Scene implements GameContext {
     const box = (art.origin.legsCanvas[0] - off[0]) / bw;
     const boy = (art.origin.legsCanvas[1] - off[1]) / bh;
     if (b.sprite.texture.key !== body) b.sprite.setTexture(body);
-    b.sprite.setOrigin(box, boy).setPosition(b.x, foot).setFlipX(false).setScale(1);
+    b.sprite.setOrigin(box, boy).setPosition(bx, foot).setFlipX(false).setScale(1);
     b.footOff = xz.footOff;
     // 기관총 반사광: 섬광 0~1프레임 = 1행(강), 2프레임 = 2행(약), 2페이즈 몸통 위에만
     if (this.xmFlashT > 0 && p2Body && !closed && this.textures.exists('fx_boss2_mg_lit')) {
       const row = this.xmFlashT > 1 / 30 ? 0 : 1;
-      L.lit.setTexture('fx_boss2_mg_lit', String(row * 16 + this.xmDir())).setOrigin(box, boy).setPosition(b.x, foot).setVisible(true);
+      L.lit.setTexture('fx_boss2_mg_lit', String(row * 16 + this.xmDir())).setOrigin(box, boy).setPosition(bx, foot).setVisible(true);
     } else L.lit.setVisible(false);
     // 피격 번쩍임 등 몸통 색을 다리에도
     const tint = b.sprite.isTinted ? b.sprite.tintTopLeft : null;
@@ -4159,7 +4253,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
     };
     if (this.xmFlashT > 0) this.xmFlashT -= dt;
     // 포탑: 늘 플레이어 쪽으로 천천히 돈다 (포탑 기준점에서 플레이어까지 화면 각도)
-    const tc = this.xmArt() ? { x: b.x, y: b.sprite.y - 90 } : { x: b.x, y: b.y - b.radius * 0.7 };
+    const tc = this.xmArt() ? { x: b.x, y: this.xmFoot(b) - 90 } : { x: b.x, y: b.y - b.radius * 0.7 };
     // 포탑 02 방향(오른쪽 아래)의 화면 각도: 상승·하강·전개 그림은 이 방향에서만
     const a02 = Math.atan2(Math.sin(Math.PI / 4) * 0.55, Math.cos(Math.PI / 4));
     const bodyBusy = ph === 'rise' || ph === 'lower' || ph === 'deploy' || ((ph === 'leap' || ph === 'air' || ph === 'slam') && !this.xmDeployed);
@@ -4688,7 +4782,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
     this.burst(b.x, b.y, 0xffa040, 18);
     // XM-4 점프 착지: 바실리 발구르기 이펙트를 발밑에 (boss_anim.json fx origin)
     const SF = (bossAnim as unknown as { fx?: Record<string, { frameW: number; frameH: number; frames: number; fps: number; origin: number[] }> }).fx?.fx_boss_stomp;
-    if (b.id === 'boss2' && SF && this.textures.exists('fx_boss_stomp')) this.playSheet('fx_boss_stomp', SF.frames, b.x, b.sprite.y, SF.origin[0] / SF.frameW, SF.origin[1] / SF.frameH, SF.fps, 12.1);
+    if (b.id === 'boss2' && SF && this.textures.exists('fx_boss_stomp')) this.playSheet('fx_boss_stomp', SF.frames, b.x, this.xmFoot(b), SF.origin[0] / SF.frameW, SF.origin[1] / SF.frameH, SF.fps, 12.1);
     this.shake(220, 0.014);
     Sound.play('explode');
   }
