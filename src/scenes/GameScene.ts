@@ -4150,11 +4150,14 @@ export class GameScene extends Phaser.Scene implements GameContext {
       this.xmLayers = { under: mk(11.96), back: mk(11.97), front: mk(12.02), lit: mk(12.01).setVisible(false) };
     }
     const L = this.xmLayers;
-    const ox = art.origin.legsCanvas[0] / art.canvas.legs[0];
+    // 등장(걸어 들어오기·포탑 상승) 동안은 상·하체 모두 좌우 반전해 왼쪽을 봄
+    const flip = ph === 'walkIn' || (ph === 'rise' && this.xmEntering);
+    const ox0 = art.origin.legsCanvas[0] / art.canvas.legs[0];
+    const ox = flip ? 1 - ox0 : ox0;
     const oy = art.origin.legsCanvas[1] / art.canvas.legs[1];
-    L.under.setTexture(`boss2_under_${nn}`).setOrigin(ox, oy).setPosition(bx, foot).setVisible(true);
-    L.back.setTexture(`boss2_legs_back_${nn}`).setOrigin(ox, oy).setPosition(bx, foot).setVisible(true);
-    L.front.setTexture(`boss2_legs_front_${nn}`).setOrigin(ox, oy).setPosition(bx, foot).setVisible(true);
+    L.under.setTexture(`boss2_under_${nn}`).setOrigin(ox, oy).setFlipX(flip).setPosition(bx, foot).setVisible(true);
+    L.back.setTexture(`boss2_legs_back_${nn}`).setOrigin(ox, oy).setFlipX(flip).setPosition(bx, foot).setVisible(true);
+    L.front.setTexture(`boss2_legs_front_${nn}`).setOrigin(ox, oy).setFlipX(flip).setPosition(bx, foot).setVisible(true);
     // 몸통: 포탑 상승·하강(1페이즈 점프 앞뒤, 등장)·2페이즈 전개 동작, 1페이즈 점프 중엔 뚜껑 닫힘, 그 밖엔 포탑 방향 그림
     const dir = String(this.xmDir()).padStart(2, '0');
     const RN = art.turretRise.frames;
@@ -4175,10 +4178,11 @@ export class GameScene extends Phaser.Scene implements GameContext {
     const off = A.bodyOffset[f];
     const [bw, bh] = art.canvas.body;
     // 몸통 원점 = 다리 원점 - bodyOffset (몸통 왼쪽 위가 다리 왼쪽 위 + offset에 오게)
-    const box = (art.origin.legsCanvas[0] - off[0]) / bw;
+    const box0 = (art.origin.legsCanvas[0] - off[0]) / bw;
+    const box = flip ? 1 - box0 : box0;
     const boy = (art.origin.legsCanvas[1] - off[1]) / bh;
     if (b.sprite.texture.key !== body) b.sprite.setTexture(body);
-    b.sprite.setOrigin(box, boy).setPosition(bx, foot).setFlipX(false).setScale(1);
+    b.sprite.setOrigin(box, boy).setPosition(bx, foot).setFlipX(flip).setScale(1);
     b.footOff = xz.footOff;
     // 기관총 반사광: 섬광 0~1프레임 = 1행(강), 2프레임 = 2행(약), 2페이즈 몸통 위에만
     if (this.xmFlashT > 0 && p2Body && !closed && this.textures.exists('fx_boss2_mg_lit')) {
@@ -4376,6 +4380,8 @@ export class GameScene extends Phaser.Scene implements GameContext {
           this.bossTo = { x: (this.untracked ? this.decoy : p).x, y: (this.untracked ? this.decoy : p).y };
         } else {
           this.bossLastAttack = this.elapsed;
+          // 등장 상승은 반전(왼쪽 아래 = 06 방향)으로 끝났으므로 포탑 방향을 거기에 맞춰 이어 감
+          if (this.xmEntering) this.xmAim = Math.PI - Math.atan2(Math.sin(Math.PI / 4) * 0.55, Math.cos(Math.PI / 4));
           this.xmEntering = false;
           toWalk();
         }
