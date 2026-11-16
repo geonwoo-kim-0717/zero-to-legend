@@ -60,7 +60,8 @@
     "hp": 44000,
     "speed": 42,
     "damage": 25,
-    "radius": 36,
+    "radius": 28,
+    "scale": 1,
     "xp": 0,
     "texture": "boss_w1"
   },

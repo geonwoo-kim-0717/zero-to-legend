@@ -15,6 +15,8 @@ export class Enemy {
   /** 기본 그림 키 (구역별 겉모습이 있으면 그 키). 걷기·공격 프레임은 <tex>_w2, <tex>_aim */
   tex = 'drone';
   isBoss = false;
+  /** 그림·판정 배율 (보스는 enemies.json scale, 없으면 bossScale. 일반 적은 1) */
+  baseScale = 1;
   x = 0;
   y = 0;
   hp = 0;
@@ -104,7 +106,8 @@ export class Enemy {
     this.hp = this.maxHp = def.hp * hpScale;
     this.speed = def.speed * (this.isBoss ? 1 : Phaser.Math.FloatBetween(0.9, 1.1));
     this.damage = def.damage;
-    this.radius = def.radius * (this.isBoss ? BOSS_SCALE : 1);
+    this.baseScale = this.isBoss ? ((def as { scale?: number }).scale ?? BOSS_SCALE) : 1;
+    this.radius = def.radius * this.baseScale;
     this.xp = def.xp;
     this.flash = 0;
     this.dropT = 0;
@@ -135,7 +138,7 @@ export class Enemy {
     this.tilt = 0;
     this.shadow.setPosition(x, y).setVisible(this.flying);
     this.sprite.setRotation(0);
-    this.sprite.setTexture(def.texture).setPosition(x, y).setVisible(true).clearTint().setFlipX(false).setScale(this.isBoss ? BOSS_SCALE : 1).setAlpha(1).setDepth(this.isBoss ? 12 : 10);
+    this.sprite.setTexture(def.texture).setPosition(x, y).setVisible(true).clearTint().setFlipX(false).setScale(this.baseScale).setAlpha(1).setDepth(this.isBoss ? 12 : 10);
   }
 
   /** 피해를 주고, 죽었으면 true */

@@ -3229,7 +3229,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
   /** 보스 표시 배율 (동작별 프레임 그림이면 그 동작 배율까지) */
   private bossAnimScale(def: BossDef | null, motion?: string): number {
     const A = def ? (def as { anim?: BossAnim }).anim : undefined;
-    if (!A) return BOSS_SCALE;
+    if (!A) return this.boss?.baseScale ?? BOSS_SCALE;
     const m = motion ?? this.boss?.sprite.texture.key.match(/_(walk|leap|charge|slam|hook)_\d+$/)?.[1] ?? 'walk';
     return BOSS_SCALE * A.scale * (A.motionScale[m] ?? 1);
   }
@@ -3707,7 +3707,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
     const flip = b.sprite.flipX;
     const row = rowPick ?? Math.floor(Math.random() * F.rows);
     const ox = (flip ? F.frameW - F.start[0] : F.start[0]) / F.frameW;
-    this.playSheet('fx_boss_casing', F.frames, pt.x, pt.y, ox, F.start[1] / F.frameH, F.fps, b.sprite.depth + 0.05, flip, BOSS_SCALE, row * F.frames);
+    this.playSheet('fx_boss_casing', F.frames, pt.x, pt.y, ox, F.start[1] / F.frameH, F.fps, b.sprite.depth + 0.05, flip, 1, row * F.frames);
   }
 
   /** 바실리 지금 그림 안의 점(발전기·총구)을 월드 좌표로. 그림이 없거나 점 정보가 없으면 undefined, 그 프레임에서 가려졌으면 null */
@@ -3808,7 +3808,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
     // 발구르기 착지: 몸이 잠깐 눌림
     this.basiliSquash = Math.max(0, this.basiliSquash - dt);
     const sq = A.squash > 0 ? this.basiliSquash / A.squash : 0;
-    if (!this.tweens.isTweening(b.sprite)) b.sprite.setScale(BOSS_SCALE * (1 + 0.08 * sq), BOSS_SCALE * (1 - 0.12 * sq));
+    if (!this.tweens.isTweening(b.sprite)) b.sprite.setScale(b.baseScale * (1 + 0.08 * sq), b.baseScale * (1 - 0.12 * sq));
     b.footOff = A.footY;
     const shakeAmp = ph === 'phaseShift' ? 2 : ph === 'aim' ? 2 : 0;
     let jx = shakeAmp && !Settings.reducedFx ? (Math.random() - 0.5) * shakeAmp : 0;
@@ -3833,7 +3833,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
       this.basiliHalo ??= this.add.image(0, 0, 'fx_boss_muzzle_glow').setBlendMode(Phaser.BlendModes.ADD).setDepth(12.55);
       const on = !!mp && this.basiliFlashT > 0;
       if (on && mp) {
-        const s = BOSS_SCALE;
+        const s = 1; // 이펙트는 1:1
         // 화염: 기준점 = 총구(왼쪽 끝, 총열 가운데). 왼쪽을 보면 좌우 반전
         this.basiliFlash
           .setVisible(true)
