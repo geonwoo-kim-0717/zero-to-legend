@@ -3649,7 +3649,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
         this.basiliSquash = bz.anim.squash;
         if (this.textures.exists('fx_boss_stomp')) {
           // 발구르기 이펙트 그림: 원점 = 내려찍는 앞발 아래(stomp.footImpact), 1:1 크기. 2페이즈는 작은 이펙트 2개를 발 기준 양옆에
-          const FX = (bossAnim as unknown as { fx?: Record<string, { frameW: number; frameH: number; frames: number; fps: number; origin: number[]; offsetsX?: number[] }> }).fx ?? {};
+          const FX = (bossAnim as unknown as { fx?: Record<string, { frameW: number; frameH: number; frames: number; fps: number; origin: number[]; offsetsX?: number[]; delayFrames?: number[] }> }).fx ?? {};
           const foot = this.stompFoot(b);
           const flip = b.sprite.flipX;
           const play = (key: string, dx: number) => {
@@ -3659,9 +3659,16 @@ export class GameScene extends Phaser.Scene implements GameContext {
             this.playSheet(key, F.frames, foot.x + dx, foot.y, ox, F.origin[1] / F.frameH, F.fps, b.sprite.depth + 0.1, flip);
             return true;
           };
-          const two = p2 && FX.fx_boss_stomp_p2 && this.textures.exists('fx_boss_stomp_p2');
-          if (two) for (const dx of FX.fx_boss_stomp_p2.offsetsX ?? [-50, 50]) play('fx_boss_stomp_p2', dx);
-          else play('fx_boss_stomp', 0);
+          // 2페이즈: 앞발에서 시작해 보는 방향으로 offsetsX만큼 앞에, delayFrames(이펙트 프레임) 뒤에 이어서 → 충격이 앞으로 퍼짐
+          const P2F = FX.fx_boss_stomp_p2;
+          if (p2 && P2F && this.textures.exists('fx_boss_stomp_p2')) {
+            const dir = flip ? -1 : 1;
+            (P2F.offsetsX ?? [0]).forEach((dx, i) => {
+              const delay = ((P2F.delayFrames?.[i] ?? 0) / P2F.fps) * 1000;
+              if (delay <= 0) play('fx_boss_stomp_p2', dx * dir);
+              else this.time.delayedCall(delay, () => play('fx_boss_stomp_p2', dx * dir));
+            });
+          } else play('fx_boss_stomp', 0);
         } else {
           this.playSheet('fx_land_dust', 18, b.x, b.y + b.radius, 56 / 112, 30 / 40, 12, 9.5);
           this.burst(b.x, b.y + b.radius * 0.5, 0x8a7a6a, 18);
