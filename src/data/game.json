@@ -693,16 +693,17 @@
     "maxGap": 3,
     "maxGap2": 2,
     "combo": {
-      "note": "콤보: 공격이 끝난 뒤 window초 동안, 표에 있는 다음 공격은 공격 준비도를 기다리지 않고 '거리 조건 × weight(2페이즈·분노는 weight2)' 점수로 겨룬다(콤보가 열린 동안 걷기 점수는 walk, 이보다 높으면 바로 이어짐). 콤보로 나간 공격 뒤에는 다시 열리지 않음(한 번만). 표: 끝난 공격 → 이어 쓸 공격. range: 콤보일 때 거리 조건 [가까운 끝, 먼 끝] px(평소보다 넓게, soft만큼 부드럽게)",
+      "note": "콤보: 공격이 끝난 뒤 window초 동안, 표에 있는 다음 공격은 공격 준비도를 기다리지 않고 '거리 조건 × weight(2페이즈·분노는 weight2)' 점수로 겨룬다(콤보가 열린 동안 걷기 점수는 walk, 이보다 높으면 바로 이어짐). 콤보로 이어진 공격 수가 maxChain(보스 brain별, 첫 공격 포함, 없으면 2 = 한 번만)에 닿으면 더 열리지 않음. XM-4는 소환도 콤보에 섞임. 표: 끝난 공격 → 이어 쓸 공격. range: 콤보일 때 거리 조건 [가까운 끝, 먼 끝] px(평소보다 넓게, soft만큼 부드럽게)",
       "window": 0.8,
       "weight": 0.6,
       "weight2": 0.9,
       "walk": 0.5,
-      "range": { "soft": 30, "kovac": { "charge": [0, 190], "slam": [190, 2000], "hook": [80, 260] }, "basili": { "stomp": [0, 160], "gatling": [60, 400] }, "gregor": { "drop": [0, 2000], "sweep": [0, 150] }, "xm4": { "mg": [0, 200], "plasma": [0, 2000] } },
+      "range": { "soft": 30, "kovac": { "charge": [0, 190], "slam": [190, 2000], "hook": [80, 260] }, "basili": { "stomp": [0, 160], "gatling": [60, 400] }, "gregor": { "drop": [0, 2000], "sweep": [0, 150] }, "xm4": { "mg": [0, 220], "plasma": [0, 2000], "jump": [60, 2000], "summon": [0, 2000] } },
       "kovac": { "hookMiss": ["charge", "slam"], "slam": ["hook"] },
       "basili": { "charge": ["stomp"], "stomp": ["gatling"] },
       "gregor": { "sweepMiss": ["drop"], "charge": ["sweep"] },
-      "xm4": { "jump": ["mg", "plasma"], "mg": ["plasma"] }
+      "xm4": { "jump": ["mg", "plasma", "summon"], "mg": ["plasma", "jump", "summon"], "plasma": ["jump", "mg", "summon"], "summon": ["mg", "plasma", "jump"] },
+      "maxChain": { "xm4": 3 }
     },
     "range": { "chargeMax": 130, "hookMin": 110, "hookMax": 220, "slamMin": 190, "soft": 40 },
     "summonMin": 6,
@@ -717,8 +718,8 @@
     },
     "xm4": {
       "note": "XM-4 점수 AI(전투장 가로 560px 기준). 1페이즈엔 기관총·미사일이 없음(포드가 2페이즈에 나옴), 플라즈마는 plasmaMinP1부터. 기관총 0~mgMax, 플라즈마 plasmaMin~plasmaMax, 미사일 missileMin부터, 점프 낙하 jumpMin부터(soft만큼 부드럽게). 소환은 코박과 같은 규칙. repeat: 방금 쓴 공격 점수 배율",
-      "range": { "mgMax": 150, "plasmaMin": 90, "plasmaMinP1": 0, "plasmaMax": 210, "missileMin": 160, "jumpMin": 200, "soft": 40 },
-      "w": { "mg": 0.95, "plasma": 0.9, "missile": 0.9, "jump": 0.9, "summon": 0.8 },
+      "range": { "mgMax": 150, "plasmaMin": 90, "plasmaMinP1": 0, "plasmaMax": 210, "missileMin": 160, "jumpMin": 110, "soft": 40 },
+      "w": { "mg": 0.95, "plasma": 0.9, "missile": 0.9, "jump": 1.05, "summon": 0.8 },
       "repeat": 0.7
     },
     "basili": {

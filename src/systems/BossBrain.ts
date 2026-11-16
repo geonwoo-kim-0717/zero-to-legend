@@ -234,10 +234,12 @@ export function pickXm4(s: Xm4Sense): { act: Xm4Act; scores: Record<Xm4Act, numb
   const cb = s.combo ?? [];
   const walk = (cb.length ? B.combo.walk : B.walkBase + B.walkIdle * (1 - ready)) * B.w.walk;
   const scores: Record<Xm4Act, number> = { walk: clamp01(walk), mg: clamp01(mg), missile: clamp01(missile), plasma: clamp01(plasma), jump: clamp01(jump), summon: clamp01(summon) };
-  if (s.last !== 'walk' && s.last !== 'summon') scores[s.last] *= Z.repeat;
+  // 같은 공격 연속 억제 (소환 포함: 콤보가 골고루 섞이게)
+  if (s.last !== 'walk') scores[s.last] *= Z.repeat;
   const C = s.p2 ? B.combo.weight2 : B.combo.weight;
   const CR = B.combo.range.xm4 as Record<string, number[]>;
-  for (const a of cb as Xm4Act[]) if (CR[a]) scores[a] = clamp01(Math.max(scores[a], band(s.d, CR[a][0], CR[a][1], B.combo.range.soft) * C));
+  // 소환 콤보는 부하가 적을수록 (이미 많으면 안 부름)
+  for (const a of cb as Xm4Act[]) if (CR[a]) scores[a] = clamp01(Math.max(scores[a], band(s.d, CR[a][0], CR[a][1], B.combo.range.soft) * C * (a === 'summon' ? (1 - s.minions) ** 1.5 : 1)));
   // 1페이즈 몸통엔 기관총·미사일 포드가 없음 (콤보로도 못 씀)
   if (!s.p2) scores.mg = scores.missile = 0;
   let act: Xm4Act = 'walk';

@@ -283,7 +283,8 @@ export class GameScene extends Phaser.Scene implements GameContext {
   private bossLastKind = '';
   private comboFrom = '';
   private comboUntil = 0;
-  private comboChained = false;
+  /** 지금 이어지는 콤보에서 몇 번째 공격인지 (콤보가 아닌 공격이면 1) */
+  private comboCount = 0;
   /** 이번 돌진의 전체 시간 (거리 비례 돌진이면 매번 다름, 프레임 재생용) */
   private bossChargeTotal = 0;
   /** 보스 점수 AI(BossBrain): 지난 공격·소환 시각, 다음 판단까지, 지금 행동, 마지막 점수, 소환한 부하, 플레이어 속도 */
@@ -3714,7 +3715,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
         if (act !== 'walk') {
           this.basiliLast = act;
           this.bossLastKind = act;
-          if (this.comboNow().includes(act)) this.comboChained = true;
+          this.comboCount = this.comboNow().includes(act) ? this.comboCount + 1 : 1;
           this.comboFrom = '';
           this.bossDir = { x: dx / d, y: dy / d };
           if (act === 'charge') {
@@ -3983,6 +3984,13 @@ export class GameScene extends Phaser.Scene implements GameContext {
     this.cameras.main.setZoom(ZOOM);
   }
 
+  /** 콤보로 이어지는 공격 수 상한 (첫 공격 포함, game.json bossBrain.combo.maxChain, 없으면 2 = 한 번만 이어짐) */
+  private comboMax(def: BossDef | null): number {
+    const M = (gameData.bossBrain.combo as unknown as { maxChain?: Record<string, number> }).maxChain ?? {};
+    const brain = String((def as { brain?: unknown } | null)?.brain ?? '');
+    return M[brain] ?? 2;
+  }
+
   /** 보스별 콤보 표 (game.json bossBrain.combo의 kovac / basili / gregor) */
   private comboTable(def: BossDef | null): Record<string, string[]> {
     const CB = gameData.bossBrain.combo as unknown as Record<string, Record<string, string[]>>;
@@ -4010,6 +4018,9 @@ export class GameScene extends Phaser.Scene implements GameContext {
   private xmDeployed = false;
   /** XM-4 등장 연출 중 (걸어 들어오기·포탑 상승, 무적) */
   private xmEntering = false;
+  /** XM-4 점프 방향이 왼쪽인지 (하체·뚜껑 닫힌 몸통 반전), 점프 착지 뒤 포탑 상승 중인지 */
+  private xmJumpFlip = true;
+  private xmJumpRise = false;
   private xmFlashT = 0;
   private xmCasingRow = 0;
   /** XM-4 피격 흔들림 남은 시간 */
@@ -4150,14 +4161,17 @@ export class GameScene extends Phaser.Scene implements GameContext {
       this.xmLayers = { under: mk(11.96), back: mk(11.97), front: mk(12.02), lit: mk(12.01).setVisible(false) };
     }
     const L = this.xmLayers;
-    // 등장(걸어 들어오기·포탑 상승) 동안은 상·하체 모두 좌우 반전해 왼쪽을 봄
-    const flip = ph === 'walkIn' || (ph === 'rise' && this.xmEntering);
+    // 하체: 늘 왼쪽을 봄(좌우 반전). 점프 중(내리기·도약·공중·착지·다시 올리기)엔 뛰는 방향
+    // 몸통: 등장 중, 1페이즈 점프의 뚜껑 닫힌·상승 그림은 하체와 같이 반전. 포탑 방향 그림은 반전하지 않음 (방향 그림이 따로 있음)
+    const entering = ph === 'walkIn' || (ph === 'rise' && this.xmEntering);
+    const jumping = ph === 'lower' || ph === 'leap' || ph === 'air' || ph === 'slam' || (ph === 'rise' && this.xmJumpRise);
+    const legFlip = entering ? true : jumping ? this.xmJumpFlip : true;
     const ox0 = art.origin.legsCanvas[0] / art.canvas.legs[0];
-    const ox = flip ? 1 - ox0 : ox0;
+    const ox = legFlip ? 1 - ox0 : ox0;
     const oy = art.origin.legsCanvas[1] / art.canvas.legs[1];
-    L.under.setTexture(`boss2_under_${nn}`).setOrigin(ox, oy).setFlipX(flip).setPosition(bx, foot).setVisible(true);
-    L.back.setTexture(`boss2_legs_back_${nn}`).setOrigin(ox, oy).setFlipX(flip).setPosition(bx, foot).setVisible(true);
-    L.front.setTexture(`boss2_legs_front_${nn}`).setOrigin(ox, oy).setFlipX(flip).setPosition(bx, foot).setVisible(true);
+    L.under.setTexture(`boss2_under_${nn}`).setOrigin(ox, oy).setFlipX(legFlip).setPosition(bx, foot).setVisible(true);
+    L.back.setTexture(`boss2_legs_back_${nn}`).setOrigin(ox, oy).setFlipX(legFlip).setPosition(bx, foot).setVisible(true);
+    L.front.setTexture(`boss2_legs_front_${nn}`).setOrigin(ox, oy).setFlipX(legFlip).setPosition(bx, foot).setVisible(true);
     // 몸통: 포탑 상승·하강(1페이즈 점프 앞뒤, 등장)·2페이즈 전개 동작, 1페이즈 점프 중엔 뚜껑 닫힘, 그 밖엔 포탑 방향 그림
     const dir = String(this.xmDir()).padStart(2, '0');
     const RN = art.turretRise.frames;
@@ -4178,6 +4192,9 @@ export class GameScene extends Phaser.Scene implements GameContext {
     const off = A.bodyOffset[f];
     const [bw, bh] = art.canvas.body;
     // 몸통 원점 = 다리 원점 - bodyOffset (몸통 왼쪽 위가 다리 왼쪽 위 + offset에 오게)
+    // 몸통 반전: 등장 중이거나, 점프 중 그림이 뚜껑 닫힘·상승·하강(02 방향 그림)일 때
+    const motionBody = body === 'boss2_body_closed' || body.startsWith('boss2_rise_');
+    const flip = entering || (jumping && motionBody && this.xmJumpFlip);
     const box0 = (art.origin.legsCanvas[0] - off[0]) / bw;
     const box = flip ? 1 - box0 : box0;
     const boy = (art.origin.legsCanvas[1] - off[1]) / bh;
@@ -4315,11 +4332,13 @@ export class GameScene extends Phaser.Scene implements GameContext {
     const a02 = Math.atan2(Math.sin(Math.PI / 4) * 0.55, Math.cos(Math.PI / 4));
     // (2페이즈 전개는 xmDeployStep이 포탑을 돌림)
     const bodyBusy = ph === 'rise' || ph === 'lower' || ((ph === 'leap' || ph === 'air' || ph === 'slam') && !this.xmDeployed);
+    // 반전된 동작(왼쪽으로 점프·등장)은 02 그림을 뒤집어 쓰므로 포탑을 06(왼쪽 아래)으로 맞춤
+    const aRise = this.xmEntering || this.xmJumpFlip ? Math.PI - a02 : a02;
     if (bodyBusy) {
       if (this.xmRotating) {
-        this.xmAim = Phaser.Math.Angle.RotateTo(this.xmAim, a02, Phaser.Math.DegToRad(xz.rotateTurn) * dt);
-        if (Math.abs(Phaser.Math.Angle.Wrap(this.xmAim - a02)) < 0.01) this.xmRotating = false;
-      } else this.xmAim = a02;
+        this.xmAim = Phaser.Math.Angle.RotateTo(this.xmAim, aRise, Phaser.Math.DegToRad(xz.rotateTurn) * dt);
+        if (Math.abs(Phaser.Math.Angle.Wrap(this.xmAim - aRise)) < 0.01) this.xmRotating = false;
+      } else this.xmAim = aRise;
     } else if (ph !== 'deploy') this.xmAim = Phaser.Math.Angle.RotateTo(this.xmAim, Math.atan2(p.y - tc.y, p.x - tc.x), Phaser.Math.DegToRad(xz.turn) * dt);
     const art = this.xmArt();
     const RF = art ? art.turretRise.frames : 1;
@@ -4381,7 +4400,8 @@ export class GameScene extends Phaser.Scene implements GameContext {
         } else {
           this.bossLastAttack = this.elapsed;
           // 등장 상승은 반전(왼쪽 아래 = 06 방향)으로 끝났으므로 포탑 방향을 거기에 맞춰 이어 감
-          if (this.xmEntering) this.xmAim = Math.PI - Math.atan2(Math.sin(Math.PI / 4) * 0.55, Math.cos(Math.PI / 4));
+          if (this.xmEntering || (this.xmJumpRise && this.xmJumpFlip)) this.xmAim = Math.PI - Math.atan2(Math.sin(Math.PI / 4) * 0.55, Math.cos(Math.PI / 4));
+          this.xmJumpRise = false;
           this.xmEntering = false;
           toWalk();
         }
@@ -4390,6 +4410,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
     }
     // 1페이즈 점프 착지 뒤: 포탑을 다시 올림 (빠르게)
     if (ph === 'slam' && this.bossTimer <= 0 && art && !this.xmDeployed) {
+      this.xmJumpRise = true;
       this.bossPhase = 'rise';
       this.xmAnimT = 0;
       this.xmAnimFps = xz.quickFps;
@@ -4425,8 +4446,19 @@ export class GameScene extends Phaser.Scene implements GameContext {
         if (act === 'summon') {
           this.bossLastSummon = this.elapsed;
           this.bossSummon = 0;
+          // 소환도 콤보에 섞임: 동작이 없으니 바로 다음 콤보를 연다 (최대 maxChain까지)
+          const viaCombo = this.comboNow().includes('summon');
+          this.comboCount = viaCombo ? this.comboCount + 1 : 1;
+          this.xmLast = 'summon';
+          this.bossLastKind = 'summon';
+          const table = this.comboTable(def);
+          if (this.comboCount < this.comboMax(def) && table.summon) {
+            this.comboFrom = 'summon';
+            this.comboUntil = this.elapsed + gameData.bossBrain.combo.window + 0.3;
+            this.bossThinkT = 0.3;
+          } else this.comboFrom = '';
         } else if (act !== 'walk') {
-          if (this.comboNow().includes(act)) this.comboChained = true;
+          this.comboCount = this.comboNow().includes(act) ? this.comboCount + 1 : 1;
           this.comboFrom = '';
           this.bossLastAttack = this.elapsed;
           this.bossLastKind = act;
@@ -4447,6 +4479,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
             this.bossPhase = 'missileFire';
             this.bossTimer = xz.missileTime;
           } else if (act === 'jump') {
+            this.xmJumpFlip = (this.untracked ? this.decoy : p).x < b.x;
             if (art && !this.xmDeployed) {
               // 1페이즈: 포탑을 02로 돌리고 내려 뚜껑을 닫은 뒤 점프 (빠르게)
               this.bossPhase = 'lower';
@@ -4561,7 +4594,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
           this.bossLastSummon = this.elapsed;
           this.bossSummon = 0;
         } else if (act !== 'walk') {
-          if (this.comboNow().includes(act)) this.comboChained = true;
+          this.comboCount = this.comboNow().includes(act) ? this.comboCount + 1 : 1;
           this.comboFrom = '';
           this.bossLastAttack = this.elapsed;
           this.bossLastKind = act;
@@ -5601,7 +5634,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
     this.bossAct = 'walk';
     this.bossLastKind = '';
     this.comboFrom = '';
-    this.comboChained = false;
+    this.comboCount = 0;
     this.basiliGuards = [];
     this.basiliLast = 'walk';
     this.stompRings = [];
@@ -5799,7 +5832,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
         this.bossLastAttack = this.elapsed;
         this.bossLastKind = kind;
         // 열린 콤보 안에서 그 공격을 골랐으면 콤보로 나간 것
-        if (this.comboNow().includes(kind)) this.comboChained = true;
+        this.comboCount = this.comboNow().includes(kind) ? this.comboCount + 1 : 1;
         this.comboFrom = '';
         this.bossDir = { x: dx / d, y: dy / d };
         if (kind === 'hook' && hk) {
@@ -5985,12 +6018,11 @@ export class GameScene extends Phaser.Scene implements GameContext {
       // 콤보: 방금 끝난 공격에 이어 쓸 공격이 있으면 잠깐(window초) 열어 둔다. 콤보로 나간 공격 뒤에는 다시 열지 않음 (한 번만 이어짐)
       const CB = gameData.bossBrain.combo;
       const table = this.comboTable(def);
-      if (!this.comboChained && table[this.bossLastKind]) {
+      if (this.comboCount < this.comboMax(def) && table[this.bossLastKind]) {
         this.comboFrom = this.bossLastKind;
         this.comboUntil = this.elapsed + CB.window;
         this.bossThinkT = 0;
       } else this.comboFrom = '';
-      this.comboChained = false;
     }
     this.bossPrevPhase = this.bossPhase;
     // 보스가 화면에서 너무 멀어지면 다시 가까이
