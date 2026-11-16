@@ -505,10 +505,14 @@
    "width": 120,
    "copies": 2,
    "offsetsX": [
-    -50,
-    50
+    0,
+    70
    ],
-   "note": "phase 2: the same dim effect at 120 px wide, two copies 100 px apart, centred on stomp.footImpact (x-50 and x+50), both starting on frame 7. Draw 1:1."
+   "note": "phase 2: the dim effect at 120 px wide. First copy on stomp.footImpact, second 70 px further forward (facing direction; mirror to -70 when facing left) and 3 fx frames (0.2 s) later, so the shock travels forward. Draw 1:1, no boss scale.",
+   "delayFrames": [
+    0,
+    3
+   ]
   }
  },
  "p2_gatling": {
