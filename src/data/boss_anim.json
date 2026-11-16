@@ -436,7 +436,10 @@
     90,
     100
    ],
-   "note": "origin = floor point under the stomping foot; start on stomp.impactFrame (7); flash + crescent shock waves + dust cloud + rocks. Source: pixelfx impacts/ground-slam (MIT), see src/assets/FX_CREDITS.md"
+   "note": "origin = floor point under the stomping foot; start on stomp.impactFrame (7); flash + crescent shock waves + dust cloud + rocks. Source: pixelfx impacts/ground-slam (MIT), see src/assets/FX_CREDITS.md",
+   "cols": 8,
+   "rows": 5,
+   "layout": "grid 8 columns, left to right then top to bottom (repacked by main for the 4096 px texture limit)"
   },
   "fx_boss_casing": {
    "frameW": 35,

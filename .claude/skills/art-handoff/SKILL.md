@@ -11,6 +11,7 @@ Roles: the art session commits PNGs, data json and tools to `art/ship-scale` onl
 - Use the existing texture key of the enemy, e.g. Kovac = `midboss`. Find it with `grep -rn` in `src/i18n/strings.ts` and `ls src/assets`.
 - Motion frames are named `<key>_<motion>_NN.png` with two-digit numbers from 00. FX sheets are `fx_<name>.png` (horizontal strip). Projectiles are `<key>_<part>.png`.
 - When replacing a set, `git rm` the old numbered files first so stale frames such as `_08~11` do not linger.
+- Keep every sheet within 4096 px on each side (mobile GPU texture limit). Pack long animations as a grid, left to right then top to bottom, and write cols/rows in the json.
 - A new enemy suffix must be covered by the `isEnemyKey` regex in `src/scenes/BootScene.ts`, otherwise rimLight is missing on those frames. Say so in the hand-off; main edits the code.
 
 ## 2. Anim data
