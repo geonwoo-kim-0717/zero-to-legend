@@ -284,6 +284,8 @@ export class GameScene extends Phaser.Scene implements GameContext {
   private basiliFlash: Phaser.GameObjects.Image | null = null;
   private basiliReflect: Phaser.GameObjects.Image | null = null;
   private basiliSquash = 0;
+  /** 이번 호출에서 호위를 이미 불렀는지 */
+  private callSpawned = false;
   /** 총구 화염을 보여 줄 남은 시간·지금 화염 장 (발사마다 무작위 1장) */
   private basiliFlashT = 0;
   private basiliFlashF = 0;
@@ -3565,6 +3567,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
           } else if (act === 'call') {
             this.bossPhase = 'call';
             this.bossTimer = bz.call.gesture;
+            this.callSpawned = false;
             this.basiliLastCall = this.elapsed;
           }
         }
@@ -3614,8 +3617,13 @@ export class GameScene extends Phaser.Scene implements GameContext {
       return true;
     }
     if (ph === 'call') {
-      if (this.bossTimer <= 0) {
-        // 손짓: 호위가 둘레에 나타남 (체력은 보스 부하와 같은 기준)
+      // 손짓 그림의 호위 등장 장(guardSpawnFrame)에 맞춰 호위를 부르고, 남은 장(팔 내림)을 마저 보인 뒤 걷기
+      const CM = (bossAnim as { call?: { frames: number; guardSpawnFrame?: number } }).call;
+      const spawnAt = CM && this.textures.exists('boss_call_00') ? ((CM.guardSpawnFrame ?? CM.frames - 1) / CM.frames) * bz.call.gesture : bz.call.gesture;
+      if (this.bossTimer <= 0) toWalk();
+      if (!this.callSpawned && bz.call.gesture - this.bossTimer >= spawnAt) {
+        this.callSpawned = true;
+        // 호위가 둘레에 나타남 (체력은 보스 부하와 같은 기준)
         const n = p2 ? bz.p2.guards : bz.call.count;
         const hp = hpScaleAt(this.elapsed - this.zoneStart) * this.zone.hpMul;
         for (let i = 0; i < n; i++) {
@@ -3625,7 +3633,6 @@ export class GameScene extends Phaser.Scene implements GameContext {
         }
         this.bossPulse(b);
         Sound.play('bosswarn');
-        toWalk();
       }
       return true;
     }
@@ -3641,8 +3648,20 @@ export class GameScene extends Phaser.Scene implements GameContext {
         this.shake(260, 0.016);
         this.basiliSquash = bz.anim.squash;
         if (this.textures.exists('fx_boss_stomp')) {
-          // 발구르기 이펙트 그림: 섬광 → 초승달 충격파 → 먼지 → 돌 (발밑 바닥 기준, 보스 배율로)
-          this.playSheet('fx_boss_stomp', 37, b.x, b.y + bz.anim.footY, 90 / 180, 100 / 143, 15, b.sprite.depth + 0.1, b.sprite.flipX, BOSS_SCALE);
+          // 발구르기 이펙트 그림: 원점 = 내려찍는 앞발 아래(stomp.footImpact), 1:1 크기. 2페이즈는 작은 이펙트 2개를 발 기준 양옆에
+          const FX = (bossAnim as unknown as { fx?: Record<string, { frameW: number; frameH: number; frames: number; fps: number; origin: number[]; offsetsX?: number[] }> }).fx ?? {};
+          const foot = this.stompFoot(b);
+          const flip = b.sprite.flipX;
+          const play = (key: string, dx: number) => {
+            const F = FX[key];
+            if (!F || !this.textures.exists(key)) return false;
+            const ox = (flip ? F.frameW - F.origin[0] : F.origin[0]) / F.frameW;
+            this.playSheet(key, F.frames, foot.x + dx, foot.y, ox, F.origin[1] / F.frameH, F.fps, b.sprite.depth + 0.1, flip);
+            return true;
+          };
+          const two = p2 && FX.fx_boss_stomp_p2 && this.textures.exists('fx_boss_stomp_p2');
+          if (two) for (const dx of FX.fx_boss_stomp_p2.offsetsX ?? [-50, 50]) play('fx_boss_stomp_p2', dx);
+          else play('fx_boss_stomp', 0);
         } else {
           this.playSheet('fx_land_dust', 18, b.x, b.y + b.radius, 56 / 112, 30 / 40, 12, 9.5);
           this.burst(b.x, b.y + b.radius * 0.5, 0x8a7a6a, 18);
@@ -3661,6 +3680,17 @@ export class GameScene extends Phaser.Scene implements GameContext {
     return false;
   }
 
+  /** 발구르기에서 내려찍는 앞발 아래 바닥점 (boss_anim.json stomp.footImpact), 그림이 없으면 발밑 가운데 */
+  private stompFoot(b: Enemy): { x: number; y: number } {
+    const M = (bossAnim as { stomp?: { w: number; h: number; footImpact?: number[] } }).stomp;
+    const sp = b.sprite;
+    if (!M?.footImpact || !sp.texture.key.startsWith('boss_stomp_')) return { x: b.x, y: sp.y };
+    const pt = M.footImpact;
+    const lx = (sp.flipX ? M.w - pt[0] : pt[0]) - sp.originX * M.w;
+    const ly = pt[1] - sp.originY * M.h;
+    return { x: sp.x + lx * sp.scaleX, y: sp.y + ly * sp.scaleY };
+  }
+
   /** 개틀링 탄피: 드럼 위 배출구(port)에서 한 발에 하나 (변형 3줄 중 무작위, 왼쪽을 보면 반전) */
   private ejectCasing(b: Enemy, rowPick?: number): void {
     const F = (bossAnim as { fx?: { fx_boss_casing?: { frameW: number; frameH: number; frames: number; rows: number; fps: number; start: number[] } } }).fx?.fx_boss_casing;
@@ -3675,7 +3705,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
 
   /** 바실리 지금 그림 안의 점(발전기·총구)을 월드 좌표로. 그림이 없거나 점 정보가 없으면 undefined, 그 프레임에서 가려졌으면 null */
   private basiliPoint(b: Enemy, kind: 'generator' | 'muzzle' | 'port'): { x: number; y: number } | null | undefined {
-    const m = b.sprite.texture.key.match(/^boss_(walk|gatling|slam|stomp|phase|p2_walk|p2_gatling)_(?:lit_)?(\d+)$/);
+    const m = b.sprite.texture.key.match(/^boss_(walk|gatling|slam|stomp|phase|call|p2_walk|p2_gatling)_(?:lit_)?(\d+)$/);
     if (!m) return undefined;
     const M = (BOSS_ANIM.boss as Record<string, { w: number; h: number; generator?: FramePts; muzzle?: FramePts; port?: FramePts }>)[m[1]];
     const list = M?.[kind];
@@ -3739,6 +3769,10 @@ export class GameScene extends Phaser.Scene implements GameContext {
       const total = P2?.chargeTime ?? def.chargeTime;
       motion = 'slam';
       idx = span(slamP.dash, (total - this.bossTimer) / (total * 0.6));
+    } else if (ph === 'call' && M.call && this.textures.exists('boss_call_00')) {
+      // 부하 호출: 팔 들기 → 손끝으로 원 두 바퀴(끝에 호위 등장) → 팔 내림
+      motion = 'call';
+      idx = span([0, M.call.frames - 1], 1 - this.bossTimer / bz.call.gesture);
     } else if (ph === 'call' || ph === 'stomp' || ph === 'stompRec') {
       // 아직 그림이 없는 동작: 걷기 첫 장
       motion = walkM;

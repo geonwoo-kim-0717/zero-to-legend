@@ -171,7 +171,7 @@
         "walkIn": { "speed": 55, "step": 0.55 },
         "phaseShift": 1.2,
         "gatling": { "spin": 0.4, "time": 2.2, "rate": 10, "fan": 50, "turn": 40, "speed": 170, "damage": 8, "life": 3 },
-        "call": { "gesture": 0.6, "id": "thug", "count": 4, "radius": 46, "orbit": 0.8 },
+        "call": { "gesture": 1.3, "id": "thug", "count": 4, "radius": 46, "orbit": 0.8 },
         "stomp": { "lift": 0.7, "radius": 100, "time": 0.5, "band": 12, "damage": 20 },
         "p2": { "gatlingRate": 14, "gatlingSpeed": 1.15, "guards": 6, "stompRings": 2, "ringGap": 0.35 },
         "anim": { "note": "새 그림 재생: 걷기 walkFps, 박치기 준비 ready초 뒤 예고 두 장을 windupFps로 반복, 개틀링 사격 그림은 발사와 1대1(초당 gatling.rate장, fireFps는 안 씀). footY: 판정 중심에서 발까지(px). recoil: 사격 반동 px(발사마다 한 번, kickTime초 동안 돌아옴). shadow: 발밑 그림자. flash: 총구 화염 크기·색. reflect: 몸에 비치는 화염 반사광 색·세기. squash: 발구르기 착지 몸 눌림 시간. stompRecover: 발구르기 착지 뒤 버티는 시간. flashTime: 발사마다 총구 화염·빛 칠한 프레임을 보여 주는 시간", "walkFps": 10, "ready": 0.2, "windupFps": 5, "fireFps": 14, "flashTime": 0.05, "kickTime": 0.07, "stompRecover": 0.45, "footY": 47, "recoil": 1.6, "shadow": { "w": 70, "h": 16, "alpha": 0.4 }, "flash": { "size": 22, "color": "0xffc040" }, "reflect": { "color": "0xffa040", "alpha": 0.13 }, "squash": 0.18 },
