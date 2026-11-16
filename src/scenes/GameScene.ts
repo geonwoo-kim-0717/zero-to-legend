@@ -54,7 +54,7 @@ const ZONES = zonesData.zones;
 const ZR = gameData.zoneRules;
 /** 왼쪽 위 체력바 폭 */
 const HP_W = 120;
-type BossPhase = 'walk' | 'aim' | 'charge' | 'leap' | 'air' | 'slam' | 'enter' | 'taunt' | 'hookAim' | 'hookFly' | 'hookPull' | 'hookGap' | 'hookBack' | 'walkIn' | 'phaseShift' | 'gatling' | 'call' | 'stomp';
+type BossPhase = 'walk' | 'aim' | 'charge' | 'leap' | 'air' | 'slam' | 'enter' | 'taunt' | 'hookAim' | 'hookFly' | 'hookPull' | 'hookGap' | 'hookBack' | 'walkIn' | 'phaseShift' | 'gatling' | 'call' | 'stomp' | 'stompRec';
 /** 블랙 실드 요원 공격 그림·이펙트 (아트 tools/art/sprites2026/scripts/troopers6/keys/atk_meta.json) */
 const TROOPER_ATK = {
   tank: { ms: [90, 110, 140, 70, 90, 120, 110, 100], size: [54, 48], fxStart: 4, anchor: [47, 27], fx: 'fx_shield_bash', fxN: 8, fxSize: [64, 40], pivot: [32, 18] },
@@ -88,10 +88,10 @@ type BasiliDef = {
   p2: { gatlingRate: number; gatlingSpeed: number; guards: number; stompRings: number; ringGap: number };
   glow: { from: string; color: string; core: string; x: number; y: number; size: number; alpha: number };
   /** 동작별 프레임 그림 재생 (boss_walk/gatling/slam_NN, 프레임 정보는 boss_anim.json) */
-  anim: { walkFps: number; ready: number; windupFps: number; fireFps: number; footY: number; recoil: number; shadow: { w: number; h: number; alpha: number }; flash: { size: number; color: string }; reflect: { color: string; alpha: number }; squash: number };
+  anim: { walkFps: number; ready: number; windupFps: number; fireFps: number; stompRecover: number; footY: number; recoil: number; shadow: { w: number; h: number; alpha: number }; flash: { size: number; color: string }; reflect: { color: string; alpha: number }; squash: number };
 };
 /** 바실리 동작 중 조준 그림(_aim)을 쓰는 단계 (새 그림이 오기 전 임시) */
-const BASILI_AIM = new Set(['gatling', 'call', 'stomp', 'phaseShift']);
+const BASILI_AIM = new Set(['gatling', 'call', 'stomp', 'stompRec', 'phaseShift']);
 /** 분노 (game.json bosses[].enrage) */
 type EnrageDef = { at: number; mul: number; tint: string };
 /** 보스 동작별 프레임 설정 (game.json bosses[].anim) */
@@ -3505,7 +3505,8 @@ export class GameScene extends Phaser.Scene implements GameContext {
     if (ph === 'phaseShift') {
       if (!Settings.reducedFx && Math.random() < 0.25) this.shake(60, 0.006);
       if (this.bossTimer <= 0) {
-        this.screenFlash(0x00f0ff, 0.25, 300);
+        // 2페이즈 발전기 빛(빨강)과 맞춰 붉게 번쩍
+        this.screenFlash(0xff2a3a, 0.25, 300);
         this.bossPulse(b);
         this.bossLastAttack = this.elapsed;
         toWalk();
@@ -3620,8 +3621,14 @@ export class GameScene extends Phaser.Scene implements GameContext {
         this.playSheet('fx_land_dust', 18, b.x, b.y + b.radius, 56 / 112, 30 / 40, 12, 9.5);
         this.burst(b.x, b.y + b.radius * 0.5, 0x8a7a6a, 18);
         Sound.play('explode');
-        toWalk();
+        // 착지 후 낮게 버티는 자세 (그림: 착지 장 → 버팀 장)
+        this.bossPhase = 'stompRec';
+        this.bossTimer = bz.anim.stompRecover;
       }
+      return true;
+    }
+    if (ph === 'stompRec') {
+      if (this.bossTimer <= 0) toWalk();
       return true;
     }
     return false;
@@ -3629,7 +3636,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
 
   /** 바실리 지금 그림 안의 점(발전기·총구)을 월드 좌표로. 그림이 없거나 점 정보가 없으면 undefined, 그 프레임에서 가려졌으면 null */
   private basiliPoint(b: Enemy, kind: 'generator' | 'muzzle'): { x: number; y: number } | null | undefined {
-    const m = b.sprite.texture.key.match(/^boss_(walk|gatling|slam)_(\d+)$/);
+    const m = b.sprite.texture.key.match(/^boss_(walk|gatling|slam|stomp|phase|p2_walk|p2_gatling)_(\d+)$/);
     if (!m) return undefined;
     const M = (BOSS_ANIM.boss as Record<string, { w: number; h: number; generator?: FramePts; muzzle?: FramePts }>)[m[1]];
     const list = M?.[kind];
@@ -3660,9 +3667,28 @@ export class GameScene extends Phaser.Scene implements GameContext {
     let firing = false;
     const slamP = M.slam?.phases ?? { ready: [0, 1], windup: [2, 3], dash: [4, 7] };
     const gatP = M.gatling?.phases ?? { raise: [0, 4], fireLoop: [5, 8] };
+    // 2페이즈 걷기 그림이 있으면 2페이즈에선 그걸로 (호출 임시 장면도)
+    const walkM = this.bossPhase2 && M.p2_walk && this.textures.exists('boss_p2_walk_00') ? 'p2_walk' : 'walk';
+    const stompM = M.stomp as { frames: number; phases?: Record<string, number[]>; impactFrame?: number } | undefined;
+    const phaseM = M.phase as { frames: number; endFrame?: number } | undefined;
     if (ph === 'walk' || ph === 'walkIn') {
-      b.walkPh = (b.walkPh + dt * A.walkFps) % M.walk.frames;
+      motion = walkM;
+      b.walkPh = (b.walkPh + dt * A.walkFps) % M[walkM].frames;
       idx = Math.floor(b.walkPh);
+    } else if (ph === 'phaseShift' && phaseM && this.textures.exists('boss_phase_00')) {
+      // 2페이즈 전환: 코트 쥠 → 발전기 폭발광 → 코트 찢김 → 2페이즈 자세, 한 번만
+      motion = 'phase';
+      idx = span([0, phaseM.endFrame ?? phaseM.frames - 1], 1 - this.bossTimer / bz.phaseShift);
+    } else if ((ph === 'stomp' || ph === 'stompRec') && stompM && this.textures.exists('boss_stomp_00')) {
+      // 발구르기: 발 들기·내려찍기(예고 시간 동안) → 착지(충격파) → 낮게 버팀
+      const SP = stompM.phases ?? { lift: [0, 5], slam: [6, 6], recover: [8, 11] };
+      const imp = stompM.impactFrame ?? 7;
+      motion = 'stomp';
+      if (ph === 'stomp') idx = span([SP.lift[0], SP.slam[1]], 1 - this.bossTimer / bz.stomp.lift);
+      else {
+        const t = A.stompRecover - this.bossTimer;
+        idx = t < 0.08 ? imp : span(SP.recover, (t - 0.08) / Math.max(0.01, A.stompRecover - 0.08));
+      }
     } else if (ph === 'aim' || ph === 'phaseShift') {
       // 박치기 예고: 준비 두 장 → 예고 두 장을 천천히 반복 (2페이즈 전환도 임시로 같은 장면)
       const total = ph === 'aim' ? (P2?.aimTime ?? def.aimTime) : bz.phaseShift;
@@ -3674,6 +3700,10 @@ export class GameScene extends Phaser.Scene implements GameContext {
       const total = P2?.chargeTime ?? def.chargeTime;
       motion = 'slam';
       idx = span(slamP.dash, (total - this.bossTimer) / (total * 0.6));
+    } else if (ph === 'call' || ph === 'stomp' || ph === 'stompRec') {
+      // 아직 그림이 없는 동작: 걷기 첫 장
+      motion = walkM;
+      idx = 0;
     } else if (ph === 'gatling') {
       const G = bz.gatling;
       motion = 'gatling';
@@ -3694,7 +3724,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
     const sq = A.squash > 0 ? this.basiliSquash / A.squash : 0;
     if (!this.tweens.isTweening(b.sprite)) b.sprite.setScale(BOSS_SCALE * (1 + 0.08 * sq), BOSS_SCALE * (1 - 0.12 * sq));
     b.footOff = A.footY;
-    const shakeAmp = ph === 'phaseShift' ? 4 : ph === 'aim' || ph === 'stomp' ? 2 : 0;
+    const shakeAmp = ph === 'phaseShift' ? 2 : ph === 'aim' ? 2 : 0;
     let jx = shakeAmp && !Settings.reducedFx ? (Math.random() - 0.5) * shakeAmp : 0;
     let jy = 0;
     // 개틀링 반동: 총구 반대쪽으로 빠르게 흔들림
