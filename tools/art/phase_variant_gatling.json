@@ -1,0 +1,202 @@
+{
+ "ref1": "/home/user/zero-to-legend/src/assets/boss_gatling_00.png",
+ "ref2": "pvt/gat/p2g_00.png",
+ "frames": [
+  [
+   "/home/user/zero-to-legend/src/assets/boss_gatling_01.png",
+   "pvt/gat/p2g_01.png"
+  ],
+  [
+   "/home/user/zero-to-legend/src/assets/boss_gatling_02.png",
+   "pvt/gat/p2g_02.png"
+  ],
+  [
+   "/home/user/zero-to-legend/src/assets/boss_gatling_03.png",
+   "pvt/gat/p2g_03.png"
+  ],
+  [
+   "/home/user/zero-to-legend/src/assets/boss_gatling_04.png",
+   "pvt/gat/p2g_04.png"
+  ],
+  [
+   "/home/user/zero-to-legend/src/assets/boss_gatling_05.png",
+   "pvt/gat/p2g_05.png"
+  ],
+  [
+   "/home/user/zero-to-legend/src/assets/boss_gatling_06.png",
+   "pvt/gat/p2g_06.png"
+  ],
+  [
+   "/home/user/zero-to-legend/src/assets/boss_gatling_07.png",
+   "pvt/gat/p2g_07.png"
+  ],
+  [
+   "/home/user/zero-to-legend/src/assets/boss_gatling_08.png",
+   "pvt/gat/p2g_08.png"
+  ]
+ ],
+ "regions": [
+  {
+   "name": "generator",
+   "mode": "patch",
+   "box": [
+    40,
+    30,
+    72,
+    62
+   ],
+   "radius": 12,
+   "centre": [
+    55,
+    47
+   ],
+   "add": false
+  },
+  {
+   "name": "coat_upper",
+   "box": [
+    6,
+    14,
+    48,
+    56
+   ],
+   "R": 5,
+   "max_err": 35,
+   "tol": 40,
+   "lut": false,
+   "remove": true,
+   "add": false,
+   "nbr": 7
+  },
+  {
+   "name": "coat_lower",
+   "box": [
+    10,
+    54,
+    70,
+    84
+   ],
+   "R": 5,
+   "max_err": 35,
+   "tol": 40,
+   "lut": false,
+   "remove": true,
+   "add": false,
+   "nbr": 7
+  },
+  {
+   "name": "coat_right",
+   "box": [
+    50,
+    14,
+    80,
+    80
+   ],
+   "R": 5,
+   "max_err": 35,
+   "tol": 40,
+   "lut": false,
+   "remove": true,
+   "add": false,
+   "nbr": 7
+  }
+ ],
+ "heat": [
+  {
+   "name": "barrel_heat",
+   "ref_axis": [
+    [
+     27,
+     55
+    ],
+    [
+     47,
+     75
+    ]
+   ],
+   "width": 5.0,
+   "axes": {
+    "0": [
+     [
+      29,
+      55
+     ],
+     [
+      49,
+      75
+     ]
+    ],
+    "1": [
+     [
+      40,
+      53
+     ],
+     [
+      66,
+      64
+     ]
+    ],
+    "2": [
+     [
+      44,
+      48
+     ],
+     [
+      69,
+      53
+     ]
+    ],
+    "3": [
+     [
+      57,
+      44
+     ],
+     [
+      79,
+      44
+     ]
+    ],
+    "4": [
+     [
+      57,
+      41
+     ],
+     [
+      79,
+      41
+     ]
+    ],
+    "5": [
+     [
+      57,
+      41
+     ],
+     [
+      79,
+      41
+     ]
+    ],
+    "6": [
+     [
+      57,
+      41
+     ],
+     [
+      79,
+      41
+     ]
+    ],
+    "7": [
+     [
+      57,
+      41
+     ],
+     [
+      79,
+      41
+     ]
+    ]
+   }
+  }
+ ]
+}

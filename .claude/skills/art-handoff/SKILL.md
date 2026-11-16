@@ -19,6 +19,14 @@ Roles: the art session commits PNGs, data json and tools to `art/ship-scale` onl
   Canvases differ per motion, so originX keeps the body from jumping when the motion changes.
 - Add extra anchors under the motion when needed: hand or chain points per frame, tile and head placement formulas, fx sheet sizes, timingMs.
 
+## Effects are art too
+The user judged effects drawn in code (muzzle flash, light spill, dust) as poor. Make them here as sprites or baked frames and hand them over:
+- lit frames for flash light and shadow;
+- flash and glow sheets;
+- dust and shockwave sheets, from pixelfx when one fits; credit MIT sources in `src/assets/FX_CREDITS.md`;
+- casings.
+Code only places and times them.
+
 ## 3. Commit and push
 - Stage only the files you made. Write a commit message describing the art, ending with the attribution lines from the system reminder.
 - Push with `git push -q origin art/ship-scale`, retrying up to 4 times with backoff.

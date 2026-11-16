@@ -117,7 +117,7 @@
     8
    ],
    "files": "boss_gatling_lit_05~08",
-   "note": "same size and origin as boss_gatling_05~08; flash-lit version (front warm, far side darker). Show the lit frame while a muzzle flash is visible, the normal frame between shots."
+   "note": "front facing the flash (face, chest, belly, front thigh, far arm, barrel top) lit amber, only the back shaded. Show while a muzzle flash is visible, the normal frame between shots."
   }
  },
  "slam": {
@@ -410,6 +410,110 @@
     100
    ],
    "note": "origin = floor point under the stomping foot; start on stomp.impactFrame (7); flash + crescent shock waves + dust cloud + rocks. Source: pixelfx impacts/ground-slam (MIT), see src/assets/FX_CREDITS.md"
+  },
+  "fx_boss_casing": {
+   "frameW": 32,
+   "frameH": 58,
+   "frames": 28,
+   "rows": 3,
+   "fps": 30,
+   "origin": [
+    31,
+    55
+   ],
+   "note": "one casing per shot, row = variation (pick at random). origin = floor point under the ejection port; the casing starts 46 px above it. Place the port about 22 px behind gatling.muzzle (toward the drum). Flip X when facing left. Same for phase 1 and 2. Source: pixelfx (MIT), tools/art/pixelfx/basili-casing.js"
   }
+ },
+ "p2_gatling": {
+  "frames": 9,
+  "w": 102,
+  "h": 93,
+  "originX": 0.412,
+  "originY": 1,
+  "muzzle": [
+   null,
+   null,
+   null,
+   null,
+   [
+    80,
+    44
+   ],
+   [
+    80,
+    41
+   ],
+   [
+    80,
+    41
+   ],
+   [
+    80,
+    41
+   ],
+   [
+    80,
+    41
+   ]
+  ],
+  "phases": {
+   "raise": [
+    0,
+    4
+   ],
+   "fireLoop": [
+    5,
+    8
+   ]
+  },
+  "generator": [
+   [
+    55,
+    47
+   ],
+   [
+    55,
+    48
+   ],
+   [
+    56,
+    47
+   ],
+   [
+    57,
+    47
+   ],
+   [
+    55,
+    50
+   ],
+   [
+    57,
+    49
+   ],
+   [
+    57,
+    49
+   ],
+   [
+    57,
+    49
+   ],
+   [
+    57,
+    49
+   ]
+  ],
+  "lit": {
+   "frames": [
+    5,
+    6,
+    7,
+    8
+   ],
+   "files": "boss_p2_gatling_lit_05~08",
+   "note": "same as gatling.lit"
+  },
+  "source": "phase-1 gatling repainted with phase-variant-transfer (key frame from the approved phase-2 walk pair)"
  }
 }
