@@ -2262,7 +2262,9 @@ export class GameScene extends Phaser.Scene implements GameContext {
       this.basiliHalo?.setVisible(false);
       this.stompRings = [];
       this.containers = [];
-    this.clearPlasma();
+      this.clearPlasma();
+      // XM-4 다리·반사광 겹 (몸통은 보스 스프라이트라 e.kill()로 사라짐)
+      this.hideXm4Layers();
       this.bossDef = null;
       e.kill();
       const color = def.final ? 0xff2a3a : COLORS.orange;
@@ -3910,7 +3912,11 @@ export class GameScene extends Phaser.Scene implements GameContext {
     this.fx.clear();
     // 2페이즈 전환 동작은 연출 중에도 재생 (전환 시간이 연출 앞부분)
     if (this.bossPhase === 'phaseShift') this.bossTimer = Math.max(0.0001, this.bossTimer - dt);
-    if (def && b.active) this.animateBoss(b, def, this.bossPhase === 'phaseShift' ? dt : 0);
+    // XM-4 2페이즈 전개도 연출 중에 재생
+    const xzc = (def as { xm4?: Xm4Def } | null)?.xm4;
+    const deploying = !!xzc && this.bossPhase === 'deploy';
+    if (deploying && def && b.active) this.xmDeployStep(b, def, xzc, dt);
+    if (def && b.active) this.animateBoss(b, def, this.bossPhase === 'phaseShift' || deploying ? dt : 0);
     // 대사하는 동안은 서 있는 자세(걷기 그림 중 두 발이 모인 장)로 플레이어를 본다. 2페이즈 전환 동작 중에는 그 동작을 보여 줌
     const cd = (def as { cine?: CineDef } | null)?.cine;
     const transforming = this.bossPhase === 'phaseShift' && this.bossTimer > 0.001;
@@ -4264,6 +4270,26 @@ export class GameScene extends Phaser.Scene implements GameContext {
     this.plasmaShells = [];
   }
 
+  /** XM-4 2페이즈 전개 진행: 포탑을 02로 돌린 뒤 전개 프레임, 끝나면 기관총·미사일 사용 가능. 클로즈업 중에도 이걸로 진행 */
+  private xmDeployStep(b: Enemy, def: BossDef, xz: Xm4Def, dt: number): void {
+    const art = this.xmArt();
+    const a02 = Math.atan2(Math.sin(Math.PI / 4) * 0.55, Math.cos(Math.PI / 4));
+    if (this.xmRotating) {
+      this.xmAim = Phaser.Math.Angle.RotateTo(this.xmAim, a02, Phaser.Math.DegToRad(xz.rotateTurn) * dt);
+      if (Math.abs(Phaser.Math.Angle.Wrap(this.xmAim - a02)) < 0.01) this.xmRotating = false;
+      return;
+    }
+    this.xmAim = a02;
+    this.xmAnimT += dt;
+    if (!art || this.xmAnimT >= art.phase2Transition.frames / this.xmAnimFps) {
+      this.xmDeployed = true;
+      this.bossPulse(b);
+      this.bossLastAttack = this.elapsed;
+      this.bossPhase = 'walk';
+      this.bossTimer = def.walkTime;
+    }
+  }
+
   /** XM-4 전용 단계: 걷기 판단·기관총·플라즈마 포격·미사일. 점프 낙하(leap·air·slam)는 false로 공통 코드에 맡김 */
   private updateXm4(b: Enemy, def: BossDef, xz: Xm4Def, dt: number, dx: number, dy: number, d: number): boolean {
     const ph = this.bossPhase;
@@ -4279,13 +4305,14 @@ export class GameScene extends Phaser.Scene implements GameContext {
     const tc = this.xmArt() ? { x: b.x, y: this.xmFoot(b) - 90 } : { x: b.x, y: b.y - b.radius * 0.7 };
     // 포탑 02 방향(오른쪽 아래)의 화면 각도: 상승·하강·전개 그림은 이 방향에서만
     const a02 = Math.atan2(Math.sin(Math.PI / 4) * 0.55, Math.cos(Math.PI / 4));
-    const bodyBusy = ph === 'rise' || ph === 'lower' || ph === 'deploy' || ((ph === 'leap' || ph === 'air' || ph === 'slam') && !this.xmDeployed);
+    // (2페이즈 전개는 xmDeployStep이 포탑을 돌림)
+    const bodyBusy = ph === 'rise' || ph === 'lower' || ((ph === 'leap' || ph === 'air' || ph === 'slam') && !this.xmDeployed);
     if (bodyBusy) {
       if (this.xmRotating) {
         this.xmAim = Phaser.Math.Angle.RotateTo(this.xmAim, a02, Phaser.Math.DegToRad(xz.rotateTurn) * dt);
         if (Math.abs(Phaser.Math.Angle.Wrap(this.xmAim - a02)) < 0.01) this.xmRotating = false;
       } else this.xmAim = a02;
-    } else this.xmAim = Phaser.Math.Angle.RotateTo(this.xmAim, Math.atan2(p.y - tc.y, p.x - tc.x), Phaser.Math.DegToRad(xz.turn) * dt);
+    } else if (ph !== 'deploy') this.xmAim = Phaser.Math.Angle.RotateTo(this.xmAim, Math.atan2(p.y - tc.y, p.x - tc.x), Phaser.Math.DegToRad(xz.turn) * dt);
     const art = this.xmArt();
     const RF = art ? art.turretRise.frames : 1;
     // 등장: 뚜껑 닫힌 채 나타나 포탑을 올림
@@ -4307,13 +4334,23 @@ export class GameScene extends Phaser.Scene implements GameContext {
         this.xmAnimFps = xz.riseFps;
         this.xmRotating = true;
         this.xmPlasmaLeft = 0;
+        // 컷신: 전개 동작(포탑 돌리기 + 전개 프레임)을 확대해 보여 준 뒤 대사
+        const cd = (def as { cine?: CineDef }).cine;
+        if (cd?.p2) {
+          const turnT = Math.abs(Phaser.Math.Angle.Wrap(this.xmAim - a02)) / Phaser.Math.DegToRad(xz.rotateTurn);
+          this.startCine(b, cd.p2, turnT + art.phase2Transition.frames / xz.riseFps + 0.2);
+        }
         return true;
       }
       this.xmDeployed = true;
     }
-    if (ph === 'rise' || ph === 'lower' || ph === 'deploy') {
+    if (ph === 'deploy') {
+      this.xmDeployStep(b, def, xz, dt);
+      return true;
+    }
+    if (ph === 'rise' || ph === 'lower') {
       if (!this.xmRotating) this.xmAnimT += dt;
-      const n = ph === 'deploy' ? art!.phase2Transition.frames : RF;
+      const n = RF;
       if (!this.xmRotating && this.xmAnimT >= n / this.xmAnimFps) {
         if (ph === 'lower') {
           // 뚜껑 닫힘 → 점프 (착지점은 지금 플레이어 자리)
@@ -4323,10 +4360,6 @@ export class GameScene extends Phaser.Scene implements GameContext {
           this.bossFrom = { x: b.x, y: b.y };
           this.bossTo = { x: (this.untracked ? this.decoy : p).x, y: (this.untracked ? this.decoy : p).y };
         } else {
-          if (ph === 'deploy') {
-            this.xmDeployed = true;
-            this.bossPulse(b);
-          }
           this.bossLastAttack = this.elapsed;
           toWalk();
         }

@@ -216,6 +216,7 @@
       "final": true,
       "title": "블랙 실드 전투 메크 XM-4 스웜하운드",
       "brain": "xm4",
+      "cine": { "note": "클로즈업: 2페이즈 전개 동작(포탑 02로 돌리기 + 기관총·미사일 포드 전개)을 확대해 보여 준 뒤 p2 대사. 등장 대사 없음", "p2": ["boss.p2.boss2.1", "boss.p2.boss2.2"], "zoom": 1.6, "lineTime": 1.6, "lift": 30 },
       "chargeSpeed": 300,
       "summon": "sec_bot",
       "summonCount": 5,
