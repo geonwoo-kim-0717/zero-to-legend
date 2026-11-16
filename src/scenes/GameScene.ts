@@ -106,6 +106,7 @@ type Xm4Def = {
   rotateTurn: number;
   footOff: number;
   hitShake: number;
+  walkInSpeed: number;
   p2: { plasmaShots: number; plasmaWarn: number; missileCount: number };
 };
 type GregorDef = { drop: { count: number; countRage: number; spread: number; warn: number; radius: number; damage: number; height: number; stagger: number }; sweep: { angle: number; range: number; aim: number; swing: number; damage: number; knock: number } };
@@ -815,7 +816,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
   // ───────────────────────────── GameContext ─────────────────────────────
   damage(e: Enemy, amount: number, tag?: DamageTag): boolean {
     if (!e.active) return false;
-    if (e === this.boss && (this.cine || this.bossGod || this.bossShieldT > 0 || this.bossPhase === 'enter' || this.bossPhase === 'walkIn' || this.bossPhase === 'phaseShift')) return false;
+    if (e === this.boss && (this.cine || this.bossGod || this.xmEntering || this.bossShieldT > 0 || this.bossPhase === 'enter' || this.bossPhase === 'walkIn' || this.bossPhase === 'phaseShift')) return false;
     // 회피 기동 중인 진압대는 피해를 받지 않음
     if (e.dodgeT > 0) return false;
     // 강하·착지 충격 중인 진압대는 무적
@@ -4007,6 +4008,8 @@ export class GameScene extends Phaser.Scene implements GameContext {
   private xmRotating = false;
   private xmStarted = false;
   private xmDeployed = false;
+  /** XM-4 등장 연출 중 (걸어 들어오기·포탑 상승, 무적) */
+  private xmEntering = false;
   private xmFlashT = 0;
   private xmCasingRow = 0;
   /** XM-4 피격 흔들림 남은 시간 */
@@ -4126,7 +4129,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
     if (!art || !xz) return false;
     const ph = this.bossPhase;
     const A = art.walk;
-    if (ph === 'walk') this.xmWalkPh = (this.xmWalkPh + dt * A.fps) % A.frames;
+    if (ph === 'walk' || ph === 'walkIn') this.xmWalkPh = (this.xmWalkPh + dt * A.fps * (ph === 'walkIn' ? Math.min(2.5, xz.walkInSpeed / Math.max(1, b.speed)) : 1)) % A.frames;
     const f = Math.floor(this.xmWalkPh) % A.frames;
     const nn = String(f).padStart(2, '0');
     // 점프 낙하: 공중 포물선
@@ -4160,7 +4163,8 @@ export class GameScene extends Phaser.Scene implements GameContext {
     const p2Body = this.bossPhase2 && this.xmDeployed;
     let body = `boss2_${p2Body ? 'p2' : 'p1'}_turret_${dir}`;
     let closed = false;
-    if (ph === 'rise') body = `boss2_rise_${nn2(fr)}`;
+    if (ph === 'walkIn') body = 'boss2_body_closed';
+    else if (ph === 'rise') body = `boss2_rise_${nn2(fr)}`;
     else if (ph === 'lower') body = this.xmRotating ? body : `boss2_rise_${nn2(RN - 1 - fr)}`;
     else if (ph === 'deploy') body = this.xmRotating ? `boss2_p1_turret_${dir}` : `boss2_deploy_${nn2(Math.min(art.phase2Transition.frames - 1, fr))}`;
     else if ((ph === 'leap' || ph === 'air' || ph === 'slam') && !p2Body) {
@@ -4315,7 +4319,18 @@ export class GameScene extends Phaser.Scene implements GameContext {
     } else if (ph !== 'deploy') this.xmAim = Phaser.Math.Angle.RotateTo(this.xmAim, Math.atan2(p.y - tc.y, p.x - tc.x), Phaser.Math.DegToRad(xz.turn) * dt);
     const art = this.xmArt();
     const RF = art ? art.turretRise.frames : 1;
-    // 등장: 뚜껑 닫힌 채 나타나 포탑을 올림
+    // 등장: 대사 뒤 제자리까지 걸어와서 포탑 상승
+    if (ph === 'walkIn') {
+      b.x = Math.max(this.walkInTo, b.x - xz.walkInSpeed * dt);
+      if (b.x <= this.walkInTo) {
+        this.bossPhase = 'rise';
+        this.xmAnimT = 0;
+        this.xmAnimFps = xz.riseFps;
+        this.xmRotating = false;
+      }
+      return true;
+    }
+    // (그림이 없을 때 등): 뚜껑 닫힌 채 나타나 포탑을 올림
     if (!this.xmStarted) {
       this.xmStarted = true;
       if (art) {
@@ -4361,6 +4376,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
           this.bossTo = { x: (this.untracked ? this.decoy : p).x, y: (this.untracked ? this.decoy : p).y };
         } else {
           this.bossLastAttack = this.elapsed;
+          this.xmEntering = false;
           toWalk();
         }
       }
@@ -5595,6 +5611,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
     this.xmLast = 'walk';
     this.xmPlasmaLeft = 0;
     this.xmStarted = false;
+    this.xmEntering = false;
     this.xmDeployed = false;
     this.xmRotating = false;
     this.xmWalkPh = 0;
@@ -5626,6 +5643,15 @@ export class GameScene extends Phaser.Scene implements GameContext {
       this.boss.x = Math.max(this.boss.x, this.cameras.main.scrollX + VIEW_W + 50);
       this.bossPhase = 'walkIn';
       this.walkInStep = 0;
+    }
+    const xzs = (def as { xm4?: Xm4Def }).xm4;
+    if (xzs && this.boss && this.xmArt()) {
+      // XM-4 등장: 화면 오른쪽 끝에 뚜껑 닫고 서서 대사(클로즈업) → 제자리까지 걸어옴 → 포탑 상승 → 전투 (그동안 무적)
+      this.walkInTo = this.boss.x;
+      this.boss.x = Math.max(this.boss.x + 120, this.cameras.main.scrollX + VIEW_W - 40);
+      this.bossPhase = 'walkIn';
+      this.xmStarted = true;
+      this.xmEntering = true;
     }
     this.hud.bossName.setText(enemiesData[id].name).setColor(def.final ? '#ff2a3a' : '#ff8a1f');
     Sound.play('bosswarn');

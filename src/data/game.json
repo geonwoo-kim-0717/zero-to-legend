@@ -216,7 +216,7 @@
       "final": true,
       "title": "블랙 실드 전투 메크 XM-4 스웜하운드",
       "brain": "xm4",
-      "cine": { "note": "클로즈업: 2페이즈 전개 동작(포탑 02로 돌리기 + 기관총·미사일 포드 전개)을 확대해 보여 준 뒤 p2 대사. 등장 대사 없음", "p2": ["boss.p2.boss2.1", "boss.p2.boss2.2"], "zoom": 1.6, "lineTime": 1.6, "lift": 30 },
+      "cine": { "note": "클로즈업: 등장 때 화면 오른쪽 끝에서 intro 대사 → 걸어 들어와 포탑 상승 → 전투. 2페이즈 전개 동작(포탑 02로 돌리기 + 기관총·미사일 포드 전개)을 확대해 보여 준 뒤 p2 대사", "intro": ["boss.intro.boss2.1", "boss.intro.boss2.2"], "p2": ["boss.p2.boss2.1", "boss.p2.boss2.2"], "zoom": 1.6, "lineTime": 1.6, "lift": 30 },
       "chargeSpeed": 300,
       "summon": "sec_bot",
       "summonCount": 5,
@@ -260,7 +260,7 @@
         "landFrames": [0, 0]
       },
       "xm4": {
-        "note": "XM-4 패턴(그림·포구 위치는 boss2_anim.json, 수치는 아트 세션 제안값 + 임의). 1페이즈 무장: 쌍열포(플라즈마)뿐, 2페이즈에 기관총·미사일 포드 등장. 포탑은 늘 플레이어 쪽으로 turn도/초 회전. mg 기관총: aim초 예고선 → interval초마다 burst발(총구 A/B 번갈아, 부채꼴 fan도, 발마다 섬광·반사광·탄피). plasma 플라즈마 포격: 발마다 착탄점(그때 플레이어 자리)에 예고 원 warn초 → 쌍열포 A/B 섬광 → 직선으로 fly초 → 가로 radius·세로 radiusY 광역 폭발(피해 damage), 발 사이 gap초. 미사일: 포드에서 missile.count발(2페이즈 p2.missileCount), 선회 missileTurn도/초. 몸통 동작(boss2_anim.json turretRise·phase2Transition): 등장 때 포탑 상승 riseFps, 2페이즈 전개 riseFps(먼저 포탑을 02로 rotateTurn도/초로 돌림), 1페이즈 점프 앞뒤 하강·상승은 quickFps. 2페이즈 점프는 포탑을 올린 채. footOff: 판정 원 중심에서 발까지 px. hitShake: 맞을 때 흔들리는 폭 px(0.12초)",
+        "note": "XM-4 패턴(그림·포구 위치는 boss2_anim.json, 수치는 아트 세션 제안값 + 임의). 1페이즈 무장: 쌍열포(플라즈마)뿐, 2페이즈에 기관총·미사일 포드 등장. 포탑은 늘 플레이어 쪽으로 turn도/초 회전. mg 기관총: aim초 예고선 → interval초마다 burst발(총구 A/B 번갈아, 부채꼴 fan도, 발마다 섬광·반사광·탄피). plasma 플라즈마 포격: 발마다 착탄점(그때 플레이어 자리)에 예고 원 warn초 → 쌍열포 A/B 섬광 → 직선으로 fly초 → 가로 radius·세로 radiusY 광역 폭발(피해 damage), 발 사이 gap초. 미사일: 포드에서 missile.count발(2페이즈 p2.missileCount), 선회 missileTurn도/초. 몸통 동작(boss2_anim.json turretRise·phase2Transition): 등장 때 포탑 상승 riseFps, 2페이즈 전개 riseFps(먼저 포탑을 02로 rotateTurn도/초로 돌림), 1페이즈 점프 앞뒤 하강·상승은 quickFps. 2페이즈 점프는 포탑을 올린 채. footOff: 판정 원 중심에서 발까지 px. hitShake: 맞을 때 흔들리는 폭 px(0.12초). walkInSpeed: 등장 때 걸어 들어오는 속도 px/초",
         "turn": 120,
         "mg": { "aim": 0.5, "burst": 8, "interval": 0.12, "fan": 24, "speed": 230, "damage": 6, "life": 2.2 },
         "plasma": { "shots": 2, "warn": 0.8, "fly": 0.15, "gap": 0.35, "radius": 50, "radiusY": 22, "damage": 22, "spreadNext": 40 },
@@ -271,6 +271,7 @@
         "rotateTurn": 360,
         "footOff": 30,
         "hitShake": 2,
+        "walkInSpeed": 80,
         "p2": { "plasmaShots": 3, "plasmaWarn": 0.65, "missileCount": 6 }
       }
     },
