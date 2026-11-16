@@ -11,6 +11,21 @@ export function isIPhone(): boolean {
   return /iPhone|iPod/.test(navigator.userAgent);
 }
 
+/**
+ * 다른 페이지 안(iframe)이나 앱 속 웹 화면(안드로이드 WebView)에서 돌고 있는지.
+ * 이런 곳은 전체화면을 제대로 지원하지 않아, 자동 전체화면을 걸면 들어갔다 바로 풀리기를 반복하며 화면이 멈춘다
+ * (안드로이드 Claude 앱 아티팩트에서 확인)
+ */
+export function isEmbedded(): boolean {
+  let framed = true;
+  try {
+    framed = window.self !== window.top;
+  } catch {
+    framed = true;
+  }
+  return framed || /; wv\)/.test(navigator.userAgent);
+}
+
 type LockableOrientation = ScreenOrientation & { lock?: (o: string) => Promise<void> };
 
 /** 전체화면으로 바꾸고, 모바일이면 가로로 고정한다. 사용자 입력(탭·클릭·키) 안에서 불러야 한다 */
@@ -42,10 +57,18 @@ let wantFullscreen = false;
  * 가로가 되는 순간 한 번 시도하고, 거부되면 가로 상태에서 첫 터치 때 다시 요청한다.
  */
 export function initAutoFullscreen(game: Phaser.Game, enabled: boolean): void {
-  if (!enabled || !isTouch()) return;
+  if (!enabled || !isTouch() || isEmbedded()) return;
   const sm = game.scale;
   if (!sm.fullscreen.available) return;
-  sm.on(Phaser.Scale.Events.ENTER_FULLSCREEN, () => (wantFullscreen = true));
+  let enteredAt = 0;
+  sm.on(Phaser.Scale.Events.ENTER_FULLSCREEN, () => {
+    wantFullscreen = true;
+    enteredAt = performance.now();
+  });
+  // 들어가자마자(1.5초 안에) 풀리면 이 환경은 전체화면을 못 버티는 것: 다시 요청하지 않는다 (요청 반복으로 화면이 멈추는 것 방지)
+  sm.on(Phaser.Scale.Events.LEAVE_FULLSCREEN, () => {
+    if (performance.now() - enteredAt < 1500) wantFullscreen = false;
+  });
   const landscape = () => window.matchMedia?.('(orientation: landscape)').matches ?? window.innerWidth > window.innerHeight;
   const restore = () => {
     if (!wantFullscreen || sm.isFullscreen || !landscape()) return;

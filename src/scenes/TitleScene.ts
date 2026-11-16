@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import { BASE_TEXT, setupCamera } from '../ui/text';
 import { Sound } from '../systems/Sound';
 import { addMuteToggle, addFxToggle, addFullscreenToggle, addLangToggle } from '../ui/MuteToggle';
-import { isTouch, enterFullscreen } from '../systems/Fullscreen';
+import { isTouch, enterFullscreen, isEmbedded } from '../systems/Fullscreen';
 import { VIEW_W, VIEW_H } from '../config';
 import { t, I18n } from '../i18n';
 import { Ads } from '../systems/Ads';
@@ -66,7 +66,8 @@ export class TitleScene extends Phaser.Scene {
       if (over.includes(mute) || over.includes(fxBtn) || over.includes(fsBtn) || over.includes(langBtn)) this.input.once('pointerup', onUp);
       else {
         // 모바일: 탭해서 시작하면 바로 전체화면 + 가로 고정
-        if (isTouch() && !this.scale.isFullscreen && Ads.provider !== 'crazygames') enterFullscreen(this);
+        // 앱 속 웹 화면·iframe(아티팩트 등)에서는 자동 전체화면을 걸지 않는다 (화면 멈춤 방지)
+        if (isTouch() && !isEmbedded() && !this.scale.isFullscreen && Ads.provider !== 'crazygames') enterFullscreen(this);
         go();
       }
     };
