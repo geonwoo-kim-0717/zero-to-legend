@@ -117,8 +117,35 @@
     8
    ],
    "files": "boss_gatling_lit_05~08",
-   "note": "same size and origin as boss_gatling_05~08; flash-lit version (front warm, far side darker). Show the lit frame while a muzzle flash is visible, the normal frame between shots."
-  }
+   "note": "front facing the flash (face, chest, belly, front thigh, far arm, barrel top) lit amber, only the back shaded. Show while a muzzle flash is visible, the normal frame between shots."
+  },
+  "port": [
+   null,
+   null,
+   null,
+   null,
+   [
+    40,
+    44
+   ],
+   [
+    40,
+    41
+   ],
+   [
+    40,
+    41
+   ],
+   [
+    40,
+    41
+   ],
+   [
+    40,
+    41
+   ]
+  ],
+  "portNote": "ejection port on top of the gun drum (user-marked), frames 4-8; casings start here"
  },
  "slam": {
   "frames": 8,
@@ -410,6 +437,141 @@
     100
    ],
    "note": "origin = floor point under the stomping foot; start on stomp.impactFrame (7); flash + crescent shock waves + dust cloud + rocks. Source: pixelfx impacts/ground-slam (MIT), see src/assets/FX_CREDITS.md"
+  },
+  "fx_boss_casing": {
+   "frameW": 35,
+   "frameH": 62,
+   "frames": 28,
+   "rows": 3,
+   "fps": 30,
+   "start": [
+    32,
+    9
+   ],
+   "origin": [
+    32,
+    60
+   ],
+   "note": "one casing per shot; row = variation (pick at random). Put \"start\" on gatling.port (the casing leaves the ejection port there); origin is the floor point below it. Flip X when facing left. Same for phase 1 and 2. Source: tools/art/pixelfx/basili-casing.js (pixelfx, MIT)"
   }
+ },
+ "p2_gatling": {
+  "frames": 9,
+  "w": 102,
+  "h": 93,
+  "originX": 0.412,
+  "originY": 1,
+  "muzzle": [
+   null,
+   null,
+   null,
+   null,
+   [
+    80,
+    44
+   ],
+   [
+    80,
+    41
+   ],
+   [
+    80,
+    41
+   ],
+   [
+    80,
+    41
+   ],
+   [
+    80,
+    41
+   ]
+  ],
+  "phases": {
+   "raise": [
+    0,
+    4
+   ],
+   "fireLoop": [
+    5,
+    8
+   ]
+  },
+  "generator": [
+   [
+    55,
+    47
+   ],
+   [
+    55,
+    48
+   ],
+   [
+    56,
+    47
+   ],
+   [
+    57,
+    47
+   ],
+   [
+    55,
+    50
+   ],
+   [
+    57,
+    49
+   ],
+   [
+    57,
+    49
+   ],
+   [
+    57,
+    49
+   ],
+   [
+    57,
+    49
+   ]
+  ],
+  "lit": {
+   "frames": [
+    5,
+    6,
+    7,
+    8
+   ],
+   "files": "boss_p2_gatling_lit_05~08",
+   "note": "same as gatling.lit"
+  },
+  "source": "phase-1 gatling repainted with phase-variant-transfer (key frame from the approved phase-2 walk pair)",
+  "port": [
+   null,
+   null,
+   null,
+   null,
+   [
+    40,
+    44
+   ],
+   [
+    40,
+    41
+   ],
+   [
+    40,
+    41
+   ],
+   [
+    40,
+    41
+   ],
+   [
+    40,
+    41
+   ]
+  ],
+  "portNote": "ejection port on top of the gun drum (user-marked), frames 4-8; casings start here"
  }
 }
