@@ -1,0 +1,113 @@
+{
+ "ref1": "pl/walk_00.png",
+ "ref2": "p2c/p2w_00.png",
+ "frames": [
+  [
+   "/home/user/zero-to-legend/src/assets/boss_stomp_00.png",
+   "pvt/stomp/p2s_00.png"
+  ]
+ ],
+ "regions": [
+  {
+   "name": "generator",
+   "mode": "patch",
+   "box": [
+    42,
+    34,
+    70,
+    64
+   ],
+   "radius": 12,
+   "centre": [
+    56,
+    50
+   ],
+   "R": 10
+  },
+  {
+   "name": "coat_upper",
+   "box": [
+    8,
+    16,
+    48,
+    58
+   ],
+   "R": 10,
+   "max_err": 40,
+   "tol": 40,
+   "lut": true,
+   "remove": true,
+   "add": true,
+   "nbr": 7
+  },
+  {
+   "name": "coat_lower",
+   "box": [
+    4,
+    56,
+    54,
+    94
+   ],
+   "R": 10,
+   "max_err": 40,
+   "tol": 40,
+   "lut": true,
+   "remove": true,
+   "add": true,
+   "nbr": 7
+  },
+  {
+   "name": "coat_right",
+   "box": [
+    54,
+    16,
+    82,
+    94
+   ],
+   "R": 10,
+   "max_err": 40,
+   "tol": 40,
+   "lut": true,
+   "remove": true,
+   "add": true,
+   "nbr": 7
+  },
+  {
+   "name": "far_arm",
+   "box": [
+    62,
+    32,
+    94,
+    58
+   ],
+   "R": 10,
+   "max_err": 40,
+   "tol": 40,
+   "nbr": 7
+  }
+ ],
+ "heat": [
+  {
+   "name": "barrel_heat",
+   "ref_axis": [
+    [
+     27,
+     58
+    ],
+    [
+     49,
+     79
+    ]
+   ],
+   "width": 5.5,
+   "guard": 6.5,
+   "track_box": [
+    22,
+    54,
+    54,
+    84
+   ],
+   "track_R": 12
+  }
+ ]
+}
