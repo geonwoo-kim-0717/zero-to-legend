@@ -255,6 +255,11 @@ export class GameScene extends Phaser.Scene implements GameContext {
   private bossFrom = { x: 0, y: 0 };
   private bossTo = { x: 0, y: 0 };
   private bossEnraged = false;
+  /** 콤보: 마지막 공격 종류, 열린 콤보(이어 쓸 수 있는 공격의 출발점)와 마감 시각, 지금 공격이 콤보로 나간 것인지 */
+  private bossLastKind = '';
+  private comboFrom = '';
+  private comboUntil = 0;
+  private comboChained = false;
   /** 이번 돌진의 전체 시간 (거리 비례 돌진이면 매번 다름, 프레임 재생용) */
   private bossChargeTotal = 0;
   /** 보스 점수 AI(BossBrain): 지난 공격·소환 시각, 다음 판단까지, 지금 행동, 마지막 점수, 소환한 부하, 플레이어 속도 */
@@ -3355,6 +3360,8 @@ export class GameScene extends Phaser.Scene implements GameContext {
       } else if (h.len >= hk.range) {
         this.playSheet('fx_hook_hit', 3, hx, hy, 0.5, 0.5, 20, 13);
         this.bossPhase = 'hookBack';
+        // 빗나감: 끝나면 돌진·점프로 이어 갈 수 있다 (콤보)
+        this.bossLastKind = 'hookMiss';
         h.t = 0;
       }
     } else if (ph === 'hookPull') {
@@ -3560,10 +3567,14 @@ export class GameScene extends Phaser.Scene implements GameContext {
           p2: !!p2,
           last: this.basiliLast,
           current: this.bossAct as BasiliAct,
+          combo: this.comboNow(),
         });
         this.bossScores = scores as Partial<Record<BossAct, number>>;
         if (act !== 'walk') {
           this.basiliLast = act;
+          this.bossLastKind = act;
+          if (this.comboNow().includes(act)) this.comboChained = true;
+          this.comboFrom = '';
           this.bossDir = { x: dx / d, y: dy / d };
           if (act === 'charge') {
             this.bossLastAttack = this.elapsed;
@@ -3724,6 +3735,14 @@ export class GameScene extends Phaser.Scene implements GameContext {
     const lx = (sp.flipX ? M.w - pt[0] : pt[0]) - sp.originX * M.w;
     const ly = pt[1] - sp.originY * M.h;
     return { x: sp.x + lx * sp.scaleX, y: sp.y + ly * sp.scaleY };
+  }
+
+  /** 지금 이어 쓸 수 있는 콤보 공격 목록 (콤보 시간이 지났으면 없음) */
+  private comboNow(): string[] {
+    if (!this.comboFrom || this.elapsed > this.comboUntil) return [];
+    const CB = gameData.bossBrain.combo;
+    const table = ((this.bossDef as { basili?: unknown } | null)?.basili ? CB.basili : CB.kovac) as Record<string, string[]>;
+    return table[this.comboFrom] ?? [];
   }
 
   /** 개틀링 탄피: 드럼 위 배출구(port)에서 한 발에 하나 (변형 3줄 중 무작위, 왼쪽을 보면 반전) */
@@ -4677,6 +4696,9 @@ export class GameScene extends Phaser.Scene implements GameContext {
     this.bossThinkT = 0;
     this.bossPrevPhase = 'walk';
     this.bossAct = 'walk';
+    this.bossLastKind = '';
+    this.comboFrom = '';
+    this.comboChained = false;
     this.basiliGuards = [];
     this.basiliLast = 'walk';
     this.stompRings = [];
@@ -4829,6 +4851,10 @@ export class GameScene extends Phaser.Scene implements GameContext {
       // 공격 시작 (점수 AI·거리 규칙 공통)
       const start = (kind: 'charge' | 'hook' | 'slam') => {
         this.bossLastAttack = this.elapsed;
+        this.bossLastKind = kind;
+        // 열린 콤보 안에서 그 공격을 골랐으면 콤보로 나간 것
+        if (this.comboNow().includes(kind)) this.comboChained = true;
+        this.comboFrom = '';
         this.bossDir = { x: dx / d, y: dy / d };
         if (kind === 'hook' && hk) {
           this.bossPhase = 'hookAim';
@@ -4863,6 +4889,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
             rage,
             p2: this.bossEnraged,
             current: this.bossAct,
+            combo: this.comboNow(),
           });
           this.bossScores = scores;
           this.bossAct = act;
@@ -5002,7 +5029,18 @@ export class GameScene extends Phaser.Scene implements GameContext {
     }
     this.animateBoss(b, def, dt);
     // 공격 준비도는 공격이 끝나고 다시 걷기 시작한 때부터 잰다 (긴 공격 직후 바로 다음 공격이 나오지 않게)
-    if (this.bossPrevPhase !== 'walk' && this.bossPhase === 'walk') this.bossLastAttack = this.elapsed;
+    if (this.bossPrevPhase !== 'walk' && this.bossPhase === 'walk') {
+      this.bossLastAttack = this.elapsed;
+      // 콤보: 방금 끝난 공격에 이어 쓸 공격이 있으면 잠깐(window초) 열어 둔다. 콤보로 나간 공격 뒤에는 다시 열지 않음 (한 번만 이어짐)
+      const CB = gameData.bossBrain.combo;
+      const table = ((def as { basili?: unknown }).basili ? CB.basili : CB.kovac) as Record<string, string[]>;
+      if (!this.comboChained && table[this.bossLastKind]) {
+        this.comboFrom = this.bossLastKind;
+        this.comboUntil = this.elapsed + CB.window;
+        this.bossThinkT = 0;
+      } else this.comboFrom = '';
+      this.comboChained = false;
+    }
     this.bossPrevPhase = this.bossPhase;
     // 보스가 화면에서 너무 멀어지면 다시 가까이
     const pd = Math.hypot(p.x - b.x, p.y - b.y) || 1;
