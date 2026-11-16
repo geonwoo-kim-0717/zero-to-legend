@@ -32,3 +32,5 @@ MUSIC (added in Version 18)
                https://opengameart.org/content/t-t-free-cyberpunk-pack-2  (CC0)
 
 raidsiren.mp3, phone.mp3: 이 게임용으로 직접 합성 (tools/audio/synth_alerts.py, CC0)
+
+boss_*.mp3 (코박·바실리 기술 효과음 15개): 이 게임용으로 직접 합성 (tools/audio/synth_boss.py, CC0)

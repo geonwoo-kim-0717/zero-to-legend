@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { BASE_TEXT, setupCamera } from '../ui/text';
 import { VIEW_W, VIEW_H, PLAYER, GRID_CELL, COLORS, MAX_ENEMY_RADIUS, ZOOM } from '../config';
 import gameData from '../data/game.json';
+import audioData from '../data/audio.json';
 import passivesData from '../data/passives.json';
 import abilitiesData from '../data/abilities.json';
 import weaponsData from '../data/weapons.json';
@@ -263,6 +264,8 @@ export class GameScene extends Phaser.Scene implements GameContext {
   private cine: { b: Enemy; t: number; dur: number; delay: number; lines: string[]; said: number; each: number; zoom: number; lift: number; hidden: Phaser.GameObjects.GameObject[]; bars: Phaser.GameObjects.Rectangle[]; sx: number; sy: number } | null = null;
   /** 콤보: 마지막 공격 종류, 열린 콤보(이어 쓸 수 있는 공격의 출발점)와 마감 시각, 지금 공격이 콤보로 나간 것인지 */
   private bossLastKind = '';
+  /** 기술 효과음을 낸 마지막 보스 단계 (단계가 바뀌는 순간 audio.json bossSfx 소리) */
+  private bossSfxPrev = '';
   private comboFrom = '';
   private comboUntil = 0;
   private comboChained = false;
@@ -1676,7 +1679,10 @@ export class GameScene extends Phaser.Scene implements GameContext {
 
     this.updateOverdrive(dt);
     this.updateEnemies(dt);
-    if (this.boss) this.updateBoss(dt);
+    if (this.boss) {
+      this.updateBoss(dt);
+      this.bossPhaseSfx();
+    }
     for (const w of this.weapons) {
       this.dmgSrc = w.id;
       w.update(dt);
@@ -3309,7 +3315,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
     this.tweens.add({ targets: ring, scale: 1.25, alpha: 0, duration: 420, ease: 'Quad.easeOut', onComplete: () => ring.destroy() });
     this.burst(b.x, b.y, 0xffa040, 24);
     this.shake(300, 0.016);
-    Sound.play('explode');
+    if (!this.bossSfx()) Sound.play('explode');
     // 말풍선: 머리 위 (그림 높이만큼 올림), 등장 연출 동안
     const cineDef = (this.bossDef as { cine?: CineDef } | null)?.cine;
     if (cineDef?.intro) this.startCine(b, [ent.line, ...cineDef.intro], 0.3);
@@ -3351,7 +3357,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
       if (this.bossTimer <= 0) {
         this.bossPhase = 'hookFly';
         h.t = 0;
-        Sound.play('lunge');
+        if (!this.bossSfx()) Sound.play('lunge');
         this.playSheet('fx_hook_flash', 3, hand.x, hand.y, 0.5, 0.5, 20, 13);
       }
     } else if (ph === 'hookFly') {
@@ -3609,12 +3615,12 @@ export class GameScene extends Phaser.Scene implements GameContext {
             this.gatAim = Math.atan2(dy, dx);
             this.gatAcc = 0;
             this.gatShotFrame = -1;
-            Sound.play('lungewarn');
+            if (!this.bossSfx()) Sound.play('lungewarn');
           } else if (act === 'stomp') {
             this.bossLastAttack = this.elapsed;
             this.bossPhase = 'stomp';
             this.bossTimer = bz.stomp.lift;
-            Sound.play('lungewarn');
+            if (!this.bossSfx()) Sound.play('lungewarn');
           } else if (act === 'call') {
             this.bossPhase = 'call';
             this.bossTimer = bz.call.gesture;
@@ -3656,7 +3662,9 @@ export class GameScene extends Phaser.Scene implements GameContext {
           // 반동도 같은 발사에 한 번 (몸이 뒤로 밀렸다가 돌아옴)
           this.basiliKick = 1;
           if (!this.textures.exists('fx_boss_muzzle')) this.burst(mx, my, 0xfff23a, 2);
-          if (Math.random() < 0.35) Sound.play('enemyshot');
+          // 한 발마다 짧은 사격음 (전용 소리가 없으면 공용 적 사격음을 가끔)
+          if (this.bossSfx()) Sound.play('boss_gatshot');
+          else if (Math.random() < 0.35) Sound.play('enemyshot');
         }
         // 총구 불꽃 (화염 그림이 없을 때만 도형으로)
         if (!this.textures.exists('fx_boss_muzzle')) this.fx.fillStyle(0xfff23a, 0.5 + Math.random() * 0.4).fillCircle(mx, my, 3 + Math.random() * 2);
@@ -3683,7 +3691,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
           if (e) this.basiliGuards.push(e);
         }
         this.bossPulse(b);
-        Sound.play('bosswarn');
+        Sound.play(this.bossSfx() ? 'boss_call' : 'bosswarn');
       }
       return true;
     }
@@ -3733,7 +3741,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
           this.playSheet('fx_land_dust', 18, b.x, b.y + b.radius, 56 / 112, 30 / 40, 12, 9.5);
           this.burst(b.x, b.y + b.radius * 0.5, 0x8a7a6a, 18);
         }
-        Sound.play('explode');
+        if (!this.bossSfx()) Sound.play('explode');
         // 착지 후 낮게 버티는 자세 (그림: 착지 장 → 버팀 장)
         this.bossPhase = 'stompRec';
         this.bossTimer = bz.anim.stompRecover;
@@ -4230,7 +4238,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
     this.tweens.add({ targets: ring, scale: 1.25, alpha: 0, duration: 380, ease: 'Quad.easeOut', onComplete: () => ring.destroy() });
     this.burst(b.x, b.y, 0xffa040, 18);
     this.shake(220, 0.014);
-    Sound.play('explode');
+    if (!this.bossSfx()) Sound.play('explode');
   }
 
   /** 소환·탄막 때 보스가 한 번 들썩인다 */
@@ -4996,6 +5004,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
       this.bossPhase = 'walkIn';
       this.walkInStep = 0;
     }
+    this.bossSfxPrev = this.bossPhase;
     this.hud.bossName.setText(enemiesData[id].name).setColor(def.final ? '#ff2a3a' : '#ff8a1f');
     Sound.play('bosswarn');
     this.time.delayedCall(450, () => Sound.play('bosswarn'));
@@ -5004,6 +5013,19 @@ export class GameScene extends Phaser.Scene implements GameContext {
     this.containers = [];
     const cdi = (def as { cine?: CineDef; entrance?: unknown; basili?: unknown }).cine;
     if (this.boss && cdi?.intro && !(def as { entrance?: unknown }).entrance && !(def as { basili?: unknown }).basili) this.startCine(this.boss, cdi.intro, 0.4);
+  }
+
+  /** 이 보스 전용 기술 효과음 표 (audio.json bossSfx: 단계 → 소리들). 없으면 null (공용 소리 그대로) */
+  private bossSfx(): Record<string, string[]> | null {
+    const id = this.boss?.id;
+    return (id && (audioData.bossSfx as unknown as Record<string, Record<string, string[]> | undefined>)[id]) || null;
+  }
+
+  /** 보스 단계가 바뀐 순간 그 단계의 기술 효과음 */
+  private bossPhaseSfx(): void {
+    if (this.bossPhase === this.bossSfxPrev) return;
+    this.bossSfxPrev = this.bossPhase;
+    for (const k of this.bossSfx()?.[this.bossPhase] ?? []) Sound.play(k as SfxKey);
   }
 
   private updateBoss(dt: number): void {
@@ -5205,7 +5227,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
         if (this.bossPhase === 'leap') {
           this.bossPhase = 'air';
           this.bossTimer = sl.air / rage;
-          Sound.play('bosscharge');
+          if (!this.bossSfx()) Sound.play('bosscharge');
         } else {
           this.bossPhase = 'slam';
           this.bossTimer = sl.recover;
@@ -5228,7 +5250,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
       this.bossDir = { x: dx / d, y: dy / d };
       if (this.bossTimer <= 0) {
         this.bossPhase = 'charge';
-        Sound.play('bosscharge');
+        if (!this.bossSfx()) Sound.play('bosscharge');
         // 분노면 속도가 rage배 빨라지는 만큼 시간을 줄여 돌진 거리는 그대로 (빠르게만)
         this.bossTimer = (p2 ? p2.chargeTime : def.chargeTime) / rage;
         // 코박: 돌진 거리 = 플레이어까지 거리 + chargeOver px (속도는 그대로, 시간이 달라짐)
@@ -5282,6 +5304,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
     if (this.bossSummon <= 0) {
       this.bossSummon = def.summonEvery;
       this.bossPulse(b);
+      if (this.bossSfx()) Sound.play('boss_summon');
       // 소환 목록: summons가 있으면 여러 종류, 없으면 summon × summonCount
       const refill = !!(def as { refill?: boolean }).refill;
       // 보충형(아르코난 코어): 체력은 첫 소환 때 값으로 고정, 살아 있는 부하는 빼고 모자란 만큼만 소환

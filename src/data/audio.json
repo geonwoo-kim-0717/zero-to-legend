@@ -198,6 +198,81 @@
       "volume": 0.25,
       "minGap": 150,
       "detune": 150
+    },
+    "boss_hookaim": {
+      "volume": 0.43,
+      "minGap": 200,
+      "detune": 0
+    },
+    "boss_hookfire": {
+      "volume": 0.52,
+      "minGap": 150,
+      "detune": 60
+    },
+    "boss_hookhit": {
+      "volume": 0.37,
+      "minGap": 150,
+      "detune": 60
+    },
+    "boss_hookreel": {
+      "volume": 0.25,
+      "minGap": 200,
+      "detune": 40
+    },
+    "boss_chargewarn": {
+      "volume": 0.16,
+      "minGap": 200,
+      "detune": 0
+    },
+    "boss_charge": {
+      "volume": 0.29,
+      "minGap": 200,
+      "detune": 40
+    },
+    "boss_jump": {
+      "volume": 0.3,
+      "minGap": 200,
+      "detune": 0
+    },
+    "boss_slam": {
+      "volume": 0.35,
+      "minGap": 250,
+      "detune": 40
+    },
+    "boss_summon": {
+      "volume": 0.32,
+      "minGap": 300,
+      "detune": 0
+    },
+    "boss_gatspin": {
+      "volume": 0.18,
+      "minGap": 300,
+      "detune": 0
+    },
+    "boss_gatshot": {
+      "volume": 0.15,
+      "minGap": 50,
+      "detune": 120
+    },
+    "boss_stompwarn": {
+      "volume": 0.14,
+      "minGap": 300,
+      "detune": 0
+    },
+    "boss_stomp": {
+      "volume": 0.3,
+      "minGap": 250,
+      "detune": 30
+    },
+    "boss_call": {
+      "volume": 0.37,
+      "minGap": 500,
+      "detune": 0
+    },
+    "boss_phase": {
+      "volume": 0.3,
+      "minGap": 1000,
+      "detune": 0
     }
   },
   "slowmoDuck": {
@@ -217,5 +292,58 @@
       "shiphover",
       "trooperland"
     ]
+  },
+  "bossSfx": {
+    "note": "보스 기술 효과음: 보스 단계(bossPhase)에 들어가는 순간 그 소리들을 낸다 (보스 id별). 여기 있는 보스는 같은 순간의 공용 소리(돌진 bosscharge, 착지 explode 등)를 내지 않는다. 개틀링 한 발(boss_gatshot)·호위 호출(boss_call)·드론 소환(boss_summon)은 코드에서 그 순간에",
+    "midboss": {
+      "hookAim": [
+        "boss_hookaim"
+      ],
+      "hookFly": [
+        "boss_hookfire"
+      ],
+      "hookPull": [
+        "boss_hookhit",
+        "boss_hookreel"
+      ],
+      "hookBack": [
+        "boss_hookreel"
+      ],
+      "aim": [
+        "boss_chargewarn"
+      ],
+      "charge": [
+        "boss_charge"
+      ],
+      "air": [
+        "boss_jump"
+      ],
+      "slam": [
+        "boss_slam"
+      ],
+      "taunt": [
+        "boss_slam"
+      ]
+    },
+    "boss": {
+      "aim": [
+        "boss_chargewarn"
+      ],
+      "charge": [
+        "boss_charge"
+      ],
+      "gatling": [
+        "boss_gatspin"
+      ],
+      "stomp": [
+        "boss_stompwarn"
+      ],
+      "stompRec": [
+        "boss_stomp"
+      ],
+      "phaseShift": [
+        "boss_phase"
+      ]
+    }
   }
 }
