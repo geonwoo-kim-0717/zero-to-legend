@@ -86,14 +86,15 @@ export interface ItemRoll {
   rarity: Rarity;
 }
 
-/** 등급 굴리기 (min 이상만) */
-export function rollItemRarity(min?: string): Rarity {
+/** 등급 굴리기 (min 이상만). weights가 있으면 그 가중치로 (없는 등급은 안 나옴) */
+export function rollItemRarity(min?: string, weights?: Record<string, number>): Rarity {
   const minIdx = min ? rarities.findIndex((r) => r.id === min) : 0;
-  const pool = rarities.slice(Math.max(0, minIdx));
-  const total = pool.reduce((s, r) => s + r.weight, 0);
+  const w = (r: Rarity) => (weights ? (weights[r.id] ?? 0) : r.weight);
+  const pool = rarities.slice(Math.max(0, minIdx)).filter((r) => w(r) > 0);
+  const total = pool.reduce((s, r) => s + w(r), 0);
   let n = Math.random() * total;
   for (const r of pool) {
-    n -= r.weight;
+    n -= w(r);
     if (n < 0) return r;
   }
   return pool[0];
@@ -107,9 +108,9 @@ function itemPool(): { kind: ItemKind; id: string }[] {
 }
 
 /** 보급 상자: 서로 다른 아이템 n개. equipped에 있는 아이템(같은 id)은 빼고, minRarity 이상 */
-export function rollItems(n: number, equipped: Set<string>, minRarity?: string): ItemRoll[] {
+export function rollItems(n: number, equipped: Set<string>, minRarity?: string, weights?: Record<string, number>): ItemRoll[] {
   const pool = Phaser.Utils.Array.Shuffle(itemPool().filter((p) => !equipped.has(p.id)));
-  return pool.slice(0, n).map((p) => ({ ...p, rarity: rollItemRarity(minRarity) }));
+  return pool.slice(0, n).map((p) => ({ ...p, rarity: rollItemRarity(minRarity, weights) }));
 }
 
 export function itemName(kind: ItemKind, id: string): string {

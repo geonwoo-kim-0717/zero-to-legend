@@ -683,7 +683,7 @@
   "maxedAbilityChance": 0.15,
   "enemyDamageGrowthPerMin": 0.04,
   "stations": {
-    "note": "개편 3단계: 상점·리퍼닥. 챕터 시간 times초(4분·9분)에 둘 다 화면 밖 dist px 쯤 서로 다른 방향에 나타나고, life초 뒤(또는 보스 등장·들렀다 나오면) 사라짐. 화면 가장자리 화살표로 방향 안내. 닿으면 게임이 멈추고 화면이 열림. 값은 칩 (임시, 플레이로 조정). shop: 아이템 items개(등급별 price), 다시 뽑기 reroll + 할 때마다 rerollStep, 체력 회복 heal.pct% (한 번). ripper: 사이버웨어 소켓 레벨 +1 = cyberLevel[지금 레벨-1], OS 바꿔 끼기 osSwap",
+    "note": "개편 3단계: 상점·리퍼닥. 챕터 시간 times초(4분·9분)에 둘 다 화면 밖 dist px 쯤 서로 다른 방향에 나타나고, life초 뒤(또는 보스 등장·들렀다 나오면) 사라짐. 화면 가장자리 화살표로 방향 안내. 닿으면 게임이 멈추고 화면이 열림. 값은 칩 (임시, 플레이로 조정). shop: 아이템 items개(등급별 price, 등급 확률 rarity: 일반 없음·전설 10%·신화 3%, 나머지는 희귀:영웅 = 기본 가중치 비율 25:5), 다시 뽑기 reroll (rerollMax번까지), 체력 회복 heal.pct% (한 번). ripper: 사이버웨어 소켓 레벨 +1 = cyberLevel[지금 레벨-1], OS 바꿔 끼기 osSwap",
     "times": [240, 540],
     "life": 60,
     "dist": 420,
@@ -691,8 +691,10 @@
     "shop": {
       "items": 3,
       "price": { "common": 40, "rare": 70, "epic": 110, "legendary": 180, "mythic": 280 },
+      "rarity": { "rare": 72.5, "epic": 14.5, "legendary": 10, "mythic": 3 },
       "reroll": 25,
       "rerollStep": 15,
+      "rerollMax": 1,
       "heal": { "pct": 40, "price": 50 }
     },
     "ripper": {

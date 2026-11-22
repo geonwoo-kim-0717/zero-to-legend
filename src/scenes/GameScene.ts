@@ -2013,12 +2013,12 @@ export class GameScene extends Phaser.Scene implements GameContext {
     if (s.kind === 'shop') {
       // UI: 블랙마켓 화면 (src/ui/StationUI.ts)
       const SH = ST.shop;
-      if (!s.stock) s.stock = rollItems(SH.items, this.equippedIds());
+      if (!s.stock) s.stock = rollItems(SH.items, this.equippedIds(), undefined, SH.rarity);
       const stock = s.stock;
       const items = stock.map((r) => ({ choice: this.itemChoice(r), price: (SH.price as Record<string, number>)[r.rarity.id] ?? 50 }));
       const rr = SH.reroll + SH.rerollStep * s.rerolls;
       this.stationUi.showShop(
-        { chips, items, heal: s.healed ? undefined : { pct: SH.heal.pct, price: SH.heal.price }, reroll: { price: rr } },
+        { chips, items, heal: s.healed ? undefined : { pct: SH.heal.pct, price: SH.heal.price }, reroll: s.rerolls >= SH.rerollMax ? undefined : { price: rr } },
         {
           buy: (i) => {
             const it = items[i];
@@ -2034,9 +2034,9 @@ export class GameScene extends Phaser.Scene implements GameContext {
             after();
           },
           reroll: () => {
-            if (!pay(rr)) return;
+            if (s.rerolls >= SH.rerollMax || !pay(rr)) return;
             s.rerolls++;
-            s.stock = rollItems(SH.items, this.equippedIds());
+            s.stock = rollItems(SH.items, this.equippedIds(), undefined, SH.rarity);
             after();
           },
           leave,

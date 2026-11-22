@@ -11,7 +11,8 @@ export interface ShopModel {
   chips: number;
   items: { choice: Choice; price: number }[];
   heal?: { pct: number; price: number };
-  reroll: { price: number };
+  /** 다시 뽑기 (한 번 쓰면 없음) */
+  reroll?: { price: number };
 }
 export interface ShopActs {
   buy: (i: number) => void;
@@ -171,7 +172,7 @@ export class StationUI {
     };
     let x = 16;
     if (m.heal) x = svc(x, '+', 0xff2bd6, t('station.healPct', { pct: m.heal.pct }), m.heal.price, a.heal) + 10;
-    svc(x, '⟳', CHIP, t('station.reroll'), m.reroll.price, a.reroll);
+    if (m.reroll) svc(x, '⟳', CHIP, t('station.reroll'), m.reroll.price, a.reroll);
     this.leaveButton(a.leave);
   }
 
