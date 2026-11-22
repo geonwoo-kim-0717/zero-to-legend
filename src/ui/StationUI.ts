@@ -4,6 +4,7 @@ import { VIEW_W, VIEW_H } from '../config';
 import { Sound } from '../systems/Sound';
 import type { Choice } from '../systems/Progression';
 import { LevelUpUI, TAG_COLOR } from './LevelUpUI';
+import { tagName } from './synergyText';
 import { t } from '../i18n';
 
 /** 블랙마켓 화면에 넘길 것 */
@@ -42,6 +43,8 @@ export interface RipperActs {
 }
 
 const D = 310;
+/** 블랙마켓 카드 높이: 위 56 + 244 + 구매 버튼(4+20) = 324, 아래 버튼 줄은 328부터 */
+const SHOP_CARD_H = 244;
 const CHIP = 0x3ad7ff;
 const RED = 0xff5a6a;
 const hex = (c: number) => `#${c.toString(16).padStart(6, '0')}`;
@@ -147,12 +150,13 @@ export class StationUI {
       () => undefined,
       t('station.shop'),
       undefined,
-      { top: 56, cw: 170, minH: 222, titleColor: '#fff23a', dimmed },
+      { top: 56, cw: 184, tight: true, fixedH: SHOP_CARD_H, titleColor: '#fff23a', dimmed },
     );
     this.txt(VIEW_W / 2, 43, t('station.shopHint'), 9, '#8a7aa8').setOrigin(0.5, 0);
     this.balance(m.chips);
     // 카드마다 구매 버튼
-    m.items.forEach((it, i) => this.priceButton(lay.xs[i], lay.top + lay.ch + 6, lay.cw, 24, it.price, t('station.buy'), !dimmed[i], CHIP, () => a.buy(i)));
+    // 카드 높이를 고정해 구매 버튼이 아래 버튼 줄(VIEW_H - 32)과 겹치지 않게
+    m.items.forEach((it, i) => this.priceButton(lay.xs[i], lay.top + lay.ch + 4, lay.cw, 20, it.price, t('station.buy'), !dimmed[i], CHIP, () => a.buy(i)));
     // 아래 줄: 체력 회복 · 다시 뽑기 · 떠나기
     const by = VIEW_H - 32;
     const svc = (x: number, icon: string, iconCol: number, label: string, price: number, act: () => void) => {
@@ -299,7 +303,7 @@ export class StationUI {
     let tagX = nm.x + nm.width + 6;
     for (const tag of o.tags) {
       const tc = TAG_COLOR[tag] ?? 0xb8a8d8;
-      const tt = this.txt(tagX + 4, dy + 7, tag, 8.5, hex(tc));
+      const tt = this.txt(tagX + 4, dy + 7, tagName(tag), 8.5, hex(tc));
       g.fillStyle(tc, 0.12).fillRect(tagX, dy + 6, tt.width + 8, 13);
       g.lineStyle(1, tc, 0.6).strokeRect(tagX + 0.5, dy + 6.5, tt.width + 7, 12);
       tagX += tt.width + 11;

@@ -3,6 +3,7 @@ import { BASE_TEXT } from './text';
 import { VIEW_W, VIEW_H } from '../config';
 import { Sound } from '../systems/Sound';
 import { TAG_COLOR } from './LevelUpUI';
+import { tagName } from './synergyText';
 import { t, I18n } from '../i18n';
 
 /** 아지트 패널 자리 (HideoutScene과 같은 값) */
@@ -218,7 +219,7 @@ export function drawDock(
   let tx = nm.x + nm.width + 6;
   for (const tag of cur.tags) {
     const tc = TAG_COLOR[tag] ?? 0xb8a8d8;
-    const tt = add(s.add.text(tx + 4, oy + 11, tag, T(8.5, `#${tc.toString(16).padStart(6, '0')}`)));
+    const tt = add(s.add.text(tx + 4, oy + 11, tagName(tag), T(8.5, `#${tc.toString(16).padStart(6, '0')}`)));
     g.fillStyle(tc, 0.12).fillRect(tx, oy + 10, tt.width + 8, 13);
     g.lineStyle(1, tc, 0.6).strokeRect(tx + 0.5, oy + 10.5, tt.width + 7, 12);
     tx += tt.width + 11;

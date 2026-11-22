@@ -4,6 +4,7 @@ import weaponsData from '../data/weapons.json';
 import { ITEMS, PART_NAME, itemDisplayValues, itemText, type ItemKind } from '../systems/Build';
 import { itemTags, weaponTags, combosWith } from '../systems/Loadout';
 import build from '../data/build.json';
+import { tagName, comboName, comboShort, tierShort } from './synergyText';
 import type { Rarity } from '../systems/Progression';
 import { I18n, t } from '../i18n';
 
@@ -113,18 +114,18 @@ export function recommend(o: { id: string; tags: CardTag[]; equipped?: ReadonlyS
     if (o.curId) after.delete(o.curId);
     after.add(o.id);
     const made = combosWith(o.id).find((c) => after.has(c.other) && !active.has(c.name));
-    if (made) out.rec = { title: t('rec.combo', { name: made.name }), text: made.text, combo: true };
+    if (made) out.rec = { title: t('rec.combo', { name: comboName(made.name) }), text: comboShort(made.name, made.text), combo: true };
     // 빠지는 아이템이 켜진 조합의 한쪽이면 경고 (같은 조합을 이 아이템이 다시 채우면 제외)
     if (o.curId) {
       const lost = combosWith(o.curId).find((c) => active.has(c.name) && eq.has(c.other) && !combosWith(o.id).some((m) => m.name === c.name));
-      if (lost) out.warn = t('rec.lost', { name: lost.name });
+      if (lost) out.warn = t('rec.lost', { name: comboName(lost.name) });
     }
   }
   if (!out.rec) {
     // 가장 높이 오르는 태그 단계
     const up = o.tags.filter((g) => g.up).sort((a, b) => (b.up ?? 0) - (a.up ?? 0))[0];
     const def = up && TIERS[up.tag]?.find((d) => d.count === up.up);
-    if (up && def) out.rec = { title: t('rec.tier', { tag: up.tag, n: up.up! }), text: fill(def.text, def.params ?? {}), combo: false };
+    if (up && def) out.rec = { title: t('rec.tier', { tag: tagName(up.tag), n: up.up! }), text: tierShort(up.tag, up.up!, fill(def.text, def.params ?? {})), combo: false };
   }
   return out;
 }
