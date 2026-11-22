@@ -74,7 +74,7 @@ export class OsState {
   }
 }
 
-/** 개발자 도구용 OS 선택 저장 (판 밖 뽑기가 생기기 전 임시) */
+/** 개발자 도구(?debug)용 OS·레벨 고르기 저장: 뽑기 없이 아무 OS·레벨이나 시험 */
 const DEV_KEY = 'ztl-os-dev';
 export function devOsPick(): { id: string; level: number } | null {
   try {
@@ -89,5 +89,14 @@ export function saveDevOsPick(id: string, level: number): void {
     localStorage.setItem(DEV_KEY, JSON.stringify({ id, level }));
   } catch {
     // 저장이 막혀 있으면 이번 판에서만
+  }
+}
+
+/** 아지트에서 OS를 고르면 개발자 도구 선택은 지움 (아지트 선택이 이기게) */
+export function clearDevOsPick(): void {
+  try {
+    localStorage.removeItem(DEV_KEY);
+  } catch {
+    // 무시
   }
 }

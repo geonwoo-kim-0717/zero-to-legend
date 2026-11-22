@@ -1,4 +1,6 @@
 import meta from '../data/meta.json';
+import osData from '../data/os.json';
+import { clearDevOsPick } from './Os';
 
 export type RunnerId = 'zero' | 'viper' | 'ghost' | 'nova';
 export type SpecialId = keyof typeof meta.specials;
@@ -70,6 +72,11 @@ export interface SaveData {
   best?: { id: string; name: string; score: number; zone: number; time: number; kills: number; runner: string; heat: number; cleared: boolean } | null;
   /** 처음 아지트에 왔을 때 리퍼닥 소개를 봤는지 */
   introDone: boolean;
+  /** 개편 4단계: OS 뽑기로 모은 개수 (개수로 레벨이 정해짐), 판에 들고 나갈 OS */
+  osCopies: Record<string, number>;
+  os: string;
+  /** OS 뽑기 횟수 (기록) */
+  osPulls: number;
 }
 
 /** 한 판에서 얻은 기록. 결과 화면에서 저장에 더한다 */
@@ -88,7 +95,8 @@ export interface RunStats {
   zone: number;
 }
 
-const KEY = 'ztl-save-v1';
+/** 개편판은 지금 게임과 저장을 따로 씀 (같은 주소라 저장소가 같아서 이름으로 나눔) */
+const KEY = 'ztl-save-redesign-v1';
 
 function fresh(): SaveData {
   return {
@@ -116,7 +124,11 @@ function fresh(): SaveData {
     tutEquip: false,
     lastZone: 0,
     lastWin: false,
-    introDone: false,
+    // 개편판: 예전 아지트 튜토리얼(블랙마켓·특수 능력 구매)은 건너뜀
+    introDone: true,
+    osCopies: { [osData.gacha.basicOs]: 1 },
+    os: osData.gacha.basicOs,
+    osPulls: 0,
     stats: { runs: 0, totalKills: 0, droneKills: 0, meleeKills: 0, trooperKills: 0, midbossKills: 0, bossKills: 0, hexKills: 0, coreKills: 0, marketBuys: 0, totalTime: 0, bestTime: 0, bestLevel: 0 },
   };
 }
@@ -139,6 +151,11 @@ function normalize(raw: unknown): SaveData {
     marketOff: [...(r.marketOff ?? [])],
     seenUnits: [...(r.seenUnits ?? [])],
     stats: { ...d.stats, ...(r.stats ?? {}) },
+    osCopies: { ...d.osCopies, ...(r.osCopies ?? {}) },
+    os: typeof r.os === 'string' && r.os in osData.os ? r.os : d.os,
+    tut: 3,
+    tutGo: true,
+    tutEquip: false,
   };
 }
 
@@ -182,6 +199,72 @@ export const Save = {
     const id = rid ?? this.data.runner;
     const eq = this.data.equipped[id];
     return eq && this.data.specials.includes(eq) ? eq : (this.runner(id).special as SpecialId);
+  },
+
+  // ───── 개편 4단계: OS 뽑기 ─────
+  /** OS 레벨: 모은 개수로 정해짐 (레벨마다 새로 필요한 개수 gacha.copies = 1,2,4,8,12 → 누적 1,3,7,15,27). 기본 OS는 1 */
+  osLevel(id: string): number {
+    const def = (osData.os as Record<string, { basic?: boolean; levels: unknown[] }>)[id];
+    if (!def) return 0;
+    if (def.basic) return 1;
+    const n = this.data.osCopies[id] ?? 0;
+    let need = 0;
+    let lv = 0;
+    for (const c of osData.gacha.copies) {
+      need += c;
+      if (n >= need) lv++;
+      else break;
+    }
+    return Math.min(lv, def.levels.length);
+  },
+
+  /** 다음 레벨까지: 지금 개수, 다음 레벨에 필요한 누적 개수 (최대면 null) */
+  osNext(id: string): { have: number; need: number } | null {
+    const lv = this.osLevel(id);
+    const cps = osData.gacha.copies;
+    if (lv >= cps.length) return null;
+    return { have: this.data.osCopies[id] ?? 0, need: cps.slice(0, lv + 1).reduce((a, b) => a + b, 0) };
+  },
+
+  /** 뽑기 n회 (1 또는 10). 크레딧이 모자라면 null. 최대 레벨 OS가 또 나오면 refund 크레딧 */
+  pullOs(n: 1 | 10): { id: string; before: number; after: number; refund: number }[] | null {
+    const G = osData.gacha;
+    const cost = n === 10 ? G.tenPrice : G.price;
+    if (!this.spend(cost)) return null;
+    const w = G.weights as Record<string, number>;
+    const pool = Object.keys(w).filter((id) => (osData.os as Record<string, { enabled?: boolean }>)[id]?.enabled !== false);
+    const total = pool.reduce((a, id) => a + w[id], 0);
+    const out: { id: string; before: number; after: number; refund: number }[] = [];
+    for (let i = 0; i < n; i++) {
+      let r = Math.random() * total;
+      let id = pool[pool.length - 1];
+      for (const p of pool) {
+        r -= w[p];
+        if (r < 0) {
+          id = p;
+          break;
+        }
+      }
+      const before = this.osLevel(id);
+      let refund = 0;
+      if (this.osNext(id) === null) {
+        refund = G.refund;
+        this.data.credits += refund;
+      } else this.data.osCopies[id] = (this.data.osCopies[id] ?? 0) + 1;
+      out.push({ id, before, after: this.osLevel(id), refund });
+    }
+    this.data.osPulls += n;
+    this.write();
+    return out;
+  },
+
+  /** 판에 들고 나갈 OS (해금한 것만) */
+  equipOs(id: string): boolean {
+    if (this.osLevel(id) <= 0) return false;
+    this.data.os = id;
+    clearDevOsPick();
+    this.write();
+    return true;
   },
 
   clinicLevel(id: ClinicId): number {

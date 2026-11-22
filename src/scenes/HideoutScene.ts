@@ -8,17 +8,19 @@ import { notify, isTouch } from '../systems/Fullscreen';
 import { VIEW_W, VIEW_H, COLORS } from '../config';
 import meta from '../data/meta.json';
 import weapons from '../data/weapons.json';
-import { Save, type RunnerId, type SpecialId, type StatKey, type ClinicId } from '../systems/Save';
+import { Save, type RunnerId, type StatKey, type ClinicId } from '../systems/Save';
+import { OS_DEFS, OS_IDS, OS_GACHA, OsState } from '../systems/Os';
 import { t as tr, I18n } from '../i18n';
 import { Ads } from '../systems/Ads';
 
-type Tab = 'clinic' | 'bar' | 'board' | 'market';
+type Tab = 'clinic' | 'bar' | 'board' | 'os';
 type Who = 'jin' | 'doc' | 'runner';
 interface DLine {
   who: Who;
   text: string;
 }
-const TABS: Tab[] = ['clinic', 'bar', 'board', 'market'];
+/** 개편 4단계: 블랙마켓 대신 OS 뽑기 */
+const TABS: Tab[] = ['clinic', 'bar', 'board', 'os'];
 const T = (size: number, color = '#e8f7ff') => ({ ...BASE_TEXT, fontSize: `${size}px`, color });
 const PX = 156;
 const PY = 44;
@@ -202,6 +204,8 @@ export class HideoutScene extends Phaser.Scene {
 
   /** 첫 게임오버 뒤 진·리퍼닥 안내 (모든 저장에 한 번) */
   private tutorial(): void {
+    // 개편판: 예전 튜토리얼(블랙마켓 무기·특수 능력 구매 안내)은 끔
+    if (Save.data.introDone) return;
     const d = Save.data;
     if (this.dlg) return;
     const runner = Save.runner().name;
@@ -238,7 +242,7 @@ export class HideoutScene extends Phaser.Scene {
           : [L('jin', 'tut.a1'), L('jin', 'tut.a2'), L('jin', 'tut.a3')];
       // 블랙마켓을 보여 주며 밀수 무기 안내 (구매는 강요하지 않음) → 리퍼닥 시뮬레이션 칩
       this.talk(lines, () => {
-        this.tab = 'market';
+        this.tab = 'os';
         this.refresh();
         this.talk([L('jin', 'tut.a5'), ...(topup ? [L('jin', 'tut.a4')] : [])], () => {
           if (topup) {
@@ -467,7 +471,7 @@ export class HideoutScene extends Phaser.Scene {
     if (this.tab === 'clinic') this.drawClinic();
     else if (this.tab === 'bar') this.drawBar();
     else if (this.tab === 'board') this.drawBoard();
-    else this.drawMarket();
+    else this.drawOs();
     this.drawSummary();
   }
 
@@ -498,12 +502,12 @@ export class HideoutScene extends Phaser.Scene {
 
   private drawSummary(): void {
     this.summary.removeAll(true);
-    const r = Save.runner();
-    const sp = meta.specials[Save.special()];
+    const r = Save.runner('zero');
+    const os = new OsState(Save.data.os, Save.osLevel(Save.data.os));
     const x = 250;
     this.summary.add(this.add.image(x, 330, r.texture).setScale(1.2));
     this.summary.add(this.add.text(x + 24, 316, r.name, T(13)));
-    this.summary.add(this.add.text(x + 24, 333, `${weapons[r.startWeapon as keyof typeof weapons].name} · ${sp.name}`, T(11, '#00f0ff')));
+    this.summary.add(this.add.text(x + 24, 333, `${weapons[r.startWeapon as keyof typeof weapons].name} · ${os.name} Lv${os.level}`, T(11, os.def.color)));
   }
 
   /** 패널 안에 들어가는 버튼. enabled가 false면 흐리게만 그린다 */
@@ -577,94 +581,51 @@ export class HideoutScene extends Phaser.Scene {
         });
       }
     });
-    // 특수 능력: 다른 러너의 능력을 사서 레인독에서 장착
-    const y0 = PY + 190;
-    this.panel.add(this.add.text(PX + 10, y0, tr('clinic.specials'), T(11, '#c8b8e8')));
-    (Object.keys(meta.specials) as SpecialId[]).forEach((id, i) => {
-      const sp = meta.specials[id];
-      const owned = Save.data.specials.includes(id);
-      const x = PX + 10 + i * 114;
-      const col = Phaser.Display.Color.HexStringToColor(sp.color).color;
-      const chip = this.add.rectangle(x, y0 + 18, 108, 34, 0x140c2a, 1).setOrigin(0).setStrokeStyle(1, owned ? col : 0x3a2466);
-      this.panel.add(chip);
-      this.panel.add(this.add.text(x + 6, y0 + 21, sp.name, T(11, owned ? sp.color : '#c8b8e8')));
-      this.panel.add(this.add.text(x + 6, y0 + 36, owned ? tr('clinic.owned') : tr('clinic.buy', { cost: fmt(sp.cost) }), T(10, owned ? '#39ff88' : Save.data.credits >= sp.cost ? '#fff23a' : '#6a5a88')));
-      chip.setInteractive({ useHandCursor: !owned });
-      chip.on('pointerover', () => this.hint.setText(`${sp.name}: ${sp.desc}`));
-      chip.on('pointerout', () => this.hint.setText(''));
-      if (!owned)
-        chip.on('pointerup', () => {
-          if (!Save.spend(sp.cost)) {
-            notify(this, tr('clinic.poor'));
-            return;
-          }
-          Save.data.specials.push(id);
-          Save.write();
-          Sound.play('levelup');
-          this.refresh();
-        });
-    });
   }
 
   // ───────────────────────────── 레인독 (러너 선택) ─────────────────────────────
   private drawBar(): void {
     this.title(tr('bar.title'), Save.data.heatMax > 0 ? '' : tr('bar.sub'));
     if (Save.data.heatMax > 0) this.drawHeat();
-    meta.runners.forEach((r, i) => {
-      const x = PX + 10 + i * 115;
-      const y = PY + 30;
-      const open = Save.isUnlocked(r);
-      const on = Save.data.runner === r.id;
-      const card = this.add.rectangle(x, y, 109, 168, on ? 0x2a1050 : 0x140c2a, 1).setOrigin(0).setStrokeStyle(on ? 2 : 1, on ? COLORS.magenta : 0x3a2466);
-      this.panel.add(card);
-      const img = this.add.image(x + 54, y + 26, r.texture).setScale(1.5);
-      if (!open) img.setTint(0x000000).setAlpha(0.7);
-      this.panel.add(img);
-      let ty = y + 52;
-      const line = (s: string, size: number, color: string) => {
-        const t = this.add.text(x + 54, ty, s, { ...T(size, color), align: 'center', wordWrap: { width: 100, useAdvancedWrap: true } }).setOrigin(0.5, 0);
-        this.panel.add(t);
-        ty += t.height + 1;
-      };
-      line(r.name, 13, open ? '#ffffff' : '#8a7aa8');
-      if (open) {
-        line(r.concept, 11, '#8a7aa8');
-        line(weapons[r.startWeapon as keyof typeof weapons].name, 11, '#00f0ff');
-        line(r.trait, 11, '#e8f7ff');
-      } else {
-        const u = r.unlock!;
-        line(tr('bar.locked'), 11, '#ff2a3a');
-        line(u.desc, 11, '#c8b8e8');
-        const prog = Save.unlockProgress(r);
-        this.panel.add(this.add.rectangle(x + 10, y + 148, 89, 5, 0x2a2040).setOrigin(0));
-        this.panel.add(this.add.rectangle(x + 10, y + 148, 89 * prog, 5, COLORS.yellow).setOrigin(0));
-        const cur = Save.data.stats[u.stat as StatKey];
-        const show = progress(u.stat, cur, u.goal);
-        this.panel.add(this.add.text(x + 54, y + 155, show, T(10, '#8a7aa8')).setOrigin(0.5, 0));
-      }
-      card.setInteractive({ useHandCursor: open });
-      card.on('pointerup', () => this.pickRunner(r.id as RunnerId));
-    });
-    // 장착할 특수 능력 고르기: 러너 고유 능력 + 리퍼닥에서 산 능력
-    const opts = this.specialOptions();
-    const cur = Save.special();
-    const sp = meta.specials[cur];
-    const y = PY + 206;
-    const equipGuide = Save.data.tutEquip && cur !== 'berserk';
-    this.panel.add(this.add.text(PX + 10, y + 2, tr('bar.special'), T(12, equipGuide ? '#ff2bd6' : '#c8b8e8')));
-    if (equipGuide) {
-      this.hint.setText(tr('tut.hint.equip'));
-      const arrow = this.add.text(PX + 312, y + 1, '◀', T(12, '#ff2bd6'));
-      this.panel.add(arrow);
-      this.tweens.add({ targets: arrow, alpha: 0.3, duration: 400, yoyo: true, repeat: -1 });
-    }
+    // 개편판: 러너는 제로 한 명, 시작 무기 고정 (외형 꾸미기는 나중에)
+    const r = Save.runner('zero');
+    const x = PX + 10;
+    const y = PY + 30;
+    this.panel.add(this.add.rectangle(x, y, 150, 168, 0x2a1050, 1).setOrigin(0).setStrokeStyle(2, COLORS.magenta));
+    this.panel.add(this.add.image(x + 75, y + 40, r.texture).setScale(2));
+    this.panel.add(this.add.text(x + 75, y + 80, r.name, T(14, '#ffffff')).setOrigin(0.5, 0));
+    this.panel.add(this.add.text(x + 75, y + 100, weapons[r.startWeapon as keyof typeof weapons].name, T(11, '#00f0ff')).setOrigin(0.5, 0));
+    this.panel.add(this.add.text(x + 75, y + 118, tr('bar.fixedWeapon'), { ...T(10, '#8a7aa8'), align: 'center', wordWrap: { width: 140, useAdvancedWrap: true } }).setOrigin(0.5, 0));
+    // 들고 나갈 OS (뽑기로 해금한 것 중에서)
+    const opts = this.osOptions();
+    const os = new OsState(Save.data.os, Save.osLevel(Save.data.os));
+    const ox = PX + 172;
+    this.panel.add(this.add.text(ox, y, tr('bar.os'), T(12, '#c8b8e8')));
     if (opts.length > 1) {
-      this.button(PX + 100, y, 24, '◀', true, () => this.cycleSpecial(-1), COLORS.cyan);
-      this.button(PX + 290, y, 24, '▶', true, () => this.cycleSpecial(1), COLORS.cyan);
+      this.button(ox + 40, y + 20, 24, '◀', true, () => this.cycleOs(-1), COLORS.cyan);
+      this.button(ox + 270, y + 20, 24, '▶', true, () => this.cycleOs(1), COLORS.cyan);
     }
-    this.panel.add(this.add.text(PX + 196, y + 1, sp.name, T(13, sp.color)).setOrigin(0.5, 0));
-    this.panel.add(this.add.text(PX + 300, y + 3, opts.length > 1 ? '' : tr('bar.specialHint'), T(10, '#6a5a88')));
-    this.panel.add(this.add.text(PX + 10, y + 22, sp.desc, T(11, '#e8f7ff')));
+    this.panel.add(this.add.text(ox + 148, y + 21, `${os.name}  Lv${os.level}`, T(13, os.def.color)).setOrigin(0.5, 0));
+    let ly = y + 46;
+    for (const l of os.lines()) {
+      const t = this.add.text(ox, ly, `${l.on ? '●' : '○'} ${l.text}`, { ...T(10, l.on ? '#e8f7ff' : '#5a4a78'), wordWrap: { width: PW - 182, useAdvancedWrap: true } });
+      this.panel.add(t);
+      ly += t.height + 3;
+    }
+    if (opts.length <= 1) this.panel.add(this.add.text(ox, ly + 4, tr('bar.osHint'), T(10, '#6a5a88')));
+  }
+
+  /** 낄 수 있는 OS (해금한 것) */
+  private osOptions(): string[] {
+    return OS_IDS.filter((id) => Save.osLevel(id) > 0);
+  }
+
+  private cycleOs(dir: number): void {
+    const opts = this.osOptions();
+    const i = (opts.indexOf(Save.data.os) + dir + opts.length) % opts.length;
+    Save.equipOs(opts[i]);
+    Sound.play('hover');
+    this.refresh();
   }
 
   /** 히트 레벨 고르기 (최종 클리어 뒤 열림): 적이 강해지는 대신 크레딧이 늘어난다 */
@@ -686,21 +647,6 @@ export class HideoutScene extends Phaser.Scene {
     Save.write();
     Sound.play('hover');
     this.refresh();
-  }
-
-  private specialOptions(): SpecialId[] {
-    const own = Save.runner().special as SpecialId;
-    return [own, ...Save.data.specials.filter((s) => s !== own)];
-  }
-
-  private cycleSpecial(dir: number): void {
-    const opts = this.specialOptions();
-    const i = (opts.indexOf(Save.special()) + dir + opts.length) % opts.length;
-    Save.data.equipped[Save.data.runner] = opts[i];
-    Save.write();
-    Sound.play('hover');
-    this.refresh();
-    this.tutorial();
   }
 
   private pickRunner(id: RunnerId): void {
@@ -748,49 +694,65 @@ export class HideoutScene extends Phaser.Scene {
     });
   }
 
-  // ───────────────────────────── 블랙마켓 ─────────────────────────────
-  private drawMarket(): void {
-    const prices = meta.market.prices as Record<string, number>;
-    const ids = Object.keys(prices);
-    const owned = ids.filter((id) => Save.data.market.includes(id)).length;
-    this.title(tr('market.title'), tr('market.sub', { a: owned, b: ids.length }));
-    ids.forEach((id, i) => {
-      const w = weapons[id as keyof typeof weapons];
-      const have = Save.data.market.includes(id);
+  // ───────────────────────────── OS 뽑기 (개편 4단계) ─────────────────────────────
+  /** 마지막 뽑기 결과 (탭을 다시 그려도 보이게) */
+  private lastPull: { id: string; before: number; after: number; refund: number }[] = [];
+
+  private drawOs(): void {
+    const G = OS_GACHA;
+    const pool = Object.keys(G.weights).filter((id) => OS_DEFS[id]?.enabled !== false);
+    const total = pool.reduce((a, id) => a + (G.weights as Record<string, number>)[id], 0);
+    const unlocked = pool.filter((id) => Save.osLevel(id) > 0).length;
+    this.title(tr('os.title'), tr('os.sub', { a: unlocked, b: pool.length }));
+    // 뽑기 버튼 + 확률 공개
+    const by = PY + 30;
+    this.button(PX + 130, by, 118, tr('os.pull1', { c: fmt(G.price) }), Save.data.credits >= G.price, () => this.pull(1));
+    this.button(PX + 256, by, 118, tr('os.pull10', { c: fmt(G.tenPrice) }), Save.data.credits >= G.tenPrice, () => this.pull(10));
+    this.panel.add(this.add.text(PX + 266, by + 3, tr('os.odds', { p: Math.round((1000 / pool.length) * ((G.weights as Record<string, number>)[pool[0]] / (total / pool.length))) / 10, refund: G.refund }), T(10, '#8a7aa8')));
+    // OS 7종: 레벨·개수·장착
+    pool.forEach((id, i) => {
       const col = i % 2;
       const row = Math.floor(i / 2);
       const x = PX + 10 + col * 232;
-      const y = PY + 30 + row * 57;
-      const off = have && Save.data.marketOff.includes(id);
-      const guide = false;
-      this.panel.add(this.add.rectangle(x, y, 226, 54, have && !off ? 0x1a1040 : 0x140c2a, 1).setOrigin(0).setStrokeStyle(guide ? 2 : 1, guide ? COLORS.magenta : have && !off ? COLORS.cyan : 0x3a2466));
-      if (guide) this.panel.add(this.add.text(x + 220 - 70, y + 6, '▶', T(11, '#ff2bd6')).setOrigin(1, 0));
-      this.panel.add(this.add.image(x + 18, y + 27, `icon_${id}`).setScale(2).setAlpha(off ? 0.35 : 1));
-      this.panel.add(this.add.text(x + 36, y + 5, w.name, T(12, off ? '#6a5a88' : have ? '#00f0ff' : '#ffffff')));
-      this.panel.add(this.add.text(x + 36, y + 22, w.desc, { ...T(10, off ? '#6a5a88' : '#c8b8e8'), wordWrap: { width: 182, useAdvancedWrap: true } }));
-      if (have)
-        // 산 무기는 켜고 끌 수 있다: 꺼 두면 레벨업 카드에 나오지 않음
-        this.button(x + 220, y + 4, 66, off ? tr('market.off') : tr('market.on'), true, () => this.toggleMarket(id), off ? 0x8a7aa8 : COLORS.green);
-      else
-        this.button(x + 220, y + 4, 66, `₵ ${fmt(prices[id])}`, Save.data.credits >= prices[id], () => {
-          if (!Save.spend(prices[id])) return;
-          Save.data.market.push(id);
-          Save.data.stats.marketBuys++;
-          Save.write();
-          Sound.play('levelup');
-          this.refresh();
-          this.tutorial();
-        });
+      const y = PY + 56 + row * 44;
+      const def = OS_DEFS[id];
+      const lv = Save.osLevel(id);
+      const next = Save.osNext(id);
+      const on = Save.data.os === id;
+      const color = Phaser.Display.Color.HexStringToColor(def.color).color;
+      this.panel.add(this.add.rectangle(x, y, 226, 40, on ? 0x1a1040 : 0x140c2a, 1).setOrigin(0).setStrokeStyle(on ? 2 : 1, lv > 0 ? color : 0x3a2466));
+      const key = this.textures.exists(`os_${id}`) ? `os_${id}` : null;
+      if (key) this.panel.add(this.add.image(x + 20, y + 20, key).setDisplaySize(30, 30).setAlpha(lv > 0 ? 1 : 0.3));
+      this.panel.add(this.add.text(x + 40, y + 4, I18n.lang === 'en' && def.nameEn ? def.nameEn : def.name, T(12, lv > 0 ? def.color : '#6a5a88')));
+      this.panel.add(this.add.text(x + 40, y + 21, lv > 0 ? `Lv${lv}${next ? `  ·  ${next.have}/${next.need}` : `  ·  ${tr('os.max')}`}` : tr('os.locked'), T(10, lv > 0 ? '#e8f7ff' : '#6a5a88')));
+      if (lv > 0) this.button(x + 220, y + 11, 50, on ? tr('os.equipped') : tr('os.equip'), !on, () => {
+        Save.equipOs(id);
+        Sound.play('select');
+        this.refresh();
+      }, COLORS.cyan);
     });
+    // 마지막 뽑기 결과
+    if (this.lastPull.length) {
+      const parts = this.lastPull.map((r) => {
+        const name = OS_DEFS[r.id]?.name ?? r.id;
+        if (r.refund) return `${name} ₵+${r.refund}`;
+        if (r.before === 0) return `${name} NEW`;
+        if (r.after > r.before) return `${name} Lv${r.after}↑`;
+        return name;
+      });
+      this.hint.setText(`${tr('os.result')} ${parts.join(' · ')}`);
+    }
   }
 
-  private toggleMarket(id: string): void {
-    const off = Save.data.marketOff;
-    const i = off.indexOf(id);
-    if (i >= 0) off.splice(i, 1);
-    else off.push(id);
-    Save.write();
-    Sound.play(i >= 0 ? 'select' : 'hover');
+  private pull(n: 1 | 10): void {
+    const res = Save.pullOs(n);
+    if (!res) {
+      Sound.play('block');
+      notify(this, tr('clinic.poor'));
+      return;
+    }
+    this.lastPull = res;
+    Sound.play(res.some((r) => r.before === 0 || r.after > r.before) ? 'levelup' : 'select');
     this.refresh();
   }
 
@@ -825,7 +787,8 @@ export class HideoutScene extends Phaser.Scene {
 
   /** 출격. startZone: 임시 'N챕터부터' 버튼 (0 = 처음부터). 장면 데이터는 다음 시작에도 남으므로 늘 넘긴다 */
   private deploy(startZone = 0): void {
-    if (!Save.isUnlocked(Save.runner())) Save.data.runner = 'zero';
+    // 개편판: 러너는 제로 한 명
+    Save.data.runner = 'zero';
     Sound.play('start');
     this.scene.start('Game', { startZone });
   }

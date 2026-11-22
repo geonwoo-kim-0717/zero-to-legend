@@ -16,7 +16,7 @@ import { SpatialGrid } from '../systems/SpatialGrid';
 import { Spawner, hpScaleAt } from '../systems/Spawner';
 import { pickBoss, pickBasili, pickGregor, pickXm4, type BossAct, type BasiliAct, type GregorAct, type Xm4Act } from '../systems/BossBrain';
 import { InputController, type SubUse } from '../systems/InputController';
-import { createWeapon, type WeaponBase, type WeaponId } from '../weapons';
+import { createWeapon, WEAPON_IDS, type WeaponBase, type WeaponId } from '../weapons';
 import { weaponSlot } from '../weapons/WeaponBase';
 import { rollItems, itemName, itemText, socketLabel, weaponAbilities, ITEMS, rarityById, itemArt, type ItemKind, type ItemRoll } from '../systems/Build';
 import { Loadout, weaponTags, itemTags, combosWith, type Sock } from '../systems/Loadout';
@@ -722,10 +722,10 @@ export class GameScene extends Phaser.Scene implements GameContext {
     this.dmgSrc = null;
     this.overdrive = this.specialOn = this.berserk = this.wasUntracked = false;
     this.runner = Save.runner();
-    // 개편 2-3: OS. 판 밖 뽑기(4단계) 전까지: 개발자 도구에서 고른 OS·레벨, 없으면 아지트에서 낀 특수 능력을 4레벨로 (지금 효과 = 4레벨 수준)
+    // OS: 아지트에서 낀 OS (레벨 = 뽑기로 모은 개수). ?debug 개발자 도구에서 고른 OS·레벨이 있으면 그것
     {
       const dev = DEV_TOOLS ? devOsPick() : null;
-      this.os = dev ? new OsState(dev.id, dev.level) : new OsState(Save.special(this.runner.id as RunnerId), 4);
+      this.os = dev ? new OsState(dev.id, dev.level) : new OsState(Save.data.os, Save.osLevel(Save.data.os));
       this.specialId = this.os.id;
     }
     this.osCdT = this.bossStunT = this.bossStunCd = this.osExt = 0;
@@ -758,8 +758,8 @@ export class GameScene extends Phaser.Scene implements GameContext {
     this.counterSeen = new Set();
     this.carryUi = [];
     // 블랙마켓에서 산 무기 중 꺼 둔 것은 빼고 (러너 시작 무기는 항상 포함)
-    const marketOn = Save.data.market.filter((id) => !Save.data.marketOff.includes(id));
-    this.weaponPool = Array.from(new Set([...meta.market.starter, ...marketOn, this.runner.startWeapon])) as WeaponId[];
+    // 개편 4단계: 블랙마켓 없음, 무기는 처음부터 모두 열림
+    this.weaponPool = [...WEAPON_IDS];
     this.odGauge = this.odTime = this.ghostTimer = 0;
     this.ghosts = [];
     this.phoneQueue = [];
@@ -2044,12 +2044,18 @@ export class GameScene extends Phaser.Scene implements GameContext {
           },
         );
       }
-      add({ kind: 'overflow', id: 'ripperOs', rarity: common, title: tr('station.os'), levelLabel: cost(RP.osSwap), desc: tr('station.osDesc', { name: `${this.os.name} Lv${this.os.level}` }) }, () => {
+      const others = OS_IDS.filter((id) => id !== this.os.id && (DEV_TOOLS || Save.osLevel(id) > 0)).length;
+      add({ kind: 'overflow', id: 'ripperOs', rarity: common, title: tr('station.os'), levelLabel: cost(RP.osSwap), desc: tr('station.osDesc', { name: `${this.os.name} Lv${this.os.level}` }) + (others ? '' : `\n${tr('station.osNone')}`) }, () => {
+        if (!others) {
+          Sound.play('block');
+          return;
+        }
         s.osPage = 0;
       });
     } else {
       // OS 목록 (한 화면에 3개씩)
-      const list = OS_IDS.filter((id) => id !== this.os.id);
+      // 해금한 OS만 (?debug에서는 모두)
+      const list = OS_IDS.filter((id) => id !== this.os.id && (DEV_TOOLS || Save.osLevel(id) > 0));
       const page = list.slice(s.osPage * 3, s.osPage * 3 + 3);
       for (const id of page) {
         const lv = this.osLevelFor(id);
@@ -2100,10 +2106,11 @@ export class GameScene extends Phaser.Scene implements GameContext {
     );
   }
 
-  /** OS 레벨: 판 밖 해금·뽑기(4단계) 전까지 개발자 도구 레벨, 없으면 4 (표준 OS는 1) */
+  /** OS 레벨: 뽑기로 모은 개수 (?debug에서 개발자 도구로 고른 레벨이 있으면 그것, 해금 안 한 것은 1) */
   private osLevelFor(id: string): number {
     if (!OS_DEFS[id]?.active) return 1;
-    return (DEV_TOOLS ? devOsPick()?.level : undefined) ?? 4;
+    const dev = DEV_TOOLS ? devOsPick()?.level : undefined;
+    return dev ?? Math.max(1, Save.osLevel(id));
   }
 
   // ───────────── 개편 2단계: 보급 상자·아이템 ─────────────
