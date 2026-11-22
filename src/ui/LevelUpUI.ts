@@ -17,6 +17,9 @@ export const TAG_COLOR: Record<string, number> = {
 };
 
 type Tier = 'common' | 'rare' | 'epic' | 'legendary' | 'mythic';
+/** 추천 색: 시너지 단계 초록, 이름 붙은 조합 주황 */
+const REC = 0x39ff88;
+const REC_COMBO = 0xffb04a;
 const TIER_RANK: Record<Tier, number> = { common: 0, rare: 1, epic: 2, legendary: 3, mythic: 4 };
 const BASE = 0x120a24;
 const hex = (c: number) => `#${c.toString(16).padStart(6, '0')}`;
@@ -120,14 +123,18 @@ export class LevelUpUI {
     const top = opts.top ?? 62;
     let armed = -1;
     const x0 = Math.round(VIEW_W / 2 - (n * cw + (n - 1) * gap) / 2);
+    // 추천 이유와 별 줄·경고가 같이 있는 카드가 있으면 그림 칸을 줄여 글자 자리를 만듦
+    const compact = choices.some((c) => c.card?.rec && (c.card.warn || c.card.star));
 
     // 1차: 카드 안 글자를 만들어 높이를 잰 뒤, 모든 카드를 같은 높이로 그림
-    type Built = { x: number; tier: Tier; col: number; info: CardInfo; c: Choice; body: Phaser.GameObjects.GameObject[]; contentBottom: number };
+    type Built = { x: number; tier: Tier; col: number; label: string; info: CardInfo; c: Choice; body: Phaser.GameObjects.GameObject[]; contentBottom: number };
     const built: Built[] = [];
     choices.forEach((c, i) => {
       const x = x0 + i * (cw + gap);
-      const tier = (c.rarity.id as Tier) ?? 'common';
-      const col = Phaser.Display.Color.HexStringToColor(c.rarity.color).color;
+      // 강화 카드는 장착한 아이템의 등급으로 보여 줌 (card.rarity, 표시만)
+      const R = c.card?.rarity ?? c.rarity;
+      const tier = (R.id as Tier) ?? 'common';
+      const col = Phaser.Display.Color.HexStringToColor(R.color).color;
       const info: CardInfo = c.card ?? {
         slot: c.pickAbility ? c.levelLabel : c.levelLabel,
         short: c.desc,
@@ -137,7 +144,7 @@ export class LevelUpUI {
       const cx = x + cw / 2;
       const body: Phaser.GameObjects.GameObject[] = [];
       // 이름
-      const nameY = top + 17 + 6 + 88 + 2;
+      const nameY = top + 17 + 6 + (compact ? 70 : 88) + 2;
       const name = txt(cx, nameY, c.title, 16, '#ffffff', { strokeThickness: 3 }).setOrigin(0.5, 0).setShadow(0, 0, hex(col), 6, true, true);
       if (name.width > cw - 12) name.setScale((cw - 12) / name.width);
       body.push(name);
@@ -175,7 +182,21 @@ export class LevelUpUI {
         body.push(st);
         bottom = st.y + st.height;
       }
-      built.push({ x, tier, col, info, c, body, contentBottom: bottom });
+      // 추천 이유 (조합 완성·시너지 단계) / 경고 (조합 해제)
+      if (info.rec) {
+        const rc = info.rec.combo ? REC_COMBO : REC;
+        const rt = txt(cx, bottom + 6, `${info.rec.combo ? '★ ' : '▲ '}${info.rec.title}`, 10, hex(rc), { strokeThickness: 2, fontStyle: '900', align: 'center', wordWrap: { width: cw - 14, useAdvancedWrap: true } }).setOrigin(0.5, 0);
+        const rd = txt(cx, rt.y + rt.height + 1, info.rec.text, 9, '#c8f8d8', { strokeThickness: 2, align: 'center', lineSpacing: 1, wordWrap: { width: cw - 16, useAdvancedWrap: true } }).setOrigin(0.5, 0);
+        const bgR = add(s.add.rectangle(x + 6, rt.y - 3, cw - 12, rd.y + rd.height - rt.y + 6, rc, 0.1).setOrigin(0).setStrokeStyle(1, rc, 0.55), D + 2);
+        body.push(rt, rd, bgR);
+        bottom = rd.y + rd.height + 3;
+      }
+      if (info.warn) {
+        const wt = txt(cx, bottom + 4, info.warn, 9.5, '#ff8a6a', { strokeThickness: 2, align: 'center', wordWrap: { width: cw - 14, useAdvancedWrap: true } }).setOrigin(0.5, 0);
+        body.push(wt);
+        bottom = wt.y + wt.height;
+      }
+      built.push({ x, tier, col, label: R.label, info, c, body, contentBottom: bottom });
     });
     const footH = 20;
     const ch = Math.min(VIEW_H - top - 40, Math.max(opts.minH ?? 248, Math.max(...built.map((b) => b.contentBottom)) - top + footH + 14));
@@ -221,18 +242,18 @@ export class LevelUpUI {
         const seg = [0xff2bd6, 0xff2a3a, 0xff8a2a, 0xff2a3a];
         for (let k = 0; k < 3; k++) band.fillGradientStyle(seg[k], seg[k + 1], seg[k], seg[k + 1], 1).fillRect(x + (cw / 3) * k, top, cw / 3 + 1, bh);
       } else band.fillStyle(col).fillRect(x, top, cw, bh);
-      const label = isMyth ? `◆ ${b.c.rarity.label} ◆` : isLeg ? `★ ${b.c.rarity.label} ★` : b.c.rarity.label;
+      const label = isMyth ? `◆ ${b.label} ◆` : isLeg ? `★ ${b.label} ★` : b.label;
       txt(cx, top + bh / 2, label, 11, '#0a0614', { strokeThickness: 0, fontStyle: '900' }).setOrigin(0.5).setLetterSpacing(2);
       txt(x + 6, top + bh / 2, String(i + 1), 10, '#0a0614', { strokeThickness: 0, fontStyle: '900' }).setOrigin(0, 0.5);
 
       // 후광 + 원판 + 아이콘
-      const hy = top + bh + 6 + 44;
+      const hy = top + bh + 6 + (compact ? 35 : 44);
       if (rank > 0) {
         const key = haloTex(s, isMyth ? 0xff2a3a : col, isMyth ? 12 : isLeg ? 8 : 0, isMyth ? 0xff8a2a : col);
-        const halo = add(s.add.image(cx, hy, key).setScale(0.5), D + 1);
+        const halo = add(s.add.image(cx, hy, key).setScale(compact ? 0.4 : 0.5), D + 1);
         if (rank >= 3) this.tweens.push(s.tweens.add({ targets: halo, angle: 360, duration: isMyth ? 9000 : 14000, repeat: -1 }));
       }
-      add(s.add.circle(cx, hy, 31, 0x0a0716, 1).setStrokeStyle(1, col, rank === 0 ? 0.5 : 0.6), D + 2);
+      add(s.add.circle(cx, hy, compact ? 27 : 31, 0x0a0716, 1).setStrokeStyle(1, col, rank === 0 ? 0.5 : 0.6), D + 2);
       const art = b.c.art ?? b.c.id;
       const key = s.textures.exists(`card_${art}`) ? `card_${art}` : s.textures.exists(`icon_${art}`) ? `icon_${art}` : null;
       if (key) {
@@ -246,9 +267,19 @@ export class LevelUpUI {
         const fy = top + ch - 6 - footH;
         add(s.add.rectangle(x + 6, fy, cw - 12, footH, 0x0a0618, 1).setOrigin(0).setStrokeStyle(1, 0xffffff, 0.1), D + 2);
         const fl = txt(x + 12, fy + footH / 2, info.foot.left, 10, '#b8a8d8', { strokeThickness: 0 }).setOrigin(0, 0.5);
-        if (info.foot.right) txt(x + cw - 12, fy + footH / 2, info.foot.right, 10, '#39ff88', { strokeThickness: 0 }).setOrigin(1, 0.5);
-        const room = cw - 24 - (info.foot.right ? 34 : 0);
+        const fr0 = info.foot.right ? txt(x + cw - 12, fy + footH / 2, info.foot.right, 10, '#39ff88', { strokeThickness: 0 }).setOrigin(1, 0.5) : null;
+        const room = cw - 24 - (fr0 ? fr0.width + 8 : 0);
         if (fl.width > room) fl.setScale(room / fl.width);
+      }
+
+      // 추천 카드: 위에 '추천' 꼬리표 + 초록 빛이 맥박처럼
+      if (info.rec && !info.warn) {
+        const rc = info.rec.combo ? REC_COMBO : REC;
+        const ring = add(s.add.graphics(), D);
+        for (let k = 1; k <= 3; k++) ring.lineStyle(2, rc, 0.32 * (1 - (k - 1) / 3)).strokeRect(x - 2 - k * 3, top - 2 - k * 3, cw + 4 + k * 6, ch + 4 + k * 6);
+        this.tweens.push(s.tweens.add({ targets: ring, alpha: { from: 0.35, to: 1 }, duration: 600, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' }));
+        const tagT = txt(x + cw - 6, top - 3, t('rec.badge'), 9, '#0a0614', { strokeThickness: 0, fontStyle: '900' }, D + 7).setOrigin(1, 1);
+        add(s.add.rectangle(tagT.x + 4, tagT.y + 1, tagT.width + 8, tagT.height + 2, rc, 1).setOrigin(1, 1), D + 6);
       }
 
       // 테두리: 일반 1px 회색, 희귀·영웅 2px, 전설·신화 3px + 안쪽 한 줄 + 모서리 꺾쇠
