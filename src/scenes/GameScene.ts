@@ -2138,6 +2138,12 @@ export class GameScene extends Phaser.Scene implements GameContext {
     const subW = this.weapons.find((w) => w.slot === 'secondary');
     this.controls.subUse = subW ? ((weaponsData[subW.id] as { use?: SubUse }).use ?? 'tap') : 'none';
     const cam0 = this.cameras.main;
+    // UI: 터치 버튼에 그릴 것 (보조무기 그림·등급 색, OS 문양·게이지)
+    this.controls.look = {
+      subId: subW?.id,
+      subColor: subW ? Phaser.Display.Color.HexStringToColor(rarityById(subW.rarity).color).color : undefined,
+      os: { id: this.os.id, color: Phaser.Display.Color.HexStringToColor(this.os.def.color).color, hasActive: this.os.hasActive, gauge: this.odGauge, on: this.specialOn, cdT: this.osCdT },
+    };
     this.controls.update(1 - p.dashCd / p.dashCooldownMax, !this.specialOn && this.odGauge >= 100, subW?.readiness() ?? 0, subW?.activeOn ?? false, {
       x: p.x - cam0.scrollX,
       y: p.y - cam0.scrollY,
