@@ -31,6 +31,7 @@ import type { Wave } from '../systems/Spawner';
 import { Save, type Runner, type RunnerId, type SpecialId, type RunStats } from '../systems/Save';
 import { rollChoices, abilityCard, computeStats, passiveAmount, passiveAbility, type Choice, type PassiveId, type PassiveState, type SocketCard } from '../systems/Progression';
 import { LevelUpUI } from '../ui/LevelUpUI';
+import { itemCard } from '../ui/cardInfo';
 import { Sound, type SfxKey, type MusicKey } from '../systems/Sound';
 import { addMuteToggle, addFxToggle, addDmgToggle, addIntroToggle, addFullscreenToggle } from '../ui/MuteToggle';
 import { isTouch } from '../systems/Fullscreen';
@@ -1910,9 +1911,11 @@ export class GameScene extends Phaser.Scene implements GameContext {
       const kind = r.kind === 'weapon' ? 'weapon' : 'passive';
       let desc = '';
       let lv = 1;
+      let was: { name: string; tags: string[] } | null = null;
       if (r.kind === 'weapon') {
         const cur = this.weapons.find((w) => w.slot === weaponSlot(r.id as WeaponId));
         lv = cur?.level ?? 1;
+        if (cur) was = { name: cur.name, tags: this.wTags.get(cur.id) ?? weaponTags(cur.id, cur.abilities) };
         desc = weaponsData[r.id as WeaponId].desc + (r.rarity.weaponBonus > 0 ? tr('lvl.bonus', { v: Math.round(r.rarity.weaponBonus * 100) }) : '');
         if (r.rarity.ability) desc += '\n' + tr('item.pickAbility', { tier: r.rarity.label });
         if (r.rarity.id === 'mythic') desc += '\n' + tr('item.awakenHint', { n: gameData.mythicAwaken });
@@ -1920,11 +1923,12 @@ export class GameScene extends Phaser.Scene implements GameContext {
       } else {
         const cur = this.sockets.get(ITEMS[r.id].part);
         lv = cur?.level ?? 1;
+        if (cur) was = { name: itemName(ITEMS[cur.id].kind as ItemKind, cur.id), tags: itemTags(cur.id) };
         desc = itemText(r.id, lv, r.rarity.id);
         if (cur) desc += '\n' + tr('item.replace', { cur: itemName(ITEMS[cur.id].kind as ItemKind, cur.id) });
       }
       desc += this.tagLine(r.kind, r.id);
-      return { kind, id: r.id, art: itemArt(r.id), rarity: r.rarity, title: itemName(r.kind, r.id), levelLabel: `${socketLabel(r.kind, r.id)} · ${tr('lvl.socket', { lv })}`, desc, isNew: true, item: { kind: r.kind, id: r.id } } as Choice;
+      return { kind, id: r.id, art: itemArt(r.id), rarity: r.rarity, title: itemName(r.kind, r.id), levelLabel: `${socketLabel(r.kind, r.id)} · ${tr('lvl.socket', { lv })}`, desc, isNew: true, item: { kind: r.kind, id: r.id }, card: itemCard({ kind: r.kind, id: r.id, rarity: r.rarity, lv, cur: was, tagCount: this.kit.tagCount }) } as Choice;
     });
     this.levelUi.show(this.choices, 0, (i) => this.pick(i), () => undefined, tr('item.title'), this.skipButton(Math.max(0, gameData.rarity.findIndex((r) => r.id === min)), () => undefined));
   }
