@@ -12,6 +12,7 @@ import { Save, type RunnerId, type StatKey, type ClinicId } from '../systems/Sav
 import { OS_DEFS, OS_IDS, OS_GACHA, OsState } from '../systems/Os';
 import { t as tr, I18n } from '../i18n';
 import { Ads } from '../systems/Ads';
+import { drawOsTab, drawDock, PullReveal, type OsView } from '../ui/OsGachaUI';
 
 type Tab = 'clinic' | 'bar' | 'board' | 'os';
 type Who = 'jin' | 'doc' | 'runner';
@@ -37,6 +38,8 @@ const TUT_RICH = 2200;
 
 export class HideoutScene extends Phaser.Scene {
   private tab: Tab = 'bar';
+  /** UI: OS 뽑기 연출 */
+  private reveal!: PullReveal;
   private panel!: Phaser.GameObjects.Container;
   private tabsG!: Phaser.GameObjects.Container;
   private credits!: Phaser.GameObjects.Text;
@@ -62,6 +65,7 @@ export class HideoutScene extends Phaser.Scene {
     addLangToggle(this, VIEW_W - 150, 13);
     this.add.rectangle(PX, PY, PW, PH, 0x0d0820, 0.88).setOrigin(0).setStrokeStyle(1, 0x3a2466);
     this.panel = this.add.container(0, 0);
+    this.reveal = new PullReveal(this);
     this.tabsG = this.add.container(0, 0);
     this.summary = this.add.container(0, 0);
     this.hint = this.add.text(PX + 10, PY + PH - 16, '', T(11, '#8a7aa8'));
@@ -98,13 +102,14 @@ export class HideoutScene extends Phaser.Scene {
     this.add.tileSprite(0, 0, VIEW_W, VIEW_H, 'scan').setOrigin(0).setDepth(300);
 
     const kb = this.input.keyboard!;
-    kb.on('keydown-ENTER', () => (this.board ? undefined : this.dlg ? this.dlgNext() : this.deploy()));
+    kb.on('keydown-ENTER', () => (this.board || this.reveal.open ? undefined : this.dlg ? this.dlgNext() : this.deploy()));
     // 대화: ENTER·탭 = 다음 줄, 스페이스 = 건너뛰기
     kb.on('keydown-SPACE', () => this.dlg && this.dlgSkip());
     if (Ads.provider !== 'crazygames') kb.on('keydown-ESC', () => !this.dlg && this.scene.start('Title'));
-    TABS.forEach((id, i) => kb.on(`keydown-${['ONE', 'TWO', 'THREE', 'FOUR'][i]}`, () => !this.dlg && !this.board && this.setTab(id)));
-    kb.on('keydown-LEFT', () => !this.dlg && this.tab === 'bar' && this.cycleRunner(-1));
-    kb.on('keydown-RIGHT', () => !this.dlg && this.tab === 'bar' && this.cycleRunner(1));
+    TABS.forEach((id, i) => kb.on(`keydown-${['ONE', 'TWO', 'THREE', 'FOUR'][i]}`, () => !this.dlg && !this.board && !this.reveal.open && this.setTab(id)));
+    // 도크 9: ← → 로 들고 나갈 OS 바꾸기
+    kb.on('keydown-LEFT', () => !this.dlg && !this.reveal.open && this.tab === 'bar' && this.osOptions().length > 1 && this.cycleOs(-1));
+    kb.on('keydown-RIGHT', () => !this.dlg && !this.reveal.open && this.tab === 'bar' && this.osOptions().length > 1 && this.cycleOs(1));
 
     Sound.duck(1);
     Sound.music('title', 800);
@@ -585,34 +590,35 @@ export class HideoutScene extends Phaser.Scene {
 
   // ───────────────────────────── 레인독 (러너 선택) ─────────────────────────────
   private drawBar(): void {
-    this.title(tr('bar.title'), Save.data.heatMax > 0 ? '' : tr('bar.sub'));
-    if (Save.data.heatMax > 0) this.drawHeat();
-    // 개편판: 러너는 제로 한 명, 시작 무기 고정 (외형 꾸미기는 나중에)
+    // UI: 도크 9 · 출격 준비 (src/ui/OsGachaUI.ts drawDock)
+    let topRight = PX + PW;
+    if (Save.data.heatMax > 0) {
+      this.drawHeat();
+      topRight = PX + PW - 130;
+    }
     const r = Save.runner('zero');
-    const x = PX + 10;
-    const y = PY + 30;
-    this.panel.add(this.add.rectangle(x, y, 150, 168, 0x2a1050, 1).setOrigin(0).setStrokeStyle(2, COLORS.magenta));
-    this.panel.add(this.add.image(x + 75, y + 40, r.texture).setScale(2));
-    this.panel.add(this.add.text(x + 75, y + 80, r.name, T(14, '#ffffff')).setOrigin(0.5, 0));
-    this.panel.add(this.add.text(x + 75, y + 100, weapons[r.startWeapon as keyof typeof weapons].name, T(11, '#00f0ff')).setOrigin(0.5, 0));
-    this.panel.add(this.add.text(x + 75, y + 118, tr('bar.fixedWeapon'), { ...T(10, '#8a7aa8'), align: 'center', wordWrap: { width: 140, useAdvancedWrap: true } }).setOrigin(0.5, 0));
-    // 들고 나갈 OS (뽑기로 해금한 것 중에서)
-    const opts = this.osOptions();
-    const os = new OsState(Save.data.os, Save.osLevel(Save.data.os));
-    const ox = PX + 172;
-    this.panel.add(this.add.text(ox, y, tr('bar.os'), T(12, '#c8b8e8')));
-    if (opts.length > 1) {
-      this.button(ox + 40, y + 20, 24, '◀', true, () => this.cycleOs(-1), COLORS.cyan);
-      this.button(ox + 270, y + 20, 24, '▶', true, () => this.cycleOs(1), COLORS.cyan);
-    }
-    this.panel.add(this.add.text(ox + 148, y + 21, `${os.name}  Lv${os.level}`, T(13, os.def.color)).setOrigin(0.5, 0));
-    let ly = y + 46;
-    for (const l of os.lines()) {
-      const t = this.add.text(ox, ly, `${l.on ? '●' : '○'} ${l.text}`, { ...T(10, l.on ? '#e8f7ff' : '#5a4a78'), wordWrap: { width: PW - 182, useAdvancedWrap: true } });
-      this.panel.add(t);
-      ly += t.height + 3;
-    }
-    if (opts.length <= 1) this.panel.add(this.add.text(ox, ly + 4, tr('bar.osHint'), T(10, '#6a5a88')));
+    drawDock(
+      this,
+      this.panel,
+      { x: PX, y: PY, w: PW, h: PH },
+      { runner: { name: r.name, texture: r.texture, weapon: weapons[r.startWeapon as keyof typeof weapons].name }, list: this.osViews(OS_IDS), topRight },
+      { equip: (id) => this.equipOs(id) },
+    );
+  }
+
+  /** 뽑기 탭·도크 9에 넘길 OS 상태 */
+  private osViews(ids: readonly string[]): OsView[] {
+    return ids.map((id) => {
+      const lv = Save.osLevel(id);
+      const st = new OsState(id, Math.max(1, lv));
+      return { id, name: st.name, color: st.def.color, level: lv, next: Save.osNext(id), equipped: Save.data.os === id, tags: st.def.tags, lines: lv > 0 ? st.lines() : st.lines().map((l) => ({ ...l, on: false })) };
+    });
+  }
+
+  private equipOs(id: string): void {
+    if (!Save.equipOs(id)) return;
+    Sound.play('select');
+    this.refresh();
   }
 
   /** 낄 수 있는 OS (해금한 것) */
@@ -696,64 +702,52 @@ export class HideoutScene extends Phaser.Scene {
 
   // ───────────────────────────── OS 뽑기 (개편 4단계) ─────────────────────────────
   /** 마지막 뽑기 결과 (탭을 다시 그려도 보이게) */
-  private lastPull: { id: string; before: number; after: number; refund: number }[] = [];
 
   private drawOs(): void {
+    // UI: OS 뽑기 탭 (src/ui/OsGachaUI.ts drawOsTab)
     const G = OS_GACHA;
-    const pool = Object.keys(G.weights).filter((id) => OS_DEFS[id]?.enabled !== false);
-    const total = pool.reduce((a, id) => a + (G.weights as Record<string, number>)[id], 0);
-    const unlocked = pool.filter((id) => Save.osLevel(id) > 0).length;
-    this.title(tr('os.title'), tr('os.sub', { a: unlocked, b: pool.length }));
-    // 뽑기 버튼 + 확률 공개
-    const by = PY + 30;
-    this.button(PX + 130, by, 118, tr('os.pull1', { c: fmt(G.price) }), Save.data.credits >= G.price, () => this.pull(1));
-    this.button(PX + 256, by, 118, tr('os.pull10', { c: fmt(G.tenPrice) }), Save.data.credits >= G.tenPrice, () => this.pull(10));
-    this.panel.add(this.add.text(PX + 266, by + 3, tr('os.odds', { p: Math.round((1000 / pool.length) * ((G.weights as Record<string, number>)[pool[0]] / (total / pool.length))) / 10, refund: G.refund }), T(10, '#8a7aa8')));
-    // OS 7종: 레벨·개수·장착
-    pool.forEach((id, i) => {
-      const col = i % 2;
-      const row = Math.floor(i / 2);
-      const x = PX + 10 + col * 232;
-      const y = PY + 56 + row * 44;
-      const def = OS_DEFS[id];
-      const lv = Save.osLevel(id);
-      const next = Save.osNext(id);
-      const on = Save.data.os === id;
-      const color = Phaser.Display.Color.HexStringToColor(def.color).color;
-      this.panel.add(this.add.rectangle(x, y, 226, 40, on ? 0x1a1040 : 0x140c2a, 1).setOrigin(0).setStrokeStyle(on ? 2 : 1, lv > 0 ? color : 0x3a2466));
-      const key = this.textures.exists(`os_${id}`) ? `os_${id}` : null;
-      if (key) this.panel.add(this.add.image(x + 20, y + 20, key).setDisplaySize(30, 30).setAlpha(lv > 0 ? 1 : 0.3));
-      this.panel.add(this.add.text(x + 40, y + 4, I18n.lang === 'en' && def.nameEn ? def.nameEn : def.name, T(12, lv > 0 ? def.color : '#6a5a88')));
-      this.panel.add(this.add.text(x + 40, y + 21, lv > 0 ? `Lv${lv}${next ? `  ·  ${next.have}/${next.need}` : `  ·  ${tr('os.max')}`}` : tr('os.locked'), T(10, lv > 0 ? '#e8f7ff' : '#6a5a88')));
-      if (lv > 0) this.button(x + 220, y + 11, 50, on ? tr('os.equipped') : tr('os.equip'), !on, () => {
-        Save.equipOs(id);
-        Sound.play('select');
-        this.refresh();
-      }, COLORS.cyan);
-    });
-    // 마지막 뽑기 결과
-    if (this.lastPull.length) {
-      const parts = this.lastPull.map((r) => {
-        const name = OS_DEFS[r.id]?.name ?? r.id;
-        if (r.refund) return `${name} ₵+${r.refund}`;
-        if (r.before === 0) return `${name} NEW`;
-        if (r.after > r.before) return `${name} Lv${r.after}↑`;
-        return name;
-      });
-      this.hint.setText(`${tr('os.result')} ${parts.join(' · ')}`);
-    }
+    const w = G.weights as Record<string, number>;
+    const pool = Object.keys(w).filter((id) => OS_DEFS[id]?.enabled !== false);
+    const total = pool.reduce((a, id) => a + w[id], 0);
+    // 확률은 모두 같을 때 한 값으로 (다르면 가장 흔한 값)
+    const odds = Math.round((1000 * w[pool[0]]) / total) / 10;
+    drawOsTab(
+      this,
+      this.panel,
+      { x: PX, y: PY, w: PW, h: PH },
+      { list: this.osViews(pool), credits: Save.data.credits, price: G.price, tenPrice: G.tenPrice, odds, refund: G.refund },
+      { pull: (n) => this.pull(n), equip: (id) => this.equipOs(id) },
+    );
   }
 
   private pull(n: 1 | 10): void {
+    // 뽑기 전 개수 (결과 카드에 '+1 (2/4)'를 쓰려고)
+    const before: Record<string, number> = { ...Save.data.osCopies };
     const res = Save.pullOs(n);
     if (!res) {
       Sound.play('block');
       notify(this, tr('clinic.poor'));
       return;
     }
-    this.lastPull = res;
-    Sound.play(res.some((r) => r.before === 0 || r.after > r.before) ? 'levelup' : 'select');
+    Sound.play('select');
     this.refresh();
+    const cps = OS_GACHA.copies;
+    const views = res.map((r) => {
+      const st = new OsState(r.id, Math.max(1, r.after));
+      if (!r.refund) before[r.id] = (before[r.id] ?? 0) + 1;
+      const have = before[r.id] ?? 0;
+      // 이 장을 받은 뒤 레벨의 다음 단계까지 필요한 누적 개수
+      let need = 0;
+      let lv = 0;
+      for (const c of cps) {
+        need += c;
+        if (have >= need) lv++;
+        else break;
+      }
+      const copies = r.refund || lv >= cps.length ? null : { have, need };
+      return { id: r.id, name: st.name, color: st.def.color, before: r.before, after: r.after, refund: r.refund, copies };
+    });
+    this.reveal.show(views, () => this.refresh());
   }
 
   // ───────────────────────────── 저장 코드 · 출격 ─────────────────────────────
