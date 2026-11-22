@@ -1784,6 +1784,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
 
   /** 고르는 화면이 끝났을 때 다음: 능력 고르기 → 보급 상자 → 레벨업 → 게임 */
   private nextScreen(): void {
+    if (!this.abilityPending) this.checkMythicAwaken();
     if (this.abilityPending) this.openAbilityPick();
     else if (this.chestQueue.length) this.openChest();
     else if (this.pendingLevels > 0 || this.bossRewards > 0) this.openLevelUp();
@@ -1858,6 +1859,24 @@ export class GameScene extends Phaser.Scene implements GameContext {
     return m;
   }
 
+  /**
+   * 신화 무기 각성: 신화 무기는 처음엔 신화 능력만 가짐.
+   * 그 무기의 태그 중 하나가 장착 전체에서 gameData.mythicAwaken개 이상(태그 시너지 5)이 되면 전설 능력도 하나 고름 (한 번 얻으면 유지)
+   */
+  private checkMythicAwaken(): void {
+    const need = gameData.mythicAwaken;
+    for (const w of this.weapons) {
+      if (w.rarity !== 'mythic') continue;
+      const legend = weaponAbilities(w.id as WeaponId, 'legendary');
+      if (legend.some((a) => w.abilities.has(a.id))) continue;
+      const tag = weaponTags(w.id, w.abilities).find((t) => (this.kit.tagCount.get(t) ?? 0) >= need);
+      if (!tag) continue;
+      this.abilityPending = { weapon: w.id as WeaponId, tier: 'legendary' };
+      this.synergyToast(`${tag} ${need}`, tr('syn.awaken', { name: w.name }));
+      return;
+    }
+  }
+
   /** 레벨업 카드에 넣을 사이버웨어·장비 소켓 */
   private socketCards(): SocketCard[] {
     return [...this.sockets].map(([part, k]) => ({
@@ -1896,6 +1915,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
         lv = cur?.level ?? 1;
         desc = weaponsData[r.id as WeaponId].desc + (r.rarity.weaponBonus > 0 ? tr('lvl.bonus', { v: Math.round(r.rarity.weaponBonus * 100) }) : '');
         if (r.rarity.ability) desc += '\n' + tr('item.pickAbility', { tier: r.rarity.label });
+        if (r.rarity.id === 'mythic') desc += '\n' + tr('item.awakenHint', { n: gameData.mythicAwaken });
         if (cur) desc += '\n' + tr('item.replace', { cur: cur.name });
       } else {
         const cur = this.sockets.get(ITEMS[r.id].part);

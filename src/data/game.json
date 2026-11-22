@@ -682,6 +682,8 @@
   "fixerWarnShow": 3.3,
   "maxedAbilityChance": 0.15,
   "enemyDamageGrowthPerMin": 0.04,
+  "mythicAwakenNote": "신화 무기 각성: 신화 무기는 신화 능력만 가지고, 그 무기의 태그 하나가 장착 전체(무기 2 + 사이버웨어 3 + 장비 2)에서 mythicAwaken개 이상이면 전설 능력도 하나 고름 (한 번 얻으면 유지)",
+  "mythicAwaken": 5,
   "twinStick": {
     "note": "트윈스틱(개편 1단계 + 조작 개편): 주무기는 자동 발사(PC는 커서 방향, 터치는 가장 가까운 적), fireRange 안에 적이 있을 때만 interval × primaryIntervalMul마다. 보조무기는 weapons.json use: tap(버튼·우클릭·E 한 번)·drag(버튼에서 끌어 놓은 자리, 우클릭·E는 커서 자리, 터치로 짧게 누르면 가까운 적 자리). 누른 신호는 bufferSec초 기억. 드론·EMP는 active: time초 켜짐, cooldown초 재사용. aimCone: 약한 유도·첫 표적 허용 각도(라디안). autoAimRange: 자동 조준이 노리는 거리. dragMin: 이보다 짧게 끌면 누른 것으로 봄(화면 px)",
     "fireRange": 300,
