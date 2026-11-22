@@ -144,6 +144,13 @@ export class BootScene extends Phaser.Scene {
       g.fillStyle(0xffffff).fillRect(0, 0, 10, 10);
       g.fillStyle(COLORS.green).fillRect(4, 1, 2, 8).fillRect(1, 4, 8, 2);
     });
+    // 개편 2단계 임시 보급 상자 (등급 색은 Pickup에서 틴트)
+    make('chest', 16, 12, () => {
+      g.fillStyle(0x2a2440).fillRect(0, 2, 16, 10);
+      g.fillStyle(0xffffff).fillRect(0, 2, 16, 2).fillRect(7, 2, 2, 10);
+      g.lineStyle(1, 0xffffff, 1).strokeRect(0.5, 2.5, 15, 9);
+      g.fillStyle(0xffffff).fillRect(6, 0, 4, 3);
+    });
     make('wave', 18, 8, () => {
       g.fillStyle(COLORS.cyan, 0.5).fillEllipse(9, 4, 18, 8);
       g.fillStyle(0xffffff).fillEllipse(11, 4, 10, 3);

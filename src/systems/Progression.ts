@@ -22,6 +22,10 @@ export interface PassiveState {
   abilities?: string[];
   /** 공격 속도 사이버웨어: 고를 때마다 곱해진 배율 (곱연산) */
   speedMul?: number;
+  /** 개편 2단계: 이 소켓에 낀 사이버웨어 아이템 id와 등급, 다음 레벨 설명 */
+  item?: string;
+  rarity?: string;
+  nextDesc?: string;
 }
 
 export interface Ability {
@@ -40,6 +44,10 @@ export interface Choice {
   isNew?: boolean;
   /** 트윈스틱: 같은 소켓의 무기와 바꿔 끼는 카드 */
   swap?: boolean;
+  /** 개편 2단계: 보급 상자 아이템 카드 (kind 'weapon'·'passive'와 함께, 장착하면 그 소켓에 들어감) */
+  item?: { kind: 'weapon' | 'cyber' | 'gear'; id: string };
+  /** 개편 2단계: 전설·신화 무기를 얻을 때 고르는 능력 카드 */
+  pickAbility?: { weapon: string; tier: 'legendary' | 'mythic' };
   /** 최대 레벨인데 특수 능력만 받는 카드 (레벨은 오르지 않음) */
   maxed?: boolean;
   desc: string;
@@ -105,8 +113,10 @@ export function rollChoices(
   owned: WeaponBase[],
   ownedPassives: Map<PassiveId, PassiveState>,
   mode?: string,
-  opts: { guaranteeWeapon?: boolean; pool?: readonly WeaponId[]; luck?: boolean; favor?: string; favorChance?: number; epicMul?: number } = {},
+  opts: { guaranteeWeapon?: boolean; pool?: readonly WeaponId[]; luck?: boolean; favor?: string; favorChance?: number; epicMul?: number; upgradesOnly?: boolean } = {},
 ): Choice[] {
+  // 개편 2단계: 레벨업 카드는 장착한 것(소켓)만 강화. 새 아이템·교체·특수 능력은 보급 상자에서
+  if (opts.upgradesOnly) return upgradeChoices(owned, ownedPassives);
   luck = !!opts.luck;
   epicMul = 1;
   const forcedRarity = mode === 'boss' ? undefined : mode;
@@ -200,6 +210,27 @@ export function rollChoices(
   while (out.length < 3 && left.length) {
     const o = left.pop()!;
     out.push({ kind: 'overflow', id: o.id, rarity: gameData.rarity[0], title: o.name, levelLabel: t('lvl.overflow'), desc: o.desc.replace('{v}', String(o.amount)) });
+  }
+  return out;
+}
+
+/** 개편 2단계 레벨업 카드: 장착한 무기 소켓(최대 8)·사이버웨어 소켓(최대 5) 강화 중 3장, 모자라면 작은 강화 */
+function upgradeChoices(owned: WeaponBase[], ownedPassives: Map<PassiveId, PassiveState>): Choice[] {
+  const common = gameData.rarity[0];
+  const pool: Choice[] = [];
+  for (const w of owned) {
+    if (w.level >= WEAPON_MAX_LEVEL) continue;
+    pool.push({ kind: 'weapon', id: w.id, rarity: common, title: w.name, levelLabel: t('lvl.socket', { lv: w.level + 1 }), desc: WeaponBase.levelDesc(w.id, w.level + 1) });
+  }
+  for (const [id, st] of ownedPassives) {
+    if (st.level >= passives[id].maxLevel) continue;
+    pool.push({ kind: 'passive', id, rarity: common, title: passives[id].name, levelLabel: t('lvl.socket', { lv: st.level + 1 }), desc: st.nextDesc ?? passives[id].desc });
+  }
+  const out = Phaser.Utils.Array.Shuffle(pool).slice(0, 3);
+  const left = Phaser.Utils.Array.Shuffle(gameData.overflow.slice());
+  while (out.length < 3 && left.length) {
+    const o = left.pop()!;
+    out.push({ kind: 'overflow', id: o.id, rarity: common, title: o.name, levelLabel: t('lvl.overflow'), desc: o.desc.replace('{v}', String(o.amount)) });
   }
   return out;
 }

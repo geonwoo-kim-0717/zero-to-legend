@@ -1,3 +1,4 @@
+import Phaser from 'phaser';
 import { WeaponBase } from './WeaponBase';
 import type { Enemy } from '../entities/Enemy';
 
@@ -11,6 +12,21 @@ export class SmartPistol extends WeaponBase {
   private lockStack = 0;
   private stormT = 5;
   private eyeT = 3;
+
+  /** (x,y)에서 각도 a 쪽(좌우 cone) range 안의 가장 가까운 적 */
+  private nearestInDir(x: number, y: number, a: number, range: number, cone: number): Enemy | null {
+    let best: Enemy | null = null;
+    let bd = range * range;
+    for (const e of this.ctx.enemies) {
+      if (!e.active) continue;
+      const d = (e.x - x) ** 2 + (e.y - y) ** 2;
+      if (d > bd) continue;
+      if (Math.abs(Phaser.Math.Angle.Wrap(Math.atan2(e.y - y, e.x - x) - a)) > cone) continue;
+      bd = d;
+      best = e;
+    }
+    return best;
+  }
 
   private get shots(): number {
     return Math.min(MAX_SHOTS, Math.max(1, this.s.count));
@@ -29,8 +45,11 @@ export class SmartPistol extends WeaponBase {
     if (this.has('bulletStorm') && (this.stormT -= dt) <= 0) {
       this.stormT = 5;
       this.ctx.sfx('shoot');
+      // 탄막 오버로드 탄도 근처 적을 쫓아감 (사용자 메모: 편집 페이지)
       for (let i = 0; i < 24; i++) {
-        this.ctx.fireBullet(p.x, p.y, (i / 24) * Math.PI * 2, this.s.speed, this.damage, { pierce: this.s.pierce + 1, chain, texture: 'fx_smartPistol_tracer_1', hitFx: 'smartPistol_hit' });
+        const a = (i / 24) * Math.PI * 2;
+        const t = this.nearestInDir(p.x, p.y, a, RANGE * 1.6, 0.5);
+        this.ctx.fireBullet(p.x, p.y, a, this.s.speed, this.damage, { pierce: this.s.pierce + 1, chain, target: t, turnRate: t ? 5 : 0, texture: 'fx_smartPistol_tracer_1', hitFx: 'smartPistol_hit' });
       }
     }
     // 신화: 데드아이

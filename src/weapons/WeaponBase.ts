@@ -24,6 +24,8 @@ export abstract class WeaponBase {
   level = 1;
   /** 희귀 이상 등급으로 얻은 추가 피해 비율 (누적) */
   bonus = 0;
+  /** 개편 2단계: 이 무기 아이템의 등급 id */
+  rarity = 'common';
   /** 전설·신화 등급으로 얻은 특수 능력 id */
   readonly abilities = new Set<string>();
   protected timer = 0;

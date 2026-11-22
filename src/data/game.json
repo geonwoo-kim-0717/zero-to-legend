@@ -691,6 +691,14 @@
     "touchAimDist": 140
   },
   "twinStickCards": { "note": "레벨업 카드에 섞는 교체 카드(같은 소켓 다른 무기) 수", "swapPerRoll": 2 },
+  "supply": {
+    "note": "개편 2단계 임시 보급 상자 (3단계 방 구조 전까지): everyKills명 처치마다 1개, 블랙 실드 대원 처치 때 trooperChance 확률로 희귀 이상, 중간보스 midbossMin 이상, 챕터 보스 bossMin 이상(다음 챕터 시작 때 열림). 칩: 처치 kill, 대원 trooper, 중간보스 midboss, 챕터 보스 boss",
+    "everyKills": 120,
+    "trooperChance": 0.08,
+    "midbossMin": "legendary",
+    "bossMin": "legendary",
+    "chips": { "kill": 1, "trooper": 3, "midboss": 30, "boss": 60 }
+  },
   "bossHitKnock": 20,
   "startCards": [0, 1, 2],
   "startCardsNote": "임시 'N챕터부터 시작' 버튼: 챕터 번호(0부터)별로 시작할 때 고르는 전설·신화 확정 카드 수",

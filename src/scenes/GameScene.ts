@@ -18,6 +18,7 @@ import { pickBoss, pickBasili, pickGregor, pickXm4, type BossAct, type BasiliAct
 import { InputController } from '../systems/InputController';
 import { createWeapon, type WeaponBase, type WeaponId } from '../weapons';
 import { weaponSlot } from '../weapons/WeaponBase';
+import { rollItems, itemName, itemText, socketLabel, weaponAbilities, CYBER_TO_PASSIVE, PASSIVE_TO_CYBER, ITEMS, rarityById, itemValues } from '../systems/Build';
 import type { GameContext, Stats, DamageTag, FxOpts } from '../weapons/types';
 import meta from '../data/meta.json';
 import zonesData from '../data/zones.json';
@@ -253,6 +254,14 @@ export class GameScene extends Phaser.Scene implements GameContext {
   private pendingLevels = 0;
   /** 엘리트(중간) 보스 처치로 받을 전설·신화 확정 보상 수 */
   private bossRewards = 0;
+  /** 개편 2단계: 열 보급 상자 (각 상자의 최소 등급 id) */
+  private chestQueue: string[] = [];
+  /** 개편 2단계: 전설·신화 무기를 얻은 뒤 고를 능력 */
+  private abilityPending: { weapon: WeaponId; tier: 'legendary' | 'mythic' } | null = null;
+  /** 개편 2단계: 판 안 재화 (칩). 3단계에서 상점·리퍼닥에 씀 */
+  private chips = 0;
+  /** 보급 상자를 떨어뜨릴 다음 처치 수 */
+  private nextChestKills = 0;
   private rewardOpen = false;
   private rerolls = 0;
   private choices: Choice[] = [];
@@ -598,7 +607,10 @@ export class GameScene extends Phaser.Scene implements GameContext {
   create(): void {
     // scene.start()로 다시 들어올 때 같은 인스턴스를 재사용하므로 상태를 전부 초기화
     this.state = 'play';
-    this.elapsed = this.kills = this.xp = this.pendingLevels = this.bossRewards = 0;
+    this.elapsed = this.kills = this.xp = this.pendingLevels = this.bossRewards = this.chips = 0;
+    this.chestQueue = [];
+    this.abilityPending = null;
+    this.nextChestKills = gameData.supply.everyKills;
     this.rewardOpen = false;
     this.level = 1;
     this.rerolls = gameData.rerollsPerRun;
@@ -783,7 +795,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
     if (this.zoneIdx > 0) {
       // 챕터 바로 시작(임시): 그 챕터 브리핑 뒤 전설·신화 확정 카드를 startCards[챕터]번 고름
       const zs = ZONES[this.zoneIdx] as Zone & { intro?: Line[] };
-      this.bossRewards = (gameData as unknown as { startCards: number[] }).startCards[this.zoneIdx] ?? 0;
+      for (let i = 0; i < ((gameData as unknown as { startCards: number[] }).startCards[this.zoneIdx] ?? 0); i++) this.chestQueue.push('legendary');
       this.startDialog(zs.intro ?? [], () => undefined);
     } else this.startDialog(lines ?? z0.intro ?? [], () => undefined);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
@@ -1558,13 +1570,14 @@ export class GameScene extends Phaser.Scene implements GameContext {
       // 첫 판 튜토리얼: 네 번째 레벨업에 플라즈마 유탄 전설 '집속탄', 3분이 지난 뒤 첫 레벨업에 신화 '연쇄 폭발'
       const first = Save.data.stats.runs === 0;
       this.giftScreen = null;
-      if (first && !Save.data.tutCluster && this.levelUps === 4) this.giftScreen = 'cluster';
-      else if (first && !Save.data.tutChain && this.elapsed >= 180) this.giftScreen = 'chain';
+      // 개편 2단계: 레벨업으로 특수 능력을 주지 않으므로 튜토리얼 선물 카드도 없음
+      void first;
     }
     this.choices = rollChoices(this.weapons, this.passives, this.rewardOpen ? 'boss' : this.forcedRarity, {
       guaranteeWeapon: this.weapons.length < gameData.guaranteeWeaponUntil,
       pool: this.weaponPool,
       luck: this.pHas('luckCircuit'),
+      upgradesOnly: true,
       // 첫 판 3분 전까지: 플라즈마 유탄이 조금 더 자주, 영웅(보라) 카드가 조금 더 자주
       ...(Save.data.stats.runs === 0 && this.elapsed < 180 ? { favor: 'plasmaGrenade', favorChance: 0.35, epicMul: 2.5 } : {}),
     });
@@ -1599,6 +1612,10 @@ export class GameScene extends Phaser.Scene implements GameContext {
       Save.write();
     }
     Sound.play('select');
+    if (c.item || c.pickAbility) {
+      this.pickItem(c);
+      return;
+    }
     if (c.kind === 'weapon') {
       const id = c.id as WeaponId;
       const owned = this.weapons.find((o) => o.id === id);
@@ -1620,10 +1637,15 @@ export class GameScene extends Phaser.Scene implements GameContext {
         st.abilities = [...(st.abilities ?? []), c.ability.id];
         if (c.ability.id === 'creditMagnet') this.creditMagnet = true;
       }
-      const amt = c.maxed ? 0 : passiveAmount(id, c.rarity);
-      st.total += amt;
-      // 공격 속도는 곱연산으로 쌓는다
-      if (passivesData[id].stat === 'cooldownMul') st.speedMul = (st.speedMul ?? 1) * (1 + amt / 100);
+      if (st.item) {
+        // 개편 2단계: 사이버웨어 값 = 아이템 값(소켓 레벨, 아이템 등급)
+        this.setCyberTotal(id, st);
+      } else {
+        const amt = c.maxed ? 0 : passiveAmount(id, c.rarity);
+        st.total += amt;
+        // 공격 속도는 곱연산으로 쌓는다
+        if (passivesData[id].stat === 'cooldownMul') st.speedMul = (st.speedMul ?? 1) * (1 + amt / 100);
+      }
       this.passives.set(id, st);
       const oldMax = this.player.maxHp;
       this.recalcStats();
@@ -1643,8 +1665,110 @@ export class GameScene extends Phaser.Scene implements GameContext {
     this.levelUi.hide();
     if (this.rewardOpen) this.bossRewards--;
     else this.pendingLevels--;
-    if (this.pendingLevels > 0 || this.bossRewards > 0) this.openLevelUp();
+    this.nextScreen();
+  }
+
+  /** 고르는 화면이 끝났을 때 다음: 능력 고르기 → 보급 상자 → 레벨업 → 게임 */
+  private nextScreen(): void {
+    if (this.abilityPending) this.openAbilityPick();
+    else if (this.chestQueue.length) this.openChest();
+    else if (this.pendingLevels > 0 || this.bossRewards > 0) this.openLevelUp();
     else this.state = 'play';
+  }
+
+  // ───────────── 개편 2단계: 보급 상자·아이템 ─────────────
+  /** 장착 중인 아이템 id들 (보급 상자에 같은 것이 다시 나오지 않게) */
+  private equippedIds(): Set<string> {
+    const s = new Set<string>(this.weapons.map((w) => w.id));
+    for (const st of this.passives.values()) if (st.item) s.add(st.item);
+    return s;
+  }
+
+  /** 사이버웨어 소켓 값 다시 계산 (소켓 레벨·아이템 등급) */
+  private setCyberTotal(id: PassiveId, st: PassiveState): void {
+    if (!st.item) return;
+    const v = itemValues(st.item, st.level, st.rarity ?? 'common');
+    st.total = v.v ?? 0;
+    if (passivesData[id].stat === 'cooldownMul') st.speedMul = 1 + st.total / 100;
+    st.nextDesc = st.level < passivesData[id].maxLevel ? itemText(st.item, st.level + 1, st.rarity ?? 'common') : undefined;
+  }
+
+  /** 보급 상자 열기: 아이템 3개 중 1개 */
+  private openChest(): void {
+    if (this.state === 'play') Sound.play('levelup');
+    this.state = 'levelup';
+    const min = this.chestQueue.shift();
+    const rolls = rollItems(3, this.equippedIds(), min);
+    this.choices = rolls.map((r) => {
+      const kind = r.kind === 'weapon' ? 'weapon' : 'passive';
+      let desc = '';
+      let lv = 1;
+      if (r.kind === 'weapon') {
+        const cur = this.weapons.find((w) => w.slot === weaponSlot(r.id as WeaponId));
+        lv = cur?.level ?? 1;
+        desc = weaponsData[r.id as WeaponId].desc + (r.rarity.weaponBonus > 0 ? tr('lvl.bonus', { v: Math.round(r.rarity.weaponBonus * 100) }) : '');
+        if (r.rarity.ability) desc += '\n' + tr('item.pickAbility', { tier: r.rarity.label });
+        if (cur) desc += '\n' + tr('item.replace', { cur: cur.name });
+      } else {
+        const part = ITEMS[r.id].part;
+        const curId = [...this.passives.entries()].find(([pid]) => ITEMS[PASSIVE_TO_CYBER[pid]]?.part === part);
+        lv = curId?.[1].level ?? 1;
+        desc = itemText(r.id, lv, r.rarity.id);
+        if (curId) desc += '\n' + tr('item.replace', { cur: passivesData[curId[0]].name });
+      }
+      return { kind, id: r.id, rarity: r.rarity, title: itemName(r.kind, r.id), levelLabel: `${socketLabel(r.kind, r.id)} · ${tr('lvl.socket', { lv })}`, desc, isNew: true, item: { kind: r.kind, id: r.id } } as Choice;
+    });
+    this.levelUi.show(this.choices, 0, (i) => this.pick(i), () => undefined, tr('item.title'));
+  }
+
+  /** 전설·신화 무기를 얻은 뒤 그 등급 능력 중 하나 고르기 */
+  private openAbilityPick(): void {
+    const a = this.abilityPending!;
+    this.state = 'levelup';
+    const rar = rarityById(a.tier);
+    this.choices = weaponAbilities(a.weapon, a.tier).map((ab) => ({ kind: 'weapon', id: a.weapon, rarity: rar, title: ab.name, levelLabel: `${weaponsData[a.weapon].name} · ${rar.label}`, desc: ab.desc, pickAbility: { weapon: a.weapon, tier: a.tier }, ability: undefined, abilityId: ab.id }) as unknown as Choice);
+    this.levelUi.show(this.choices, 0, (i) => this.pick(i), () => undefined, tr('item.abilityTitle', { tier: rar.label }));
+  }
+
+  /** 아이템·능력 카드 고름 */
+  private pickItem(c: Choice): void {
+    this.levelUi.hide();
+    if (c.pickAbility) {
+      const w = this.weapons.find((o) => o.id === c.pickAbility!.weapon);
+      const abId = (c as unknown as { abilityId: string }).abilityId;
+      if (w) w.addAbility(abId);
+      this.abilityPending = null;
+    } else if (c.item!.kind === 'weapon') {
+      const id = c.id as WeaponId;
+      const w = this.addWeapon(id);
+      // 등급: 피해 보너스 (바꿔 끼우면 새 아이템 등급으로)
+      w.bonus = c.rarity.weaponBonus;
+      w.rarity = c.rarity.id;
+      if (c.rarity.ability) this.abilityPending = { weapon: id, tier: c.rarity.id as 'legendary' | 'mythic' };
+    } else {
+      // 사이버웨어: 같은 부위 소켓에 끼움 (소켓 레벨 이어받음)
+      const pid = CYBER_TO_PASSIVE[c.id];
+      const part = ITEMS[c.id].part;
+      let lv = 1;
+      for (const [old, st] of [...this.passives.entries()]) {
+        if (ITEMS[PASSIVE_TO_CYBER[old]]?.part !== part) continue;
+        lv = st.level;
+        this.passives.delete(old);
+      }
+      const st: PassiveState = { level: lv, total: 0, special: false, item: c.id, rarity: c.rarity.id };
+      this.setCyberTotal(pid, st);
+      this.passives.set(pid, st);
+      const oldMax = this.player.maxHp;
+      this.recalcStats();
+      if (passivesData[pid].stat === 'maxHp') this.player.hp += Math.max(0, this.player.maxHp - oldMax);
+    }
+    this.nextScreen();
+  }
+
+  /** 보급 상자를 떨어뜨림 (minRarity: 최소 등급) */
+  private dropChest(x: number, y: number, minRarity = 'common'): void {
+    const idx = gameData.rarity.findIndex((r) => r.id === minRarity);
+    this.dropPickup('chest', x, y, Math.max(0, idx));
   }
 
   /** 무기 장착: 주무기·보조무기 소켓에 하나씩. 같은 소켓에 있던 무기는 빼고, 소켓 레벨·등급 보너스는 새 무기가 이어받음 */
@@ -1875,6 +1999,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
     this.updateHud();
 
     if (this.transitionT > 0 && (this.transitionT -= dt) <= 0) this.startZoneDialog();
+    else if (this.transitionT <= 0 && this.chestQueue.length && this.state === 'play') this.openChest();
     else if (this.transitionT <= 0 && (this.pendingLevels > 0 || this.bossRewards > 0) && this.state === 'play') this.openLevelUp();
   }
 
@@ -2357,6 +2482,9 @@ export class GameScene extends Phaser.Scene implements GameContext {
       else if (def.id === 'boss2') this.run.hexKills++;
       else this.run.coreKills++;
       if (def.final && this.zoneIdx < ZONES.length - 1) {
+        // 개편 2단계: 챕터 보스 보상 — 다음 챕터 시작 때 여는 전설 이상 보급 상자 + 칩
+        this.chestQueue.push(gameData.supply.bossMin);
+        this.chips += gameData.supply.chips.boss;
         // 구역 보스: 주변 적을 정리하고 의뢰인 대화 뒤 다음 구역으로
         this.clearArena();
         this.clearField();
@@ -2377,8 +2505,9 @@ export class GameScene extends Phaser.Scene implements GameContext {
         // 중간 보스 보상: 큰 경험치 덩어리와 회복
         this.dropPickup('xp', e.x, e.y, def.rewardXp);
         this.dropPickup('heal', e.x + 14, e.y, gameData.healAmount * 2);
-        // 엘리트 보스 보상: 전설·신화 확정 카드
-        this.bossRewards++;
+        // 엘리트 보스 보상: 전설 이상 보급 상자 + 칩
+        this.dropChest(e.x - 14, e.y, gameData.supply.midbossMin);
+        this.chips += gameData.supply.chips.midboss;
         Sound.music(this.zoneMusic, 1500);
       }
       return;
@@ -2386,6 +2515,13 @@ export class GameScene extends Phaser.Scene implements GameContext {
     this.burst(e.x, e.y, e.id === 'thug' ? COLORS.orange : e.id === 'gunner' ? 0xb6ff3a : e.id.startsWith('trooper') ? 0xff2a3a : COLORS.magenta, e.id.startsWith('trooper') ? 20 : 8);
     Sound.play('kill');
     this.dropPickup('xp', e.x, e.y, e.xp);
+    // 개편 2단계: 칩, 처치 수마다 보급 상자, 블랙 실드는 가끔 희귀 이상 상자
+    const SU = gameData.supply;
+    this.chips += e.id.startsWith('trooper') ? SU.chips.trooper : SU.chips.kill;
+    if (this.kills >= this.nextChestKills) {
+      this.nextChestKills = this.kills + SU.everyKills;
+      this.dropChest(e.x, e.y);
+    } else if (e.id.startsWith('trooper') && Math.random() < SU.trooperChance) this.dropChest(e.x, e.y, 'rare');
     if (Math.random() < gameData.healDropChance) this.dropPickup('heal', e.x + 6, e.y, gameData.healAmount);
     if (!this.specialOn) this.odGauge = Math.min(100, this.odGauge + OD.perKill);
     // 광전사 모드: 근접 무기로 처치했을 때만 체력 회복
@@ -2430,6 +2566,9 @@ export class GameScene extends Phaser.Scene implements GameContext {
         if (k.kind === 'heal') {
           this.heal(k.value);
           Sound.play('heal');
+        } else if (k.kind === 'chest') {
+          this.chestQueue.push(gameData.rarity[Math.round(k.value)]?.id ?? 'common');
+          Sound.play('select');
         } else {
           this.gainXp(k.value);
           // 연달아 주우면 음이 한 칸씩 올라간다 (무작위 음정 대신 계단처럼). 잠깐 쉬면 처음 음으로
@@ -2769,7 +2908,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
     this.raidWaitClear = false;
     this.applyZone(true);
     Sound.music(this.zoneMusic, 1200);
-    this.startCarryOver();
+    // 개편 2단계: 빌드를 한 판 내내 이어감 (예전 챕터 전환 초기화·능력 고르기 없음)
   }
 
   // ───────────────────────────── 카운터 몬스터 ─────────────────────────────
@@ -6120,7 +6259,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
     this.hud.level.setText(`LV ${this.level}`);
     this.hud.kills.setText(`KILL ${this.kills}`);
     this.hud.zone.setText(`${this.zone.label} · ${this.zone.name}${this.heat ? `  ·  HEAT ${this.heat}` : ''}`);
-    this.hud.credits.setText(`₵ ${this.creditsNow(false)}`);
+    this.hud.credits.setText(`₵ ${this.creditsNow(false)}   ${tr('hud.chips', { n: this.chips })}`);
     // 보유 아이템: 아이콘 + 레벨 숫자 (윗줄 무기, 아랫줄 사이버웨어), ★는 특수 능력
     const items = [
       ...this.weapons.map((w, i) => ({ key: `icon_${w.id}`, lvl: w.level, stars: w.abilities.size, row: 0, col: i })),

@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 
-export type PickupKind = 'xp' | 'heal';
+export type PickupKind = 'xp' | 'heal' | 'chest';
 
 export class Pickup {
   active = false;
@@ -32,6 +32,7 @@ export class Pickup {
       .setPosition(x, y)
       .setVisible(true)
       .setScale(kind === 'xp' && value >= 3 ? 1.5 : 1)
+      .setTint(kind === 'chest' ? [0xe8f7ff, 0x00f0ff, 0xff2bd6, 0xfff23a, 0xff2a3a][Math.round(value)] ?? 0xffffff : 0xffffff)
       .setBlendMode(kind === 'xp' ? Phaser.BlendModes.ADD : Phaser.BlendModes.NORMAL);
   }
 
