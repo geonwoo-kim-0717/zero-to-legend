@@ -1,7 +1,7 @@
 import short from '../data/short.json';
 import gameData from '../data/game.json';
 import weaponsData from '../data/weapons.json';
-import { ITEMS, PART_NAME, itemValues, itemText, type ItemKind } from '../systems/Build';
+import { ITEMS, PART_NAME, itemDisplayValues, itemText, type ItemKind } from '../systems/Build';
 import { itemTags, weaponTags } from '../systems/Loadout';
 import type { Rarity } from '../systems/Progression';
 import { I18n, t } from '../i18n';
@@ -34,7 +34,7 @@ export function shortText(id: string, lv: number, rarity: string): string | null
   const s = SHORT[id];
   const text = I18n.lang === 'en' ? s?.en : s?.ko;
   if (!text) return null;
-  return ITEMS[id] ? fill(text, itemValues(id, lv, rarity)) : text;
+  return ITEMS[id] ? fill(text, itemDisplayValues(id, lv, rarity)) : text;
 }
 
 /** 소켓 칩 글자 */

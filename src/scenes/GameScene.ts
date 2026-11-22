@@ -18,7 +18,7 @@ import { pickBoss, pickBasili, pickGregor, pickXm4, type BossAct, type BasiliAct
 import { InputController, type SubUse } from '../systems/InputController';
 import { createWeapon, type WeaponBase, type WeaponId } from '../weapons';
 import { weaponSlot } from '../weapons/WeaponBase';
-import { rollItems, itemName, itemText, socketLabel, weaponAbilities, ITEMS, rarityById, itemArt, type ItemKind } from '../systems/Build';
+import { rollItems, itemName, itemText, socketLabel, weaponAbilities, ITEMS, rarityById, itemArt, type ItemKind, type ItemRoll } from '../systems/Build';
 import { Loadout, weaponTags, itemTags, combosWith, type Sock } from '../systems/Loadout';
 import { OsState, OS_IDS, OS_DEFS, devOsPick, saveDevOsPick } from '../systems/Os';
 import type { GameContext, Stats, DamageTag, FxOpts } from '../weapons/types';
@@ -143,6 +143,23 @@ function josa(name: string, a: string, b: string): string {
 const AI_SHOW = import.meta.env.VITE_AI_SHOW === '1' || new URLSearchParams(location.search).has('ai');
 /** 개발자 도구 버튼(배속·무적·보스 소환 등): AI 표시 모드 또는 주소에 ?debug */
 const DEV_TOOLS = new URLSearchParams(location.search).has('debug');
+
+/** 개편 3단계: 판 안 상점·리퍼닥 노점 */
+interface Station {
+  kind: 'shop' | 'ripper';
+  x: number;
+  y: number;
+  /** 남은 시간 (0이면 사라짐) */
+  t: number;
+  label: Phaser.GameObjects.Text;
+  arrow: Phaser.GameObjects.Text;
+  /** 상점 진열 (처음 열 때 굴림) */
+  stock: ItemRoll[] | null;
+  rerolls: number;
+  healed: boolean;
+  /** 리퍼닥 OS 목록 쪽수 (-1이면 첫 화면) */
+  osPage: number;
+}
 /** 진압대 걷기 루프 재생 속도 (아트: 한 걸음 주기 1초) */
 const WALK_FPS = 12;
 
@@ -726,6 +743,9 @@ export class GameScene extends Phaser.Scene implements GameContext {
     const startZone = Phaser.Math.Clamp(Number((this.scene.settings.data as { startZone?: number } | undefined)?.startZone ?? 0), 0, ZONES.length - 1);
     this.zoneIdx = startZone;
     this.zoneStart = 0;
+    this.stations = [];
+    this.stationOpen = null;
+    this.stationsFired = 0;
     this.transitionT = 0;
     this.raidsInZone = 0;
     this.dodgeRings = [];
@@ -987,6 +1007,8 @@ export class GameScene extends Phaser.Scene implements GameContext {
     if (this.streak > 0) amount *= 1 + 0.02 * this.streak;
     // 처형자: 맞고 체력 15% 이하로 남는 일반 적은 즉사
     if (!e.isBoss && this.pHas('executioner') && e.hp - amount <= e.maxHp * 0.15) amount = Math.max(amount, e.hp);
+    // 최종 피해는 정수 (반올림, 0보다 크면 최소 1)
+    amount = amount > 0 ? Math.max(1, Math.round(amount)) : 0;
     this.logDamage(Math.min(amount, Math.max(0, e.hp)));
     this.noteDps(Math.min(amount, Math.max(0, e.hp)));
     this.dmgNumber(e, amount, critMul);
@@ -1837,9 +1859,251 @@ export class GameScene extends Phaser.Scene implements GameContext {
   private nextScreen(): void {
     if (!this.abilityPending) this.checkMythicAwaken();
     if (this.abilityPending) this.openAbilityPick();
+    else if (this.stationOpen) this.openStation(this.stationOpen);
     else if (this.chestQueue.length) this.openChest();
     else if (this.pendingLevels > 0 || this.bossRewards > 0) this.openLevelUp();
     else this.state = 'play';
+  }
+
+  // ───────────── 개편 3단계: 상점·리퍼닥 (챕터 4분·9분, 화면 밖에 나타남) ─────────────
+  private stations: Station[] = [];
+  /** 이번 챕터에서 이미 나온 횟수 (stations.times 순서) */
+  private stationsFired = 0;
+  /** 지금 열려 있는 상점·리퍼닥 (능력 고르기 뒤 다시 열기용) */
+  private stationOpen: Station | null = null;
+
+  private clearStations(): void {
+    for (const s of this.stations) {
+      s.label.destroy();
+      s.arrow.destroy();
+    }
+    this.stations = [];
+    this.stationOpen = null;
+  }
+
+  private spawnStations(): void {
+    const ST = gameData.stations;
+    const p = this.player;
+    const a = Math.random() * Math.PI * 2;
+    const make = (kind: 'shop' | 'ripper', ang: number): Station => {
+      const x = p.x + Math.cos(ang) * ST.dist;
+      const y = p.y + Math.sin(ang) * ST.dist * 0.7;
+      const color = kind === 'shop' ? '#fff23a' : '#39ff88';
+      const name = tr(kind === 'shop' ? 'station.shop' : 'station.ripper');
+      const label = this.add.text(x, y - 22, name, { ...TEXT, fontSize: '10px', color }).setOrigin(0.5, 1).setDepth(12);
+      const arrow = this.add.text(0, 0, '', { ...TEXT, fontSize: '9px', color }).setOrigin(0.5).setScrollFactor(0).setDepth(115);
+      return { kind, x, y, t: ST.life, label, arrow, stock: null, rerolls: 0, healed: false, osPage: -1 };
+    };
+    this.stations.push(make('shop', a), make('ripper', a + 2.2));
+    // 진이 알려 줌
+    this.phoneMsg(tr('station.notice'));
+  }
+
+  /** 진 무전 한 줄 (없으면 화면 가운데 안내) */
+  private phoneMsg(text: string): void {
+    const t = this.add.text(VIEW_W / 2, 96, text, { ...TEXT, fontSize: '11px', color: '#39ff88', backgroundColor: '#120a24cc', padding: { x: 8, y: 4 } }).setOrigin(0.5).setScrollFactor(0).setDepth(130);
+    Sound.play('select');
+    this.tweens.add({ targets: t, alpha: 0, delay: 2600, duration: 500, onComplete: () => t.destroy() });
+  }
+
+  private updateStations(dt: number, zt: number): void {
+    const ST = gameData.stations;
+    // 보스전 중이면 끝날 때까지 기다렸다가 나옴 (그 사이 다음 시간이 지나도 한 번만)
+    if (!this.boss && !this.arena && this.stationsFired < ST.times.length && zt >= ST.times[this.stationsFired]) {
+      while (this.stationsFired < ST.times.length && zt >= ST.times[this.stationsFired]) this.stationsFired++;
+      this.spawnStations();
+    }
+    if (!this.stations.length) return;
+    const p = this.player;
+    const cam = this.cameras.main;
+    const fx = this.fx;
+    for (const s of this.stations) {
+      s.t -= dt;
+      // 보스가 나오면 문을 닫음
+      if (this.boss || this.arena) s.t = 0;
+      if (s.t <= 0) continue;
+      const col = s.kind === 'shop' ? 0xfff23a : 0x39ff88;
+      const blink = s.t < 10 && Math.floor(s.t * 4) % 2 === 0 ? 0.4 : 1;
+      // 노점: 네온 간판이 달린 상자 (그림이 생기기 전 임시)
+      fx.fillStyle(0x120a24, 0.9 * blink).fillRect(s.x - 14, s.y - 12, 28, 22);
+      fx.lineStyle(2, col, 0.9 * blink).strokeRect(s.x - 14, s.y - 12, 28, 22);
+      fx.fillStyle(col, (0.35 + Math.sin(this.elapsed * 6) * 0.15) * blink).fillRect(s.x - 10, s.y - 8, 20, 5);
+      fx.lineStyle(1, col, 0.25).strokeCircle(s.x, s.y, gameData.stations.reach + 10 + Math.sin(this.elapsed * 4) * 3);
+      s.label.setPosition(s.x, s.y - 14).setAlpha(blink);
+      // 화면 밖이면 가장자리 화살표 + 남은 시간
+      const sx = s.x - cam.scrollX;
+      const sy = s.y - cam.scrollY;
+      const inView = sx > 0 && sx < VIEW_W && sy > 0 && sy < VIEW_H;
+      if (inView) s.arrow.setVisible(false);
+      else {
+        const cx = VIEW_W / 2;
+        const cy = VIEW_H / 2;
+        const ang = Math.atan2(sy - cy, sx - cx);
+        const k = Math.min((VIEW_W / 2 - 26) / Math.abs(Math.cos(ang) || 1e-6), (VIEW_H / 2 - 26) / Math.abs(Math.sin(ang) || 1e-6));
+        const ex = cx + Math.cos(ang) * k;
+        const ey = cy + Math.sin(ang) * k;
+        const wx = cam.scrollX + ex;
+        const wy = cam.scrollY + ey;
+        const tip = 9;
+        fx.fillStyle(col, 0.9).fillTriangle(
+          wx + Math.cos(ang) * tip,
+          wy + Math.sin(ang) * tip,
+          wx + Math.cos(ang + 2.4) * tip,
+          wy + Math.sin(ang + 2.4) * tip,
+          wx + Math.cos(ang - 2.4) * tip,
+          wy + Math.sin(ang - 2.4) * tip,
+        );
+        s.arrow
+          .setVisible(true)
+          .setPosition(ex - Math.cos(ang) * 16, ey - Math.sin(ang) * 16)
+          .setText(`${tr(s.kind === 'shop' ? 'station.shop' : 'station.ripper')} ${Math.ceil(s.t)}s`);
+      }
+      if (this.state === 'play' && (s.x - p.x) ** 2 + (s.y - p.y) ** 2 < (gameData.stations.reach + p.radius) ** 2) this.openStation(s);
+    }
+    for (const s of this.stations) if (s.t <= 0) {
+      s.label.destroy();
+      s.arrow.destroy();
+    }
+    this.stations = this.stations.filter((s) => s.t > 0);
+  }
+
+  /** 상점·리퍼닥 화면 열기 (고르면 다시 그림, 떠나면 닫힘) */
+  private openStation(s: Station): void {
+    if (this.state === 'play') Sound.play('levelup');
+    this.state = 'levelup';
+    this.stationOpen = s;
+    s.arrow.setVisible(false);
+    const common = rarityById('common');
+    const ST = gameData.stations;
+    const chips = Math.floor(this.chips);
+    const cost = (n: number) => (n > 0 ? `◆${n}` : tr('station.free'));
+    const poor = (n: number) => (chips < n ? `\n${tr('station.poor')}` : '');
+    type Act = () => void;
+    const acts: Act[] = [];
+    const cards: Choice[] = [];
+    const add = (c: Choice, act: Act) => {
+      cards.push(c);
+      acts.push(act);
+    };
+    const pay = (n: number): boolean => {
+      if (chips < n) {
+        Sound.play('block');
+        this.shake(80, 0.004);
+        return false;
+      }
+      this.chips -= n;
+      Sound.play('select');
+      return true;
+    };
+    if (s.kind === 'shop') {
+      const SH = ST.shop;
+      if (!s.stock) s.stock = rollItems(SH.items, this.equippedIds());
+      for (const r of s.stock) {
+        const price = (SH.price as Record<string, number>)[r.rarity.id] ?? 50;
+        const c = this.itemChoice(r);
+        c.levelLabel = `${cost(price)} · ${c.levelLabel}`;
+        // 새 카드 디자인은 소켓 칩에 값을 붙여 보여 줌
+        if (c.card) c.card = { ...c.card, slot: `${cost(price)} · ${c.card.slot}` };
+        c.desc += poor(price);
+        add(c, () => {
+          if (!pay(price)) return;
+          s.stock = s.stock!.filter((x) => x !== r);
+          this.equipItem(c);
+        });
+      }
+      if (!s.healed) {
+        add({ kind: 'overflow', id: 'shopHeal', art: 'heal', rarity: common, title: tr('station.heal'), levelLabel: cost(SH.heal.price), desc: tr('station.healDesc', { pct: SH.heal.pct }) + poor(SH.heal.price) }, () => {
+          if (!pay(SH.heal.price)) return;
+          s.healed = true;
+          this.heal(Math.round((this.player.maxHp * SH.heal.pct) / 100));
+        });
+      }
+      const rr = SH.reroll + SH.rerollStep * s.rerolls;
+      add({ kind: 'overflow', id: 'shopReroll', rarity: common, title: tr('station.reroll'), levelLabel: cost(rr), desc: tr('station.rerollDesc') + poor(rr) }, () => {
+        if (!pay(rr)) return;
+        s.rerolls++;
+        s.stock = rollItems(SH.items, this.equippedIds());
+      });
+    } else if (s.osPage < 0) {
+      // 리퍼닥: 사이버웨어 소켓 레벨 +1, OS 바꿔 끼기
+      const RP = ST.ripper;
+      for (const part of ['neural', 'optic', 'skeletal']) {
+        const k = this.sockets.get(part);
+        if (!k) continue;
+        const max = ITEMS[k.id].maxLevel ?? 5;
+        if (k.level >= max) continue;
+        const price = RP.cyberLevel[Math.min(k.level - 1, RP.cyberLevel.length - 1)];
+        add(
+          { kind: 'passive', id: k.id, art: itemArt(k.id), rarity: rarityById(k.rarity), title: itemName('cyber', k.id), levelLabel: `${cost(price)} · ${tr('lvl.socket', { lv: k.level + 1 })}`, desc: itemText(k.id, k.level + 1, k.rarity) + poor(price) },
+          () => {
+            if (!pay(price)) return;
+            k.level++;
+            const oldMax = this.player.maxHp;
+            this.rebuildLoadout(false);
+            this.player.hp += Math.max(0, this.player.maxHp - oldMax);
+          },
+        );
+      }
+      add({ kind: 'overflow', id: 'ripperOs', rarity: common, title: tr('station.os'), levelLabel: cost(RP.osSwap), desc: tr('station.osDesc', { name: `${this.os.name} Lv${this.os.level}` }) }, () => {
+        s.osPage = 0;
+      });
+    } else {
+      // OS 목록 (한 화면에 3개씩)
+      const list = OS_IDS.filter((id) => id !== this.os.id);
+      const page = list.slice(s.osPage * 3, s.osPage * 3 + 3);
+      for (const id of page) {
+        const lv = this.osLevelFor(id);
+        const st = new OsState(id, lv);
+        add({ kind: 'overflow', id: `os_${id}`, art: `os_${id}`, rarity: common, title: st.name, levelLabel: `OS Lv${st.level}`, desc: [st.def.tags.length ? `[${st.def.tags.join('·')}]` : '', st.lines()[0].text, st.level > 1 ? tr('station.osMore', { n: st.level - 1 }) : ''].filter(Boolean).join('\n') }, () => {
+          if (!pay(ST.ripper.osSwap)) return;
+          this.setOs(id, lv);
+          s.osPage = -1;
+        });
+      }
+      if (list.length > 3)
+        add({ kind: 'overflow', id: 'osNext', rarity: common, title: tr('station.next'), levelLabel: `${s.osPage + 1} / ${Math.ceil(list.length / 3)}`, desc: '' }, () => {
+          s.osPage = (s.osPage + 1) % Math.ceil(list.length / 3);
+        });
+    }
+    this.choices = cards;
+    const title = `${tr(s.kind === 'shop' ? 'station.shop' : 'station.ripper')}  ◆${chips}`;
+    const back = s.kind === 'ripper' && s.osPage >= 0;
+    this.levelUi.show(
+      cards,
+      0,
+      (i) => {
+        if (this.stationOpen !== s || !acts[i]) return;
+        acts[i]();
+        if (this.abilityPending) {
+          // 전설·신화 무기를 샀으면 능력부터 고르고 다시 이 화면으로
+          this.levelUi.hide();
+          this.nextScreen();
+        } else this.openStation(s);
+      },
+      () => undefined,
+      title,
+      {
+        label: tr(back ? 'station.back' : 'station.leave'),
+        onSkip: () => {
+          if (back) {
+            s.osPage = -1;
+            this.openStation(s);
+            return;
+          }
+          this.levelUi.hide();
+          // 들렀다 나오면 그 노점은 문을 닫음
+          s.t = 0;
+          this.stationOpen = null;
+          this.nextScreen();
+        },
+      },
+    );
+  }
+
+  /** OS 레벨: 판 밖 해금·뽑기(4단계) 전까지 개발자 도구 레벨, 없으면 4 (표준 OS는 1) */
+  private osLevelFor(id: string): number {
+    if (!OS_DEFS[id]?.active) return 1;
+    return (DEV_TOOLS ? devOsPick()?.level : undefined) ?? 4;
   }
 
   // ───────────── 개편 2단계: 보급 상자·아이템 ─────────────
@@ -1960,30 +2224,33 @@ export class GameScene extends Phaser.Scene implements GameContext {
     this.state = 'levelup';
     const min = this.chestQueue.shift();
     const rolls = rollItems(3, this.equippedIds(), min);
-    this.choices = rolls.map((r) => {
-      const kind = r.kind === 'weapon' ? 'weapon' : 'passive';
-      let desc = '';
-      let lv = 1;
-      let was: { name: string; tags: string[] } | null = null;
-      if (r.kind === 'weapon') {
-        const cur = this.weapons.find((w) => w.slot === weaponSlot(r.id as WeaponId));
-        lv = cur?.level ?? 1;
-        if (cur) was = { name: cur.name, tags: this.wTags.get(cur.id) ?? weaponTags(cur.id, cur.abilities) };
-        desc = weaponsData[r.id as WeaponId].desc + (r.rarity.weaponBonus > 0 ? tr('lvl.bonus', { v: Math.round(r.rarity.weaponBonus * 100) }) : '');
-        if (r.rarity.ability) desc += '\n' + tr('item.pickAbility', { tier: r.rarity.label });
-        if (r.rarity.id === 'mythic') desc += '\n' + tr('item.awakenHint', { n: gameData.mythicAwaken });
-        if (cur) desc += '\n' + tr('item.replace', { cur: cur.name });
-      } else {
-        const cur = this.sockets.get(ITEMS[r.id].part);
-        lv = cur?.level ?? 1;
-        if (cur) was = { name: itemName(ITEMS[cur.id].kind as ItemKind, cur.id), tags: itemTags(cur.id) };
-        desc = itemText(r.id, lv, r.rarity.id);
-        if (cur) desc += '\n' + tr('item.replace', { cur: itemName(ITEMS[cur.id].kind as ItemKind, cur.id) });
-      }
-      desc += this.tagLine(r.kind, r.id);
-      return { kind, id: r.id, art: itemArt(r.id), rarity: r.rarity, title: itemName(r.kind, r.id), levelLabel: `${socketLabel(r.kind, r.id)} · ${tr('lvl.socket', { lv })}`, desc, isNew: true, item: { kind: r.kind, id: r.id }, card: itemCard({ kind: r.kind, id: r.id, rarity: r.rarity, lv, cur: was, tagCount: this.kit.tagCount }) } as Choice;
-    });
+    this.choices = rolls.map((r) => this.itemChoice(r));
     this.levelUi.show(this.choices, 0, (i) => this.pick(i), () => undefined, tr('item.title'), this.skipButton(Math.max(0, gameData.rarity.findIndex((r) => r.id === min)), () => undefined));
+  }
+
+  /** 아이템 카드 (보급 상자·상점) */
+  private itemChoice(r: ItemRoll): Choice {
+    const kind = r.kind === 'weapon' ? 'weapon' : 'passive';
+    let desc = '';
+    let lv = 1;
+    let was: { name: string; tags: string[] } | null = null;
+    if (r.kind === 'weapon') {
+      const cur = this.weapons.find((w) => w.slot === weaponSlot(r.id as WeaponId));
+      lv = cur?.level ?? 1;
+      if (cur) was = { name: cur.name, tags: this.wTags.get(cur.id) ?? weaponTags(cur.id, cur.abilities) };
+      desc = weaponsData[r.id as WeaponId].desc + (r.rarity.weaponBonus > 0 ? tr('lvl.bonus', { v: Math.round(r.rarity.weaponBonus * 100) }) : '');
+      if (r.rarity.ability) desc += '\n' + tr('item.pickAbility', { tier: r.rarity.label });
+      if (r.rarity.id === 'mythic') desc += '\n' + tr('item.awakenHint', { n: gameData.mythicAwaken });
+      if (cur) desc += '\n' + tr('item.replace', { cur: cur.name });
+    } else {
+      const cur = this.sockets.get(ITEMS[r.id].part);
+      lv = cur?.level ?? 1;
+      if (cur) was = { name: itemName(ITEMS[cur.id].kind as ItemKind, cur.id), tags: itemTags(cur.id) };
+      desc = itemText(r.id, lv, r.rarity.id);
+      if (cur) desc += '\n' + tr('item.replace', { cur: itemName(ITEMS[cur.id].kind as ItemKind, cur.id) });
+    }
+    desc += this.tagLine(r.kind, r.id);
+    return { kind, id: r.id, art: itemArt(r.id), rarity: r.rarity, title: itemName(r.kind, r.id), levelLabel: `${socketLabel(r.kind, r.id)} · ${tr('lvl.socket', { lv })}`, desc, isNew: true, item: { kind: r.kind, id: r.id }, card: itemCard({ kind: r.kind, id: r.id, rarity: r.rarity, lv, cur: was, tagCount: this.kit.tagCount }) } as Choice;
   }
 
   /** 전설·신화 무기를 얻은 뒤 그 등급 능력 중 하나 고르기 */
@@ -1998,6 +2265,12 @@ export class GameScene extends Phaser.Scene implements GameContext {
   /** 아이템·능력 카드 고름 */
   private pickItem(c: Choice): void {
     this.levelUi.hide();
+    this.equipItem(c);
+    this.nextScreen();
+  }
+
+  /** 아이템·능력 장착 (화면 넘김 없음: 보급 상자·상점이 같이 씀) */
+  private equipItem(c: Choice): void {
     if (c.pickAbility) {
       const w = this.weapons.find((o) => o.id === c.pickAbility!.weapon);
       const abId = (c as unknown as { abilityId: string }).abilityId;
@@ -2021,7 +2294,6 @@ export class GameScene extends Phaser.Scene implements GameContext {
       this.rebuildLoadout();
       this.player.hp += Math.max(0, this.player.maxHp - oldMax);
     }
-    this.nextScreen();
   }
 
   /** 보급 상자를 떨어뜨림 (minRarity: 최소 등급) */
@@ -2253,6 +2525,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
     if (this.transitionT <= 0) this.spawner.update(dt, zt, zt, (wavesData as Record<string, Wave[]>)[this.zone.id], p.x, p.y, this.zoneHpMul(zt), this.zoneSpawnMul(zt), this.directorSense(), this.elapsed);
     this.updateZoneRule(dt);
     if (this.transitionT <= 0) this.updateCounters(dt, zt);
+    this.updateStations(dt, zt);
     this.thornT -= dt;
 
     this.grid.clear();
@@ -3405,7 +3678,9 @@ export class GameScene extends Phaser.Scene implements GameContext {
       for (const z of this.fireZones) {
         z.t -= dt;
         fx.fillStyle(COLORS.orange, 0.18 + Math.sin(this.elapsed * 20 + z.x) * 0.05).fillCircle(z.x, z.y, 28);
-        for (const e of this.grid.query(z.x, z.y, 28, this.chainBuf).slice()) if (e.active && (e.x - z.x) ** 2 + (e.y - z.y) ** 2 < 28 * 28) this.synDamage(e, dps * dt, 'explosive');
+        // 0.25초마다 묶어서 (최종 피해가 정수라 매 프레임 작은 피해는 부풀려짐)
+        if (Math.floor((z.t + dt) * 4) === Math.floor(z.t * 4)) continue;
+        for (const e of this.grid.query(z.x, z.y, 28, this.chainBuf).slice()) if (e.active && (e.x - z.x) ** 2 + (e.y - z.y) ** 2 < 28 * 28) this.synDamage(e, dps * 0.25, 'explosive');
       }
       this.fireZones = this.fireZones.filter((z) => z.t > 0);
     }
@@ -3605,6 +3880,8 @@ export class GameScene extends Phaser.Scene implements GameContext {
     this.cameras.main.flash(400, 0, 240, 255);
     this.zoneIdx++;
     this.zoneStart = this.elapsed;
+    this.clearStations();
+    this.stationsFired = 0;
     this.bossesSpawned = 0;
     this.raidsInZone = 0;
     this.nextRaid = this.elapsed + this.zone.raidStart + Math.random() * gameData.raid.firstDelayMax;

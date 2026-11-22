@@ -57,11 +57,26 @@ export function itemValues(id: string, lv: number, rarity: string): Record<strin
   return out;
 }
 
-/** 아이템 문구에 값을 채움 */
+/**
+ * 화면에 보이는 값 반올림 (계산은 정확한 값 그대로):
+ * 5 이상은 정수(12.5 → 13), 그보다 작으면 소수 첫째 자리(초당 회복 0.4 등이 0이 되지 않게)
+ */
+export function displayNum(v: number): number {
+  return Math.abs(v) >= 5 ? Math.round(v) : Math.round(v * 10) / 10;
+}
+
+/** 화면 표시용 아이템 값 (displayNum으로 반올림) */
+export function itemDisplayValues(id: string, lv: number, rarity: string): Record<string, number> {
+  const v = itemValues(id, lv, rarity);
+  for (const k of Object.keys(v)) v[k] = displayNum(v[k]);
+  return v;
+}
+
+/** 아이템 문구에 값을 채움 (표시용 반올림) */
 export function itemText(id: string, lv: number, rarity: string): string {
   const it = ITEMS[id];
   if (!it) return '';
-  const v = itemValues(id, lv, rarity);
+  const v = itemDisplayValues(id, lv, rarity);
   return it.text.replace(/\{([A-Za-z][A-Za-z0-9_]*)\}/g, (_m, k: string) => (k in v ? String(v[k]) : '?'));
 }
 
