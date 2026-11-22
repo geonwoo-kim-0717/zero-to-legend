@@ -32,6 +32,7 @@ import { Save, type Runner, type RunnerId, type SpecialId, type RunStats } from 
 import { rollChoices, abilityCard, computeStats, passiveAmount, passiveAbility, type Choice, type PassiveId, type PassiveState, type SocketCard } from '../systems/Progression';
 import { LevelUpUI } from '../ui/LevelUpUI';
 import { itemCard } from '../ui/cardInfo';
+import { buildEquipPanel } from '../ui/EquipPanel';
 import { Sound, type SfxKey, type MusicKey } from '../systems/Sound';
 import { addMuteToggle, addFxToggle, addDmgToggle, addIntroToggle, addFullscreenToggle } from '../ui/MuteToggle';
 import { isTouch } from '../systems/Fullscreen';
@@ -1478,7 +1479,6 @@ export class GameScene extends Phaser.Scene implements GameContext {
     if (!on) return;
     // 뒤를 어둡게 해서 글자가 잘 보이게
     this.pauseUi.push(this.add.rectangle(0, 0, VIEW_W, VIEW_H, 0x000000, 0.5).setOrigin(0).setScrollFactor(0).setDepth(99));
-    this.buildPanel();
     const btn = (x: number, y: number, label: string, color: string, onClick: () => void) => {
       const b = this.add
         .text(x, y, label, { ...TEXT, fontSize: '13px', color, backgroundColor: '#120a24', padding: { x: 12, y: 6 } })
@@ -1490,7 +1490,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
       this.pauseUi.push(b);
       return b;
     };
-    btn(VIEW_W / 2, VIEW_H / 2 + 84, tr('pause.abandon'), '#ff5a6a', () => {
+    const abandon = () => {
       for (const o of this.pauseUi.slice(1)) o.destroy();
       this.pauseUi = this.pauseUi.slice(0, 1);
       this.hud.center.setVisible(false);
@@ -1511,7 +1511,17 @@ export class GameScene extends Phaser.Scene implements GameContext {
         this.hud.center.setVisible(this.state === 'paused');
         this.showPauseMenu(true);
       });
-    });
+    };
+    // UI: 장비창 (소켓 8칸 인체도 + 자세히·시너지·조합)
+    const os = SP[this.specialId];
+    this.pauseUi.push(
+      buildEquipPanel(
+        this,
+        { weapons: this.weapons, sockets: this.sockets, os: { id: this.specialId, name: I18n.lang === 'ko' ? os.name : os.label, color: os.color, desc: (os as { desc?: string }).desc }, tagCount: this.kit.tagCount, tiers: this.kit.tiers, combos: this.kit.combos },
+        { onResume: () => this.togglePause(), onAbandon: abandon },
+      ),
+    );
+    this.hud.center.setVisible(false);
   }
 
   /** 일시정지 화면 위쪽: 지금 가진 무기·사이버웨어·추가 강화 카드. 누르면 효과를 보여준다 */
