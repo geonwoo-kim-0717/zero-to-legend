@@ -43,6 +43,53 @@ export class HackDrone extends WeaponBase {
     this.syncSprites();
   }
 
+  // ── 원거리 레이저: 드론 저격망 조합(해킹 드론 + 전술 스캐너), 택티컬 OS 2줄(표식된 적만) ──
+  private snipeT = 0;
+  private beams: { x1: number; y1: number; x2: number; y2: number; life: number }[] = [];
+  private readonly snipeBuf: Enemy[] = [];
+
+  private snipe(dt: number, n: number, orbit: number, dmg: number): void {
+    const combo = this.ctx.mod('combo.droneScanner');
+    const focus = !!this.ctx.mod('tactical.focus');
+    const fx = this.ctx.fx;
+    for (const b of this.beams) {
+      b.life -= dt;
+      fx.lineStyle(1.5, 0x00e5f2, Math.max(0, b.life / 0.12)).lineBetween(b.x1, b.y1, b.x2, b.y2);
+    }
+    this.beams = this.beams.filter((b) => b.life > 0);
+    if ((!combo && !focus) || (this.snipeT -= dt) > 0) return;
+    this.snipeT = combo?.gap ?? 1;
+    const range = combo?.range ?? 150;
+    const pct = (combo?.pct ?? 60) / 100;
+    const p = this.ctx.player;
+    for (let i = 0; i < n; i++) {
+      if ((this.gone[i] ?? 0) > 0) continue;
+      const a = this.angle + (i / n) * Math.PI * 2;
+      const x = p.x + Math.cos(a) * orbit;
+      const y = p.y + Math.sin(a) * orbit;
+      if (this.ctx.jammed(x, y)) continue;
+      // 표식된 적 먼저, 조합이 있으면 그다음 가까운 적 (택티컬 2줄만이면 표식된 적만)
+      let best: Enemy | null = null;
+      let bd = range * range;
+      let bestMarked = false;
+      for (const e of this.ctx.grid.query(x, y, range, this.snipeBuf)) {
+        if (!e.active) continue;
+        const marked = this.ctx.isMarked(e);
+        if (!marked && !combo) continue;
+        const d = (e.x - x) ** 2 + (e.y - y) ** 2;
+        if (d > range * range) continue;
+        if ((marked && !bestMarked) || ((marked === bestMarked) && d < bd)) {
+          best = e;
+          bd = d;
+          bestMarked = marked;
+        }
+      }
+      if (!best) continue;
+      if (this.beams.length < 30) this.beams.push({ x1: x, y1: y, x2: best.x, y2: best.y, life: 0.12 });
+      this.ctx.damage(best, dmg * pct, this.tag);
+    }
+  }
+
   private syncSprites(): void {
     while (this.sprites.length < this.droneCount) {
       this.sprites.push(this.ctx.phaser.add.image(0, 0, 'hackdrone').setDepth(18).setBlendMode(Phaser.BlendModes.ADD));
@@ -147,6 +194,8 @@ export class HackDrone extends WeaponBase {
         },
       );
     }
+
+    this.snipe(dt, n, orbit, dmg);
 
     // 전설: 자폭 드론 — 1초마다 드론 1기가 가장 가까운 적에게 돌진해 자폭(피해 ×5), 0.8초 뒤 다시 생김
     if (this.has('kamikazeDrone') && (this.boomT -= dt) <= 0) {

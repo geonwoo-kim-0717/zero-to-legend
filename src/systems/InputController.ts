@@ -138,6 +138,15 @@ export class InputController {
     scene.events.once(Phaser.Scenes.Events.SHUTDOWN, () => scene.game.events.off(Phaser.Core.Events.BLUR, this.reset, this));
   }
 
+  /** 일시정지·카드 화면 등에서는 버튼·조준점을 숨김 */
+  setVisible(v: boolean): void {
+    if (this.gfx.visible === v) return;
+    this.gfx.setVisible(v);
+    this.subLabel.setVisible(v && this.subUse !== 'none');
+    for (const l of this.labels) l.setVisible(v && this.touchUsed);
+    if (!v) this.drag = null;
+  }
+
   /** 보조무기 버튼을 누름: tap 무기는 바로, drag 무기는 끌기 시작 */
   private startSub(id: number, x: number, y: number): void {
     if (this.subUse === 'tap') return void this.pressSecondary(null);

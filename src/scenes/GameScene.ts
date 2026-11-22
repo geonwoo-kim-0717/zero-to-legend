@@ -2105,6 +2105,8 @@ export class GameScene extends Phaser.Scene implements GameContext {
 
   // ───────────────────────────── 메인 루프 ─────────────────────────────
   update(_time: number, deltaMs: number): void {
+    // 입력 버튼(보조무기·대시·OS)과 조준점은 전투 중에만
+    this.controls?.setVisible(this.state === 'play');
     // 포털에 '지금 조작 중인지' 알림 (레벨업·대화·일시정지·이월 화면은 플레이 아님)
     Ads.setPlaying(this.state === 'play');
     this.syncOdFx();
