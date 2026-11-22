@@ -23,6 +23,13 @@ jobs:
         env:
           # 게시자 ID는 .env.web 에 있음. 승인 후 저장소 Variables 에 AD_TEST=0 을 넣으면 실제 광고
           VITE_AD_TEST: ${{ vars.AD_TEST || '1' }}
+      # 개편판 미리보기: 개편 브랜치를 따로 빌드해 dist/redesign/ 에 넣음 (?debug 로 열면 이리로 감)
+      - uses: actions/checkout@v4
+        with: { ref: redesign/step1-twinstick, path: redesign-src, fetch-depth: 0 }
+      - run: npm ci && npm run build:web && mkdir -p ../dist/redesign && cp -r dist/. ../dist/redesign/ && rm -f ../dist/redesign/ads.txt ../dist/redesign/robots.txt ../dist/redesign/sitemap.xml ../dist/redesign/google*.html
+        working-directory: redesign-src
+        env:
+          VITE_AD_TEST: '1'
       - uses: actions/upload-pages-artifact@v3
         with: { path: dist }
   deploy:

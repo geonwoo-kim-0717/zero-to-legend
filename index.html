@@ -2,6 +2,13 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
+  <script>
+    // 개편판 미리보기: GitHub Pages에서 ?debug 로 열면 개편 브랜치 빌드(redesign/)로 보냄. ?debug&legacy 는 기존 판 개발자 모드
+    (function () {
+      var q = new URLSearchParams(location.search);
+      if (/github\.io$/.test(location.hostname) && q.has('debug') && !q.has('legacy')) location.replace('redesign/' + location.search + location.hash);
+    })();
+  </script>
   <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no, viewport-fit=cover" />
   <title>Zero to Legend</title>
   <meta name="description" content="네온 사이버펑크 도시에서 무기와 사이버웨어를 모아 30분을 버티는 무료 웹 로그라이트. 설치 없이 브라우저와 휴대폰에서 바로 플레이. A free neon cyberpunk auto-battler roguelite you play in the browser." />
