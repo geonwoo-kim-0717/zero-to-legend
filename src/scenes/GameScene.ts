@@ -34,6 +34,7 @@ import { rollChoices, abilityCard, computeStats, passiveAmount, passiveAbility, 
 import { LevelUpUI } from '../ui/LevelUpUI';
 import { itemCard } from '../ui/cardInfo';
 import { buildEquipPanel } from '../ui/EquipPanel';
+import { Hud } from '../ui/Hud';
 import { Sound, type SfxKey, type MusicKey } from '../systems/Sound';
 import { addMuteToggle, addFxToggle, addDmgToggle, addIntroToggle, addFullscreenToggle } from '../ui/MuteToggle';
 import { isTouch } from '../systems/Fullscreen';
@@ -60,7 +61,6 @@ type Volley = { volleyEvery: number; volleyCount: number; bulletSpeed: number; b
 const ZONES = zonesData.zones;
 const ZR = gameData.zoneRules;
 /** 왼쪽 위 체력바 폭 */
-const HP_W = 120;
 type BossPhase = 'walk' | 'aim' | 'charge' | 'leap' | 'air' | 'slam' | 'enter' | 'taunt' | 'hookAim' | 'hookFly' | 'hookPull' | 'hookGap' | 'hookBack' | 'walkIn' | 'phaseShift' | 'gatling' | 'call' | 'stomp' | 'stompRec' | 'drop' | 'sweepAim' | 'sweep' | 'mgAim' | 'mg' | 'plasma' | 'missileFire' | 'rise' | 'lower' | 'deploy';
 /** 블랙 실드 요원 공격 그림·이펙트 (아트 tools/art/sprites2026/scripts/troopers6/keys/atk_meta.json) */
 const TROOPER_ATK = {
@@ -630,8 +630,8 @@ export class GameScene extends Phaser.Scene implements GameContext {
   private dashGhostT = 0;
   private dashRings: { r: number; life: number }[] = [];
   private flashRect!: Phaser.GameObjects.Rectangle;
-  private icons: { img: Phaser.GameObjects.Image; lvl: Phaser.GameObjects.Text; star: Phaser.GameObjects.Text }[] = [];
 
+  private hudUi!: Hud;
   private hud!: {
     time: Phaser.GameObjects.Text;
     kills: Phaser.GameObjects.Text;
@@ -696,7 +696,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
     this.dmgSec = [];
     this.mergeT = this.dashGhostT = 0;
     this.dashRings = [];
-    this.icons = [];
+    this.devUi = [];
     this.dpsBuckets = new Map();
     this.dpsStart = new Map();
     this.dmgNums = [];
@@ -928,25 +928,11 @@ export class GameScene extends Phaser.Scene implements GameContext {
   }
 
   private createHud(): void {
-    const fixed = <T extends Phaser.GameObjects.Text>(t: T) => t.setScrollFactor(0).setDepth(100);
-    this.hud = {
-      bars: this.add.graphics().setScrollFactor(0).setDepth(100),
-      time: fixed(this.add.text(VIEW_W / 2, 10, '00:00', { ...TEXT, fontSize: '16px' }).setOrigin(0.5, 0)),
-      level: fixed(this.add.text(HP_W + 14, 6, 'LV 1', TEXT)),
-      hp: fixed(this.add.text(8 + HP_W / 2, 6, '', { ...TEXT, fontSize: '10px', strokeThickness: 3 }).setOrigin(0.5, 0)),
-      kills: fixed(this.add.text(VIEW_W - 8, 10, '0', TEXT).setOrigin(1, 0)),
-      debug: fixed(this.add.text(VIEW_W - 8, 42, '', { ...TEXT, fontSize: '11px', color: '#39ff88', align: 'right' }).setOrigin(1, 0)),
-      od: fixed(this.add.text(VIEW_W / 2, VIEW_H - 22, this.specialLabel(), { ...TEXT, fontSize: '11px', color: this.os.def.color }).setOrigin(0.5, 1)),
-      credits: fixed(this.add.text(VIEW_W - 8, 26, '', { ...TEXT, fontSize: '11px', color: '#fff23a' }).setOrigin(1, 0)),
-      bossName: fixed(this.add.text(VIEW_W / 2, 42, '', { ...TEXT, fontSize: '11px', color: '#ff2a3a' }).setOrigin(0.5, 0)),
-      zone: fixed(this.add.text(VIEW_W / 2, 29, '', { ...TEXT, fontSize: '10px', color: '#8a7aa8' }).setOrigin(0.5, 0)),
-      center: fixed(
-        this.add.text(VIEW_W / 2, VIEW_H / 2, '', { ...TEXT, fontSize: '20px', align: 'center' }).setOrigin(0.5).setVisible(false),
-      ),
-    };
-    this.hud.time.setShadow(0, 0, '#00f0ff', 6, true, true);
-    // 무기별 DPS: 왼쪽, 보유 아이콘 아래
-    this.dpsText = fixed(this.add.text(8, 84, '', { ...TEXT, fontSize: '8px', color: '#c8b8e8', lineSpacing: 3 }));
+    // UI: HUD는 src/ui/Hud.ts (글자들은 예전 이름 그대로 this.hud로 씀)
+    this.hudUi = new Hud(this);
+    this.hud = this.hudUi.t;
+    // 무기별 DPS: 왼쪽, 소켓 줄 아래
+    this.dpsText = this.add.text(8, Hud.BELOW, '', { ...TEXT, fontSize: '8px', color: '#c8b8e8', lineSpacing: 3 }).setScrollFactor(0).setDepth(100);
   }
 
   // ───────────────────────────── GameContext ─────────────────────────────
@@ -1373,6 +1359,9 @@ export class GameScene extends Phaser.Scene implements GameContext {
   }
 
   /** 개발자 도구(AI 표시 빌드·?ai·?debug): 3배속·무적·1분 건너뛰기·보스 무적·레벨업·보스 소환 (관찰·테스트용, 저장하지 않음) */
+  /** 개발자 도구 버튼들 (일시정지 장비창을 가리지 않게 일시정지 중엔 숨김) */
+  private devUi: Phaser.GameObjects.Text[] = [];
+
   private makeAiTools(): void {
     const mk = (y: number, label: () => string, toggle: () => void) => {
       const t = this.add
@@ -1381,6 +1370,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
         .setScrollFactor(0)
         .setDepth(160)
         .setInteractive({ useHandCursor: true });
+      this.devUi.push(t);
       t.on('pointerdown', (_p: Phaser.Input.Pointer, _x: number, _y: number, e: Phaser.Types.Input.EventData) => {
         e.stopPropagation();
         toggle();
@@ -1409,6 +1399,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
           .setScrollFactor(0)
           .setDepth(160)
           .setInteractive({ useHandCursor: true });
+        this.devUi.push(t);
         t.on('pointerdown', (_p: Phaser.Input.Pointer, _x: number, _y: number, e: Phaser.Types.Input.EventData) => {
           e.stopPropagation();
           act();
@@ -1517,6 +1508,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
     for (const o of this.pauseUi) o.destroy();
     this.pauseUi = [];
     for (const b of this.settingUi) b.setVisible(on);
+    for (const b of this.devUi) b.setVisible(!on);
     if (!on) return;
     // 뒤를 어둡게 해서 글자가 잘 보이게
     this.pauseUi.push(this.add.rectangle(0, 0, VIEW_W, VIEW_H, 0x000000, 0.5).setOrigin(0).setScrollFactor(0).setDepth(99));
@@ -6961,63 +6953,30 @@ export class GameScene extends Phaser.Scene implements GameContext {
     const m = String(Math.floor(this.elapsed / 60)).padStart(2, '0');
     const s = String(Math.floor(this.elapsed % 60)).padStart(2, '0');
     this.hud.time.setText(`${m}:${s}`);
-    this.hud.level.setText(`LV ${this.level}`);
-    this.hud.kills.setText(`KILL ${this.kills}`);
     this.hud.zone.setText(`${this.zone.label} · ${this.zone.name}${this.heat ? `  ·  HEAT ${this.heat}` : ''}`);
-    this.hud.credits.setText(`₵ ${this.creditsNow(false)}   ${tr('hud.chips', { n: Math.floor(this.chips) })}`);
-    // 보유 아이템: 아이콘 + 레벨 숫자 (윗줄 무기, 아랫줄 사이버웨어), ★는 특수 능력
-    const items = [
-      ...this.weapons.map((w, i) => ({ key: `icon_${w.id}`, lvl: w.level, stars: w.abilities.size, row: 0, col: i })),
-      ...[...this.sockets.values()].map((k, i) => ({ key: `icon_${itemArt(k.id)}`, lvl: k.level, stars: 0, row: 1, col: i })),
-    ];
-    for (let i = items.length; i < this.icons.length; i++) {
-      const ic = this.icons[i];
-      ic.img.setVisible(false);
-      ic.lvl.setText('');
-      ic.star.setText('');
-    }
-    items.forEach((it, i) => {
-      let ic = this.icons[i];
-      if (!ic) {
-        ic = {
-          img: this.add.image(0, 0, it.key).setOrigin(0).setScrollFactor(0).setDepth(100),
-          lvl: this.add.text(0, 0, '', { ...TEXT, fontSize: '10px' }).setOrigin(1, 1).setScrollFactor(0).setDepth(101),
-          star: this.add.text(0, 0, '', { ...TEXT, fontSize: '9px', color: '#fff23a' }).setOrigin(1, 0).setScrollFactor(0).setDepth(101),
-        };
-        this.icons.push(ic);
-      }
-      const x = 8 + it.col * 22;
-      const y = 30 + it.row * 22;
-      ic.img.setTexture(it.key).setPosition(x, y).setVisible(true);
-      ic.lvl.setPosition(x + 18, y + 19).setText(String(it.lvl));
-      ic.star.setPosition(x + 19, y - 4).setText('★'.repeat(it.stars));
-    });
-
     const g = this.hud.bars;
     g.clear();
     g.fillStyle(0x1a1030).fillRect(0, 0, VIEW_W, 4);
     g.fillStyle(COLORS.green).fillRect(0, 0, (VIEW_W * this.xp) / this.xpToNext(), 4);
-
-    // 왼쪽 위 큰 체력바 (30% 아래로 떨어지면 빨갛게 깜빡임)
-    const hpK = Math.max(0, p.hp) / p.maxHp;
-    const low = hpK < 0.3;
-    g.fillStyle(0x07060f, 0.85).fillRect(6, 6, HP_W + 4, 15);
-    g.fillStyle(0x300010).fillRect(8, 8, HP_W, 11);
-    g.fillStyle(low && Math.floor(this.elapsed * 6) % 2 ? 0xffffff : low ? 0xff2a3a : COLORS.magenta).fillRect(8, 8, HP_W * hpK, 11);
-    if (p.shieldT > 0 && p.shield > 0) g.fillStyle(COLORS.cyan, 0.8).fillRect(8, 17, Math.min(HP_W, (HP_W * p.shield) / p.maxHp), 2);
-    this.hud.hp.setText(`${Math.ceil(Math.max(0, p.hp))} / ${p.maxHp}`);
-
-    // 오버드라이브 게이지
-    const ow = 160;
-    const ox = VIEW_W / 2 - ow / 2;
-    const oy = VIEW_H - 18;
-    g.fillStyle(0x2a0a24).fillRect(ox, oy, ow, 5);
-    const full = this.specialOn || this.odGauge >= 100;
-    g.fillStyle(full ? (Math.floor(this.elapsed * 10) % 2 ? COLORS.magenta : COLORS.cyan) : COLORS.magenta).fillRect(ox, oy, (ow * this.odGauge) / 100, 5);
-    this.hud.od.setAlpha(full ? 1 : 0.6);
-    // 게이지가 찼는데 아직 안 썼으면 Q 안내
-    const odText = this.specialLabel() + (!this.specialOn && this.odGauge >= 100 ? '  [Q]' : '');
-    if (this.hud.od.text !== odText) this.hud.od.setText(odText);
+    this.hudUi.update({
+      elapsed: this.elapsed,
+      level: this.level,
+      kills: this.kills,
+      credits: this.creditsNow(false),
+      chips: this.chips,
+      hp: p.hp,
+      maxHp: p.maxHp,
+      shield: p.shield,
+      shieldOn: p.shieldT > 0,
+      weapons: this.weapons,
+      sockets: this.sockets,
+      os: { id: this.os.id, level: this.os.level, color: this.os.def.color, hasActive: this.os.hasActive, label: this.specialLabel() },
+      odGauge: this.odGauge,
+      specialOn: this.specialOn,
+      osCdT: this.osCdT,
+      dash: 1 - p.dashCd / p.dashCooldownMax,
+      touch: isTouch(),
+    });
 
     // 플레이어 아래 체력·대시 바
     const cam = this.cameras.main;
