@@ -20,6 +20,7 @@ import { createWeapon, type WeaponBase, type WeaponId } from '../weapons';
 import { weaponSlot } from '../weapons/WeaponBase';
 import { rollItems, itemName, itemText, socketLabel, weaponAbilities, ITEMS, rarityById, itemArt, type ItemKind } from '../systems/Build';
 import { Loadout, weaponTags, itemTags, combosWith, type Sock } from '../systems/Loadout';
+import { OsState, OS_IDS, OS_DEFS, devOsPick, saveDevOsPick } from '../systems/Os';
 import type { GameContext, Stats, DamageTag, FxOpts } from '../weapons/types';
 import meta from '../data/meta.json';
 import zonesData from '../data/zones.json';
@@ -28,7 +29,7 @@ import bossAnim from '../data/boss_anim.json';
 import boss2Anim from '../data/boss2_anim.json';
 import wavesData from '../data/waves.json';
 import type { Wave } from '../systems/Spawner';
-import { Save, type Runner, type RunnerId, type SpecialId, type RunStats } from '../systems/Save';
+import { Save, type Runner, type RunnerId, type RunStats } from '../systems/Save';
 import { rollChoices, abilityCard, computeStats, passiveAmount, passiveAbility, type Choice, type PassiveId, type PassiveState, type SocketCard } from '../systems/Progression';
 import { LevelUpUI } from '../ui/LevelUpUI';
 import { Sound, type SfxKey, type MusicKey } from '../systems/Sound';
@@ -299,7 +300,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
   private grenadeReactT = 0;
   private sinceDash = 99;
   /** 감전·화상 (남은 초) */
-  private dots = new Map<Enemy, { shock: number; burn: number; acc: number }>();
+  private dots = new Map<Enemy, { shock: number; burn: number; hack: number; acc: number }>();
   /** 폭발 4단계: 잠시 뒤 한 번 더 */
   private echoes: { e: Enemy; t: number; dmg: number }[] = [];
   private zaps: { pts: number[]; life: number }[] = [];
@@ -314,7 +315,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
 
   /** 이번 판의 러너와 장착한 특수 능력 */
   private runner!: Runner;
-  private specialId: SpecialId = 'neural';
+  private specialId = 'stock';
   /** 특수 능력 발동 중 (뉴럴 오버클럭이면 overdrive도 true) */
   private specialOn = false;
   private berserk = false;
@@ -702,7 +703,20 @@ export class GameScene extends Phaser.Scene implements GameContext {
     this.dmgSrc = null;
     this.overdrive = this.specialOn = this.berserk = this.wasUntracked = false;
     this.runner = Save.runner();
-    this.specialId = Save.special(this.runner.id as RunnerId);
+    // 개편 2-3: OS. 판 밖 뽑기(4단계) 전까지: 개발자 도구에서 고른 OS·레벨, 없으면 아지트에서 낀 특수 능력을 4레벨로 (지금 효과 = 4레벨 수준)
+    {
+      const dev = DEV_TOOLS ? devOsPick() : null;
+      this.os = dev ? new OsState(dev.id, dev.level) : new OsState(Save.special(this.runner.id as RunnerId), 4);
+      this.specialId = this.os.id;
+    }
+    this.osCdT = this.bossStunT = this.bossStunCd = this.osExt = 0;
+    this.ambush = false;
+    this.marks = new Map();
+    this.fireZones = [];
+    for (const t of this.freeTurrets) t.img.destroy();
+    this.freeTurrets = [];
+    this.orbitalTargets = [];
+    this.orbitalPick = -1;
     this.revives = Save.clinicLevel('revive');
     this.regen = Save.clinicValue('regen');
     this.run = { kills: 0, droneKills: 0, meleeKills: 0, trooperKills: 0, midbossKills: 0, bossKills: 0, hexKills: 0, coreKills: 0, time: 0, level: 1, zone: 1 };
@@ -920,7 +934,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
       hp: fixed(this.add.text(8 + HP_W / 2, 6, '', { ...TEXT, fontSize: '10px', strokeThickness: 3 }).setOrigin(0.5, 0)),
       kills: fixed(this.add.text(VIEW_W - 8, 10, '0', TEXT).setOrigin(1, 0)),
       debug: fixed(this.add.text(VIEW_W - 8, 42, '', { ...TEXT, fontSize: '11px', color: '#39ff88', align: 'right' }).setOrigin(1, 0)),
-      od: fixed(this.add.text(VIEW_W / 2, VIEW_H - 22, this.specialLabel(), { ...TEXT, fontSize: '11px', color: SP[this.specialId].color }).setOrigin(0.5, 1)),
+      od: fixed(this.add.text(VIEW_W / 2, VIEW_H - 22, this.specialLabel(), { ...TEXT, fontSize: '11px', color: this.os.def.color }).setOrigin(0.5, 1)),
       credits: fixed(this.add.text(VIEW_W - 8, 26, '', { ...TEXT, fontSize: '11px', color: '#fff23a' }).setOrigin(1, 0)),
       bossName: fixed(this.add.text(VIEW_W / 2, 42, '', { ...TEXT, fontSize: '11px', color: '#ff2a3a' }).setOrigin(0.5, 0)),
       zone: fixed(this.add.text(VIEW_W / 2, 29, '', { ...TEXT, fontSize: '10px', color: '#8a7aa8' }).setOrigin(0.5, 0)),
@@ -955,6 +969,13 @@ export class GameScene extends Phaser.Scene implements GameContext {
     const src = this.dmgSrc;
     const proc = !this.procLock;
     if (L.has('gear.mark') && (e.x - this.aim.x) ** 2 + (e.y - this.aim.y) ** 2 < 50 * 50) amount *= 1 + L.v('gear.mark') / 100;
+    // OS: 택티컬 표식, 광학 위장 3줄 매복(풀린 뒤 첫 공격)
+    if (this.isMarked(e)) amount *= 1 + this.os.v('mark', 25) / 100;
+    if (this.ambush && proc && src) {
+      this.ambush = false;
+      amount *= this.os.v('amb', 2);
+      this.burst(e.x, e.y, 0x39ff88, 8);
+    }
     if (L.has('cyber.eliteDmg') && (e.isBoss || e.maxHp >= 1000)) amount *= 1 + L.v('cyber.eliteDmg') / 100;
     if (src === 'mantisBlade' && L.has('combo.bladeReflex') && this.sinceDash <= L.v('combo.bladeReflex', 't')) amount *= L.v('combo.bladeReflex', 'mul', 1);
     // 강화 근섬유 특수 능력: 치명타 · 치명 폭주 · 분노 · 연속 처치
@@ -1398,6 +1419,26 @@ export class GameScene extends Phaser.Scene implements GameContext {
     row(VIEW_H - 80, [
       // 자동 조준: 가까운 적을 노리고 알아서 쏨 (봇·관찰용)
       [() => `자동 조준: ${this.controls.autoAim ? '켬' : '끔'}`, () => (this.controls.autoAim = !this.controls.autoAim)],
+      // 개편 2-3: OS 고르기·레벨 (판 밖 뽑기가 생기기 전 임시, 다음 판에도 기억)
+      [
+        () => `OS: ${this.os.name} ▶`,
+        () => {
+          const next = OS_IDS[(OS_IDS.indexOf(this.os.id) + 1) % OS_IDS.length];
+          const lv = OS_DEFS[next].active ? this.os.level : 1;
+          this.setOs(next, lv);
+          saveDevOsPick(next, lv);
+        },
+      ],
+      [
+        () => `OS Lv${this.os.level} ▲`,
+        () => {
+          const max = this.os.def.levels.length;
+          const lv = (this.os.level % max) + 1;
+          this.setOs(this.os.id, lv);
+          saveDevOsPick(this.os.id, lv);
+        },
+      ],
+      [() => 'Q 충전', () => this.os.hasActive && !this.specialOn && ((this.osCdT = 0), (this.odGauge = 100))],
     ]);
     row(VIEW_H - 62, [
       // 보스만 무적 (보스 패턴 관찰용)
@@ -1536,6 +1577,11 @@ export class GameScene extends Phaser.Scene implements GameContext {
         detail: [passivesData[id].desc.replace('{v}', String(Math.round(st.total))), ...abil.map((a) => `★ ${a.name}\n${a.desc}`)].join('\n'),
         color: abil.length ? rar('legendary').color : '#e8f7ff',
       });
+    }
+    {
+      const os = this.os;
+      const lines = os.lines().map((l, i) => `${l.on ? '●' : '○'} ${i + 1}. ${l.text}`);
+      items.push({ tex: '', title: os.name, sub: `OS Lv.${os.level}`, detail: [`${os.def.tags.length ? `[${os.def.tags.join('·')}]` : ''}`, ...lines].filter(Boolean).join('\n'), color: os.def.color });
     }
     for (const k of this.sockets.values()) {
       const kind = ITEMS[k.id].kind as ItemKind;
@@ -1808,6 +1854,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
     this.kit = new Loadout(
       this.weapons.map((w) => ({ id: w.id, abilities: w.abilities })),
       this.sockets,
+      this.os.def.tags,
     );
     const L = this.kit;
     this.wMul.clear();
@@ -1825,7 +1872,9 @@ export class GameScene extends Phaser.Scene implements GameContext {
       if (mech) cd /= 1 + L.v('syn.mech3') / 100;
       if (tags.includes('전기')) area *= 1 + L.v('gear.elecRange') / 100;
       if (tags.includes('폭발')) area *= 1 + L.v('syn.boom2') / 100;
-      const sub = w.slot === 'secondary' ? Math.max(0.2, 1 - L.v('cyber.subCd') / 100) : 1;
+      // 뉴럴 5줄: 오버클럭 중 보조무기 재사용 대기 없음
+      const flush = this.overdrive && this.os.has('neural.flush');
+      const sub = w.slot === 'secondary' ? (flush ? 0.05 : Math.max(0.2, 1 - L.v('cyber.subCd') / 100)) : 1;
       this.wMul.set(w.id, { dmg, cd, sub, area });
     }
     if (!L.has('gear.shield')) this.gShield = 0;
@@ -1848,7 +1897,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
 
   /** GameContext: 켜진 효과 값 (없으면 undefined) */
   mod(hook: string): Record<string, number> | undefined {
-    return this.kit.get(hook);
+    return this.kit.get(hook) ?? (this.os.has(hook) ? this.os.p : undefined);
   }
 
   /** GameContext: 무기별 배율 (아드레날린 주입기는 체력이 낮을 때만) */
@@ -2111,7 +2160,8 @@ export class GameScene extends Phaser.Scene implements GameContext {
       }
     }
     const hackMul = p.hackT > 0 ? gameData.squadAi.hacker.slow : 1;
-    p.update(dt, this.controls.moveX, this.controls.moveY, this.stats.moveMul * hackMul);
+    const guard = this.specialOn && this.specialId === 'guardian' && this.os.has('guardian.stand') && p.shield > 0 ? 1 + this.os.v('move') / 100 : 1;
+    p.update(dt, this.controls.moveX, this.controls.moveY, this.stats.moveMul * hackMul * guard);
     this.dashPath = null;
     if (this.wasDashing && !p.dashing) {
       this.dashPath = { x1: this.dashFrom.x, y1: this.dashFrom.y, x2: p.x, y2: p.y };
@@ -2194,7 +2244,8 @@ export class GameScene extends Phaser.Scene implements GameContext {
 
     this.updateOverdrive(dt);
     this.updateEnemies(dt);
-    if (this.boss) this.updateBoss(dt);
+    // 보스 기절(궤도 폭격·해커 5줄) 중에는 보스가 멈춤
+    if (this.boss && this.bossStunT <= 0) this.updateBoss(dt);
     this.updateAim();
     for (const w of this.weapons) {
       this.dmgSrc = w.id;
@@ -2269,7 +2320,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
 
   private updateEnemies(dt: number): void {
     const p = this.player;
-    const slow = this.overdrive ? OD.enemySpeedMul : 1;
+    const slow = this.odSlowMul;
     const hidden = this.untracked;
     const conv = this.zone.rule === 'conveyor';
     for (const e of this.enemyPool.items) {
@@ -2482,11 +2533,13 @@ export class GameScene extends Phaser.Scene implements GameContext {
     const p = this.player;
     // 투명(광학 위장·고스트 대시) 중에는 어떤 공격도 통하지 않는다
     // 투명 중·보스 클로즈업 중에는 피해 없음
-    if (this.god || this.untracked || this.cine) return;
+    // 투명: 대시 위장, 광학 위장 2줄부터는 피해 없음
+    if (this.god || this.cine || (this.untracked && (this.player.cloakT > 0 || this.os.has('cloak.invuln')))) return;
     if (src) this.lastHit = src;
     // 보스(몸통·공격·탄 모두)에게 맞으면 보스 반대쪽으로 bossHitKnock px 밀림
     const kb = this.boss;
-    if (src && kb && src.id === kb.id) {
+    const standing = this.specialOn && this.specialId === 'guardian' && this.os.has('guardian.stand') && p.shield > 0;
+    if (src && kb && src.id === kb.id && !standing) {
       const kx = p.x - kb.x;
       const ky = p.y - kb.y;
       const kd = Math.hypot(kx, ky) || 1;
@@ -2531,11 +2584,24 @@ export class GameScene extends Phaser.Scene implements GameContext {
         return;
       }
     }
-    // 순간 재부팅 쉴드가 먼저 피해를 흡수
+    // 광전사 5줄: 발동 중 받는 피해 감소
+    if (this.berserk && this.os.has('berserk.last')) dmg *= 1 - this.os.v('dr') / 100;
+    // 순간 재부팅 쉴드·가디언 보호막이 먼저 피해를 흡수
     if (p.shieldT > 0 && p.shield > 0) {
       const absorbed = Math.min(p.shield, dmg);
       p.shield -= absorbed;
       dmg -= absorbed;
+      const guarding = this.specialOn && this.specialId === 'guardian';
+      // 가디언 5줄: 보호막이 받은 피해 일부를 공격한 적에게 돌려줌
+      if (guarding && this.os.has('guardian.reflect') && src) {
+        const att = src.id === this.boss?.id ? this.boss : this.grid.query(p.x, p.y, 120, this.chainBuf).find((e) => e.active && e.id === src.id);
+        if (att) {
+          this.zap(p.x, p.y, att.x, att.y, 0x4fa8ff);
+          this.synDamage(att, (absorbed * this.os.v('reflect', 50)) / 100);
+        }
+      }
+      // 가디언 3줄: 보호막이 깨질 때 충격파
+      if (guarding && p.shield <= 0 && this.os.has('guardian.burst')) this.synBlast(p.x, p.y, this.os.v('radius', 120), this.os.v('dmg', 120) * this.stats.damageMul, 0x4fa8ff);
       if (dmg <= 0) {
         p.invuln = 0.3;
         this.burst(p.x, p.y, COLORS.cyan, 6);
@@ -2545,6 +2611,8 @@ export class GameScene extends Phaser.Scene implements GameContext {
     }
     p.hp -= dmg;
     p.invuln = bossHit ? PLAYER.bossHurtInvuln : PLAYER.hurtInvuln;
+    // 광전사 5줄: 체력이 낮아지면 게이지가 차 있을 때 자동 발동
+    if (this.specialId === 'berserk' && this.os.has('berserk.last') && !this.specialOn && this.odGauge >= 100 && p.hp > 0 && p.hp <= (p.maxHp * this.os.v('hpPct', 30)) / 100) this.activateSpecial();
     Sound.play('hurt');
     // 불굴: 치명상을 입으면 체력 1로 버티고 3초 무적 (챕터마다 1번)
     if (p.hp <= 0 && this.pHas('undying') && !this.undyingUsed) {
@@ -2769,9 +2837,11 @@ export class GameScene extends Phaser.Scene implements GameContext {
       this.dropChest(e.x, e.y);
     } else if (e.id.startsWith('trooper') && Math.random() < SU.trooperChance) this.dropChest(e.x, e.y, 'rare');
     if (Math.random() < gameData.healDropChance) this.dropPickup('heal', e.x + 6, e.y, gameData.healAmount);
-    if (!this.specialOn) this.odGauge = Math.min(100, this.odGauge + OD.perKill);
+    // OS 게이지: chargeKills명 처치로 가득
+    const act = this.os.def.active;
+    if (!this.specialOn && act) this.odGauge = Math.min(100, this.odGauge + 100 / act.chargeKills);
+    this.osKill(e, tag);
     // 광전사 모드: 근접 무기로 처치했을 때만 체력 회복
-    if (this.berserk && tag === 'melee') this.heal(SP.berserk.healPerKill, true);
     if (this.pHas('killStreak')) {
       this.streak = Math.min(20, this.streak + 1);
       this.streakT = 3;
@@ -2828,6 +2898,18 @@ export class GameScene extends Phaser.Scene implements GameContext {
         if (o.active) this.addDot(o, 'shock', L.v('syn.elec2', 'dur', 2));
       }
     }
+    // 해커 3줄: 감전(해킹)된 적이 죽으면 근처로 옮음
+    if (dot && dot.hack > 0 && this.os.has('hacker.chain')) {
+      let n = this.os.v('chain', 2);
+      for (const o of this.grid.query(e.x, e.y, 90, this.chainBuf).slice()) {
+        if (n <= 0) break;
+        if (!o.active || o === e || (o.x - e.x) ** 2 + (o.y - e.y) ** 2 > 90 * 90) continue;
+        n--;
+        this.zap(e.x, e.y, o.x, o.y, 0x9d6bff);
+        this.addDot(o, 'hack', this.os.v('dur', 4));
+        if (this.os.has('hacker.slow')) this.slow(o, this.os.v('dur', 4));
+      }
+    }
     if (L.has('syn.hack3') && Math.random() * 100 < L.v('syn.hack3', 'chance')) {
       const o = this.grid.query(e.x, e.y, 110, this.chainBuf).find((q) => q.active && q !== e && !q.isBoss && q.charmT <= 0);
       if (o) this.charm(o, L.v('syn.hack3', 'dur', 3));
@@ -2843,12 +2925,12 @@ export class GameScene extends Phaser.Scene implements GameContext {
     return this.kit.v('syn.elec2', 'dps') * this.kit.v('syn.elec4', 'mul', 1) * this.stats.damageMul;
   }
 
-  private addDot(e: Enemy, kind: 'shock' | 'burn', dur: number): void {
+  private addDot(e: Enemy, kind: 'shock' | 'burn' | 'hack', dur: number): void {
     if (!e.active || dur <= 0) return;
     let d = this.dots.get(e);
     if (!d) {
       if (this.dots.size > 300) return;
-      this.dots.set(e, (d = { shock: 0, burn: 0, acc: 0 }));
+      this.dots.set(e, (d = { shock: 0, burn: 0, hack: 0, acc: 0 }));
     }
     d[kind] = Math.max(d[kind], dur);
   }
@@ -2896,6 +2978,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
     if (this.dots.size) {
       const burnDps = L.v('syn.boom3', 'dps') * this.stats.damageMul;
       const shockDps = this.shockDps();
+      const hackDps = this.os.v('dot', 15) * this.stats.damageMul;
       for (const [e, d] of [...this.dots]) {
         if (!e.active) {
           this.dots.delete(e);
@@ -2903,14 +2986,15 @@ export class GameScene extends Phaser.Scene implements GameContext {
         }
         d.shock = Math.max(0, d.shock - dt);
         d.burn = Math.max(0, d.burn - dt);
+        d.hack = Math.max(0, d.hack - dt);
         d.acc += dt;
         if (d.acc >= 0.5) {
-          const dmg = ((d.shock > 0 ? shockDps : 0) + (d.burn > 0 ? burnDps : 0)) * d.acc;
+          const dmg = ((d.shock > 0 ? shockDps : 0) + (d.burn > 0 ? burnDps : 0) + (d.hack > 0 ? hackDps : 0)) * d.acc;
           d.acc = 0;
           if (dmg > 0) this.synDamage(e, dmg);
         }
-        if (d.shock <= 0 && d.burn <= 0) this.dots.delete(e);
-        else if (e.active && Math.random() < dt * 6) this.burst(e.x, e.y, d.shock > 0 ? COLORS.cyan : COLORS.orange, 1);
+        if (d.shock <= 0 && d.burn <= 0 && d.hack <= 0) this.dots.delete(e);
+        else if (e.active && Math.random() < dt * 6) this.burst(e.x, e.y, d.hack > 0 ? 0x9d6bff : d.shock > 0 ? COLORS.cyan : COLORS.orange, 1);
       }
     }
     for (const ec of this.echoes) {
@@ -3030,14 +3114,60 @@ export class GameScene extends Phaser.Scene implements GameContext {
     }
   }
 
-  // ───────────────────────────── 오버드라이브 ─────────────────────────────
+  // ───────────────────────────── OS (Q 능력) ─────────────────────────────
+  /** 지금 낀 OS (레벨에 따라 켜진 줄) */
+  private os = new OsState('stock', 1);
+  /** 최소 재사용 대기: 발동한 뒤 이 시간이 지나야 게이지가 다시 가득 참 */
+  private osCdT = 0;
+  /** 광학 위장 3줄: 풀린 뒤 첫 공격 강화 */
+  private ambush = false;
+  /** 발동 중 처치로 늘어난 지속 시간 합 (뉴럴 3줄·광학 위장 5줄 상한용) */
+  private osExt = 0;
+  /** 택티컬 표식: 적 → 남은 초 */
+  private marks = new Map<Enemy, number>();
+  /** 궤도 폭격 3줄 화염 지대 */
+  private fireZones: { x: number; y: number; t: number }[] = [];
+  /** 택티컬 5줄 무료 포탑 */
+  private freeTurrets: { x: number; y: number; t: number; fire: number; img: Phaser.GameObjects.Image }[] = [];
+  /** 보스 기절 (궤도 폭격·해커 5줄): 남은 초, 다시 걸 수 있기까지 */
+  private bossStunT = 0;
+  private bossStunCd = 0;
+
+  /** GameContext: 뉴럴 오버클럭 중 공격속도 배율 */
+  get odFireMul(): number {
+    return this.overdrive ? this.os.v('atk', 2) : 1;
+  }
+
+  /** 뉴럴 오버클럭 중 적·적 탄 속도 배율 */
+  private get odSlowMul(): number {
+    return this.overdrive ? this.os.v('slow', 0.5) : 1;
+  }
+
+  isMarked(e: Enemy): boolean {
+    return (this.marks.get(e) ?? 0) > 0;
+  }
+
+  /** 판 시작·개발자 도구: OS를 끼움 */
+  private setOs(id: string, level: number): void {
+    if (this.specialOn) this.endSpecial();
+    this.os = new OsState(id, level);
+    this.specialId = this.os.id;
+    this.odGauge = 0;
+    this.osCdT = 0;
+    this.hud?.od.setColor(this.os.def.color);
+    this.rebuildLoadout(false);
+  }
+
   private updateOverdrive(dt: number): void {
     // OS 능력: 게이지가 차면 Q(모바일 OS 버튼)로 발동. 자동 조준이면 바로 발동
     const wantSkill = this.controls.consumeSkill();
-    if (!this.specialOn && this.odGauge >= 100 && (wantSkill || this.controls.autoAim)) this.activateSpecial();
+    this.osCdT = Math.max(0, this.osCdT - dt);
+    if (!this.os.hasActive) this.odGauge = 0;
+    else if (!this.specialOn && this.osCdT > 0) this.odGauge = Math.min(this.odGauge, 99);
+    if (this.os.hasActive && !this.specialOn && this.odGauge >= 100 && (wantSkill || this.controls.autoAim)) this.activateSpecial();
     if (this.specialOn) {
       this.odTime -= dt;
-      this.odGauge = (this.odTime / this.specialDuration) * 100;
+      this.odGauge = Phaser.Math.Clamp((this.odTime / this.specialDuration) * 100, 0, 100);
       if (this.overdrive) {
         this.odOverlay.setAlpha(0.06 + Math.sin(this.elapsed * 12) * 0.03);
         // 잔상 효과
@@ -3053,23 +3183,9 @@ export class GameScene extends Phaser.Scene implements GameContext {
           this.spawnGhost(0xff2a3a);
         }
       } else if (this.specialId === 'orbital') this.updateOrbital(dt);
-      if (this.odTime <= 0) {
-        if (this.overdrive) {
-          Sound.slowWorld(false);
-          Sound.play('slowmo_out');
-        }
-        this.specialOn = this.overdrive = false;
-        this.odGauge = 0;
-        this.odOverlay.setVisible(false);
-        this.cameras.main.postFX?.clear();
-        this.odFxOn = false;
-        this.glitch.clear();
-        if (this.berserk) {
-          this.berserk = false;
-          this.recalcStats();
-        }
-      }
+      if (this.odTime <= 0) this.endSpecial();
     }
+    this.updateOsEffects(dt);
     for (const g of this.ghosts) {
       if (g.life <= 0) continue;
       g.life -= dt;
@@ -3078,10 +3194,39 @@ export class GameScene extends Phaser.Scene implements GameContext {
     }
   }
 
-  /** 게이지가 가득 차면 장착한 특수 능력을 10초간 켠다 */
-  /** 특수 능력 지속 시간 (능력마다 따로 정할 수 있음, 없으면 공통값) */
+  /** OS 능력이 끝날 때 */
+  private endSpecial(): void {
+    const os = this.os;
+    if (this.overdrive) {
+      Sound.slowWorld(false);
+      Sound.play('slowmo_out');
+      // 뉴럴 5줄: 끝날 때 주변 적 감속
+      if (os.has('neural.flush')) {
+        const r = os.v('radius', 160);
+        for (const e of this.grid.query(this.player.x, this.player.y, r, this.chainBuf)) if (e.active && (e.x - this.player.x) ** 2 + (e.y - this.player.y) ** 2 < r * r) this.slow(e, os.v('slowT', 2));
+        this.synRing(this.player.x, this.player.y, r, COLORS.magenta);
+      }
+    }
+    if (this.specialId === 'cloak' && os.has('cloak.ambush')) this.ambush = true;
+    this.specialOn = this.overdrive = false;
+    this.odGauge = 0;
+    this.odOverlay.setVisible(false);
+    this.cameras.main.postFX?.clear();
+    this.odFxOn = false;
+    this.glitch.clear();
+    if (this.berserk) {
+      this.berserk = false;
+      this.recalcStats();
+    }
+    // 뉴럴 5줄: 보조무기 재사용 대기 없음이 끝남
+    if (os.has('neural.flush')) this.rebuildLoadout(false);
+  }
+
+  /** OS 능력 지속 시간 */
   private get specialDuration(): number {
-    return (SP[this.specialId] as { duration?: number }).duration ?? OD.duration;
+    const os = this.os;
+    if (this.specialId === 'orbital') return 0.6 + os.v('strikes', 2) * 2.5;
+    return os.v('dur', OD.duration);
   }
 
   /**
@@ -3106,17 +3251,37 @@ export class GameScene extends Phaser.Scene implements GameContext {
     }
   }
 
-  /** 특수 능력 게이지 이름: 한국어 화면은 한글 이름, 영어는 대문자 라벨 */
+  /** OS 게이지 이름: 한국어 화면은 한글 이름, 영어는 대문자 라벨 + 레벨 */
   private specialLabel(): string {
-    const def = SP[this.specialId];
-    return I18n.lang === 'ko' ? def.name : def.label;
+    return `${I18n.lang === 'ko' ? this.os.def.name : this.os.def.label} Lv${this.os.level}`;
+  }
+
+  /** 조준점에서 가까운 적 n명 (r 안, 보스 포함 여부) */
+  private nearAim(n: number, r: number, bosses = true): Enemy[] {
+    const ax = this.aim.x;
+    const ay = this.aim.y;
+    const list = this.grid.query(ax, ay, r, this.chainBuf).filter((e) => e.active && (bosses || !e.isBoss) && (e.x - ax) ** 2 + (e.y - ay) ** 2 < r * r);
+    list.sort((a, b) => (a.x - ax) ** 2 + (a.y - ay) ** 2 - ((b.x - ax) ** 2 + (b.y - ay) ** 2));
+    return list.slice(0, n);
+  }
+
+  /** 보스 기절 (보스마다 cd초에 1번) */
+  private stunBoss(t: number, cd: number): void {
+    if (!this.boss || this.bossStunCd > 0 || this.cine || this.bossPhase === 'enter' || this.bossPhase === 'walkIn' || this.bossPhase === 'phaseShift') return;
+    this.bossStunT = t;
+    this.bossStunCd = cd;
+    this.boss.sprite.setTint(0x66ffff);
   }
 
   private activateSpecial(): void {
-    const def = SP[this.specialId];
+    const def = this.os.def;
+    const os = this.os;
+    const p = this.player;
     const color = Phaser.Display.Color.HexStringToColor(def.color).color;
     this.specialOn = true;
+    this.osExt = 0;
     this.odTime = this.specialDuration;
+    this.osCdT = def.active?.minCooldown ?? 0;
     this.screenFlash(color, 0.3, 350);
     Sound.play('overclock');
     if (this.specialId === 'neural') {
@@ -3124,25 +3289,57 @@ export class GameScene extends Phaser.Scene implements GameContext {
       this.odOverlay.setFillStyle(COLORS.magenta, 0.08).setVisible(true);
       // 슬로우 모션 + 충격파 + 색감 변화
       this.slowmo = OD.slowmoTime;
-      // 슬로우 모션: 깊게 떨어지는 '우우웅' + 음악도 같이 느려짐
       Sound.play('slowmo');
       // 발동 내내 배경음악·효과음이 느리고 낮게 (산데비스탄 느낌)
       Sound.slowWorld(true);
       this.shockwaves.push({ r: 0, life: 0.6 }, { r: -40, life: 0.8 });
       this.odFxOn = false;
       this.syncOdFx();
+      if (os.has('neural.flush')) this.rebuildLoadout(false);
     } else if (this.specialId === 'berserk') {
       this.berserk = true;
       this.recalcStats();
       this.odOverlay.setFillStyle(0xff2a3a, 0.08).setVisible(true);
       this.shake(200, 0.01);
     } else if (this.specialId === 'cloak') {
-      this.decoy = { x: this.player.x, y: this.player.y };
+      this.decoy = { x: p.x, y: p.y };
+      this.ambush = false;
       Sound.play('glitch');
-    } else {
+    } else if (this.specialId === 'orbital') {
       this.orbitalT = 0;
       this.orbitalDone = 0;
       Sound.play('bosswarn');
+    } else if (this.specialId === 'guardian') {
+      // 보호막: 지속 시간 동안 피해를 먼저 흡수 (순간 재부팅 쉴드와 같은 칸)
+      p.shield = Math.max(p.shield, os.v('shield', 40));
+      p.shieldT = Math.max(p.shieldT, this.odTime);
+      this.synRing(p.x, p.y, 40, 0x4fa8ff);
+    } else if (this.specialId === 'tactical') {
+      const n = os.has('tactical.multi') ? os.v('count', 5) : 1;
+      for (const e of this.nearAim(n, 140)) {
+        this.marks.set(e, os.v('dur', 8));
+        this.burst(e.x, e.y, 0x00e5f2, 6);
+      }
+      if (os.has('tactical.drop')) {
+        for (let i = 0; i < os.v('turrets', 2); i++) {
+          const x = this.aim.x + (i - 0.5) * 30;
+          const y = this.aim.y + 6;
+          this.freeTurrets.push({ x, y, t: 10, fire: 0.3, img: this.add.image(x, y, 'turretw').setDepth(9).setTint(0x00e5f2) });
+        }
+      }
+    } else if (this.specialId === 'hacker') {
+      const r = os.v('radius', 120);
+      for (const e of this.nearAim(60, r)) {
+        this.addDot(e, 'hack', os.v('dur', 4));
+        if (os.has('hacker.slow')) this.slow(e, os.v('dur', 4));
+        if (os.has('hacker.stun') && (e.isBoss || e.maxHp >= 1000)) {
+          if (e.isBoss) this.stunBoss(os.v('stun', 1), os.v('bossCd', 15));
+          else this.stun(e, os.v('stun', 1));
+        }
+      }
+      if (os.has('hacker.convert')) for (const e of this.nearAim(os.v('conv', 3), r, false)) this.charm(e, os.v('convT', 6));
+      this.synRing(this.aim.x, this.aim.y, r, 0x9d6bff);
+      Sound.play('glitch');
     }
     const t = this.add
       .text(VIEW_W / 2, VIEW_H / 2 - 50, this.specialLabel(), { ...TEXT, fontSize: '22px', color: def.color })
@@ -3153,37 +3350,109 @@ export class GameScene extends Phaser.Scene implements GameContext {
     this.tweens.add({ targets: t, scale: 1.4, alpha: 0, duration: 900, onComplete: () => t.destroy() });
   }
 
-  /** 궤도 폭격: 예고 표시(붉은 조준선) 뒤 화면 안 모든 적에게 폭발 피해 */
+  /** OS 발동 중 처치 (지속 연장·체력 회복·표식 처치) */
+  private osKill(e: Enemy, tag?: DamageTag): void {
+    const os = this.os;
+    if (this.specialOn) {
+      const ext = this.specialId === 'neural' && os.has('neural.extend') ? os.v('ext') : this.specialId === 'cloak' && os.has('cloak.chain') ? os.v('ext') : 0;
+      if (ext > 0 && this.osExt < os.v('extMax', 3)) {
+        const add = Math.min(ext, os.v('extMax', 3) - this.osExt);
+        this.osExt += add;
+        this.odTime += add;
+      }
+      if (this.berserk && os.has('berserk.heal') && (tag === 'melee' || (this.dmgSrc && (this.wTags.get(this.dmgSrc) ?? []).includes('근접')))) this.heal(os.v('heal', 2), true);
+    }
+    if (this.isMarked(e) && os.has('tactical.cdr')) this.weapons.find((w) => w.slot === 'secondary')?.reduceCooldown(os.v('cdr', 1));
+    this.marks.delete(e);
+  }
+
+  /** 매 프레임: 표식, 화염 지대, 무료 포탑, 보스 기절 */
+  private updateOsEffects(dt: number): void {
+    const fx = this.fx;
+    this.bossStunCd = Math.max(0, this.bossStunCd - dt);
+    if (this.bossStunT > 0) {
+      this.bossStunT -= dt;
+      if (this.bossStunT <= 0 && this.boss) this.boss.sprite.clearTint();
+    }
+    for (const [e, t] of [...this.marks]) {
+      if (!e.active || t - dt <= 0) {
+        this.marks.delete(e);
+        continue;
+      }
+      this.marks.set(e, t - dt);
+      // 표식: 머리 위 노란 마름모
+      const y = e.y - e.radius - 8;
+      fx.lineStyle(1.5, 0x00e5f2, 0.9).strokeTriangle(e.x - 4, y, e.x + 4, y, e.x, y + 5);
+    }
+    if (this.fireZones.length) {
+      const dps = this.os.v('burn', 30) * this.stats.damageMul;
+      for (const z of this.fireZones) {
+        z.t -= dt;
+        fx.fillStyle(COLORS.orange, 0.18 + Math.sin(this.elapsed * 20 + z.x) * 0.05).fillCircle(z.x, z.y, 28);
+        for (const e of this.grid.query(z.x, z.y, 28, this.chainBuf).slice()) if (e.active && (e.x - z.x) ** 2 + (e.y - z.y) ** 2 < 28 * 28) this.synDamage(e, dps * dt, 'explosive');
+      }
+      this.fireZones = this.fireZones.filter((z) => z.t > 0);
+    }
+    for (const t of this.freeTurrets) {
+      t.t -= dt;
+      t.fire -= dt;
+      if (t.t < 1) t.img.setAlpha(Math.floor(t.t * 10) % 2 ? 0.4 : 1);
+      if (t.fire > 0) continue;
+      const near = this.grid.query(t.x, t.y, 150, this.chainBuf).filter((e) => e.active);
+      const e = near.find((q) => this.isMarked(q)) ?? near.sort((a, b) => (a.x - t.x) ** 2 + (a.y - t.y) ** 2 - ((b.x - t.x) ** 2 + (b.y - t.y) ** 2))[0];
+      if (!e) continue;
+      t.fire = 0.35;
+      const a = Math.atan2(e.y - t.y, e.x - t.x);
+      t.img.setRotation(a);
+      this.fireBullet(t.x, t.y, a, 340, 14 * this.stats.damageMul, { life: 0.6, turnRate: 0 });
+    }
+    for (const t of this.freeTurrets) if (t.t <= 0) t.img.destroy();
+    this.freeTurrets = this.freeTurrets.filter((t) => t.t > 0);
+  }
+
+  /** 궤도 폭격: 예고 표시(붉은 조준선) 뒤 화면 안 적에게 폭발 피해 (레벨에 따라 대상 수·횟수·피해) */
   private updateOrbital(dt: number): void {
-    const O = SP.orbital;
+    const os = this.os;
+    const strikes = os.v('strikes', 2);
+    const warn = SP.orbital.warn;
     this.orbitalT += dt;
-    if (this.orbitalDone >= O.strikes) return;
-    const at = 0.4 + (this.orbitalDone * OD.duration) / O.strikes;
-    if (this.orbitalT >= at - O.warn) {
-      const k = Phaser.Math.Clamp((at - this.orbitalT) / O.warn, 0, 1);
+    if (this.orbitalDone >= strikes) return;
+    const at = 0.4 + this.orbitalDone * 2.5;
+    const all = os.has('orbital.full');
+    if (this.orbitalT >= at - warn) {
+      const k = Phaser.Math.Clamp((at - this.orbitalT) / warn, 0, 1);
       const cam = this.cameras.main;
-      // 화면 가운데 큰 조준 원 + 적마다 작은 표적
       this.fx.lineStyle(2, COLORS.yellow, 0.9 - k * 0.5).strokeCircle(cam.scrollX + VIEW_W / 2, cam.scrollY + VIEW_H / 2, 60 + k * 120);
+      if (!this.orbitalTargets.length || this.orbitalPick !== this.orbitalDone) {
+        this.orbitalPick = this.orbitalDone;
+        const on = this.enemyPool.items.filter((e) => e.active && this.onScreen(e.x, e.y));
+        this.orbitalTargets = all ? on : Phaser.Utils.Array.Shuffle(on).slice(0, os.v('targets', 6));
+      }
       let n = 0;
-      for (const e of this.enemyPool.items) {
-        if (!e.active || !this.onScreen(e.x, e.y) || n++ > 60) continue;
+      for (const e of this.orbitalTargets) {
+        if (!e.active || n++ > 60) continue;
         this.fx.lineStyle(1, 0xff2a3a, 0.8).strokeCircle(e.x, e.y, 4 + k * 8);
       }
     }
     if (this.orbitalT >= at) {
       this.orbitalDone++;
-      const dmg = O.damage * this.stats.damageMul * this.stats.explosiveMul;
+      const dmg = os.v('dmg', 250) * this.stats.damageMul * this.stats.explosiveMul;
       let bursts = 0;
-      for (const e of this.enemyPool.items.slice()) {
-        if (!e.active || !this.onScreen(e.x, e.y)) continue;
+      for (const e of this.orbitalTargets.slice()) {
+        if (!e.active) continue;
         if (bursts++ < 24) this.burst(e.x, e.y, COLORS.yellow, 6);
+        if (os.has('orbital.burn') && this.fireZones.length < 40) this.fireZones.push({ x: e.x, y: e.y, t: os.v('burnT', 3) });
+        if (e.isBoss && os.has('orbital.stun')) this.stunBoss(os.v('stun', 1), os.v('bossCd', 15));
         this.damage(e, dmg, 'explosive');
       }
+      this.orbitalTargets = [];
       this.screenFlash(0xfff6c0, 0.45, 300);
       this.shake(260, 0.014);
       Sound.play('explode');
     }
   }
+  private orbitalTargets: Enemy[] = [];
+  private orbitalPick = -1;
 
   /** 레벨업 카드 + 리퍼닥 영구 강화 + 러너 특성 + 광전사 모드를 합쳐 능력치를 다시 계산 */
   private recalcStats(): void {
@@ -3197,10 +3466,10 @@ export class GameScene extends Phaser.Scene implements GameContext {
     st.moveMul *= 1 + L.v('cyber.move') / 100;
     const m = this.runner.mods as Partial<Record<'creditMul' | 'maxHpMul' | 'meleeMul' | 'explosiveMul' | 'areaMul', number>>;
     st.damageMul *= 1 + Save.clinicValue('dmg') / 100;
-    st.moveMul *= (1 + Save.clinicValue('spd') / 100) * (this.berserk ? SP.berserk.moveMul : 1);
+    st.moveMul *= (1 + Save.clinicValue('spd') / 100) * (this.berserk && this.os.has('berserk.move') ? 1 + this.os.v('move') / 100 : 1);
     st.pickupMul *= 1 + Save.clinicValue('pick') / 100;
     st.areaMul *= m.areaMul ?? 1;
-    st.meleeMul = (m.meleeMul ?? 1) * (this.berserk ? SP.berserk.meleeMul : 1);
+    st.meleeMul = (m.meleeMul ?? 1) * (this.berserk ? this.os.v('melee', 1.4) : 1);
     st.explosiveMul = m.explosiveMul ?? 1;
     // 사이버웨어 신화: 거신 · 과부하 코어 · 거구
     if (this.pHas('titan')) {
@@ -3212,7 +3481,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
     this.stats = st;
     const hpMul = this.pHas('overloadCore') ? 0.8 : 1;
     this.player.maxHp = Math.round((PLAYER.maxHp + Save.clinicValue('hp') + st.maxHpBonus + (this.pHas('bulk') ? 100 : 0)) * (m.maxHpMul ?? 1) * hpMul);
-    this.player.dashCooldownMax = (this.pHas('bladeDash') ? 1 : this.pHas('reboot') ? PLAYER.dashCooldown - 1 : PLAYER.dashCooldown) * Math.max(0.3, 1 - L.v('cyber.dashCd') / 100);
+    this.player.dashCooldownMax = (this.pHas('bladeDash') ? 1 : this.pHas('reboot') ? PLAYER.dashCooldown - 1 : PLAYER.dashCooldown) * Math.max(0.3, 1 - L.v('cyber.dashCd') / 100 - (this.os.has('stock.dashCd') ? this.os.v('dashCd') / 100 : 0));
     this.player.hp = Math.min(this.player.hp, this.player.maxHp);
   }
 
@@ -3233,6 +3502,11 @@ export class GameScene extends Phaser.Scene implements GameContext {
   /** 광학 위장 또는 고스트 대시 직후: 적이 플레이어를 놓친 상태 */
   private get untracked(): boolean {
     return (this.specialOn && this.specialId === 'cloak') || this.player.cloakT > 0;
+  }
+
+  /** 엘리트(블랙 실드)·보스도 플레이어를 놓쳤는지: 광학 위장 4줄 '완전 위장' 또는 대시 위장 */
+  private get untrackedElite(): boolean {
+    return (this.specialOn && this.specialId === 'cloak' && this.os.has('cloak.full')) || this.player.cloakT > 0;
   }
 
   private get zone(): Zone {
@@ -4090,8 +4364,8 @@ export class GameScene extends Phaser.Scene implements GameContext {
     if (ph === 'hookAim') {
       // 예고선이 플레이어를 따라가다가 발사 lockBefore초 전에 멈춘다 (비켜설 틈)
       if (this.bossTimer > (hk.lockBefore ?? 0)) {
-        const tx = (this.untracked ? this.decoy.x : p.x) - b.x;
-        const ty = (this.untracked ? this.decoy.y : p.y) - b.y;
+        const tx = (this.untrackedElite ? this.decoy.x : p.x) - b.x;
+        const ty = (this.untrackedElite ? this.decoy.y : p.y) - b.y;
         const dd = Math.hypot(tx, ty) || 1;
         h.ax = tx / dd;
         h.ay = ty / dd;
@@ -4287,7 +4561,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
   private updateBasili(b: Enemy, def: BossDef, bz: BasiliDef, dt: number, dx: number, dy: number, d: number, tg: { x: number; y: number }, p2: Phase2 | null): boolean {
     const ph = this.bossPhase;
     const p = this.player;
-    const slow = this.overdrive ? OD.enemySpeedMul : 1;
+    const slow = this.odSlowMul;
     const toWalk = () => {
       this.bossPhase = 'walk';
       this.bossTimer = def.walkTime;
@@ -4950,7 +5224,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
     const ph = this.bossPhase;
     const p = this.player;
     const p2 = this.bossPhase2;
-    const slow = this.overdrive ? OD.enemySpeedMul : 1;
+    const slow = this.odSlowMul;
     const toWalk = () => {
       this.bossPhase = 'walk';
       this.bossTimer = def.walkTime;
@@ -5026,7 +5300,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
           this.bossPhase = 'leap';
           this.bossTimer = sl.leap;
           this.bossFrom = { x: b.x, y: b.y };
-          this.bossTo = { x: (this.untracked ? this.decoy : p).x, y: (this.untracked ? this.decoy : p).y };
+          this.bossTo = { x: (this.untrackedElite ? this.decoy : p).x, y: (this.untrackedElite ? this.decoy : p).y };
         } else {
           this.bossLastAttack = this.elapsed;
           // 등장 상승은 반전(왼쪽 아래 = 06 방향)으로 끝났으므로 포탑 방향을 거기에 맞춰 이어 감
@@ -5109,7 +5383,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
             this.bossPhase = 'missileFire';
             this.bossTimer = xz.missileTime;
           } else if (act === 'jump') {
-            this.xmJumpFlip = (this.untracked ? this.decoy : p).x < b.x;
+            this.xmJumpFlip = (this.untrackedElite ? this.decoy : p).x < b.x;
             if (art && !this.xmDeployed) {
               // 1페이즈: 포탑을 02로 돌리고 내려 뚜껑을 닫은 뒤 점프 (빠르게)
               this.bossPhase = 'lower';
@@ -5122,7 +5396,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
               this.bossPhase = 'leap';
               this.bossTimer = sl.leap;
               this.bossFrom = { x: b.x, y: b.y };
-              this.bossTo = { x: (this.untracked ? this.decoy : p).x, y: (this.untracked ? this.decoy : p).y };
+              this.bossTo = { x: (this.untrackedElite ? this.decoy : p).x, y: (this.untrackedElite ? this.decoy : p).y };
             }
           }
         }
@@ -5195,7 +5469,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
   private updateGregor(b: Enemy, def: BossDef, gz: GregorDef, dt: number, dx: number, dy: number, d: number, rage: number): boolean {
     const ph = this.bossPhase;
     const p = this.player;
-    const slow = this.overdrive ? OD.enemySpeedMul : 1;
+    const slow = this.odSlowMul;
     const toWalk = () => {
       this.bossPhase = 'walk';
       this.bossTimer = def.walkTime;
@@ -5603,7 +5877,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
 
   private updateEnemyBullets(dt: number): void {
     const p = this.player;
-    const slow = this.overdrive ? OD.enemySpeedMul : 1;
+    const slow = this.odSlowMul;
     for (const b of this.enemyBullets.items) {
       if (!b.active) continue;
       if (b.homeDist > 0) {
@@ -5622,7 +5896,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
         if (xmMis) this.playSheet('fx_boss2_missile_hit', 8, b.x, b.y, 0.5, 0.5, 20, 16);
         continue;
       }
-      if (p.invuln <= 0 && !this.untracked && (b.x - p.x) ** 2 + (b.y - p.y) ** 2 < (p.radius + b.radius) ** 2) {
+      if (p.invuln <= 0 && !this.untrackedElite && (b.x - p.x) ** 2 + (b.y - p.y) ** 2 < (p.radius + b.radius) ** 2) {
         b.kill();
         if (xmMis) this.playSheet('fx_boss2_missile_hit', 8, b.x, b.y, 0.5, 0.5, 20, 16);
         // 반사 신경: 20% 확률로 피함
@@ -6107,11 +6381,11 @@ export class GameScene extends Phaser.Scene implements GameContext {
   private sniperAi(e: Enemy, dt: number, dx: number, dy: number, d: number, slow: number, setV: (x: number, y: number) => void): void {
     const S = gameData.squadAi.sniper;
     e.t -= dt;
-    if (e.state === 'walk' && e.t <= 0 && e.act === 'shoot' && !this.untracked && this.onScreen(e.x, e.y)) {
+    if (e.state === 'walk' && e.t <= 0 && e.act === 'shoot' && !this.untrackedElite && this.onScreen(e.x, e.y)) {
       e.state = 'wind';
       e.t = S.aim;
       Sound.play('lungewarn');
-    } else if (e.state === 'wind' && this.untracked) {
+    } else if (e.state === 'wind' && this.untrackedElite) {
       // 조준 중에 투명해지면 표적을 놓친다
       e.state = 'walk';
       e.t = 0.6;
@@ -6135,7 +6409,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
   /** 해커: 탱커 뒤에 숨어 있다가 초록 해킹 빔으로 플레이어를 느리게 하고 대시를 막는다 */
   private hackerAi(e: Enemy, dt: number, dx: number, dy: number, d: number, slow: number, setV: (x: number, y: number) => void): void {
     const H = gameData.squadAi.hacker;
-    const p = this.untracked ? this.decoy : this.player;
+    const p = this.untrackedElite ? this.decoy : this.player;
     const tank = this.enemyPool.items.find((o) => o.active && o.id === 'trooper_tank');
     let tx: number;
     let ty: number;
@@ -6155,11 +6429,11 @@ export class GameScene extends Phaser.Scene implements GameContext {
     // 이동은 SquadBrain이 정하고, 탱커 뒤로 숨기(cover)를 골랐을 때만 여기서 자리를 잡는다
     if (e.act === 'cover' && e.state === 'walk' && e.dodgeT <= 0) setV(gd > 6 ? (gx / gd) * e.speed * slow : 0, gd > 6 ? (gy / gd) * e.speed * slow : 0);
     e.t -= dt;
-    if (e.state === 'walk' && e.t <= 0 && e.act === 'hack' && !this.untracked && this.onScreen(e.x, e.y)) {
+    if (e.state === 'walk' && e.t <= 0 && e.act === 'hack' && !this.untrackedElite && this.onScreen(e.x, e.y)) {
       e.state = 'wind';
       e.t = H.cast;
       Sound.play('glitch');
-    } else if (e.state === 'wind' && this.untracked) {
+    } else if (e.state === 'wind' && this.untrackedElite) {
       e.state = 'walk';
       e.t = 0.6;
     } else if (e.state === 'wind') {
@@ -6337,9 +6611,9 @@ export class GameScene extends Phaser.Scene implements GameContext {
     const b = this.boss!;
     const def = this.bossDef!;
     const p = this.player;
-    const slow = this.overdrive ? OD.enemySpeedMul : 1;
+    const slow = this.odSlowMul;
     // 투명 중에는 보스도 마지막으로 본 자리를 노린다
-    const tg = this.untracked ? this.decoy : p;
+    const tg = this.untrackedElite ? this.decoy : p;
     const dx = tg.x - b.x;
     const dy = tg.y - b.y;
     const d = Math.hypot(dx, dy) || 1;

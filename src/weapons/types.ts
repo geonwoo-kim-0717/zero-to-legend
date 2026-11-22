@@ -40,6 +40,10 @@ export interface GameContext {
   grid: SpatialGrid<Enemy>;
   stats: Stats;
   overdrive: boolean;
+  /** 뉴럴 오버클럭 중 공격속도 배율 (꺼져 있으면 1). OS 레벨마다 다름 */
+  readonly odFireMul: number;
+  /** 택티컬 OS: 표식된 적인지 (포탑이 먼저 노림) */
+  isMarked(e: Enemy): boolean;
   fx: Phaser.GameObjects.Graphics;
   /** 피해를 주고, 그 공격으로 죽었으면 true */
   damage(e: Enemy, amount: number, tag?: DamageTag): boolean;

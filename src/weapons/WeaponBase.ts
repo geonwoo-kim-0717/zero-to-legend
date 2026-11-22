@@ -114,6 +114,12 @@ export abstract class WeaponBase {
     return this.slot === 'primary' ? this.ctx.aim.primary : this.ctx.aim.secondary;
   }
 
+  /** 재사용 대기를 s초 줄임 (택티컬 OS: 표식된 적 처치) */
+  reduceCooldown(s: number): void {
+    this.timer = Math.max(0, this.timer - s);
+    this.activeCd = Math.max(0, this.activeCd - s);
+  }
+
   /** 재사용 대기를 바로 끝냄 (돌격 산탄 조합: 대시하면 샷건 재장전) */
   resetCooldown(): void {
     this.timer = 0;
@@ -192,7 +198,7 @@ export abstract class WeaponBase {
   }
 
   protected get interval(): number {
-    const od = this.ctx.overdrive ? 1 / gameData.overdrive.fireRateMul : 1;
+    const od = 1 / this.ctx.odFireMul;
     // 트윈스틱: 주무기는 한 자루뿐이라 직접 쏘는 간격을 조금 짧게
     const tw = this.slot === 'primary' ? TS.primaryIntervalMul : 1;
     // 개편 2-2: 무기별 공격 속도(아드레날린·기계 3단계), 보조무기 재사용 대기(멀티태스킹 프로세서, 켜짐 창 무기는 activeWindow에서)

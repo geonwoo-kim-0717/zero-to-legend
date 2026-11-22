@@ -4,7 +4,7 @@ import { ITEMS, itemValues } from './Build';
 /**
  * 개편 2단계 (2-2): 장착한 것 전체(무기 2 + 사이버웨어 3 + 장비 2)에서 효과를 모은다.
  * - 사이버웨어·장비: 아이템 hook(cyber.*, gear.*) → 값 (소켓 레벨·아이템 등급)
- * - 태그 단계: 장착한 것들의 태그 수(같은 아이템은 1번)가 2·3·4 이상이면 그 단계 hook(syn.*) 켜짐 (아래 단계도 같이)
+ * - 태그 단계: 장착한 것들(무기·사이버웨어·장비·OS)의 태그 수(같은 아이템은 1번)가 2·3·4 이상이면 그 단계 hook(syn.*) 켜짐 (아래 단계도 같이)
  * - 조합 시너지: needs에 적힌 아이템을 모두 끼면 hook(combo.*) 켜짐
  * 값·문구는 OS 설계실 편집 페이지에서 옮긴 build.json
  */
@@ -71,7 +71,8 @@ export class Loadout {
   readonly tiers: ActiveTier[] = [];
   readonly combos: ActiveCombo[] = [];
 
-  constructor(weapons: { id: string; abilities: Iterable<string> }[], sockets: Map<string, Sock>) {
+  /** osTags: 낀 OS의 태그 (OS 소켓도 태그 수에 들어감) */
+  constructor(weapons: { id: string; abilities: Iterable<string> }[], sockets: Map<string, Sock>, osTags: string[] = []) {
     const ids = new Set<string>();
     const addTags = (tags: string[]) => {
       for (const t of new Set(tags)) this.tagCount.set(t, (this.tagCount.get(t) ?? 0) + 1);
@@ -80,6 +81,7 @@ export class Loadout {
       ids.add(w.id);
       addTags(weaponTags(w.id, w.abilities));
     }
+    if (osTags.length) addTags(osTags);
     for (const s of sockets.values()) {
       const it = ITEMS[s.id];
       if (!it) continue;

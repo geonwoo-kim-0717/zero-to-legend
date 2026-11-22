@@ -1,7 +1,7 @@
 import type Phaser from 'phaser';
 import { WeaponBase } from './WeaponBase';
 import { COLORS } from '../config';
-import gameData from '../data/game.json';
+import type { Enemy } from '../entities/Enemy';
 
 /** 포탑 유지 시간 (블랙마켓 상향: 6 → 8초) */
 const LIFE = 10;
@@ -69,10 +69,11 @@ export class Turret extends WeaponBase {
       const jam = this.ctx.jammed(t.x, t.y);
       t.img.setTint(jam ? 0x39ff88 : 0xffffff);
       if (t.fire <= 0 && !jam) {
-        const e = this.nearest(t.x, t.y, range);
+        // 택티컬 OS 2줄: 표식된 적을 먼저
+        const e = this.markedNear(t.x, t.y, range) ?? this.nearest(t.x, t.y, range);
         if (e) {
           // 발사 간격에도 공격속도(신경 가속기·냉각 코어)와 오버클럭이 적용된다
-          t.fire = FIRE * this.ctx.stats.cooldownMul * this.ctx.weaponMul(this.id).cd * (this.ctx.overdrive ? 1 / gameData.overdrive.fireRateMul : 1);
+          t.fire = FIRE * this.ctx.stats.cooldownMul * this.ctx.weaponMul(this.id).cd * (1 / this.ctx.odFireMul);
           t.shots++;
           const a = Math.atan2(e.y - t.y, e.x - t.x);
           t.img.setRotation(a);
@@ -124,6 +125,22 @@ export class Turret extends WeaponBase {
     }
     this.blasts = this.blasts.filter((b) => b.life > 0);
   }
+
+  private markedNear(x: number, y: number, r: number): Enemy | null {
+    if (!this.ctx.mod('tactical.focus')) return null;
+    let best: Enemy | null = null;
+    let bd = r * r;
+    for (const e of this.ctx.grid.query(x, y, r, this.focusBuf)) {
+      if (!e.active || !this.ctx.isMarked(e)) continue;
+      const d = (e.x - x) ** 2 + (e.y - y) ** 2;
+      if (d < bd) {
+        bd = d;
+        best = e;
+      }
+    }
+    return best;
+  }
+  private readonly focusBuf: Enemy[] = [];
 
   private expire(t: Post): void {
     // 개편 2-2 기계 4단계: 포탑이 사라질 때 폭발
