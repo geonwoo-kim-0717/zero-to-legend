@@ -22,28 +22,15 @@ export class MantisBlade extends WeaponBase {
     const { player: p, fx } = this.ctx;
     const whirl = this.has('whirlwind');
     this.timer -= dt;
-    // 베기 범위(검기가 있으면 검기 사거리) 안에 적이 있을 때만 벰
-    // 판정은 베기 그림보다 10% 넓어서, 베기가 시작되면 범위 끝의 작은 적도 맞음
-    const reach = this.has('swordWave') ? 260 : BASE_R * this.area * (whirl ? 1.15 : 1);
-    if (this.timer <= 0 && this.nearest(p.x, p.y, reach)) {
+    // 트윈스틱: 왼쪽 클릭을 누르고 있으면 커서 방향으로 벰 (판정은 베기 그림보다 10% 넓음)
+    if (this.timer <= 0 && this.trigger) {
       this.timer = this.interval * (whirl ? 0.6 : 1);
       // 전설: 반격 자세 — 대시 직후 강화
       const counter = this.has('counterStance') && p.sinceDash < 0.5 ? 2 : 1;
       const r = BASE_R * this.area * counter * (whirl ? 1.15 : 1);
       const dmg = this.damage * counter;
-      let base = Math.atan2(p.dirY, p.dirX);
-      // 전설 검기: 바라보는 방향 대신 가장 가까운 적 쪽으로 벤다
-      if (this.has('swordWave')) {
-        let best = 260 * 260;
-        for (const e of this.ctx.enemies) {
-          if (!e.active) continue;
-          const d2 = (e.x - p.x) ** 2 + (e.y - p.y) ** 2;
-          if (d2 < best) {
-            best = d2;
-            base = Math.atan2(e.y - p.y, e.x - p.x);
-          }
-        }
-      }
+      // 트윈스틱: 커서 방향으로 벤다 (검기도 같은 방향)
+      const base = this.aimAngle;
       const half = whirl ? Math.PI : HALF_ARC;
       const sides = whirl ? 1 : this.s.count;
       const reaper = this.has('reaperHarvest');

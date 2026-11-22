@@ -4,7 +4,7 @@ import weapons from '../data/weapons.json';
 import abilities from '../data/abilities.json';
 import gameData from '../data/game.json';
 import { WEAPON_IDS, WeaponBase, type WeaponId } from '../weapons';
-import { WEAPON_MAX_LEVEL, type AbilityTier } from '../weapons/WeaponBase';
+import { WEAPON_MAX_LEVEL, weaponSlot, type AbilityTier } from '../weapons/WeaponBase';
 import type { Stats } from '../weapons/types';
 import { t } from '../i18n';
 
@@ -38,6 +38,8 @@ export interface Choice {
   levelLabel: string;
   /** 아직 없는 무기·사이버웨어 (신규) */
   isNew?: boolean;
+  /** 트윈스틱: 같은 소켓의 무기와 바꿔 끼는 카드 */
+  swap?: boolean;
   /** 최대 레벨인데 특수 능력만 받는 카드 (레벨은 오르지 않음) */
   maxed?: boolean;
   desc: string;
@@ -109,12 +111,20 @@ export function rollChoices(
   epicMul = 1;
   const forcedRarity = mode === 'boss' ? undefined : mode;
   const pool: Omit<Choice, 'rarity' | 'desc'>[] = [];
+  // 트윈스틱: 주무기·보조무기 소켓 하나씩. 가진 무기는 강화, 소켓이 비었으면 신규, 차 있으면 교체 카드(소켓 레벨 이어받음) 몇 장만
+  const swaps: Omit<Choice, 'rarity' | 'desc'>[] = [];
   for (const id of WEAPON_IDS) {
     if (opts.pool && !opts.pool.includes(id)) continue;
     const w = owned.find((o) => o.id === id);
-    if (w && w.level < WEAPON_MAX_LEVEL) pool.push({ kind: 'weapon', id, title: w.name, levelLabel: `Lv.${w.level + 1}` });
-    else if (!w && owned.length < gameData.maxWeapons) pool.push({ kind: 'weapon', id, title: weapons[id].name, levelLabel: t('lvl.new'), isNew: true });
+    if (w) {
+      if (w.level < WEAPON_MAX_LEVEL) pool.push({ kind: 'weapon', id, title: w.name, levelLabel: `Lv.${w.level + 1}` });
+      continue;
+    }
+    const cur = owned.find((o) => o.slot === weaponSlot(id));
+    if (!cur) pool.push({ kind: 'weapon', id, title: weapons[id].name, levelLabel: t('lvl.new'), isNew: true });
+    else swaps.push({ kind: 'weapon', id, title: weapons[id].name, levelLabel: t('lvl.swap', { lv: cur.level }), isNew: true, swap: true });
   }
+  pool.push(...Phaser.Utils.Array.Shuffle(swaps).slice(0, gameData.twinStickCards.swapPerRoll));
   for (const id of PASSIVE_IDS) {
     const st = ownedPassives.get(id);
     if (st && st.level < passives[id].maxLevel) pool.push({ kind: 'passive', id, title: passives[id].name, levelLabel: `Lv.${st.level + 1}` });
@@ -159,7 +169,7 @@ export function rollChoices(
     }
   }
   // 초반 무기 확정: 무기가 적을 때는 새 무기 카드가 최소 한 장 나오게
-  const isNewWeapon = (c: (typeof pool)[number]) => c.kind === 'weapon' && !!c.isNew;
+  const isNewWeapon = (c: (typeof pool)[number]) => c.kind === 'weapon' && !!c.isNew && !c.swap;
   if (opts.guaranteeWeapon && !picks.some(isNewWeapon)) {
     const nw = pool.filter((c) => isNewWeapon(c) && !picks.includes(c));
     if (nw.length) {
@@ -230,6 +240,9 @@ function describe(c: { kind: string; id: string }, rarity: Rarity, owned: Weapon
     const id = c.id as WeaponId;
     const w = owned.find((o) => o.id === id);
     let desc = w ? WeaponBase.levelDesc(id, w.level + 1) : weapons[id].desc;
+    // 교체 카드: 지금 그 소켓 무기와 레벨
+    const cur = w ? undefined : owned.find((o) => o.slot === weaponSlot(id));
+    if (cur) desc += t('lvl.swapDesc', { cur: cur.name, lv: cur.level });
     if (rarity.weaponBonus > 0) desc += t('lvl.bonus', { v: Math.round(rarity.weaponBonus * 100) });
     return desc;
   }

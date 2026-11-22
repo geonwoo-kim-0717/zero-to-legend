@@ -4,7 +4,6 @@ import type { Enemy } from '../entities/Enemy';
 
 const BASE_LEN = 118;
 /** 가까운 적을 찾는 거리 (없으면 이동 방향으로 휘두름) */
-const AIM_RANGE = 260;
 /** 실제 판정 길이 = 보이는 채찍 길이 × 1.1 */
 const HIT_MUL = 1.1;
 
@@ -28,10 +27,11 @@ export class Monowire extends WeaponBase {
     const { player: p, fx } = this.ctx;
     this.timer -= dt;
     // 채찍 길이 안에 적이 있을 때만 휘두름 (판정은 이보다 10% 더 길어서, 휘두르면 끝의 작은 적도 맞음)
-    if (this.timer <= 0 && this.nearest(p.x, p.y, BASE_LEN * this.area)) {
+    if (this.timer <= 0 && this.trigger) {
       this.timer = this.interval;
-      const t = this.nearest(p.x, p.y, AIM_RANGE);
-      const base = t ? Math.atan2(t.y - p.y, t.x - p.x) : Math.atan2(p.dirY, p.dirX);
+      // 트윈스틱: 커서 방향으로 휘두름
+      const base = this.aimAngle;
+      p.attackPose(p.x + Math.cos(base) * 10, 0.18);
       // count 1: 앞, 2: 앞뒤, 4: 네 방향
       const n = this.s.count >= 4 ? 4 : this.s.count;
       const step = n === 4 ? Math.PI / 2 : Math.PI;

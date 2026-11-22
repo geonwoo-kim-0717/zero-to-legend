@@ -1,3 +1,4 @@
+import Phaser from 'phaser';
 import weapons from '../data/weapons.json';
 import abilities from '../data/abilities.json';
 import gameData from '../data/game.json';
@@ -11,6 +12,13 @@ type StatKey = 'damage' | 'interval' | 'count' | 'speed' | 'pierce' | 'area';
 type LevelDef = Partial<Record<StatKey, number>> & { desc: string };
 
 export const WEAPON_MAX_LEVEL = 8;
+export type WeaponSlot = 'primary' | 'secondary';
+const TS = gameData.twinStick;
+
+/** 무기 소켓 종류 (주무기 / 보조무기) */
+export function weaponSlot(id: WeaponId): WeaponSlot {
+  return (weapons[id] as { slot?: WeaponSlot }).slot ?? 'primary';
+}
 
 export abstract class WeaponBase {
   level = 1;
@@ -31,6 +39,95 @@ export abstract class WeaponBase {
 
   get name(): string {
     return weapons[this.id].name;
+  }
+
+  /** 주무기 / 보조무기 */
+  get slot(): WeaponSlot {
+    return weaponSlot(this.id);
+  }
+
+  // ── 트윈스틱 조준 ──
+  /** 플레이어에서 조준점으로의 각도 */
+  protected get aimAngle(): number {
+    const p = this.ctx.player;
+    return Math.atan2(this.ctx.aim.y - p.y, this.ctx.aim.x - p.x);
+  }
+
+  /** 조준점 (플레이어에서 max보다 멀면 그 방향으로 max까지) */
+  protected aimPoint(max: number): { x: number; y: number } {
+    const p = this.ctx.player;
+    const dx = this.ctx.aim.x - p.x;
+    const dy = this.ctx.aim.y - p.y;
+    const d = Math.hypot(dx, dy);
+    if (d <= max || d < 1) return { x: this.ctx.aim.x, y: this.ctx.aim.y };
+    return { x: p.x + (dx / d) * max, y: p.y + (dy / d) * max };
+  }
+
+  // ── 켜짐 창 (드론·EMP처럼 상시 효과인 보조무기: 누르면 time초 켜지고 cooldown초 뒤 다시) ──
+  private activeLeft = 0;
+  private activeCd = 0;
+
+  /** 켜짐 창 진행. 켜져 있으면 true */
+  protected activeWindow(dt: number): boolean {
+    const A = (weapons[this.id] as { active?: { time: number; cooldown: number } }).active;
+    if (!A) return true;
+    this.activeLeft = Math.max(0, this.activeLeft - dt);
+    this.activeCd = Math.max(0, this.activeCd - dt);
+    if (this.activeLeft <= 0 && this.activeCd <= 0 && this.trigger) {
+      this.fired();
+      this.activeLeft = A.time;
+      this.activeCd = A.time + A.cooldown * this.ctx.stats.cooldownMul;
+      this.ctx.sfx('select');
+    }
+    return this.activeLeft > 0;
+  }
+
+  /** 보조무기 준비 정도 0~1 (HUD 표시용). 켜짐 창 무기는 켜져 있으면 1 */
+  readiness(): number {
+    const A = (weapons[this.id] as { active?: { time: number; cooldown: number } }).active;
+    if (A) {
+      if (this.activeLeft > 0) return 1;
+      const full = A.time + A.cooldown * this.ctx.stats.cooldownMul;
+      return 1 - this.activeCd / full;
+    }
+    const iv = this.interval || 1;
+    return 1 - Math.max(0, Math.min(iv, this.timer)) / iv;
+  }
+
+  /** 켜짐 창 무기가 켜져 있는지 */
+  get activeOn(): boolean {
+    return this.activeLeft > 0;
+  }
+
+  /** 방아쇠: 주무기는 누르고 있는 동안, 보조무기는 누른 신호가 남아 있을 때 */
+  protected get trigger(): boolean {
+    return this.slot === 'primary' ? this.ctx.aim.primary : this.ctx.aim.secondary;
+  }
+
+  /** 발사했음: 보조무기는 누른 신호를 씀 */
+  protected fired(): void {
+    if (this.slot === 'secondary') this.ctx.consumeSecondary();
+  }
+
+  /** 조준선 근처(좌우 cone 라디안, range 안)에서 조준선에 가장 가까운 적 */
+  protected aimTarget(range: number, cone = TS.aimCone, from?: { x: number; y: number }): Enemy | null {
+    const o = from ?? this.ctx.player;
+    const a0 = Math.atan2(this.ctx.aim.y - o.y, this.ctx.aim.x - o.x);
+    let best: Enemy | null = null;
+    let bs = Infinity;
+    for (const e of this.ctx.grid.query(o.x, o.y, range, this.found)) {
+      if (!e.active) continue;
+      const d = Math.hypot(e.x - o.x, e.y - o.y);
+      if (d > range) continue;
+      const diff = Math.abs(Phaser.Math.Angle.Wrap(Math.atan2(e.y - o.y, e.x - o.x) - a0));
+      if (diff > cone) continue;
+      const score = diff * 200 + d * 0.3;
+      if (score < bs) {
+        bs = score;
+        best = e;
+      }
+    }
+    return best;
   }
 
   static levelDesc(id: WeaponId, level: number): string {
@@ -81,7 +178,9 @@ export abstract class WeaponBase {
 
   protected get interval(): number {
     const od = this.ctx.overdrive ? 1 / gameData.overdrive.fireRateMul : 1;
-    return this.s.interval * this.ctx.stats.cooldownMul * od;
+    // 트윈스틱: 주무기는 한 자루뿐이라 직접 쏘는 간격을 조금 짧게
+    const tw = this.slot === 'primary' ? TS.primaryIntervalMul : 1;
+    return this.s.interval * this.ctx.stats.cooldownMul * od * tw;
   }
 
   protected get area(): number {
@@ -153,6 +252,11 @@ export abstract class WeaponBase {
       }
     }
     return best;
+  }
+
+  /** 점 (x,y)에서 r 안의 가장 가까운 적 */
+  protected nearestTo(pt: { x: number; y: number }, r: number): Enemy | null {
+    return this.nearest(pt.x, pt.y, r);
   }
 
   /** 화면 안의 무작위 적 (없으면 null) */

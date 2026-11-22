@@ -24,6 +24,11 @@ export class EmpField extends WeaponBase {
   private ringIdx = 0;
 
   update(dt: number): void {
+    // 트윈스틱 보조무기: 오른쪽 클릭으로 켜면 정해진 시간 동안만 전자기장
+    if (!this.activeWindow(dt)) {
+      for (const r of this.rings) r.setVisible(false);
+      return;
+    }
     const { player: p, fx } = this.ctx;
     const r = BASE_R * this.area;
     this.pulse += dt;

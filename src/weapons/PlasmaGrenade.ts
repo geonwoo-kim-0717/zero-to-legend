@@ -57,10 +57,16 @@ export class PlasmaGrenade extends WeaponBase {
     const { player: p, fx } = this.ctx;
     this.chainBudget = Math.min(25, this.chainBudget + 25 * dt);
     this.timer -= dt;
-    if (this.timer <= 0) {
-      // 궤도 폭격: 유탄 대신 3초마다 하늘에서 폭격
+    if (this.timer <= 0 && this.trigger) {
+      // 트윈스틱: 오른쪽 클릭으로 커서 자리에 던짐 (여러 개면 그 둘레에). 궤도 폭격은 3초마다 폭격
+      this.fired();
       this.timer = this.has('orbitalStrike') ? 3 : this.interval;
-      for (let i = 0; i < this.s.count; i++) this.throwOne(p.x, p.y);
+      const at = this.aimPoint(this.has('orbitalStrike') ? 300 : THROW_RANGE);
+      for (let i = 0; i < this.s.count; i++) {
+        const a = (i / Math.max(1, this.s.count)) * Math.PI * 2;
+        const r = i === 0 ? 0 : 28;
+        this.throwOne(p.x, p.y, at.x + Math.cos(a) * r, at.y + Math.sin(a) * r);
+      }
     }
 
     for (const g of this.grenades) {
@@ -163,20 +169,8 @@ export class PlasmaGrenade extends WeaponBase {
     this.grenades.push({ sx, sy, tx, ty, t: 0, fuse: mini ? 0.3 : FUSE, r, dmg, mini, orbital: false, sprite });
   }
 
-  private throwOne(px: number, py: number): void {
+  private throwOne(px: number, py: number, tx: number, ty: number): void {
     const orbital = this.has('orbitalStrike');
-    const range = orbital ? 300 : THROW_RANGE;
-    let tx = px + Phaser.Math.Between(-120, 120);
-    let ty = py + Phaser.Math.Between(-120, 120);
-    const list = this.ctx.enemies;
-    for (let tries = 0; tries < 12 && list.length > 0; tries++) {
-      const e = list[(Math.random() * list.length) | 0];
-      if (e.active && (e.x - px) ** 2 + (e.y - py) ** 2 < range * range) {
-        tx = e.x;
-        ty = e.y;
-        break;
-      }
-    }
     this.ctx.player.attackPose(tx, 0.2);
     const r = BASE_R * this.area;
     if (orbital) {

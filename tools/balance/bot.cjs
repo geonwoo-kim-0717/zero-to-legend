@@ -53,6 +53,8 @@ const SAVE = mode === 'vet'
     };
     const want = shots === '1' ? { t30: 30, t180: 180, t300: 300, t480: 480 } : {};
     let lastSample = -1, lastHp = s.player.hp, hadBoss = null, zone = s.zoneIdx, levelShot = false;
+    // 트윈스틱 개편: 봇은 자동 조준으로 쏨 (가까운 적을 노리고 주무기·보조무기·OS를 알아서)
+    s.controls.autoAim = true;
     s.controls.update = function () {
       const p = s.player; let fx = 0, fy = 0, close = false;
       for (const e of s.enemyPool.items) {

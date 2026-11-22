@@ -17,6 +17,7 @@ import { Spawner, hpScaleAt } from '../systems/Spawner';
 import { pickBoss, pickBasili, pickGregor, pickXm4, type BossAct, type BasiliAct, type GregorAct, type Xm4Act } from '../systems/BossBrain';
 import { InputController } from '../systems/InputController';
 import { createWeapon, type WeaponBase, type WeaponId } from '../weapons';
+import { weaponSlot } from '../weapons/WeaponBase';
 import type { GameContext, Stats, DamageTag, FxOpts } from '../weapons/types';
 import meta from '../data/meta.json';
 import zonesData from '../data/zones.json';
@@ -195,6 +196,54 @@ export class GameScene extends Phaser.Scene implements GameContext {
   private levelUi!: LevelUpUI;
 
   private weapons: WeaponBase[] = [];
+  /** 트윈스틱 조준 상태 (무기가 GameContext.aim으로 읽음) */
+  readonly aim = { x: 0, y: 0, primary: false, secondary: false };
+
+  consumeSecondary(): void {
+    this.controls.consumeSecondary();
+    this.aim.secondary = false;
+  }
+
+  /** 이번 프레임 조준: 마우스 커서(월드), 터치 조준 스틱 방향, 자동 조준(봇·개발자 도구) */
+  private updateAim(): void {
+    const p = this.player;
+    const c = this.controls;
+    const TS = gameData.twinStick;
+    if (c.autoAim) {
+      let best: Enemy | null = null;
+      let bd = TS.autoAimRange * TS.autoAimRange;
+      for (const e of this.grid.query(p.x, p.y, TS.autoAimRange, this.chainBuf)) {
+        if (!e.active) continue;
+        const d = (e.x - p.x) ** 2 + (e.y - p.y) ** 2;
+        if (d < bd) {
+          bd = d;
+          best = e;
+        }
+      }
+      if (best) {
+        this.aim.x = best.x;
+        this.aim.y = best.y;
+      }
+      this.aim.primary = !!best;
+      // 보조무기: 적이 가까이 있으면 쓸 수 있을 때마다
+      this.aim.secondary = !!best && bd < 200 * 200;
+    } else {
+      if (c.aimMode === 'stick') {
+        this.aim.x = p.x + c.aimDX * TS.touchAimDist;
+        this.aim.y = p.y + c.aimDY * TS.touchAimDist;
+      } else if (c.aimMode === 'mouse') {
+        const w = this.cameras.main.getWorldPoint(c.pointerX * ZOOM, c.pointerY * ZOOM);
+        this.aim.x = w.x;
+        this.aim.y = w.y;
+      } else {
+        this.aim.x = p.x + p.dirX * 100;
+        this.aim.y = p.y + p.dirY * 100;
+      }
+      this.aim.primary = c.primaryHeld;
+      this.aim.secondary = c.secondaryPending;
+    }
+    p.aimX = this.aim.x;
+  }
   private passives = new Map<PassiveId, PassiveState>();
   private state: State = 'play';
   private elapsed = 0;
@@ -664,6 +713,9 @@ export class GameScene extends Phaser.Scene implements GameContext {
     this.grid = new SpatialGrid<Enemy>(GRID_CELL);
     this.spawner = new Spawner((id, x, y, s) => this.spawnEnemy(id, x, y, s));
     this.controls = new InputController(this);
+    // 트윈스틱: 마우스 커서 대신 게임 십자선을 보여 줌 (장면이 끝나면 되돌림)
+    this.input.setDefaultCursor('none');
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.input.setDefaultCursor('default'));
     this.levelUi = new LevelUpUI(this);
 
     this.sparks = this.add
@@ -689,7 +741,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
     this.createHud();
     this.applyZone(false);
 
-    this.addWeapon(this.runner.startWeapon as WeaponId);
+    this.addStartWeapons();
     this.bindKeys();
     // 리퍼닥 '전투 시뮬레이션 칩': 판 시작 때 레벨업 카드를 미리 고른다 (첫 대화가 끝난 뒤 열림)
     this.pendingLevels += Save.clinicValue('startPick');
@@ -1259,6 +1311,10 @@ export class GameScene extends Phaser.Scene implements GameContext {
         x += t.width + 4;
       }
     };
+    row(VIEW_H - 80, [
+      // 자동 조준: 가까운 적을 노리고 알아서 쏨 (봇·관찰용)
+      [() => `자동 조준: ${this.controls.autoAim ? '켬' : '끔'}`, () => (this.controls.autoAim = !this.controls.autoAim)],
+    ]);
     row(VIEW_H - 62, [
       // 보스만 무적 (보스 패턴 관찰용)
       [() => `보스 무적: ${this.bossGod ? '켬' : '끔'}`, () => (this.bossGod = !this.bossGod)],
@@ -1591,10 +1647,29 @@ export class GameScene extends Phaser.Scene implements GameContext {
     else this.state = 'play';
   }
 
+  /** 무기 장착: 주무기·보조무기 소켓에 하나씩. 같은 소켓에 있던 무기는 빼고, 소켓 레벨·등급 보너스는 새 무기가 이어받음 */
   private addWeapon(id: WeaponId): WeaponBase {
     const w = createWeapon(id, this);
-    this.weapons.push(w);
+    const slot = weaponSlot(id);
+    const i = this.weapons.findIndex((o) => o.slot === slot);
+    if (i >= 0) {
+      const old = this.weapons[i];
+      while (w.level < old.level) w.levelUp();
+      w.bonus = old.bonus;
+      old.destroy();
+      this.weapons.splice(i, 1, w);
+    } else this.weapons.push(w);
+    // 주무기가 앞에 오게 (일시정지 패널·결과 화면 순서)
+    this.weapons.sort((a, b) => (a.slot === b.slot ? 0 : a.slot === 'primary' ? -1 : 1));
     return w;
+  }
+
+  /** 판 시작 무기: 러너 시작 무기 + 비어 있는 소켓은 기본 무기 (주무기 스마트 피스톨, 보조무기 플라즈마 유탄) */
+  private addStartWeapons(): void {
+    const start = this.runner.startWeapon as WeaponId;
+    this.addWeapon(start);
+    if (weaponSlot(start) !== 'primary') this.addWeapon('smartPistol');
+    if (weaponSlot(start) !== 'secondary') this.addWeapon('plasmaGrenade');
   }
 
   heal(v: number, silent = false): void {
@@ -1674,7 +1749,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
     const p = this.player;
 
     this.fx.clear();
-    this.controls.update(1 - p.dashCd / p.dashCooldownMax);
+    this.controls.update(1 - p.dashCd / p.dashCooldownMax, !this.specialOn && this.odGauge >= 100);
     if (this.controls.consumeDash() && p.tryDash()) {
       // 화면 전체 번쩍임 대신 잔상 + 작은 고리
       this.dashRings.push({ r: 8, life: 0.22 });
@@ -1782,6 +1857,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
     this.updateOverdrive(dt);
     this.updateEnemies(dt);
     if (this.boss) this.updateBoss(dt);
+    this.updateAim();
     for (const w of this.weapons) {
       this.dmgSrc = w.id;
       w.update(dt);
@@ -2411,7 +2487,9 @@ export class GameScene extends Phaser.Scene implements GameContext {
 
   // ───────────────────────────── 오버드라이브 ─────────────────────────────
   private updateOverdrive(dt: number): void {
-    if (!this.specialOn && this.odGauge >= 100) this.activateSpecial();
+    // OS 능력: 게이지가 차면 Q(모바일 OS 버튼)로 발동. 자동 조준이면 바로 발동
+    const wantSkill = this.controls.consumeSkill();
+    if (!this.specialOn && this.odGauge >= 100 && (wantSkill || this.controls.autoAim)) this.activateSpecial();
     if (this.specialOn) {
       this.odTime -= dt;
       this.odGauge = (this.odTime / this.specialDuration) * 100;
@@ -2847,7 +2925,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
     this.forcedRarity = undefined;
     this.undyingUsed = false;
     this.streak = this.rushT = 0;
-    this.addWeapon(this.runner.startWeapon as WeaponId);
+    this.addStartWeapons();
     for (const keep of keeps) {
       const rarity = gameData.rarity.find((r) => r.id === keep.rarity)!;
       if (keep.kind === 'weapon') {
@@ -6093,6 +6171,9 @@ export class GameScene extends Phaser.Scene implements GameContext {
     const full = this.specialOn || this.odGauge >= 100;
     g.fillStyle(full ? (Math.floor(this.elapsed * 10) % 2 ? COLORS.magenta : COLORS.cyan) : COLORS.magenta).fillRect(ox, oy, (ow * this.odGauge) / 100, 5);
     this.hud.od.setAlpha(full ? 1 : 0.6);
+    // 게이지가 찼는데 아직 안 썼으면 Q 안내
+    const odText = this.specialLabel() + (!this.specialOn && this.odGauge >= 100 ? '  [Q]' : '');
+    if (this.hud.od.text !== odText) this.hud.od.setText(odText);
 
     // 플레이어 아래 체력·대시 바
     const cam = this.cameras.main;
@@ -6101,6 +6182,12 @@ export class GameScene extends Phaser.Scene implements GameContext {
     g.fillStyle(0x300010).fillRect(sx, sy, 24, 3);
     g.fillStyle(COLORS.magenta).fillRect(sx, sy, (24 * Math.max(0, p.hp)) / p.maxHp, 3);
     g.fillStyle(COLORS.cyan, 0.8).fillRect(sx, sy + 4, 24 * (1 - p.dashCd / p.dashCooldownMax), 1);
+    // 보조무기 준비 (노랑). 켜짐 창 무기가 켜져 있으면 깜빡임
+    const sub = this.weapons.find((w) => w.slot === 'secondary');
+    if (sub) {
+      const k = sub.readiness();
+      g.fillStyle(COLORS.yellow, sub.activeOn ? 0.5 + Math.sin(this.elapsed * 12) * 0.4 : k >= 1 ? 0.9 : 0.45).fillRect(sx, sy + 6, 24 * k, 1);
+    }
 
     this.placeVisorGlows();
     this.drawSquadDebug();

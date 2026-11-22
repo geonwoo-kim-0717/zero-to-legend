@@ -682,6 +682,15 @@
   "fixerWarnShow": 3.3,
   "maxedAbilityChance": 0.15,
   "enemyDamageGrowthPerMin": 0.04,
+  "twinStick": {
+    "note": "트윈스틱(개편 1단계): 주무기는 왼쪽 클릭을 누르고 있는 동안 interval × primaryIntervalMul마다 커서 방향으로, 보조무기는 오른쪽 클릭(누른 신호는 bufferSec초 기억)으로 interval마다(드론·EMP는 weapons.json active: time초 켜짐, cooldown초 재사용). aimCone: 약한 유도·첫 표적을 고를 때 조준선 좌우 허용 각도(라디안). autoAimRange: 자동 조준(봇·개발자 도구)이 노리는 거리",
+    "primaryIntervalMul": 0.7,
+    "bufferSec": 0.4,
+    "aimCone": 0.35,
+    "autoAimRange": 260,
+    "touchAimDist": 140
+  },
+  "twinStickCards": { "note": "레벨업 카드에 섞는 교체 카드(같은 소켓 다른 무기) 수", "swapPerRoll": 2 },
   "bossHitKnock": 20,
   "startCards": [0, 1, 2],
   "startCardsNote": "임시 'N챕터부터 시작' 버튼: 챕터 번호(0부터)별로 시작할 때 고르는 전설·신화 확정 카드 수",

@@ -31,9 +31,12 @@ export class ProxMine extends WeaponBase {
   update(dt: number): void {
     const { player: p, fx } = this.ctx;
     this.timer -= dt;
-    if (this.timer <= 0) {
+    if (this.timer <= 0 && this.trigger) {
+      // 트윈스틱: 오른쪽 클릭으로 커서 자리에 지뢰 (여러 개면 그 둘레에)
+      this.fired();
       this.timer = this.interval;
-      for (let i = 0; i < this.s.count; i++) this.drop(p.x + (Math.random() - 0.5) * 16 * i, p.y + (Math.random() - 0.5) * 16 * i, ARM);
+      const at = this.aimPoint(160);
+      for (let i = 0; i < this.s.count; i++) this.drop(at.x + (i ? Math.cos(i * 2.4) * 18 : 0), at.y + (i ? Math.sin(i * 2.4) * 18 : 0), ARM);
     }
     // 신화: 클레이모어 벽
     if (this.has('claymore') && (this.clayT -= dt) <= 0) {

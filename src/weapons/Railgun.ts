@@ -28,11 +28,13 @@ export class Railgun extends WeaponBase {
         this.ctx.sfx('bosscharge');
         this.ctx.screenFlash(0xe8f7ff, 0.1, 120);
       }
-    } else if (this.timer <= 0) {
-      const targets = this.toughest(this.s.count);
-      if (targets.length) {
+    } else if (this.timer <= 0 && this.trigger) {
+      {
         this.timer = this.interval;
-        const angles = targets.map((t) => Math.atan2(t.y - p.y, t.x - p.x));
+        // 트윈스틱: 커서 방향으로. 여러 발이면 좁은 부채꼴
+        const n = Math.max(1, this.s.count);
+        const angles = Array.from({ length: n }, (_, i) => this.aimAngle + (i - (n - 1) / 2) * 0.08);
+        p.attackPose(p.x + Math.cos(angles[0]) * 10, 0.2);
         if (chargeShot) {
           this.charge = 1;
           this.chargeAngles = angles;

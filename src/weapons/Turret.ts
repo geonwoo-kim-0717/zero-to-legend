@@ -36,15 +36,20 @@ export class Turret extends WeaponBase {
     const mobile = this.has('mobilePost');
     const max = this.s.count + (fortress ? 2 : 0);
     this.timer -= dt;
-    if (this.timer <= 0) {
+    if (this.timer <= 0 && this.trigger) {
+      // 트윈스틱: 오른쪽 클릭으로 커서 자리에 설치 (휴대 포탑은 플레이어 곁)
+      this.fired();
       this.timer = this.interval;
+      const at = this.aimPoint(140);
       // 신화 센트리 네트워크: 동시 포탑 수 제한 없음 (각 포탑은 유지 시간이 끝나야 사라짐)
       if (!sentry && this.posts.length >= max) this.expire(this.posts.shift()!);
       const a = this.placed++ * 2.4;
       const ox = mobile ? Math.cos(a) * 34 : 0;
       const oy = mobile ? Math.sin(a) * 34 : 6;
-      const img = this.ctx.phaser.add.image(p.x + ox, p.y + oy, 'turretw').setDepth(9);
-      this.posts.push({ x: p.x + ox, y: p.y + oy, life: LIFE * (sentry ? 2 : 1), fire: 0.2, shots: 0, ox, oy, img });
+      const bx = mobile ? p.x : at.x;
+      const by = mobile ? p.y : at.y;
+      const img = this.ctx.phaser.add.image(bx + ox, by + oy, 'turretw').setDepth(9);
+      this.posts.push({ x: bx + ox, y: by + oy, life: LIFE * (sentry ? 2 : 1), fire: 0.2, shots: 0, ox, oy, img });
       this.ctx.sfx('select');
     }
     const range = RANGE * this.area;

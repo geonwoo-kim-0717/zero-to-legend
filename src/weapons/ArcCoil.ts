@@ -18,9 +18,15 @@ export class ArcCoil extends WeaponBase {
   update(dt: number): void {
     const { player: p, fx } = this.ctx;
     this.timer -= dt;
-    if (this.timer <= 0) {
-      const first = this.nearest(p.x, p.y, RANGE * this.area);
-      if (first) {
+    if (this.timer <= 0 && this.trigger) {
+      // 트윈스틱: 조준선 근처의 첫 적에게서 시작 (없으면 커서 쪽 가장 가까운 적, 그래도 없으면 헛방전)
+      const first = this.aimTarget(RANGE * this.area, 0.6) ?? this.nearestTo(this.aimPoint(RANGE * this.area), 60);
+      if (!first) {
+        this.timer = this.interval * 0.5;
+        const ap = this.aimPoint(RANGE * this.area);
+        this.bolts.push({ pts: this.zigzag(p.x, p.y, ap.x, ap.y), life: 0.12 });
+      } else {
+        p.attackPose(first.x, 0.15);
         this.timer = this.interval;
         this.chain(p.x, p.y, first);
         this.ctx.sfx('glitch');

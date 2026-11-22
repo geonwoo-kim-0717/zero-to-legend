@@ -21,8 +21,10 @@ export class MicroMissile extends WeaponBase {
     const fx = this.ctx.fx;
     this.timer -= dt;
     this.reloadBudget = Math.min(8, this.reloadBudget + dt * 8);
-    if (this.timer <= 0) {
-      if (this.launch(this.s.count)) this.timer = this.interval;
+    if (this.timer <= 0 && this.trigger) {
+      // 트윈스틱: 오른쪽 클릭으로 커서 근처 적들에게 일제 발사 (근처에 없으면 화면 안 적)
+      this.fired();
+      if (this.launch(this.s.count, true)) this.timer = this.interval;
     }
     // 신화: 미사일 폭풍 (6초마다 20발을 1초 동안)
     if (this.has('missileStorm') && (this.stormT -= dt) <= 0) {
@@ -53,16 +55,26 @@ export class MicroMissile extends WeaponBase {
     this.tickEffects(dt, COLORS.orange);
   }
 
-  private launch(n: number): boolean {
+  private launch(n: number, aimed = false): boolean {
     let fired = 0;
+    const near = aimed ? this.nearAim(n) : [];
     for (let i = 0; i < n; i++) {
-      const e = this.randomOnScreen();
+      const e = near.length ? near[i % near.length] : this.randomOnScreen();
       if (!e) break;
       this.missile(e, BASE_R * this.area * (this.has('cluster') ? 1.6 : 1), this.damage, false, this.has('retarget'));
       fired++;
     }
     if (fired) this.ctx.sfx('shoot');
     return fired > 0;
+  }
+
+  /** 커서 근처(반경 120) 적을 가까운 순으로 n마리까지 */
+  private nearAim(n: number): Enemy[] {
+    const a = this.aimPoint(420);
+    const list: Enemy[] = [];
+    for (const e of this.ctx.enemies) if (e.active && (e.x - a.x) ** 2 + (e.y - a.y) ** 2 < 120 * 120) list.push(e);
+    list.sort((p, q) => (p.x - a.x) ** 2 + (p.y - a.y) ** 2 - ((q.x - a.x) ** 2 + (q.y - a.y) ** 2));
+    return list.slice(0, n);
   }
 
   private missile(e: Enemy, r: number, dmg: number, big: boolean, retarget = false, from?: { x: number; y: number }): void {

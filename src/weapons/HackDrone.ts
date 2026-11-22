@@ -51,6 +51,12 @@ export class HackDrone extends WeaponBase {
   private poseCd = 0;
 
   update(dt: number): void {
+    // 트윈스틱 보조무기: 오른쪽 클릭으로 켜면 정해진 시간 동안만 드론이 돈다
+    if (!this.activeWindow(dt)) {
+      for (const sp of this.sprites) sp.setVisible(false);
+      this.prev.length = 0;
+      return;
+    }
     if (this.sprites.length < this.droneCount) this.syncSprites();
     const { player: p, fx } = this.ctx;
     this.angle += this.s.speed * (this.ctx.overdrive ? 2 : 1) * dt;

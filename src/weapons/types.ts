@@ -69,4 +69,15 @@ export interface GameContext {
   playFx(name: string, x: number, y: number, o?: FxOpts): void;
   /** 지금 화면에 보이는 월드 영역 */
   view(): { x: number; y: number; width: number; height: number };
+  /** 트윈스틱 조준: 조준점(월드), 주무기 방아쇠(누르고 있음), 보조무기 신호(눌렀음, 아직 안 씀) */
+  readonly aim: AimState;
+  /** 보조무기 신호를 썼음 (한 번 누르면 한 번만 발사) */
+  consumeSecondary(): void;
+}
+
+export interface AimState {
+  x: number;
+  y: number;
+  primary: boolean;
+  secondary: boolean;
 }

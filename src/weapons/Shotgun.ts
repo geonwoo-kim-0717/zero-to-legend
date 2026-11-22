@@ -2,7 +2,6 @@ import { WeaponBase } from './WeaponBase';
 import type { Enemy } from '../entities/Enemy';
 import { COLORS } from '../config';
 
-const RANGE = 240;
 /** 기본 넉백 거리 */
 const KNOCK = 12;
 const SPREAD = 0.6;
@@ -30,12 +29,11 @@ export class Shotgun extends WeaponBase {
     }
     this.knocks = this.knocks.filter((k) => k.t > 0);
     if (this.again > 0 && (this.again -= dt) <= 0) this.volley(this.lastAngle);
-    if (this.timer > 0) return;
-    const p = this.ctx.player;
-    const t = this.nearest(p.x, p.y, RANGE);
-    if (!t) return;
+    if (this.timer > 0 || !this.trigger) return;
     this.timer = this.interval;
-    this.lastAngle = Math.atan2(t.y - p.y, t.x - p.x);
+    // 트윈스틱: 커서 방향으로
+    this.lastAngle = this.aimAngle;
+    this.ctx.player.attackPose(this.ctx.player.x + Math.cos(this.lastAngle) * 10, 0.15);
     this.volley(this.lastAngle);
     // 신화: 이중 장전
     if (this.has('doubleTap')) this.again = 0.2;

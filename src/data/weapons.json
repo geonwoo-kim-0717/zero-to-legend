@@ -2,6 +2,7 @@
   "smartPistol": {
     "name": "스마트 피스톨",
     "desc": "가까운 적에게 유도탄 발사 (사거리 190)",
+    "slot": "primary",
     "base": {
       "damage": 12,
       "interval": 0.45,
@@ -48,6 +49,7 @@
   "mantisBlade": {
     "name": "맨티스 블레이드",
     "desc": "바라보는 방향을 넓게 베기",
+    "slot": "primary",
     "base": {
       "damage": 25,
       "interval": 1.1,
@@ -93,6 +95,7 @@
   "hackDrone": {
     "name": "해킹 드론",
     "desc": "주위를 도는 드론이 닿은 적에게 피해",
+    "slot": "secondary",
     "base": {
       "damage": 10,
       "interval": 0.35,
@@ -133,11 +136,16 @@
         "desc": "드론 +2",
         "count": 2
       }
-    ]
+    ],
+    "active": {
+      "time": 8,
+      "cooldown": 14
+    }
   },
   "plasmaGrenade": {
     "name": "플라즈마 유탄",
     "desc": "근처 적에게 유탄을 던져 범위 폭발",
+    "slot": "secondary",
     "base": {
       "damage": 30,
       "interval": 2.2,
@@ -184,6 +192,7 @@
   "monowire": {
     "name": "모노와이어",
     "desc": "가장 가까운 적 방향으로 긴 채찍을 휘둘러 줄 위의 적을 모두 벰. 맞은 적은 1초간 아군이 됨",
+    "slot": "primary",
     "base": {
       "damage": 24,
       "interval": 1.0,
@@ -229,6 +238,7 @@
   "empField": {
     "name": "EMP 필드",
     "desc": "주변에 전자기장을 둘러 계속 피해를 주고 적을 느리게 함",
+    "slot": "secondary",
     "base": {
       "damage": 8,
       "interval": 0.333,
@@ -269,11 +279,16 @@
         "desc": "피해 +5",
         "damage": 5
       }
-    ]
+    ],
+    "active": {
+      "time": 8,
+      "cooldown": 14
+    }
   },
   "railgun": {
     "name": "레일건",
     "desc": "화면 안에서 체력이 가장 높은 적에게 화면을 꿰뚫는 빔 발사",
+    "slot": "primary",
     "base": {
       "damage": 50,
       "interval": 2.2,
@@ -320,6 +335,7 @@
   "shotgun": {
     "name": "스캐터 샷건",
     "desc": "가까운 적에게 관통 산탄 7발을 부채꼴로 발사, 맞은 적을 밀어냄",
+    "slot": "primary",
     "base": {
       "damage": 13,
       "interval": 1.2,
@@ -366,6 +382,7 @@
   "turret": {
     "name": "포탑 배치",
     "desc": "제자리에 10초 동안 자동 포탑을 세움 (한 번에 탄 2발)",
+    "slot": "secondary",
     "base": {
       "damage": 10,
       "interval": 6,
@@ -412,6 +429,7 @@
   "microMissile": {
     "name": "마이크로 미사일",
     "desc": "화면 안 무작위 적에게 유도 미사일, 작은 폭발",
+    "slot": "secondary",
     "base": {
       "damage": 14,
       "interval": 1.6,
@@ -457,6 +475,7 @@
   "arcCoil": {
     "name": "아크 코일",
     "desc": "가까운 적에게 번개, 근처 적으로 연쇄",
+    "slot": "primary",
     "base": {
       "damage": 18,
       "interval": 1.0,
@@ -503,6 +522,7 @@
   "proxMine": {
     "name": "근접 지뢰",
     "desc": "지나간 자리에 지뢰 2개, 적이 밟으면 폭발",
+    "slot": "secondary",
     "base": {
       "damage": 40,
       "interval": 1.5,
