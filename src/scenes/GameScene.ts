@@ -18,7 +18,7 @@ import { pickBoss, pickBasili, pickGregor, pickXm4, type BossAct, type BasiliAct
 import { InputController, type SubUse } from '../systems/InputController';
 import { createWeapon, WEAPON_IDS, type WeaponBase, type WeaponId } from '../weapons';
 import { weaponSlot } from '../weapons/WeaponBase';
-import { rollItems, itemName, itemText, socketLabel, weaponAbilities, ITEMS, rarityById, itemArt, PART_NAME, type ItemKind, type ItemRoll } from '../systems/Build';
+import { rollItems, itemName, itemText, socketLabel, weaponAbilities, ITEMS, rarityById, itemArt, PART_NAME, abilityTags, type ItemKind, type ItemRoll } from '../systems/Build';
 import { Loadout, weaponTags, itemTags, combosWith, type Sock } from '../systems/Loadout';
 import { OsState, OS_IDS, OS_DEFS, devOsPick, saveDevOsPick } from '../systems/Os';
 import type { GameContext, Stats, DamageTag, FxOpts } from '../weapons/types';
@@ -32,7 +32,7 @@ import type { Wave } from '../systems/Spawner';
 import { Save, type Runner, type RunnerId, type RunStats } from '../systems/Save';
 import { rollChoices, abilityCard, computeStats, passiveAmount, passiveAbility, type Choice, type PassiveId, type PassiveState, type SocketCard } from '../systems/Progression';
 import { LevelUpUI } from '../ui/LevelUpUI';
-import { itemCard, shortText } from '../ui/cardInfo';
+import { itemCard, shortText, upgradeCard, recommend } from '../ui/cardInfo';
 import { StationUI } from '../ui/StationUI';
 import { drawStall, drawMarker } from '../ui/StationMarks';
 import { buildEquipPanel } from '../ui/EquipPanel';
@@ -1750,6 +1750,17 @@ export class GameScene extends Phaser.Scene implements GameContext {
       }
     }
     if (!this.rewardOpen) this.forcedRarity = undefined;
+    // UI: 강화 카드는 장착한 아이템의 등급·소켓·태그로 보여 줌 (카드 등급은 효과용이라 그대로 둠)
+    for (const c of this.choices) {
+      if (c.card || c.item || c.pickAbility || c.ability || c.rarity.id !== 'common') continue;
+      if (c.socket) {
+        const k = this.sockets.get(c.socket);
+        if (k) c.card = upgradeCard({ kind: ITEMS[k.id].kind as ItemKind, id: k.id, rarity: rarityById(k.rarity), tags: itemTags(k.id), lv: k.level, desc: c.desc });
+      } else if (c.kind === 'weapon') {
+        const w = this.weapons.find((o) => o.id === c.id);
+        if (w) c.card = upgradeCard({ kind: 'weapon', id: w.id, rarity: rarityById(w.rarity), tags: this.wTags.get(w.id) ?? weaponTags(w.id, w.abilities), lv: w.level, desc: c.desc });
+      }
+    }
     this.levelUi.show(
       this.choices,
       this.rerolls,
@@ -2220,9 +2231,11 @@ export class GameScene extends Phaser.Scene implements GameContext {
     let desc = '';
     let lv = 1;
     let was: { name: string; tags: string[] } | null = null;
+    let curId: string | undefined;
     if (r.kind === 'weapon') {
       const cur = this.weapons.find((w) => w.slot === weaponSlot(r.id as WeaponId));
       lv = cur?.level ?? 1;
+      curId = cur?.id;
       if (cur) was = { name: cur.name, tags: this.wTags.get(cur.id) ?? weaponTags(cur.id, cur.abilities) };
       desc = weaponsData[r.id as WeaponId].desc + (r.rarity.weaponBonus > 0 ? tr('lvl.bonus', { v: Math.round(r.rarity.weaponBonus * 100) }) : '');
       if (r.rarity.ability) desc += '\n' + tr('item.pickAbility', { tier: r.rarity.label });
@@ -2231,12 +2244,13 @@ export class GameScene extends Phaser.Scene implements GameContext {
     } else {
       const cur = this.sockets.get(ITEMS[r.id].part);
       lv = cur?.level ?? 1;
+      curId = cur?.id;
       if (cur) was = { name: itemName(ITEMS[cur.id].kind as ItemKind, cur.id), tags: itemTags(cur.id) };
       desc = itemText(r.id, lv, r.rarity.id);
       if (cur) desc += '\n' + tr('item.replace', { cur: itemName(ITEMS[cur.id].kind as ItemKind, cur.id) });
     }
     desc += this.tagLine(r.kind, r.id);
-    return { kind, id: r.id, art: itemArt(r.id), rarity: r.rarity, title: itemName(r.kind, r.id), levelLabel: `${socketLabel(r.kind, r.id)} · ${tr('lvl.socket', { lv })}`, desc, isNew: true, item: { kind: r.kind, id: r.id }, card: itemCard({ kind: r.kind, id: r.id, rarity: r.rarity, lv, cur: was, tagCount: this.kit.tagCount }) } as Choice;
+    return { kind, id: r.id, art: itemArt(r.id), rarity: r.rarity, title: itemName(r.kind, r.id), levelLabel: `${socketLabel(r.kind, r.id)} · ${tr('lvl.socket', { lv })}`, desc, isNew: true, item: { kind: r.kind, id: r.id }, card: itemCard({ kind: r.kind, id: r.id, rarity: r.rarity, lv, cur: was, tagCount: this.kit.tagCount, equipped: this.equippedIds(), activeCombos: this.kit.combos.map((c) => c.name), curId }) } as Choice;
   }
 
   /** 전설·신화 무기를 얻은 뒤 그 등급 능력 중 하나 고르기 */
@@ -2244,7 +2258,19 @@ export class GameScene extends Phaser.Scene implements GameContext {
     const a = this.abilityPending!;
     this.state = 'levelup';
     const rar = rarityById(a.tier);
-    this.choices = weaponAbilities(a.weapon, a.tier).map((ab) => ({ kind: 'weapon', id: a.weapon, rarity: rar, title: ab.name, levelLabel: `${weaponsData[a.weapon].name} · ${rar.label}`, desc: ab.desc, pickAbility: { weapon: a.weapon, tier: a.tier }, ability: undefined, abilityId: ab.id }) as unknown as Choice);
+    // UI: 능력이 무기에 새 태그를 더해 시너지 단계가 오르면 추천
+    const w = this.weapons.find((o) => o.id === a.weapon);
+    const has = new Set(w ? (this.wTags.get(w.id) ?? weaponTags(w.id, w.abilities)) : []);
+    this.choices = weaponAbilities(a.weapon, a.tier).map((ab) => {
+      const tags = abilityTags(a.weapon, ab.id)
+        .filter((tag) => !has.has(tag))
+        .map((tag) => {
+          const next = (this.kit.tagCount.get(tag) ?? 0) + 1;
+          return [2, 3, 4, gameData.mythicAwaken].includes(next) ? { tag, up: next } : { tag };
+        });
+      const card = { slot: `${weaponsData[a.weapon].name}`, short: ab.desc, tags, ...recommend({ id: `${a.weapon}:${ab.id}`, tags }) };
+      return { kind: 'weapon', id: a.weapon, rarity: rar, title: ab.name, levelLabel: `${weaponsData[a.weapon].name} · ${rar.label}`, desc: ab.desc, pickAbility: { weapon: a.weapon, tier: a.tier }, ability: undefined, abilityId: ab.id, card } as unknown as Choice;
+    });
     this.levelUi.show(this.choices, 0, (i) => this.pick(i), () => undefined, tr('item.abilityTitle', { tier: rar.label }));
   }
 

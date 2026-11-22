@@ -2,7 +2,8 @@ import short from '../data/short.json';
 import gameData from '../data/game.json';
 import weaponsData from '../data/weapons.json';
 import { ITEMS, PART_NAME, itemDisplayValues, itemText, type ItemKind } from '../systems/Build';
-import { itemTags, weaponTags } from '../systems/Loadout';
+import { itemTags, weaponTags, combosWith } from '../systems/Loadout';
+import build from '../data/build.json';
 import type { Rarity } from '../systems/Progression';
 import { I18n, t } from '../i18n';
 
@@ -23,6 +24,12 @@ export interface CardInfo {
   foot?: { left: string; right?: string };
   /** 별 줄 (전설·신화 능력 안내) */
   star?: string;
+  /** 표시용 등급 (레벨업 강화 카드: 장착한 아이템의 등급을 보여 줌, 효과에는 쓰지 않음) */
+  rarity?: Rarity;
+  /** 추천: 고르면 이름 붙은 조합이 완성되거나 태그 시너지 단계가 오름 */
+  rec?: { title: string; text: string; combo: boolean };
+  /** 경고: 바꿔 끼우면 켜진 조합이 풀림 */
+  warn?: string;
 }
 
 const SHORT = short as unknown as Record<string, { ko?: string; en?: string }>;
@@ -63,6 +70,11 @@ export function itemCard(o: {
   lv: number;
   cur: { name: string; tags: string[] } | null;
   tagCount: ReadonlyMap<string, number>;
+  /** 지금 장착한 아이템 id (무기 포함), 켜진 조합 이름 */
+  equipped?: ReadonlySet<string>;
+  activeCombos?: readonly string[];
+  /** 빠질 아이템 id */
+  curId?: string;
 }): CardInfo {
   const tags = o.kind === 'weapon' ? weaponTags(o.id) : itemTags(o.id);
   const curTags = new Set(o.cur?.tags ?? []);
@@ -84,5 +96,46 @@ export function itemCard(o: {
     tags: out,
     foot: { left: o.cur ? `⇄ ${o.cur.name}` : t('card.empty'), right: `Lv ${o.lv}` },
     star,
+    ...recommend({ id: o.id, tags: out, equipped: o.equipped, activeCombos: o.activeCombos, curId: o.curId }),
+  };
+}
+
+type TierDef = { count: number; text: string; params?: Record<string, number> };
+const TIERS = build.tagTiers as unknown as Record<string, TierDef[]>;
+
+/** 이 아이디가 들어오면 완성되는 조합 (짝을 이미 꼈고 아직 안 켜진 것), 빠지는 아이템 때문에 풀리는 조합 */
+export function recommend(o: { id: string; tags: CardTag[]; equipped?: ReadonlySet<string>; activeCombos?: readonly string[]; curId?: string }): Pick<CardInfo, 'rec' | 'warn'> {
+  const out: Pick<CardInfo, 'rec' | 'warn'> = {};
+  const eq = o.equipped;
+  const active = new Set(o.activeCombos ?? []);
+  if (eq) {
+    const after = new Set(eq);
+    if (o.curId) after.delete(o.curId);
+    after.add(o.id);
+    const made = combosWith(o.id).find((c) => after.has(c.other) && !active.has(c.name));
+    if (made) out.rec = { title: t('rec.combo', { name: made.name }), text: made.text, combo: true };
+    // 빠지는 아이템이 켜진 조합의 한쪽이면 경고 (같은 조합을 이 아이템이 다시 채우면 제외)
+    if (o.curId) {
+      const lost = combosWith(o.curId).find((c) => active.has(c.name) && eq.has(c.other) && !combosWith(o.id).some((m) => m.name === c.name));
+      if (lost) out.warn = t('rec.lost', { name: lost.name });
+    }
+  }
+  if (!out.rec) {
+    // 가장 높이 오르는 태그 단계
+    const up = o.tags.filter((g) => g.up).sort((a, b) => (b.up ?? 0) - (a.up ?? 0))[0];
+    const def = up && TIERS[up.tag]?.find((d) => d.count === up.up);
+    if (up && def) out.rec = { title: t('rec.tier', { tag: up.tag, n: up.up! }), text: fill(def.text, def.params ?? {}), combo: false };
+  }
+  return out;
+}
+
+/** 레벨업 강화 카드 정보: 장착한 아이템의 등급·소켓·태그를 보여 줌 (레벨만 오르니 추천 없음) */
+export function upgradeCard(o: { kind: ItemKind; id: string; rarity: Rarity; tags: string[]; lv: number; desc: string }): CardInfo {
+  return {
+    slot: slotName(o.kind, o.id),
+    short: o.desc,
+    tags: o.tags.map((tag) => ({ tag })),
+    foot: { left: t('card.upgrade'), right: `Lv ${o.lv} → ${o.lv + 1}` },
+    rarity: o.rarity,
   };
 }
