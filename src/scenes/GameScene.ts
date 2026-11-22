@@ -18,7 +18,7 @@ import { pickBoss, pickBasili, pickGregor, pickXm4, type BossAct, type BasiliAct
 import { InputController, type SubUse } from '../systems/InputController';
 import { createWeapon, type WeaponBase, type WeaponId } from '../weapons';
 import { weaponSlot } from '../weapons/WeaponBase';
-import { rollItems, itemName, itemText, socketLabel, weaponAbilities, ITEMS, rarityById, itemArt, type ItemKind, type ItemRoll } from '../systems/Build';
+import { rollItems, itemName, itemText, socketLabel, weaponAbilities, ITEMS, rarityById, itemArt, PART_NAME, type ItemKind, type ItemRoll } from '../systems/Build';
 import { Loadout, weaponTags, itemTags, combosWith, type Sock } from '../systems/Loadout';
 import { OsState, OS_IDS, OS_DEFS, devOsPick, saveDevOsPick } from '../systems/Os';
 import type { GameContext, Stats, DamageTag, FxOpts } from '../weapons/types';
@@ -32,7 +32,9 @@ import type { Wave } from '../systems/Spawner';
 import { Save, type Runner, type RunnerId, type RunStats } from '../systems/Save';
 import { rollChoices, abilityCard, computeStats, passiveAmount, passiveAbility, type Choice, type PassiveId, type PassiveState, type SocketCard } from '../systems/Progression';
 import { LevelUpUI } from '../ui/LevelUpUI';
-import { itemCard } from '../ui/cardInfo';
+import { itemCard, shortText } from '../ui/cardInfo';
+import { StationUI } from '../ui/StationUI';
+import { drawStall, drawMarker } from '../ui/StationMarks';
 import { buildEquipPanel } from '../ui/EquipPanel';
 import { Hud } from '../ui/Hud';
 import { Sound, type SfxKey, type MusicKey } from '../systems/Sound';
@@ -216,6 +218,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
   private skyline!: Phaser.GameObjects.TileSprite;
   private sparks!: Phaser.GameObjects.Particles.ParticleEmitter;
   private levelUi!: LevelUpUI;
+  private stationUi!: StationUI;
 
   private weapons: WeaponBase[] = [];
   /** 트윈스틱 조준 상태 (무기가 GameContext.aim으로 읽음). subX·subY: 보조무기를 쓸 자리 */
@@ -820,6 +823,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
     this.input.setDefaultCursor('none');
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.input.setDefaultCursor('default'));
     this.levelUi = new LevelUpUI(this);
+    this.stationUi = new StationUI(this, this.levelUi);
 
     this.sparks = this.add
       .particles(0, 0, 'spark', {
@@ -892,6 +896,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.game.events.off(Phaser.Core.Events.BLUR, this.onBlur, this);
       this.levelUi.hide();
+      this.stationUi.hide();
       Sound.musicRate(1);
       Sound.slowWorld(false);
       Sound.raidFocus(false);
@@ -1922,15 +1927,12 @@ export class GameScene extends Phaser.Scene implements GameContext {
       // 보스가 나오면 문을 닫음
       if (this.boss || this.arena) s.t = 0;
       if (s.t <= 0) continue;
-      const col = s.kind === 'shop' ? 0xfff23a : 0x39ff88;
       const blink = s.t < 10 && Math.floor(s.t * 4) % 2 === 0 ? 0.4 : 1;
-      // 노점: 네온 간판이 달린 상자 (그림이 생기기 전 임시)
-      fx.fillStyle(0x120a24, 0.9 * blink).fillRect(s.x - 14, s.y - 12, 28, 22);
-      fx.lineStyle(2, col, 0.9 * blink).strokeRect(s.x - 14, s.y - 12, 28, 22);
-      fx.fillStyle(col, (0.35 + Math.sin(this.elapsed * 6) * 0.15) * blink).fillRect(s.x - 10, s.y - 8, 20, 5);
-      fx.lineStyle(1, col, 0.25).strokeCircle(s.x, s.y, gameData.stations.reach + 10 + Math.sin(this.elapsed * 4) * 3);
-      s.label.setPosition(s.x, s.y - 14).setAlpha(blink);
-      // 화면 밖이면 가장자리 화살표 + 남은 시간
+      const name = tr(s.kind === 'shop' ? 'station.shop' : 'station.ripper');
+      // UI: 네온 노점 (src/ui/StationMarks.ts, 그림이 오기 전 코드로 그림)
+      drawStall(fx, s.kind, s.x, s.y, blink, this.elapsed, gameData.stations.reach);
+      s.label.setPosition(s.x, s.y - 28).setAlpha(blink).setText(`${name} · ${Math.ceil(s.t)}s`);
+      // 화면 밖이면 가장자리에 둥근 안내 (문양 + 남은 시간 고리 + 방향)
       const sx = s.x - cam.scrollX;
       const sy = s.y - cam.scrollY;
       const inView = sx > 0 && sx < VIEW_W && sy > 0 && sy < VIEW_H;
@@ -1939,26 +1941,23 @@ export class GameScene extends Phaser.Scene implements GameContext {
         const cx = VIEW_W / 2;
         const cy = VIEW_H / 2;
         const ang = Math.atan2(sy - cy, sx - cx);
-        const k = Math.min((VIEW_W / 2 - 26) / Math.abs(Math.cos(ang) || 1e-6), (VIEW_H / 2 - 26) / Math.abs(Math.sin(ang) || 1e-6));
-        const ex = cx + Math.cos(ang) * k;
-        const ey = cy + Math.sin(ang) * k;
-        const wx = cam.scrollX + ex;
-        const wy = cam.scrollY + ey;
-        const tip = 9;
-        fx.fillStyle(col, 0.9).fillTriangle(
-          wx + Math.cos(ang) * tip,
-          wy + Math.sin(ang) * tip,
-          wx + Math.cos(ang + 2.4) * tip,
-          wy + Math.sin(ang + 2.4) * tip,
-          wx + Math.cos(ang - 2.4) * tip,
-          wy + Math.sin(ang - 2.4) * tip,
-        );
+        // 가장자리 안쪽 테두리 (위는 HUD, 아래는 능력 막대를 피함)
+        const c = Math.cos(ang);
+        const sn = Math.sin(ang);
+        const k = Math.min(c > 0 ? (VIEW_W - 30 - cx) / c : c < 0 ? (30 - cx) / c : 1e9, sn > 0 ? (VIEW_H - 36 - cy) / sn : sn < 0 ? (72 - cy) / sn : 1e9);
+        const ex = cx + c * k;
+        const ey = cy + sn * k;
+        drawMarker(fx, s.kind, cam.scrollX + ex, cam.scrollY + ey, ang, s.t / gameData.stations.life, this.elapsed);
+        // 이름·시간 글자는 표시 아래 (아래쪽 가장자리면 위)
         s.arrow
           .setVisible(true)
-          .setPosition(ex - Math.cos(ang) * 16, ey - Math.sin(ang) * 16)
-          .setText(`${tr(s.kind === 'shop' ? 'station.shop' : 'station.ripper')} ${Math.ceil(s.t)}s`);
+          .setPosition(Phaser.Math.Clamp(ex, 44, VIEW_W - 44), ey + (sn > 0.6 ? -27 : 27))
+          .setText(`${name} ${Math.ceil(s.t)}s`);
       }
-      if (this.state === 'play' && (s.x - p.x) ** 2 + (s.y - p.y) ** 2 < (gameData.stations.reach + p.radius) ** 2) this.openStation(s);
+      if (this.state === 'play' && (s.x - p.x) ** 2 + (s.y - p.y) ** 2 < (gameData.stations.reach + p.radius) ** 2) {
+        this.stationUi.reset();
+        this.openStation(s);
+      }
     }
     for (const s of this.stations) if (s.t <= 0) {
       s.label.destroy();
@@ -1973,18 +1972,8 @@ export class GameScene extends Phaser.Scene implements GameContext {
     this.state = 'levelup';
     this.stationOpen = s;
     s.arrow.setVisible(false);
-    const common = rarityById('common');
     const ST = gameData.stations;
     const chips = Math.floor(this.chips);
-    const cost = (n: number) => (n > 0 ? `◆${n}` : tr('station.free'));
-    const poor = (n: number) => (chips < n ? `\n${tr('station.poor')}` : '');
-    type Act = () => void;
-    const acts: Act[] = [];
-    const cards: Choice[] = [];
-    const add = (c: Choice, act: Act) => {
-      cards.push(c);
-      acts.push(act);
-    };
     const pay = (n: number): boolean => {
       if (chips < n) {
         Sound.play('block');
@@ -1995,109 +1984,103 @@ export class GameScene extends Phaser.Scene implements GameContext {
       Sound.play('select');
       return true;
     };
+    // 고른 뒤: 전설·신화 무기를 샀으면 능력부터 고르고 다시 이 화면으로, 아니면 화면을 다시 그림
+    const after = () => {
+      if (this.stationOpen !== s) return;
+      if (this.abilityPending) {
+        this.stationUi.hide();
+        this.nextScreen();
+      } else this.openStation(s);
+    };
+    const leave = () => {
+      this.stationUi.hide();
+      // 들렀다 나오면 그 노점은 문을 닫음
+      s.t = 0;
+      this.stationOpen = null;
+      this.nextScreen();
+    };
     if (s.kind === 'shop') {
+      // UI: 블랙마켓 화면 (src/ui/StationUI.ts)
       const SH = ST.shop;
       if (!s.stock) s.stock = rollItems(SH.items, this.equippedIds());
-      for (const r of s.stock) {
-        const price = (SH.price as Record<string, number>)[r.rarity.id] ?? 50;
-        const c = this.itemChoice(r);
-        c.levelLabel = `${cost(price)} · ${c.levelLabel}`;
-        // 새 카드 디자인은 소켓 칩에 값을 붙여 보여 줌
-        if (c.card) c.card = { ...c.card, slot: `${cost(price)} · ${c.card.slot}` };
-        c.desc += poor(price);
-        add(c, () => {
-          if (!pay(price)) return;
-          s.stock = s.stock!.filter((x) => x !== r);
-          this.equipItem(c);
-        });
-      }
-      if (!s.healed) {
-        add({ kind: 'overflow', id: 'shopHeal', art: 'heal', rarity: common, title: tr('station.heal'), levelLabel: cost(SH.heal.price), desc: tr('station.healDesc', { pct: SH.heal.pct }) + poor(SH.heal.price) }, () => {
-          if (!pay(SH.heal.price)) return;
-          s.healed = true;
-          this.heal(Math.round((this.player.maxHp * SH.heal.pct) / 100));
-        });
-      }
+      const stock = s.stock;
+      const items = stock.map((r) => ({ choice: this.itemChoice(r), price: (SH.price as Record<string, number>)[r.rarity.id] ?? 50 }));
       const rr = SH.reroll + SH.rerollStep * s.rerolls;
-      add({ kind: 'overflow', id: 'shopReroll', rarity: common, title: tr('station.reroll'), levelLabel: cost(rr), desc: tr('station.rerollDesc') + poor(rr) }, () => {
-        if (!pay(rr)) return;
-        s.rerolls++;
-        s.stock = rollItems(SH.items, this.equippedIds());
-      });
-    } else if (s.osPage < 0) {
-      // 리퍼닥: 사이버웨어 소켓 레벨 +1, OS 바꿔 끼기
+      this.stationUi.showShop(
+        { chips, items, heal: s.healed ? undefined : { pct: SH.heal.pct, price: SH.heal.price }, reroll: { price: rr } },
+        {
+          buy: (i) => {
+            const it = items[i];
+            if (!it || !pay(it.price)) return;
+            s.stock = s.stock!.filter((x) => x !== stock[i]);
+            this.equipItem(it.choice);
+            after();
+          },
+          heal: () => {
+            if (!pay(SH.heal.price)) return;
+            s.healed = true;
+            this.heal(Math.round((this.player.maxHp * SH.heal.pct) / 100));
+            after();
+          },
+          reroll: () => {
+            if (!pay(rr)) return;
+            s.rerolls++;
+            s.stock = rollItems(SH.items, this.equippedIds());
+            after();
+          },
+          leave,
+        },
+      );
+    } else {
+      // UI: 리퍼닥 화면 — 사이버웨어 소켓 레벨 +1 (여러 번 가능), OS 바꿔 끼기
       const RP = ST.ripper;
-      for (const part of ['neural', 'optic', 'skeletal']) {
+      const cyber = (['neural', 'optic', 'skeletal'] as const).map((part) => {
         const k = this.sockets.get(part);
-        if (!k) continue;
+        const label = PART_NAME[part];
+        if (!k) return { part, label };
         const max = ITEMS[k.id].maxLevel ?? 5;
-        if (k.level >= max) continue;
-        const price = RP.cyberLevel[Math.min(k.level - 1, RP.cyberLevel.length - 1)];
-        add(
-          { kind: 'passive', id: k.id, art: itemArt(k.id), rarity: rarityById(k.rarity), title: itemName('cyber', k.id), levelLabel: `${cost(price)} · ${tr('lvl.socket', { lv: k.level + 1 })}`, desc: itemText(k.id, k.level + 1, k.rarity) + poor(price) },
-          () => {
+        return {
+          part,
+          label,
+          item: {
+            name: itemName('cyber', k.id),
+            art: itemArt(k.id),
+            color: Phaser.Display.Color.HexStringToColor(rarityById(k.rarity).color).color,
+            level: k.level,
+            max,
+            now: shortText(k.id, k.level, k.rarity) ?? itemText(k.id, k.level, k.rarity),
+            next: k.level < max ? (shortText(k.id, k.level + 1, k.rarity) ?? itemText(k.id, k.level + 1, k.rarity)) : '',
+            price: RP.cyberLevel[Math.min(k.level - 1, RP.cyberLevel.length - 1)],
+          },
+        };
+      });
+      const list = OS_IDS.map((id) => {
+        const st = new OsState(id, this.osLevelFor(id));
+        return { id, name: st.name, level: st.level, color: st.def.color, tags: st.def.tags, lines: st.lines() };
+      });
+      this.stationUi.showRipper(
+        { chips, cyber, os: { cur: this.os.id, price: RP.osSwap, list } },
+        {
+          upgrade: (part) => {
+            const k = this.sockets.get(part);
+            if (!k || k.level >= (ITEMS[k.id].maxLevel ?? 5)) return;
+            const price = RP.cyberLevel[Math.min(k.level - 1, RP.cyberLevel.length - 1)];
             if (!pay(price)) return;
             k.level++;
             const oldMax = this.player.maxHp;
             this.rebuildLoadout(false);
             this.player.hp += Math.max(0, this.player.maxHp - oldMax);
+            after();
           },
-        );
-      }
-      add({ kind: 'overflow', id: 'ripperOs', rarity: common, title: tr('station.os'), levelLabel: cost(RP.osSwap), desc: tr('station.osDesc', { name: `${this.os.name} Lv${this.os.level}` }) }, () => {
-        s.osPage = 0;
-      });
-    } else {
-      // OS 목록 (한 화면에 3개씩)
-      const list = OS_IDS.filter((id) => id !== this.os.id);
-      const page = list.slice(s.osPage * 3, s.osPage * 3 + 3);
-      for (const id of page) {
-        const lv = this.osLevelFor(id);
-        const st = new OsState(id, lv);
-        add({ kind: 'overflow', id: `os_${id}`, art: `os_${id}`, rarity: common, title: st.name, levelLabel: `OS Lv${st.level}`, desc: [st.def.tags.length ? `[${st.def.tags.join('·')}]` : '', st.lines()[0].text, st.level > 1 ? tr('station.osMore', { n: st.level - 1 }) : ''].filter(Boolean).join('\n') }, () => {
-          if (!pay(ST.ripper.osSwap)) return;
-          this.setOs(id, lv);
-          s.osPage = -1;
-        });
-      }
-      if (list.length > 3)
-        add({ kind: 'overflow', id: 'osNext', rarity: common, title: tr('station.next'), levelLabel: `${s.osPage + 1} / ${Math.ceil(list.length / 3)}`, desc: '' }, () => {
-          s.osPage = (s.osPage + 1) % Math.ceil(list.length / 3);
-        });
-    }
-    this.choices = cards;
-    const title = `${tr(s.kind === 'shop' ? 'station.shop' : 'station.ripper')}  ◆${chips}`;
-    const back = s.kind === 'ripper' && s.osPage >= 0;
-    this.levelUi.show(
-      cards,
-      0,
-      (i) => {
-        if (this.stationOpen !== s || !acts[i]) return;
-        acts[i]();
-        if (this.abilityPending) {
-          // 전설·신화 무기를 샀으면 능력부터 고르고 다시 이 화면으로
-          this.levelUi.hide();
-          this.nextScreen();
-        } else this.openStation(s);
-      },
-      () => undefined,
-      title,
-      {
-        label: tr(back ? 'station.back' : 'station.leave'),
-        onSkip: () => {
-          if (back) {
-            s.osPage = -1;
-            this.openStation(s);
-            return;
-          }
-          this.levelUi.hide();
-          // 들렀다 나오면 그 노점은 문을 닫음
-          s.t = 0;
-          this.stationOpen = null;
-          this.nextScreen();
+          swap: (id) => {
+            if (id === this.os.id || !pay(RP.osSwap)) return;
+            this.setOs(id, this.osLevelFor(id));
+            after();
+          },
+          leave,
         },
-      },
-    );
+      );
+    }
   }
 
   /** OS 레벨: 판 밖 해금·뽑기(4단계) 전까지 개발자 도구 레벨, 없으면 4 (표준 OS는 1) */

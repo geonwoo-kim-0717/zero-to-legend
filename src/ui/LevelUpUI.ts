@@ -65,6 +65,22 @@ function haloTex(scene: Phaser.Scene, color: number, rays: number, rayColor = co
   return key;
 }
 
+/** 카드 배치를 바꿀 때 (상점 등): 카드 위치·너비·최소 높이, 칩이 모자란 카드는 흐리게, 제목 색 */
+export interface CardLayoutOpts {
+  top?: number;
+  cw?: number;
+  minH?: number;
+  titleColor?: string;
+  dimmed?: boolean[];
+}
+/** show()가 돌려주는 카드 자리 (그 아래에 버튼을 붙일 때) */
+export interface CardLayout {
+  xs: number[];
+  cw: number;
+  top: number;
+  ch: number;
+}
+
 /**
  * 선택 카드 화면 (레벨업·보급 상자·능력 고르기).
  * 키보드(1·2·3, R 다시 뽑기, X 포기)와 클릭/터치 모두 지원.
@@ -81,7 +97,7 @@ export class LevelUpUI {
     return this.objs.length > 0;
   }
 
-  show(choices: Choice[], rerolls: number, onPick: (i: number) => void, onReroll: () => void, title = 'LEVEL UP', skip?: { label: string; onSkip: () => void }): void {
+  show(choices: Choice[], rerolls: number, onPick: (i: number) => void, onReroll: () => void, title = 'LEVEL UP', skip?: { label: string; onSkip: () => void }, opts: CardLayoutOpts = {}): CardLayout {
     this.hide();
     const s = this.scene;
     const D = 300;
@@ -95,13 +111,13 @@ export class LevelUpUI {
       add(s.add.text(x, y, str, { ...BASE_TEXT, fontSize: `${size}px`, color, ...extra }), depth);
 
     add(s.add.rectangle(0, 0, VIEW_W, VIEW_H, 0x000000, 0.68).setOrigin(0));
-    const titleCol = title === 'LEVEL UP' ? '#39ff88' : '#fff23a';
+    const titleCol = opts.titleColor ?? (title === 'LEVEL UP' ? '#39ff88' : '#fff23a');
     txt(VIEW_W / 2, 30, title, 20, titleCol).setOrigin(0.5).setShadow(0, 0, titleCol, 8, true, true);
 
     const n = choices.length;
     const gap = 14;
-    const cw = Math.min(184, Math.floor((VIEW_W - 24 - gap * (n - 1)) / n));
-    const top = 62;
+    const cw = opts.cw ?? Math.min(184, Math.floor((VIEW_W - 24 - gap * (n - 1)) / n));
+    const top = opts.top ?? 62;
     let armed = -1;
     const x0 = Math.round(VIEW_W / 2 - (n * cw + (n - 1) * gap) / 2);
 
@@ -162,7 +178,7 @@ export class LevelUpUI {
       built.push({ x, tier, col, info, c, body, contentBottom: bottom });
     });
     const footH = 20;
-    const ch = Math.min(VIEW_H - top - 40, Math.max(248, Math.max(...built.map((b) => b.contentBottom)) - top + footH + 14));
+    const ch = Math.min(VIEW_H - top - 40, Math.max(opts.minH ?? 248, Math.max(...built.map((b) => b.contentBottom)) - top + footH + 14));
 
     // 2차: 카드 틀·띠·후광·아래 줄·테두리·연출
     built.forEach((b, i) => {
@@ -288,6 +304,8 @@ export class LevelUpUI {
         }
       }
 
+      // 칩이 모자란 카드 (상점): 어둡게 덮음
+      if (opts.dimmed?.[i]) add(s.add.rectangle(x, top, cw, ch, 0x05030c, 0.5).setOrigin(0), D + 4);
       // 고르기: 카드 위에서 눌렀다 떼야 선택 (이동 중 손을 뗀 경우 무시)
       const hit = add(s.add.rectangle(x, top, cw, ch, 0xffffff, 0).setOrigin(0), D + 5);
       hit.setInteractive({ useHandCursor: true });
@@ -329,6 +347,7 @@ export class LevelUpUI {
       else if ((e.key === 'x' || e.key === 'X') && skip) skip.onSkip();
     };
     s.input.keyboard!.on('keydown', this.keyHandler);
+    return { xs: built.map((b) => b.x), cw, top, ch };
   }
 
   hide(): void {
