@@ -34,7 +34,8 @@ export class Turret extends WeaponBase {
     const sentry = this.has('sentryNet');
     const fortress = this.has('fortress');
     const mobile = this.has('mobilePost');
-    const max = this.s.count + (fortress ? 2 : 0);
+    // 개편 2-2: 기계 2단계·포탑 거점 조합이 동시 포탑 수를 늘림
+    const max = this.s.count + (fortress ? 2 : 0) + (this.ctx.mod('syn.mech2')?.n ?? 0) + (this.ctx.mod('combo.turretDock')?.n ?? 0);
     this.timer -= dt;
     if (this.timer <= 0 && this.trigger) {
       // 트윈스틱: 오른쪽 클릭으로 커서 자리에 설치 (휴대 포탑은 플레이어 곁)
@@ -71,7 +72,7 @@ export class Turret extends WeaponBase {
         const e = this.nearest(t.x, t.y, range);
         if (e) {
           // 발사 간격에도 공격속도(신경 가속기·냉각 코어)와 오버클럭이 적용된다
-          t.fire = FIRE * this.ctx.stats.cooldownMul * (this.ctx.overdrive ? 1 / gameData.overdrive.fireRateMul : 1);
+          t.fire = FIRE * this.ctx.stats.cooldownMul * this.ctx.weaponMul(this.id).cd * (this.ctx.overdrive ? 1 / gameData.overdrive.fireRateMul : 1);
           t.shots++;
           const a = Math.atan2(e.y - t.y, e.x - t.x);
           t.img.setRotation(a);
@@ -125,6 +126,12 @@ export class Turret extends WeaponBase {
   }
 
   private expire(t: Post): void {
+    // 개편 2-2 기계 4단계: 포탑이 사라질 때 폭발
+    const boom = this.ctx.mod('syn.mech4');
+    if (boom && t.img.active) {
+      this.hitCircle(t.x, t.y, boom.r ?? 60, (boom.dmg ?? 60) * this.ctx.stats.damageMul);
+      if (this.blasts.length < 30) this.blasts.push({ x: t.x, y: t.y, r: boom.r ?? 60, life: 0.3 });
+    }
     t.life = 0;
     t.img.destroy();
   }

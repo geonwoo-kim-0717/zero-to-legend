@@ -183,6 +183,11 @@ export class PlasmaGrenade extends WeaponBase {
     }
   }
 
+  /** 반격 유탄 조합: 플레이어 자리에서 (tx, ty)로 유탄 한 발 */
+  autoThrow(tx: number, ty: number): void {
+    this.throwOne(this.ctx.player.x, this.ctx.player.y, tx, ty);
+  }
+
   destroy(): void {
     for (const g of this.grenades) g.sprite?.destroy();
     for (const s of this.spritePool) s.destroy();

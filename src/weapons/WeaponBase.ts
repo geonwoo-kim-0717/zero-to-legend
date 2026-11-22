@@ -52,16 +52,24 @@ export abstract class WeaponBase {
   /** 플레이어에서 조준점으로의 각도 */
   protected get aimAngle(): number {
     const p = this.ctx.player;
-    return Math.atan2(this.ctx.aim.y - p.y, this.ctx.aim.x - p.x);
+    return Math.atan2(this.ay - p.y, this.ax - p.x);
+  }
+
+  /** 이 무기의 조준점: 주무기는 조준점, 보조무기는 쓸 자리 */
+  protected get ax(): number {
+    return this.slot === 'secondary' ? this.ctx.aim.subX : this.ctx.aim.x;
+  }
+  protected get ay(): number {
+    return this.slot === 'secondary' ? this.ctx.aim.subY : this.ctx.aim.y;
   }
 
   /** 조준점 (플레이어에서 max보다 멀면 그 방향으로 max까지) */
   protected aimPoint(max: number): { x: number; y: number } {
     const p = this.ctx.player;
-    const dx = this.ctx.aim.x - p.x;
-    const dy = this.ctx.aim.y - p.y;
+    const dx = this.ax - p.x;
+    const dy = this.ay - p.y;
     const d = Math.hypot(dx, dy);
-    if (d <= max || d < 1) return { x: this.ctx.aim.x, y: this.ctx.aim.y };
+    if (d <= max || d < 1) return { x: this.ax, y: this.ay };
     return { x: p.x + (dx / d) * max, y: p.y + (dy / d) * max };
   }
 
@@ -78,7 +86,7 @@ export abstract class WeaponBase {
     if (this.activeLeft <= 0 && this.activeCd <= 0 && this.trigger) {
       this.fired();
       this.activeLeft = A.time;
-      this.activeCd = A.time + A.cooldown * this.ctx.stats.cooldownMul;
+      this.activeCd = A.time + A.cooldown * this.ctx.stats.cooldownMul * this.ctx.weaponMul(this.id).sub;
       this.ctx.sfx('select');
     }
     return this.activeLeft > 0;
@@ -89,7 +97,7 @@ export abstract class WeaponBase {
     const A = (weapons[this.id] as { active?: { time: number; cooldown: number } }).active;
     if (A) {
       if (this.activeLeft > 0) return 1;
-      const full = A.time + A.cooldown * this.ctx.stats.cooldownMul;
+      const full = A.time + A.cooldown * this.ctx.stats.cooldownMul * this.ctx.weaponMul(this.id).sub;
       return 1 - this.activeCd / full;
     }
     const iv = this.interval || 1;
@@ -101,9 +109,14 @@ export abstract class WeaponBase {
     return this.activeLeft > 0;
   }
 
-  /** 방아쇠: 주무기는 누르고 있는 동안, 보조무기는 누른 신호가 남아 있을 때 */
+  /** 방아쇠: 주무기는 사거리 안에 적이 있는 동안(자동), 보조무기는 누른 신호가 남아 있을 때 */
   protected get trigger(): boolean {
     return this.slot === 'primary' ? this.ctx.aim.primary : this.ctx.aim.secondary;
+  }
+
+  /** 재사용 대기를 바로 끝냄 (돌격 산탄 조합: 대시하면 샷건 재장전) */
+  resetCooldown(): void {
+    this.timer = 0;
   }
 
   /** 발사했음: 보조무기는 누른 신호를 씀 */
@@ -114,7 +127,7 @@ export abstract class WeaponBase {
   /** 조준선 근처(좌우 cone 라디안, range 안)에서 조준선에 가장 가까운 적 */
   protected aimTarget(range: number, cone = TS.aimCone, from?: { x: number; y: number }): Enemy | null {
     const o = from ?? this.ctx.player;
-    const a0 = Math.atan2(this.ctx.aim.y - o.y, this.ctx.aim.x - o.x);
+    const a0 = Math.atan2(this.ay - o.y, this.ax - o.x);
     let best: Enemy | null = null;
     let bs = Infinity;
     for (const e of this.ctx.grid.query(o.x, o.y, range, this.found)) {
@@ -175,18 +188,21 @@ export abstract class WeaponBase {
   protected get damage(): number {
     const st = this.ctx.stats;
     const tagMul = this.tag === 'melee' ? st.meleeMul : this.tag === 'explosive' ? st.explosiveMul : 1;
-    return this.s.damage * st.damageMul * tagMul * (1 + this.bonus);
+    return this.s.damage * st.damageMul * tagMul * (1 + this.bonus) * this.ctx.weaponMul(this.id).dmg;
   }
 
   protected get interval(): number {
     const od = this.ctx.overdrive ? 1 / gameData.overdrive.fireRateMul : 1;
     // 트윈스틱: 주무기는 한 자루뿐이라 직접 쏘는 간격을 조금 짧게
     const tw = this.slot === 'primary' ? TS.primaryIntervalMul : 1;
-    return this.s.interval * this.ctx.stats.cooldownMul * od * tw;
+    // 개편 2-2: 무기별 공격 속도(아드레날린·기계 3단계), 보조무기 재사용 대기(멀티태스킹 프로세서, 켜짐 창 무기는 activeWindow에서)
+    const m = this.ctx.weaponMul(this.id);
+    const active = !!(weapons[this.id] as { active?: unknown }).active;
+    return this.s.interval * this.ctx.stats.cooldownMul * od * tw * m.cd * (this.slot === 'secondary' && !active ? m.sub : 1);
   }
 
   protected get area(): number {
-    return this.s.area * this.ctx.stats.areaMul;
+    return this.s.area * this.ctx.stats.areaMul * this.ctx.weaponMul(this.id).area;
   }
 
   /** (x,y) 반경 r 안의 적에게 피해. 맞힌 수 반환. onHit은 맞힌 적마다 (죽었는지와 함께) 호출 */

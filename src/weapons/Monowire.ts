@@ -84,7 +84,8 @@ export class Monowire extends WeaponBase {
 
   private lash(angle: number, mul: number, wide = false): void {
     const p = this.ctx.player;
-    const len = BASE_LEN * this.area;
+    // 개편 2-2: 채찍 강화 조합(모노와이어+강화 근섬유)이 길이를 늘림
+    const len = BASE_LEN * this.area * (1 + (this.ctx.mod('combo.wireMuscle')?.v ?? 0) / 100);
     const x2 = p.x + Math.cos(angle) * len;
     const y2 = p.y + Math.sin(angle) * len;
     const dmg = this.damage * mul;

@@ -683,7 +683,9 @@
   "maxedAbilityChance": 0.15,
   "enemyDamageGrowthPerMin": 0.04,
   "twinStick": {
-    "note": "트윈스틱(개편 1단계): 주무기는 왼쪽 클릭을 누르고 있는 동안 interval × primaryIntervalMul마다 커서 방향으로, 보조무기는 오른쪽 클릭(누른 신호는 bufferSec초 기억)으로 interval마다(드론·EMP는 weapons.json active: time초 켜짐, cooldown초 재사용). aimCone: 약한 유도·첫 표적을 고를 때 조준선 좌우 허용 각도(라디안). autoAimRange: 자동 조준(봇·개발자 도구)이 노리는 거리",
+    "note": "트윈스틱(개편 1단계 + 조작 개편): 주무기는 자동 발사(PC는 커서 방향, 터치는 가장 가까운 적), fireRange 안에 적이 있을 때만 interval × primaryIntervalMul마다. 보조무기는 weapons.json use: tap(버튼·우클릭·E 한 번)·drag(버튼에서 끌어 놓은 자리, 우클릭·E는 커서 자리, 터치로 짧게 누르면 가까운 적 자리). 누른 신호는 bufferSec초 기억. 드론·EMP는 active: time초 켜짐, cooldown초 재사용. aimCone: 약한 유도·첫 표적 허용 각도(라디안). autoAimRange: 자동 조준이 노리는 거리. dragMin: 이보다 짧게 끌면 누른 것으로 봄(화면 px)",
+    "fireRange": 300,
+    "dragMin": 14,
     "primaryIntervalMul": 0.7,
     "bufferSec": 0.4,
     "aimCone": 0.35,
@@ -692,11 +694,12 @@
   },
   "twinStickCards": { "note": "레벨업 카드에 섞는 교체 카드(같은 소켓 다른 무기) 수", "swapPerRoll": 2 },
   "supply": {
-    "note": "개편 2단계 임시 보급 상자 (3단계 방 구조 전까지): everyKills명 처치마다 1개, 블랙 실드 대원 처치 때 trooperChance 확률로 희귀 이상, 중간보스 midbossMin 이상, 챕터 보스 bossMin 이상(다음 챕터 시작 때 열림). 칩: 처치 kill, 대원 trooper, 중간보스 midboss, 챕터 보스 boss",
+    "note": "개편 2단계 임시 보급 상자 (3단계 방 구조 전까지): everyKills명 처치마다 1개, 블랙 실드 대원 처치 때 trooperChance 확률로 희귀 이상, 중간보스 midbossMin 이상, 챕터 보스 bossMin 이상(다음 챕터 시작 때 열림). 칩: 처치 kill, 대원 trooper, 중간보스 midboss, 챕터 보스 boss. skipChips: 선택 포기 때 받는 칩 (상자 최소 등급 일반·희귀·영웅·전설·신화 순, 레벨업 포기는 첫 값)",
     "everyKills": 120,
     "trooperChance": 0.08,
     "midbossMin": "legendary",
     "bossMin": "legendary",
+    "skipChips": [10, 20, 30, 40, 50],
     "chips": { "kill": 1, "trooper": 3, "midboss": 30, "boss": 60 }
   },
   "bossHitKnock": 20,

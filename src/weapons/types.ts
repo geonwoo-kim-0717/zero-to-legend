@@ -69,10 +69,14 @@ export interface GameContext {
   playFx(name: string, x: number, y: number, o?: FxOpts): void;
   /** 지금 화면에 보이는 월드 영역 */
   view(): { x: number; y: number; width: number; height: number };
-  /** 트윈스틱 조준: 조준점(월드), 주무기 방아쇠(누르고 있음), 보조무기 신호(눌렀음, 아직 안 씀) */
+  /** 트윈스틱 조준: 조준점(월드), 주무기 방아쇠(자동: 사거리 안에 적), 보조무기 신호(눌렀음, 아직 안 씀)와 쓸 자리 */
   readonly aim: AimState;
   /** 보조무기 신호를 썼음 (한 번 누르면 한 번만 발사) */
   consumeSecondary(): void;
+  /** 개편 2-2: 켜진 효과 값 (사이버웨어·장비 cyber.·gear., 태그 단계 syn., 조합 combo.). 없으면 undefined */
+  mod(hook: string): Record<string, number> | undefined;
+  /** 개편 2-2: 이 무기의 배율 (dmg 피해, cd 공격 간격, sub 보조무기 재사용 대기, area 범위) */
+  weaponMul(id: string): { dmg: number; cd: number; sub: number; area: number };
 }
 
 export interface AimState {
@@ -80,4 +84,7 @@ export interface AimState {
   y: number;
   primary: boolean;
   secondary: boolean;
+  /** 보조무기를 쓸 자리 (월드) */
+  subX: number;
+  subY: number;
 }

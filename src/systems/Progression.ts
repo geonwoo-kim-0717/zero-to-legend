@@ -48,6 +48,10 @@ export interface Choice {
   item?: { kind: 'weapon' | 'cyber' | 'gear'; id: string };
   /** 개편 2단계: 전설·신화 무기를 얻을 때 고르는 능력 카드 */
   pickAbility?: { weapon: string; tier: 'legendary' | 'mythic' };
+  /** 카드 그림 이름 (card_<art>), 없으면 id */
+  art?: string;
+  /** 개편 2-2: 사이버웨어·장비 소켓 강화 카드 (소켓 부위) */
+  socket?: string;
   /** 최대 레벨인데 특수 능력만 받는 카드 (레벨은 오르지 않음) */
   maxed?: boolean;
   desc: string;
@@ -113,10 +117,10 @@ export function rollChoices(
   owned: WeaponBase[],
   ownedPassives: Map<PassiveId, PassiveState>,
   mode?: string,
-  opts: { guaranteeWeapon?: boolean; pool?: readonly WeaponId[]; luck?: boolean; favor?: string; favorChance?: number; epicMul?: number; upgradesOnly?: boolean } = {},
+  opts: { guaranteeWeapon?: boolean; pool?: readonly WeaponId[]; luck?: boolean; favor?: string; favorChance?: number; epicMul?: number; upgradesOnly?: boolean; sockets?: SocketCard[] } = {},
 ): Choice[] {
   // 개편 2단계: 레벨업 카드는 장착한 것(소켓)만 강화. 새 아이템·교체·특수 능력은 보급 상자에서
-  if (opts.upgradesOnly) return upgradeChoices(owned, ownedPassives);
+  if (opts.upgradesOnly) return upgradeChoices(owned, ownedPassives, opts.sockets ?? []);
   luck = !!opts.luck;
   epicMul = 1;
   const forcedRarity = mode === 'boss' ? undefined : mode;
@@ -215,7 +219,19 @@ export function rollChoices(
 }
 
 /** 개편 2단계 레벨업 카드: 장착한 무기 소켓(최대 8)·사이버웨어 소켓(최대 5) 강화 중 3장, 모자라면 작은 강화 */
-function upgradeChoices(owned: WeaponBase[], ownedPassives: Map<PassiveId, PassiveState>): Choice[] {
+/** 레벨업 카드에 넣을 사이버웨어·장비 소켓 (GameScene이 만듦) */
+export interface SocketCard {
+  part: string;
+  id: string;
+  title: string;
+  level: number;
+  maxLevel: number;
+  /** 다음 레벨 효과 문구 */
+  nextDesc: string;
+  art?: string;
+}
+
+function upgradeChoices(owned: WeaponBase[], ownedPassives: Map<PassiveId, PassiveState>, sockets: SocketCard[]): Choice[] {
   const common = gameData.rarity[0];
   const pool: Choice[] = [];
   for (const w of owned) {
@@ -225,6 +241,10 @@ function upgradeChoices(owned: WeaponBase[], ownedPassives: Map<PassiveId, Passi
   for (const [id, st] of ownedPassives) {
     if (st.level >= passives[id].maxLevel) continue;
     pool.push({ kind: 'passive', id, rarity: common, title: passives[id].name, levelLabel: t('lvl.socket', { lv: st.level + 1 }), desc: st.nextDesc ?? passives[id].desc });
+  }
+  for (const k of sockets) {
+    if (k.level >= k.maxLevel) continue;
+    pool.push({ kind: 'passive', id: k.id, art: k.art, socket: k.part, rarity: common, title: k.title, levelLabel: t('lvl.socket', { lv: k.level + 1 }), desc: k.nextDesc });
   }
   const out = Phaser.Utils.Array.Shuffle(pool).slice(0, 3);
   const left = Phaser.Utils.Array.Shuffle(gameData.overflow.slice());

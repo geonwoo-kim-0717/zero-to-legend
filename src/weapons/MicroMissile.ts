@@ -72,8 +72,11 @@ export class MicroMissile extends WeaponBase {
   private nearAim(n: number): Enemy[] {
     const a = this.aimPoint(420);
     const list: Enemy[] = [];
-    for (const e of this.ctx.enemies) if (e.active && (e.x - a.x) ** 2 + (e.y - a.y) ** 2 < 120 * 120) list.push(e);
-    list.sort((p, q) => (p.x - a.x) ** 2 + (p.y - a.y) ** 2 - ((q.x - a.x) ** 2 + (q.y - a.y) ** 2));
+    // 개편 2-2 열추적 탄두 조합: 엘리트·보스를 먼저 (더 멀리서도)
+    const thermal = !!this.ctx.mod('combo.missileThermal');
+    const big = (e: Enemy) => thermal && (e.isBoss || e.maxHp >= 1000);
+    for (const e of this.ctx.enemies) if (e.active && (e.x - a.x) ** 2 + (e.y - a.y) ** 2 < (big(e) ? 220 : 120) ** 2) list.push(e);
+    list.sort((p, q) => (big(q) ? 1 : 0) - (big(p) ? 1 : 0) || (p.x - a.x) ** 2 + (p.y - a.y) ** 2 - ((q.x - a.x) ** 2 + (q.y - a.y) ** 2));
     return list.slice(0, n);
   }
 

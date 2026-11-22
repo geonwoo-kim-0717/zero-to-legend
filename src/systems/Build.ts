@@ -37,12 +37,8 @@ export const ITEMS = build.items as unknown as Record<string, ItemDef>;
 export const CYBER_PARTS: CyberPart[] = ['neural', 'optic', 'skeletal'];
 export const PART_NAME: Record<string, string> = { neural: '신경', optic: '안구', skeletal: '골격', defense: '방어', tactical: '전술' };
 
-/**
- * 2-1에서 효과가 이미 있는 사이버웨어 (기존 패시브와 같은 효과). 나머지는 2-2에서 효과를 붙이며 열림
- * 사이버웨어 아이템 id → 기존 패시브 id
- */
+/** 사이버웨어 아이템 id → 예전 패시브 id (그림 아이콘·카드 그림을 빌려 씀) */
 export const CYBER_TO_PASSIVE: Record<string, PassiveId> = { n_accel: 'neural', s_muscle: 'muscle', s_dermal: 'dermal', o_collector: 'magnet' };
-export const PASSIVE_TO_CYBER: Record<string, string> = Object.fromEntries(Object.entries(CYBER_TO_PASSIVE).map(([a, b]) => [b, a]));
 
 const rarities = gameData.rarity as Rarity[];
 export const rarityById = (id: string): Rarity => rarities.find((r) => r.id === id) ?? rarities[0];
@@ -88,10 +84,10 @@ export function rollItemRarity(min?: string): Rarity {
   return pool[0];
 }
 
-/** 지금 2-1에서 고를 수 있는 아이템 (효과가 있는 것): 무기 12 + 사이버웨어 4 */
+/** 보급 상자에 나오는 아이템: 무기 12 + 사이버웨어 9 + 장비 8 (편집 페이지에서 끈 것 제외) */
 function itemPool(): { kind: ItemKind; id: string }[] {
   const out: { kind: ItemKind; id: string }[] = WEAPON_IDS.map((id) => ({ kind: 'weapon' as const, id }));
-  for (const id of Object.keys(CYBER_TO_PASSIVE)) if (ITEMS[id]?.enabled !== false) out.push({ kind: 'cyber', id });
+  for (const [id, it] of Object.entries(ITEMS)) if (it.enabled !== false && (it.kind === 'cyber' || it.kind === 'gear')) out.push({ kind: it.kind as ItemKind, id });
   return out;
 }
 
@@ -122,4 +118,14 @@ export function weaponAbilities(id: WeaponId, tier: 'legendary' | 'mythic'): { i
 /** 능력이 더해 주는 태그 */
 export function abilityTags(weapon: string, ability: string): string[] {
   return ((build.abilityTags as Record<string, Record<string, string[]>>)[weapon]?.[ability]) ?? [];
+}
+
+/**
+ * 아이템 그림 이름 (card_<이름>, icon_<이름>). 무기는 무기 id
+ * 사이버웨어·장비 전용 그림이 아직 없어서, 그림이 생기기 전까지 비슷한 예전 사이버웨어 그림을 빌려 씀
+ */
+const ART_FALLBACK: Record<string, string> = { neural: 'neural', optic: 'magnet', skeletal: 'muscle', defense: 'dermal', tactical: 'neural' };
+export function itemArt(id: string): string {
+  if (!ITEMS[id]) return id;
+  return CYBER_TO_PASSIVE[id] ?? ART_FALLBACK[ITEMS[id].part] ?? id;
 }

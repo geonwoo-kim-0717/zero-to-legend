@@ -6,7 +6,7 @@ import type { Choice } from '../systems/Progression';
 import { t } from '../i18n';
 
 
-/** 레벨업 3택 1 화면. 키보드(1·2·3, R)와 클릭/터치 모두 지원 */
+/** 레벨업 3택 1 화면. 키보드(1·2·3, R 다시 뽑기, X 포기)와 클릭/터치 모두 지원 */
 export class LevelUpUI {
   private objs: Phaser.GameObjects.GameObject[] = [];
   private keyHandler?: (e: KeyboardEvent) => void;
@@ -17,7 +17,7 @@ export class LevelUpUI {
     return this.objs.length > 0;
   }
 
-  show(choices: Choice[], rerolls: number, onPick: (i: number) => void, onReroll: () => void, title = 'LEVEL UP'): void {
+  show(choices: Choice[], rerolls: number, onPick: (i: number) => void, onReroll: () => void, title = 'LEVEL UP', skip?: { label: string; onSkip: () => void }): void {
     this.hide();
     const s = this.scene;
     const add = <T extends Phaser.GameObjects.GameObject & Phaser.GameObjects.Components.ScrollFactor & Phaser.GameObjects.Components.Depth>(o: T): T => {
@@ -70,7 +70,8 @@ export class LevelUpUI {
       // 종류는 번호 옆 왼쪽에 (가운데에 두면 영어판에서 등급 글자와 겹친다)
       add(s.add.text(x + 30, y + 8, kind, { ...BASE_TEXT, fontSize: '11px', color: '#8a7aa8' }).setOrigin(0, 0));
       // 무기·사이버웨어 그림: 카드용 큰 그림(card_<id>)이 있으면 그것, 없으면 아이콘을 키워서
-      const img = s.textures.exists(`card_${c.id}`) ? `card_${c.id}` : s.textures.exists(`icon_${c.id}`) ? `icon_${c.id}` : null;
+      const art = c.art ?? c.id;
+      const img = s.textures.exists(`card_${art}`) ? `card_${art}` : s.textures.exists(`icon_${art}`) ? `icon_${art}` : null;
       add(s.add.rectangle(x + cw / 2, y + 50, 56, 56, 0x07060f, 0.9).setStrokeStyle(1, col, 0.7));
       if (img) {
         const pic = add(s.add.image(x + cw / 2, y + 50, img));
@@ -128,10 +129,33 @@ export class LevelUpUI {
     const cardBottom = Math.max(60 + ch, bottom + 8);
     for (const c of cards) c.height = cardBottom - c.y;
     for (const c of cards) c.setSize(c.width, cardBottom - c.y);
+    // 아래 버튼: 다시 뽑기, 선택 포기 (둘 다 있으면 나란히)
+    const by = Math.min(VIEW_H - 18, cardBottom + 20);
+    const both = rerolls > 0 && !!skip;
+    if (skip) {
+      const sb = add(
+        s.add
+          .text(both ? VIEW_W / 2 + 70 : VIEW_W / 2, by, `${skip.label} [X]`, {
+            ...BASE_TEXT,
+            fontSize: '12px',
+            color: '#8a7aa8',
+            backgroundColor: '#120a24',
+            padding: { x: 10, y: 6 },
+          })
+          .setOrigin(0.5),
+      );
+      sb.setInteractive({ useHandCursor: true }).on('pointerdown', () => (armed = 98));
+      sb.on('pointerover', () => sb.setColor('#e8f7ff'));
+      sb.on('pointerout', () => sb.setColor('#8a7aa8'));
+      sb.on('pointerup', () => {
+        if (armed === 98) skip.onSkip();
+        armed = -1;
+      });
+    }
     if (rerolls > 0) {
       const btn = add(
         s.add
-          .text(VIEW_W / 2, Math.min(VIEW_H - 18, cardBottom + 20), t('lvl.reroll', { n: rerolls }), {
+          .text(both ? VIEW_W / 2 - 70 : VIEW_W / 2, by, t('lvl.reroll', { n: rerolls }), {
             ...BASE_TEXT,
             fontSize: '12px',
             color: '#00f0ff',
@@ -151,6 +175,7 @@ export class LevelUpUI {
       const n = Number(e.key);
       if (n >= 1 && n <= choices.length) onPick(n - 1);
       else if ((e.key === 'r' || e.key === 'R') && rerolls > 0) onReroll();
+      else if ((e.key === 'x' || e.key === 'X') && skip) skip.onSkip();
     };
     s.input.keyboard!.on('keydown', this.keyHandler);
   }
