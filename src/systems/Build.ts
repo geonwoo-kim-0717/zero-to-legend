@@ -125,7 +125,10 @@ export function abilityTags(weapon: string, ability: string): string[] {
  * 사이버웨어·장비 전용 그림이 아직 없어서, 그림이 생기기 전까지 비슷한 예전 사이버웨어 그림을 빌려 씀
  */
 const ART_FALLBACK: Record<string, string> = { neural: 'neural', optic: 'magnet', skeletal: 'muscle', defense: 'dermal', tactical: 'neural' };
+/** 전용 그림(card_<id>·icon_<id>)이 있는 아이템 (아트 세션 34ee319) */
+const OWN_ART = new Set(['n_reflex', 'n_multitask', 'o_target', 'o_thermal', 's_hydraulic', 'g_exo', 'g_shield', 'g_nano', 'g_reactive', 't_dock', 't_amp', 't_adren', 't_scanner']);
 export function itemArt(id: string): string {
   if (!ITEMS[id]) return id;
+  if (OWN_ART.has(id)) return id;
   return CYBER_TO_PASSIVE[id] ?? ART_FALLBACK[ITEMS[id].part] ?? id;
 }

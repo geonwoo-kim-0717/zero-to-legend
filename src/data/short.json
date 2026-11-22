@@ -1,0 +1,119 @@
+{
+ "note": "카드용 짧은 설명 (UI 세션 초안). {v} 같은 값은 아이템 값으로 채움",
+ "smartPistol": {
+  "ko": "조준선 근처로 휘어 가는 연사",
+  "en": "Rapid fire that curves toward the reticle"
+ },
+ "shotgun": {
+  "ko": "관통 산탄 7발, 맞은 적을 밀어냄",
+  "en": "7 piercing pellets that knock back"
+ },
+ "railgun": {
+  "ko": "화면을 꿰뚫는 관통 빔",
+  "en": "A beam that pierces the whole screen"
+ },
+ "mantisBlade": {
+  "ko": "커서 방향을 넓게 베기",
+  "en": "Wide slash toward the cursor"
+ },
+ "monowire": {
+  "ko": "긴 채찍으로 줄 위의 적을 모두 벰, 1초 아군화",
+  "en": "Long whip cuts every enemy in line, 1s ally"
+ },
+ "arcCoil": {
+  "ko": "번개가 근처 적으로 연쇄",
+  "en": "Lightning that chains to nearby enemies"
+ },
+ "plasmaGrenade": {
+  "ko": "커서 자리에 범위 폭발",
+  "en": "Area blast at the cursor"
+ },
+ "microMissile": {
+  "ko": "커서 근처 적에게 유도 미사일",
+  "en": "Homing missiles near the cursor"
+ },
+ "proxMine": {
+  "ko": "커서 자리에 지뢰 2개",
+  "en": "2 mines at the cursor"
+ },
+ "turret": {
+  "ko": "커서 자리에 10초 자동 포탑",
+  "en": "Auto turret at the cursor for 10s"
+ },
+ "hackDrone": {
+  "ko": "8초간 주위를 돌며 공격하는 드론",
+  "en": "Drones orbit and attack for 8s"
+ },
+ "empField": {
+  "ko": "8초간 주변 적에게 피해·감속",
+  "en": "8s field that damages and slows"
+ },
+ "n_accel": {
+  "ko": "공격 속도 +{v}%",
+  "en": "Attack speed +{v}%"
+ },
+ "n_reflex": {
+  "ko": "대시 재사용 대기 -{v}%",
+  "en": "Dash cooldown -{v}%"
+ },
+ "n_multitask": {
+  "ko": "보조무기 재사용 대기 -{v}%",
+  "en": "Secondary cooldown -{v}%"
+ },
+ "o_target": {
+  "ko": "치명타 확률 +{v}%",
+  "en": "Crit chance +{v}%"
+ },
+ "o_thermal": {
+  "ko": "엘리트·보스 피해 +{v}%",
+  "en": "Elite·boss damage +{v}%"
+ },
+ "o_collector": {
+  "ko": "획득 범위 +{v}%, 칩 +{chip}%",
+  "en": "Pickup range +{v}%, chips +{chip}%"
+ },
+ "s_muscle": {
+  "ko": "공격력 +{v}%",
+  "en": "Damage +{v}%"
+ },
+ "s_dermal": {
+  "ko": "최대 체력 +{v}",
+  "en": "Max HP +{v}"
+ },
+ "s_hydraulic": {
+  "ko": "이동 속도 +{v}%",
+  "en": "Move speed +{v}%"
+ },
+ "g_exo": {
+  "ko": "받는 피해 -{v}%",
+  "en": "Damage taken -{v}%"
+ },
+ "g_shield": {
+  "ko": "{cd}초마다 보호막 {v}",
+  "en": "Shield {v} every {cd}s"
+ },
+ "g_nano": {
+  "ko": "초당 체력 {v} 회복",
+  "en": "Regen {v} HP/s"
+ },
+ "g_reactive": {
+  "ko": "맞으면 주변에 충격파 {v}",
+  "en": "Shockwave {v} when hit"
+ },
+ "t_dock": {
+  "ko": "드론·포탑 피해 +{v}%",
+  "en": "Drone·turret damage +{v}%"
+ },
+ "t_amp": {
+  "ko": "전기 범위·연쇄 거리 +{v}%",
+  "en": "Electric range·chain +{v}%"
+ },
+ "t_adren": {
+  "ko": "체력 절반 이하일 때 공격 속도 +{v}%",
+  "en": "Attack speed +{v}% below half HP"
+ },
+ "t_scanner": {
+  "ko": "커서 근처 적이 받는 피해 +{v}%",
+  "en": "Enemies near cursor take +{v}%"
+ }
+}

@@ -7,6 +7,7 @@ import { WEAPON_IDS, WeaponBase, type WeaponId } from '../weapons';
 import { WEAPON_MAX_LEVEL, weaponSlot, type AbilityTier } from '../weapons/WeaponBase';
 import type { Stats } from '../weapons/types';
 import { t } from '../i18n';
+import type { CardInfo } from '../ui/cardInfo';
 
 export type PassiveId = keyof typeof passives;
 export type Rarity = (typeof gameData.rarity)[number];
@@ -56,6 +57,8 @@ export interface Choice {
   maxed?: boolean;
   desc: string;
   ability?: Ability;
+  /** UI: 카드에 그릴 정리된 정보 (없으면 desc를 그대로) */
+  card?: CardInfo;
 }
 
 /** 공격 간격이 원래의 25%보다 짧아지지는 않게 (공격 속도 4배까지) */

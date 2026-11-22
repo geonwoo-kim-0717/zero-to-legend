@@ -32,6 +32,8 @@ import type { Wave } from '../systems/Spawner';
 import { Save, type Runner, type RunnerId, type RunStats } from '../systems/Save';
 import { rollChoices, abilityCard, computeStats, passiveAmount, passiveAbility, type Choice, type PassiveId, type PassiveState, type SocketCard } from '../systems/Progression';
 import { LevelUpUI } from '../ui/LevelUpUI';
+import { itemCard } from '../ui/cardInfo';
+import { buildEquipPanel } from '../ui/EquipPanel';
 import { Sound, type SfxKey, type MusicKey } from '../systems/Sound';
 import { addMuteToggle, addFxToggle, addDmgToggle, addIntroToggle, addFullscreenToggle } from '../ui/MuteToggle';
 import { isTouch } from '../systems/Fullscreen';
@@ -1518,7 +1520,6 @@ export class GameScene extends Phaser.Scene implements GameContext {
     if (!on) return;
     // 뒤를 어둡게 해서 글자가 잘 보이게
     this.pauseUi.push(this.add.rectangle(0, 0, VIEW_W, VIEW_H, 0x000000, 0.5).setOrigin(0).setScrollFactor(0).setDepth(99));
-    this.buildPanel();
     const btn = (x: number, y: number, label: string, color: string, onClick: () => void) => {
       const b = this.add
         .text(x, y, label, { ...TEXT, fontSize: '13px', color, backgroundColor: '#120a24', padding: { x: 12, y: 6 } })
@@ -1530,7 +1531,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
       this.pauseUi.push(b);
       return b;
     };
-    btn(VIEW_W / 2, VIEW_H / 2 + 84, tr('pause.abandon'), '#ff5a6a', () => {
+    const abandon = () => {
       for (const o of this.pauseUi.slice(1)) o.destroy();
       this.pauseUi = this.pauseUi.slice(0, 1);
       this.hud.center.setVisible(false);
@@ -1551,7 +1552,19 @@ export class GameScene extends Phaser.Scene implements GameContext {
         this.hud.center.setVisible(this.state === 'paused');
         this.showPauseMenu(true);
       });
-    });
+    };
+    // UI: 장비창 (소켓 8칸 인체도 + 자세히·시너지·조합)
+    // OS 칸: 이름 + 레벨, 자세히에는 레벨별 능력 줄 (● 켜짐, ○ 아직)
+    const os = this.os;
+    const osDesc = os.lines().map((l, i) => `${l.on ? '●' : '○'} ${i + 1}. ${l.text}`).join('\n');
+    this.pauseUi.push(
+      buildEquipPanel(
+        this,
+        { weapons: this.weapons, sockets: this.sockets, os: { id: os.id, name: `${os.name} Lv${os.level}`, color: os.def.color, desc: osDesc }, tagCount: this.kit.tagCount, tiers: this.kit.tiers, combos: this.kit.combos },
+        { onResume: () => this.togglePause(), onAbandon: abandon },
+      ),
+    );
+    this.hud.center.setVisible(false);
   }
 
   /** 일시정지 화면 위쪽: 지금 가진 무기·사이버웨어·추가 강화 카드. 누르면 효과를 보여준다 */
@@ -1959,9 +1972,11 @@ export class GameScene extends Phaser.Scene implements GameContext {
       const kind = r.kind === 'weapon' ? 'weapon' : 'passive';
       let desc = '';
       let lv = 1;
+      let was: { name: string; tags: string[] } | null = null;
       if (r.kind === 'weapon') {
         const cur = this.weapons.find((w) => w.slot === weaponSlot(r.id as WeaponId));
         lv = cur?.level ?? 1;
+        if (cur) was = { name: cur.name, tags: this.wTags.get(cur.id) ?? weaponTags(cur.id, cur.abilities) };
         desc = weaponsData[r.id as WeaponId].desc + (r.rarity.weaponBonus > 0 ? tr('lvl.bonus', { v: Math.round(r.rarity.weaponBonus * 100) }) : '');
         if (r.rarity.ability) desc += '\n' + tr('item.pickAbility', { tier: r.rarity.label });
         if (r.rarity.id === 'mythic') desc += '\n' + tr('item.awakenHint', { n: gameData.mythicAwaken });
@@ -1969,11 +1984,12 @@ export class GameScene extends Phaser.Scene implements GameContext {
       } else {
         const cur = this.sockets.get(ITEMS[r.id].part);
         lv = cur?.level ?? 1;
+        if (cur) was = { name: itemName(ITEMS[cur.id].kind as ItemKind, cur.id), tags: itemTags(cur.id) };
         desc = itemText(r.id, lv, r.rarity.id);
         if (cur) desc += '\n' + tr('item.replace', { cur: itemName(ITEMS[cur.id].kind as ItemKind, cur.id) });
       }
       desc += this.tagLine(r.kind, r.id);
-      return { kind, id: r.id, art: itemArt(r.id), rarity: r.rarity, title: itemName(r.kind, r.id), levelLabel: `${socketLabel(r.kind, r.id)} · ${tr('lvl.socket', { lv })}`, desc, isNew: true, item: { kind: r.kind, id: r.id } } as Choice;
+      return { kind, id: r.id, art: itemArt(r.id), rarity: r.rarity, title: itemName(r.kind, r.id), levelLabel: `${socketLabel(r.kind, r.id)} · ${tr('lvl.socket', { lv })}`, desc, isNew: true, item: { kind: r.kind, id: r.id }, card: itemCard({ kind: r.kind, id: r.id, rarity: r.rarity, lv, cur: was, tagCount: this.kit.tagCount }) } as Choice;
     });
     this.levelUi.show(this.choices, 0, (i) => this.pick(i), () => undefined, tr('item.title'), this.skipButton(Math.max(0, gameData.rarity.findIndex((r) => r.id === min)), () => undefined));
   }
