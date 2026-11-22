@@ -36,15 +36,27 @@ export class InputController {
   private keys: Record<string, Phaser.Input.Keyboard.Key>;
   private moveStick = { id: null as number | null, bx: 0, by: 0, x: 0, y: 0 };
   /** 보조무기 버튼에서 끌고 있는 손가락·마우스 */
-  private drag: { id: number; sx: number; sy: number; x: number; y: number } | null = null;
+  private drag: { id: number; sx: number; sy: number; x: number; y: number; rx: number; ry: number } | null = null;
   private readonly stickR = 36;
-  private readonly secBtn = { x: VIEW_W - 52, y: VIEW_H - 54, r: 24 };
-  private readonly dashBtn = { x: VIEW_W - 112, y: VIEW_H - 34, r: 19 };
-  private readonly skillBtn = { x: VIEW_W - 40, y: VIEW_H - 112, r: 16 };
+  // UI 시안 A: 오른쪽 아래 보조 버튼을 엄지 자리로, 왼쪽에 대시, 왼쪽 위에 OS (누름 판정도 이 좌표)
+  private readonly secBtn = { x: VIEW_W - 50, y: VIEW_H - 52, r: 26 };
+  private readonly dashBtn = { x: VIEW_W - 118, y: VIEW_H - 36, r: 20 };
+  private readonly skillBtn = { x: VIEW_W - 102, y: VIEW_H - 94, r: 21 };
   private gfx: Phaser.GameObjects.Graphics;
+  /** 버튼 위 글자·그림 (터치일 때만) */
   private labels: Phaser.GameObjects.Text[] = [];
-  private subLabel: Phaser.GameObjects.Text;
+  private subImg: Phaser.GameObjects.Image;
+  private osImg: Phaser.GameObjects.Image;
+  private dashTxt: Phaser.GameObjects.Text;
+  private osQ: Phaser.GameObjects.Text;
+  private osCd: Phaser.GameObjects.Text;
   private touchUsed = false;
+  /** 버튼에 그릴 것 (GameScene이 매 프레임 채움): 보조무기 그림·등급 색, OS 문양·색·게이지 */
+  look: {
+    subId?: string;
+    subColor?: number;
+    os?: { id: string; color: number; hasActive: boolean; gauge: number; on: boolean; cdT: number };
+  } = {};
 
   constructor(private readonly scene: Phaser.Scene) {
     const kb = scene.input.keyboard!;
@@ -56,19 +68,20 @@ export class InputController {
     scene.input.addPointer(3);
     scene.input.mouse?.disableContextMenu();
     this.gfx = scene.add.graphics().setScrollFactor(0).setDepth(200);
-    const lbl = (x: number, y: number, text: string) => {
-      const o = scene.add.text(x, y, text, { ...BASE_TEXT, fontSize: '10px', color: '#ffffff', strokeThickness: 2 }).setOrigin(0.5).setScrollFactor(0).setDepth(201).setVisible(false);
+    const txt = (x: number, y: number, text: string, size: number, color: string, extra: Partial<Phaser.Types.GameObjects.Text.TextStyle> = {}) => {
+      const o = scene.add.text(x, y, text, { ...BASE_TEXT, fontSize: `${size}px`, color, strokeThickness: 2, ...extra }).setOrigin(0.5).setScrollFactor(0).setDepth(202).setVisible(false);
       this.labels.push(o);
       return o;
     };
-    lbl(this.dashBtn.x, this.dashBtn.y, t('ui.dash'));
-    lbl(this.skillBtn.x, this.skillBtn.y, 'OS');
-    this.subLabel = scene.add
-      .text(this.secBtn.x, this.secBtn.y, 'SUB', { ...BASE_TEXT, fontSize: '10px', color: '#ffffff', strokeThickness: 2 })
-      .setOrigin(0.5)
-      .setScrollFactor(0)
-      .setDepth(201)
-      .setVisible(false);
+    // 버튼 아래 이름
+    txt(this.secBtn.x, this.secBtn.y + this.secBtn.r + 7, t('ui.sub'), 8, '#b8a8d8', { strokeThickness: 2 });
+    txt(this.dashBtn.x, this.dashBtn.y + this.dashBtn.r + 7, t('ui.dash'), 8, '#b8a8d8', { strokeThickness: 2 });
+    txt(this.skillBtn.x, this.skillBtn.y + this.skillBtn.r + 8, 'OS', 8, '#b8a8d8', { strokeThickness: 2 });
+    this.dashTxt = txt(this.dashBtn.x, this.dashBtn.y - 2, '»', 17, '#00f0ff', { fontStyle: '900' });
+    this.osQ = txt(this.skillBtn.x, this.skillBtn.y, 'Q', 13, '#0a0614', { fontStyle: '900', strokeThickness: 0 });
+    this.osCd = txt(this.skillBtn.x, this.skillBtn.y, '', 12, '#ffffff', { fontStyle: '900' });
+    this.subImg = scene.add.image(this.secBtn.x, this.secBtn.y, '__WHITE').setScrollFactor(0).setDepth(201).setVisible(false);
+    this.osImg = scene.add.image(this.skillBtn.x, this.skillBtn.y, '__WHITE').setScrollFactor(0).setDepth(201).setVisible(false);
 
     const near = (px: number, py: number, b: { x: number; y: number; r: number }) => Phaser.Math.Distance.Between(px, py, b.x, b.y) < b.r + 8;
     scene.input.on('pointerdown', (p: Phaser.Input.Pointer) => {
@@ -80,7 +93,7 @@ export class InputController {
         this.pointerY = y;
         // 마우스: 오른쪽 = 커서 자리에 보조무기, 왼쪽으로 버튼을 누르면 터치와 같음
         if (p.rightButtonDown()) return void this.pressSecondary({ x, y });
-        if (p.leftButtonDown() && this.subUse !== 'none' && near(x, y, this.secBtn)) this.startSub(p.id, x, y);
+        // PC에서는 보조 버튼을 그리지 않으므로 마우스로 끌기도 없음 (우클릭·E가 커서 자리에 씀)
         return;
       }
       this.touchUsed = true;
@@ -100,7 +113,11 @@ export class InputController {
       const x = p.x / ZOOM;
       const y = p.y / ZOOM;
       if (this.drag && p.id === this.drag.id) {
-        this.drag.x = x;
+        // 버튼이 오른쪽 아래라 왼쪽은 엄지가 덜 감: 왼쪽으로 끈 거리만 2배 (사용자 요청)
+        const dx = x - this.drag.sx;
+        this.drag.rx = x;
+        this.drag.ry = y;
+        this.drag.x = this.drag.sx + (dx < 0 ? dx * gameData.twinStick.dragLeftMul : dx);
         this.drag.y = y;
       }
       if (!p.wasTouch) {
@@ -123,8 +140,9 @@ export class InputController {
         const d = this.drag;
         this.drag = null;
         // 짧게 누르기 = 자동(가까운 적), 끌어 놓기 = 놓은 자리
-        const moved = Math.hypot(d.x - d.sx, d.y - d.sy) >= gameData.twinStick.dragMin;
-        this.pressSecondary(moved && !near(d.x, d.y, this.secBtn) ? { x: d.x, y: d.y } : null);
+        const moved = Math.hypot(d.rx - d.sx, d.ry - d.sy) >= gameData.twinStick.dragMin;
+        // 손가락을 버튼 위로 되돌려 놓으면 자동(가까운 적)
+        this.pressSecondary(moved && !near(d.rx, d.ry, this.secBtn) ? { x: d.x, y: d.y } : null);
       }
       if (!p.wasTouch) return;
       const s = this.moveStick;
@@ -142,15 +160,18 @@ export class InputController {
   setVisible(v: boolean): void {
     if (this.gfx.visible === v) return;
     this.gfx.setVisible(v);
-    this.subLabel.setVisible(v && this.subUse !== 'none');
-    for (const l of this.labels) l.setVisible(v && this.touchUsed);
-    if (!v) this.drag = null;
+    if (!v) {
+      for (const l of this.labels) l.setVisible(false);
+      this.subImg.setVisible(false);
+      this.osImg.setVisible(false);
+      this.drag = null;
+    }
   }
 
   /** 보조무기 버튼을 누름: tap 무기는 바로, drag 무기는 끌기 시작 */
   private startSub(id: number, x: number, y: number): void {
     if (this.subUse === 'tap') return void this.pressSecondary(null);
-    this.drag = { id, sx: x, sy: y, x, y };
+    this.drag = { id, sx: x, sy: y, x, y, rx: x, ry: y };
   }
 
   /** 창을 벗어나면 누르고 있던 것을 놓은 것으로 */
@@ -216,7 +237,6 @@ export class InputController {
   private draw(dashReady: number, skillReady: boolean, subReady: number, subOn: boolean, player?: { x: number; y: number }): void {
     const g = this.gfx;
     g.clear();
-    for (const l of this.labels) l.setVisible(this.touchUsed);
     // 마우스 조준점 (십자선)
     if (this.aimMode === 'mouse' && !this.autoAim) {
       const cx = this.pointerX;
@@ -228,44 +248,100 @@ export class InputController {
       g.lineBetween(cx, cy - 9, cx, cy - 3);
       g.lineBetween(cx, cy + 3, cx, cy + 9);
     }
-    // 보조무기 버튼: 둘레에 재사용 대기 (PC·터치 모두)
-    const sb = this.secBtn;
-    const hasSub = this.subUse !== 'none';
-    this.subLabel.setVisible(hasSub);
-    if (hasSub) {
-      const ready = subReady >= 1;
-      const pulse = subOn ? 0.5 + Math.sin(this.scene.time.now / 80) * 0.3 : ready ? 0.4 : 0.12;
-      g.fillStyle(COLORS.cyan, this.secondaryPending ? 0.55 : pulse).fillCircle(sb.x, sb.y, sb.r);
-      g.lineStyle(2, 0x0a2030, 0.8).strokeCircle(sb.x, sb.y, sb.r + 3);
-      g.lineStyle(3, ready ? COLORS.yellow : COLORS.cyan, ready ? 1 : 0.85);
-      g.beginPath();
-      g.arc(sb.x, sb.y, sb.r + 3, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.max(0.001, Math.min(1, subReady)));
-      g.strokePath();
-      this.subLabel.setAlpha(ready ? 1 : 0.5);
-      // 끌기 미리보기: 버튼(또는 플레이어)에서 손가락까지 선 + 떨어질 자리
-      const d = this.drag;
-      if (d && Math.hypot(d.x - d.sx, d.y - d.sy) >= gameData.twinStick.dragMin) {
-        const from = player ?? sb;
-        g.lineStyle(1, COLORS.yellow, 0.5).lineBetween(from.x, from.y, d.x, d.y);
-        g.lineStyle(2, COLORS.yellow, 0.9).strokeCircle(d.x, d.y, 14);
-        g.fillStyle(COLORS.yellow, 0.15).fillCircle(d.x, d.y, 14);
-      }
+    // 버튼은 터치일 때만 (PC는 HUD 아래 막대가 같은 것을 보여 줌)
+    const show = this.touchUsed && this.gfx.visible;
+    for (const l of this.labels) l.setVisible(show);
+    if (!show) {
+      this.subImg.setVisible(false);
+      this.osImg.setVisible(false);
+      return;
     }
-    if (!this.touchUsed) return;
-    this.labels[0].setAlpha(dashReady >= 1 ? 0.7 : 0.3);
-    this.labels[1].setAlpha(skillReady ? 0.9 : 0.3);
     const s = this.moveStick;
     if (s.id !== null) {
       g.lineStyle(2, COLORS.cyan, 0.5).strokeCircle(s.bx, s.by, this.stickR);
       g.fillStyle(COLORS.cyan, 0.6).fillCircle(s.bx + s.x * this.stickR, s.by + s.y * this.stickR, 12);
     }
+    const now = this.scene.time.now;
+    /** 아직 안 찬 만큼 어둡게 덮는 부채꼴 (12시부터 시계 방향으로 차오름) */
+    const cover = (b: { x: number; y: number; r: number }, k: number) => {
+      if (k >= 1) return;
+      g.fillStyle(0x05030c, 0.7);
+      g.slice(b.x, b.y, b.r - 1, -Math.PI / 2 + Math.PI * 2 * Math.max(0, k), Math.PI * 1.5, false);
+      g.fillPath();
+    };
+
+    // 보조무기: 무기 그림 + 등급 색 테두리, 재사용 대기 부채꼴, 준비되면 노란 고리
+    const sb = this.secBtn;
+    const hasSub = this.subUse !== 'none';
+    this.labels[0].setVisible(hasSub);
+    if (hasSub) {
+      const ready = subReady >= 1;
+      const col = this.look.subColor ?? COLORS.cyan;
+      g.fillStyle(0x0a0716, 0.78).fillCircle(sb.x, sb.y, sb.r);
+      if (this.secondaryPending) g.fillStyle(col, 0.35).fillCircle(sb.x, sb.y, sb.r);
+      const key = this.look.subId ? `icon_${this.look.subId}` : '';
+      if (key && this.scene.textures.exists(key)) this.subImg.setTexture(key).setScale(2).setVisible(true).setAlpha(ready || subOn ? 1 : 0.55);
+      else this.subImg.setVisible(false);
+      if (!subOn) cover(sb, subReady);
+      g.lineStyle(2, col, 1).strokeCircle(sb.x, sb.y, sb.r);
+      if (subOn) g.lineStyle(3, col, 0.5 + Math.sin(now / 80) * 0.4).strokeCircle(sb.x, sb.y, sb.r + 4);
+      else if (ready) {
+        g.lineStyle(3, COLORS.yellow, 1).strokeCircle(sb.x, sb.y, sb.r + 4);
+        g.lineStyle(2, COLORS.yellow, 0.25).strokeCircle(sb.x, sb.y, sb.r + 7);
+      }
+      // 끌기 미리보기: 플레이어에서 떨어질 자리까지 선 + 원
+      const d = this.drag;
+      if (d && Math.hypot(d.rx - d.sx, d.ry - d.sy) >= gameData.twinStick.dragMin) {
+        const from = player ?? sb;
+        g.lineStyle(1, COLORS.yellow, 0.5).lineBetween(from.x, from.y, d.x, d.y);
+        g.lineStyle(2, COLORS.yellow, 0.9).strokeCircle(d.x, d.y, 14);
+        g.fillStyle(COLORS.yellow, 0.15).fillCircle(d.x, d.y, 14);
+        // 손가락 자리 → 겨눈 자리 (왼쪽 2배일 때 얼마나 늘었는지)
+        if (Math.abs(d.x - d.rx) > 2) g.lineStyle(1, COLORS.yellow, 0.25).lineBetween(d.rx, d.ry, d.x, d.y);
+      }
+    } else this.subImg.setVisible(false);
+
+    // 대시: » + 재사용 대기 부채꼴, 준비되면 시안 고리
     const b = this.dashBtn;
-    g.fillStyle(COLORS.magenta, dashReady >= 1 ? 0.35 : 0.12).fillCircle(b.x, b.y, b.r);
-    g.lineStyle(2, COLORS.magenta, 0.9);
+    const dReady = dashReady >= 1;
+    g.fillStyle(0x0a0716, 0.78).fillCircle(b.x, b.y, b.r);
+    cover(b, dashReady);
+    g.lineStyle(2, COLORS.cyan, dReady ? 1 : 0.5).strokeCircle(b.x, b.y, b.r);
+    if (dReady) g.lineStyle(2, COLORS.cyan, 0.3).strokeCircle(b.x, b.y, b.r + 4);
+    this.dashTxt.setAlpha(dReady ? 1 : 0.4);
+
+    // OS: 게이지 고리 + 문양, 다 차면 OS 색 육각형 + Q (Q가 없는 OS는 버튼을 숨김)
+    const o = this.look.os;
+    const k = this.skillBtn;
+    const osOn = !!o?.hasActive;
+    this.labels[2].setVisible(osOn);
+    this.osQ.setVisible(false);
+    this.osCd.setText('');
+    if (!o || !osOn) {
+      this.osImg.setVisible(false);
+      return;
+    }
+    const full = skillReady && o.cdT <= 0;
+    g.fillStyle(0x0a0716, 0.78).fillCircle(k.x, k.y, k.r);
+    g.lineStyle(4, 0x2a0a24, 1).strokeCircle(k.x, k.y, k.r + 2);
+    g.lineStyle(4, o.color, 1);
     g.beginPath();
-    g.arc(b.x, b.y, b.r, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * dashReady);
+    g.arc(k.x, k.y, k.r + 2, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.max(0.001, Math.min(1, o.gauge / 100)), false);
     g.strokePath();
-    g.fillStyle(COLORS.yellow, skillReady ? 0.45 : 0.1).fillCircle(this.skillBtn.x, this.skillBtn.y, this.skillBtn.r);
-    g.lineStyle(2, COLORS.yellow, skillReady ? 0.9 : 0.3).strokeCircle(this.skillBtn.x, this.skillBtn.y, this.skillBtn.r);
+    if (full || o.on) {
+      const a = o.on ? 0.5 + Math.sin(now / 100) * 0.3 : 0.45;
+      for (let n = 1; n <= 3; n++) g.lineStyle(2, o.color, a * (1 - n / 4)).strokeCircle(k.x, k.y, k.r + 4 + n * 2);
+    }
+    if (full) {
+      const hex = [0, 1, 2, 3, 4, 5].map((i) => new Phaser.Math.Vector2(k.x + 14 * Math.cos((Math.PI / 3) * i), k.y + 13 * Math.sin((Math.PI / 3) * i)));
+      g.fillStyle(o.color, 1).fillPoints(hex, true);
+      this.osImg.setVisible(false);
+      this.osQ.setVisible(true);
+    } else {
+      const key = `icon_os_${o.id}`;
+      if (this.scene.textures.exists(key)) this.osImg.setTexture(key).setScale(2).setVisible(true).setAlpha(o.on ? 1 : 0.6);
+      else this.osImg.setVisible(false);
+      if (o.cdT > 0 && !o.on) this.osCd.setText(String(Math.ceil(o.cdT)));
+    }
   }
 }
