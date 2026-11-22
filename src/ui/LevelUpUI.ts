@@ -4,6 +4,7 @@ import { Sound } from '../systems/Sound';
 import { VIEW_W, VIEW_H } from '../config';
 import type { Choice } from '../systems/Progression';
 import type { CardInfo } from './cardInfo';
+import { tagName } from './synergyText';
 import { t } from '../i18n';
 
 /** 태그 색 (시안 확정본) */
@@ -70,6 +71,9 @@ function haloTex(scene: Phaser.Scene, color: number, rays: number, rayColor = co
 
 /** 카드 배치를 바꿀 때 (상점 등): 카드 위치·너비·최소 높이, 칩이 모자란 카드는 흐리게, 제목 색 */
 export interface CardLayoutOpts {
+  /** 좁은 화면용(상점): 그림 칸을 줄이고 추천은 제목 한 줄, 카드 높이는 fixedH */
+  tight?: boolean;
+  fixedH?: number;
   top?: number;
   cw?: number;
   minH?: number;
@@ -124,7 +128,7 @@ export class LevelUpUI {
     let armed = -1;
     const x0 = Math.round(VIEW_W / 2 - (n * cw + (n - 1) * gap) / 2);
     // 추천 이유와 별 줄·경고가 같이 있는 카드가 있으면 그림 칸을 줄여 글자 자리를 만듦
-    const compact = choices.some((c) => c.card?.rec && (c.card.warn || c.card.star));
+    const compact = !!opts.tight || choices.some((c) => c.card?.rec && (c.card.warn || c.card.star));
 
     // 1차: 카드 안 글자를 만들어 높이를 잰 뒤, 모든 카드를 같은 높이로 그림
     type Built = { x: number; tier: Tier; col: number; label: string; info: CardInfo; c: Choice; body: Phaser.GameObjects.GameObject[]; contentBottom: number };
@@ -152,7 +156,7 @@ export class LevelUpUI {
       const chipY = nameY + 24;
       const chips: { label: string; color: number; up: boolean; slot: boolean }[] = [];
       if (info.slot) chips.push({ label: info.slot, color: 0xb8a8d8, up: false, slot: true });
-      for (const tg of info.tags) chips.push({ label: tg.up ? `${tg.tag} ▲${tg.up}` : tg.tag, color: TAG_COLOR[tg.tag] ?? 0xb8a8d8, up: !!tg.up, slot: false });
+      for (const tg of info.tags) chips.push({ label: tg.up ? `${tagName(tg.tag)} ▲${tg.up}` : tagName(tg.tag), color: TAG_COLOR[tg.tag] ?? 0xb8a8d8, up: !!tg.up, slot: false });
       const chipTexts = chips.map((ch) => txt(0, chipY, ch.label, 9, hex(ch.color), { strokeThickness: 0, fontStyle: ch.up ? 'bold' : 'bold' }).setOrigin(0, 0));
       const pad = 4;
       const cgap = 3;
@@ -186,7 +190,9 @@ export class LevelUpUI {
       if (info.rec) {
         const rc = info.rec.combo ? REC_COMBO : REC;
         const rt = txt(cx, bottom + 6, `${info.rec.combo ? '★ ' : '▲ '}${info.rec.title}`, 10, hex(rc), { strokeThickness: 2, fontStyle: '900', align: 'center', wordWrap: { width: cw - 14, useAdvancedWrap: true } }).setOrigin(0.5, 0);
-        const rd = txt(cx, rt.y + rt.height + 1, info.rec.text, 9, '#c8f8d8', { strokeThickness: 2, align: 'center', lineSpacing: 1, wordWrap: { width: cw - 16, useAdvancedWrap: true } }).setOrigin(0.5, 0);
+        // 상점(tight)은 제목 한 줄만, 그 밖에는 짧은 효과 한 줄
+        const rd = txt(cx, rt.y + rt.height + 1, opts.tight ? '' : info.rec.text, 9.5, '#d8ffe4', { strokeThickness: 2, align: 'center', lineSpacing: 1, wordWrap: { width: cw - 16, useAdvancedWrap: true } }).setOrigin(0.5, 0);
+        if (opts.tight) rd.setY(rt.y + rt.height - rd.height);
         const bgR = add(s.add.rectangle(x + 6, rt.y - 3, cw - 12, rd.y + rd.height - rt.y + 6, rc, 0.1).setOrigin(0).setStrokeStyle(1, rc, 0.55), D + 2);
         body.push(rt, rd, bgR);
         bottom = rd.y + rd.height + 3;
@@ -199,7 +205,7 @@ export class LevelUpUI {
       built.push({ x, tier, col, label: R.label, info, c, body, contentBottom: bottom });
     });
     const footH = 20;
-    const ch = Math.min(VIEW_H - top - 40, Math.max(opts.minH ?? 248, Math.max(...built.map((b) => b.contentBottom)) - top + footH + 14));
+    const ch = opts.fixedH ?? Math.min(VIEW_H - top - 40, Math.max(opts.minH ?? 248, Math.max(...built.map((b) => b.contentBottom)) - top + footH + 14));
 
     // 2차: 카드 틀·띠·후광·아래 줄·테두리·연출
     built.forEach((b, i) => {
@@ -278,8 +284,9 @@ export class LevelUpUI {
         const ring = add(s.add.graphics(), D);
         for (let k = 1; k <= 3; k++) ring.lineStyle(2, rc, 0.32 * (1 - (k - 1) / 3)).strokeRect(x - 2 - k * 3, top - 2 - k * 3, cw + 4 + k * 6, ch + 4 + k * 6);
         this.tweens.push(s.tweens.add({ targets: ring, alpha: { from: 0.35, to: 1 }, duration: 600, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' }));
-        const tagT = txt(x + cw - 6, top - 3, t('rec.badge'), 9, '#0a0614', { strokeThickness: 0, fontStyle: '900' }, D + 7).setOrigin(1, 1);
-        add(s.add.rectangle(tagT.x + 4, tagT.y + 1, tagT.width + 8, tagT.height + 2, rc, 1).setOrigin(1, 1), D + 6);
+        // '추천' 꼬리표는 등급 띠 오른쪽 안에 (위 안내 문장과 겹치지 않게)
+        const tagT = txt(x + cw - 9, top + 9, t('rec.badge'), 9, '#0a0614', { strokeThickness: 0, fontStyle: '900' }, D + 7).setOrigin(1, 0.5);
+        add(s.add.rectangle(tagT.x + 4, top + 2, tagT.width + 8, 14, rc, 1).setOrigin(1, 0).setStrokeStyle(1, 0x0a0614, 0.8), D + 6);
       }
 
       // 테두리: 일반 1px 회색, 희귀·영웅 2px, 전설·신화 3px + 안쪽 한 줄 + 모서리 꺾쇠

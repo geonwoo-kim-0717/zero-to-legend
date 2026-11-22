@@ -21,6 +21,7 @@ import { weaponSlot } from '../weapons/WeaponBase';
 import { rollItems, itemName, itemText, socketLabel, weaponAbilities, ITEMS, rarityById, itemArt, PART_NAME, abilityTags, type ItemKind, type ItemRoll } from '../systems/Build';
 import { Loadout, weaponTags, itemTags, combosWith, type Sock } from '../systems/Loadout';
 import { OsState, OS_IDS, OS_DEFS, devOsPick, saveDevOsPick } from '../systems/Os';
+import { tagName, tierShort, comboName, comboShort } from '../ui/synergyText';
 import type { GameContext, Stats, DamageTag, FxOpts } from '../weapons/types';
 import meta from '../data/meta.json';
 import zonesData from '../data/zones.json';
@@ -2146,7 +2147,8 @@ export class GameScene extends Phaser.Scene implements GameContext {
     if (!L.has('gear.shield')) this.gShield = 0;
     this.recalcStats();
     if (!announce) return;
-    const fresh = [...L.tiers.map((t) => ({ hook: t.hook, label: `${t.tag} ${t.count}`, text: t.text })), ...L.combos.map((c) => ({ hook: c.hook, label: c.name, text: c.text }))].filter((x) => !before.has(x.hook));
+    // 알림 문구는 짧은 문장·영어 이름 (src/ui/synergyText.ts, 없으면 build.json 원문)
+    const fresh = [...L.tiers.map((t) => ({ hook: t.hook, label: `${tagName(t.tag)} ${t.count}`, text: tierShort(t.tag, t.count, t.text) })), ...L.combos.map((c) => ({ hook: c.hook, label: comboName(c.id), text: comboShort(c.id, c.text) }))].filter((x) => !before.has(x.hook));
     fresh.forEach((f, i) => this.time.delayedCall(i * 900, () => this.synergyToast(f.label, f.text)));
   }
 

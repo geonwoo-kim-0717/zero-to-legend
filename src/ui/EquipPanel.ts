@@ -11,6 +11,7 @@ import { ITEMS, itemName, itemText, itemArt, type ItemKind } from '../systems/Bu
 import { weaponTags, itemTags, type Sock, type ActiveTier, type ActiveCombo } from '../systems/Loadout';
 import { shortText } from './cardInfo';
 import { TAG_COLOR } from './LevelUpUI';
+import { tagName, tierShort, comboName, comboShort } from './synergyText';
 import { I18n, t } from '../i18n';
 
 /** 장비창에 넘길 것 (GameScene이 가진 그대로) */
@@ -283,7 +284,7 @@ export function buildEquipPanel(scene: Phaser.Scene, d: EquipInput, cb: { onResu
         let tx = RX + 8;
         for (const tag of v.tags) {
           const tc = TAG_COLOR[tag] ?? 0xb8a8d8;
-          const tt = txt(tx + 4, ty, tag, 9, hex(tc), { strokeThickness: 0 }, right);
+          const tt = txt(tx + 4, ty, tagName(tag), 9, hex(tc), { strokeThickness: 0 }, right);
           dg.fillStyle(tc, 0.1).fillRect(tx, ty - 1, tt.width + 8, 14);
           dg.lineStyle(1, tc, 0.5).strokeRect(tx + 0.5, ty - 0.5, tt.width + 7, 13);
           tx += tt.width + 11;
@@ -323,7 +324,7 @@ export function buildEquipPanel(scene: Phaser.Scene, d: EquipInput, cb: { onResu
     const pg = add(s.add.graphics(), right);
     for (const [tag, n] of rows.slice(0, 6)) {
       const tc = TAG_COLOR[tag] ?? 0xb8a8d8;
-      const tt = txt(RX + 17, y + 1, tag, 9, hex(tc), { strokeThickness: 0 }, right).setOrigin(0.5, 0);
+      const tt = txt(RX + 17, y + 1, tagName(tag), en ? 7 : 9, hex(tc), { strokeThickness: 0 }, right).setOrigin(0.5, 0);
       pg.fillStyle(tc, 0.12).fillRect(RX, y, 34, 13);
       pg.lineStyle(1, tc, 0.6).strokeRect(RX + 0.5, y + 0.5, 33, 12);
       void tt;
@@ -332,7 +333,7 @@ export function buildEquipPanel(scene: Phaser.Scene, d: EquipInput, cb: { onResu
         pg.fillStyle(on ? tc : 0xffffff, on ? 1 : 0.1).fillRect(RX + 40 + i * 11, y + 4, 9, 5);
       }
       const act = top[tag];
-      fit(txt(RX + 88, y + 1, act ? `${act.count}${en ? '' : '단계'} · ${act.text}` : en ? 'from 2' : '2개부터', 9.5, act ? '#e8f7ff' : '#5a4a78', { strokeThickness: 0 }, right), RW - 88);
+      fit(txt(RX + 88, y + 1, act ? `${act.count}${en ? '' : '단계'} · ${tierShort(tag, act.count, act.text)}` : en ? 'from 2' : '2개부터', 9.5, act ? '#e8f7ff' : '#5a4a78', { strokeThickness: 0 }, right), RW - 88);
       y += 16;
     }
     if (!rows.length) {
@@ -341,7 +342,7 @@ export function buildEquipPanel(scene: Phaser.Scene, d: EquipInput, cb: { onResu
     }
 
     // 조합: 켜진 것 → 하나만 빠진 것 (최대 2줄)
-    const lines: { name: string; text: string; on: boolean }[] = d.combos.map((c) => ({ name: c.name, text: en ? 'active' : '발동 중', on: true }));
+    const lines: { name: string; text: string; on: boolean }[] = d.combos.map((c) => ({ name: comboName(c.name), text: comboShort(c.name, en ? 'active' : '발동 중'), on: true }));
     const have = new Set<string>([...d.weapons.map((w) => w.id), ...[...d.sockets.values()].map((k) => k.id)]);
     for (const c of Object.values(build.combos as Record<string, { name: string; needs: string[]; enabled?: boolean }>)) {
       if (c.enabled === false || d.combos.some((a) => a.name === c.name)) continue;
@@ -349,7 +350,7 @@ export function buildEquipPanel(scene: Phaser.Scene, d: EquipInput, cb: { onResu
       if (miss.length !== 1 || miss.length === c.needs.length) continue;
       const id = miss[0];
       const nm = ITEMS[id] ? itemName(ITEMS[id].kind as ItemKind, id) : ((weaponsData as Record<string, { name: string }>)[id]?.name ?? id);
-      lines.push({ name: c.name, text: en ? `needs ${nm}` : `${nm} 필요`, on: false });
+      lines.push({ name: comboName(c.name), text: en ? `needs ${nm}` : `${nm} 필요`, on: false });
     }
     if (lines.length) {
       y += 4;
