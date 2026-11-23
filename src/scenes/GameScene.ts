@@ -718,6 +718,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
     this.mergeT = this.dashGhostT = 0;
     this.dashRings = [];
     this.devUi = [];
+    this.devRows = [];
     this.dpsBuckets = new Map();
     this.dpsStart = new Map();
     this.dmgNums = [];
@@ -1389,6 +1390,15 @@ export class GameScene extends Phaser.Scene implements GameContext {
   /** 개발자 도구(AI 표시 빌드·?ai·?debug): 3배속·무적·1분 건너뛰기·보스 무적·레벨업·보스 소환 (관찰·테스트용, 저장하지 않음) */
   /** 개발자 도구 버튼들 (일시정지 장비창을 가리지 않게 일시정지 중엔 숨김) */
   private devUi: Phaser.GameObjects.Text[] = [];
+  /** 왼쪽 아래 개발자 버튼 줄 (접기·펴기 대상) */
+  private devRows: Phaser.GameObjects.Text[] = [];
+  /** 개발자 버튼 줄을 접었는지 (다음 판에도 기억) */
+  private devFolded = false;
+
+  /** 개발자 버튼 보이기: 일시정지 중엔 모두 숨김, 접었으면 접기 버튼만 */
+  private syncDevUi(show: boolean): void {
+    for (const b of this.devUi) b.setVisible(show && (!this.devFolded || !this.devRows.includes(b)));
+  }
 
   private makeAiTools(): void {
     const mk = (y: number, label: () => string, toggle: () => void) => {
@@ -1428,6 +1438,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
           .setDepth(160)
           .setInteractive({ useHandCursor: true });
         this.devUi.push(t);
+        this.devRows.push(t);
         t.on('pointerdown', (_p: Phaser.Input.Pointer, _x: number, _y: number, e: Phaser.Types.Input.EventData) => {
           e.stopPropagation();
           act();
@@ -1437,6 +1448,32 @@ export class GameScene extends Phaser.Scene implements GameContext {
         x += t.width + 4;
       }
     };
+    // 접기·펴기 버튼 (버튼 줄 바로 위)
+    try {
+      this.devFolded = localStorage.getItem('ztl-dev-folded') === '1';
+    } catch {
+      this.devFolded = false;
+    }
+    const fold = this.add
+      .text(8, VIEW_H - 99, '', { ...TEXT, fontSize: '10px', color: '#fff23a', backgroundColor: '#3a1a5a', padding: { x: 5, y: 2 } })
+      .setScrollFactor(0)
+      .setDepth(160)
+      .setInteractive({ useHandCursor: true });
+    const foldLabel = () => fold.setText(this.devFolded ? '개발 도구 ▶' : '개발 도구 ▼').setY(this.devFolded ? VIEW_H - 26 : VIEW_H - 99);
+    foldLabel();
+    this.devUi.push(fold);
+    fold.on('pointerdown', (_p: Phaser.Input.Pointer, _x: number, _y: number, e: Phaser.Types.Input.EventData) => {
+      e.stopPropagation();
+      this.devFolded = !this.devFolded;
+      try {
+        localStorage.setItem('ztl-dev-folded', this.devFolded ? '1' : '0');
+      } catch {
+        // 저장이 막혀 있으면 이번 판만
+      }
+      foldLabel();
+      this.syncDevUi(this.state !== 'paused');
+      Sound.play('select');
+    });
     row(VIEW_H - 80, [
       // 자동 조준: 가까운 적을 노리고 알아서 쏨 (봇·관찰용)
       [() => `자동 조준: ${this.controls.autoAim ? '켬' : '끔'}`, () => (this.controls.autoAim = !this.controls.autoAim)],
@@ -1485,6 +1522,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
     const items = gameData.bosses.map((d) => [() => SHORT[d.id] ?? d.id, () => this.devSpawnBoss(d as BossDef)] as [() => string, () => void]);
     row(VIEW_H - 44, [[() => '보스 소환 ▶', () => {}], ...items.slice(0, 3)]);
     row(VIEW_H - 26, items.slice(3));
+    this.syncDevUi(true);
   }
 
   /** 개발자 도구: 보스 바로 소환 (구역 전환, 있던 보스는 보상 없이 치움) */
@@ -1536,7 +1574,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
     for (const o of this.pauseUi) o.destroy();
     this.pauseUi = [];
     for (const b of this.settingUi) b.setVisible(on);
-    for (const b of this.devUi) b.setVisible(!on);
+    this.syncDevUi(!on);
     if (!on) return;
     // 뒤를 어둡게 해서 글자가 잘 보이게
     this.pauseUi.push(this.add.rectangle(0, 0, VIEW_W, VIEW_H, 0x000000, 0.5).setOrigin(0).setScrollFactor(0).setDepth(99));
