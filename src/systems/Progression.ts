@@ -51,6 +51,10 @@ export interface Choice {
   pickAbility?: { weapon: string; tier: 'legendary' | 'mythic' };
   /** 카드 그림 이름 (card_<art>), 없으면 id */
   art?: string;
+  /** 칩셋 카드 (칩셋 id) */
+  chipset?: string;
+  /** 등급 승급 카드 (이미 끼고 있는 아이템, rarity = 오를 등급) */
+  promote?: boolean;
   /** 개편 2-2: 사이버웨어·장비 소켓 강화 카드 (소켓 부위) */
   socket?: string;
   /** 최대 레벨인데 특수 능력만 받는 카드 (레벨은 오르지 않음) */
@@ -120,10 +124,10 @@ export function rollChoices(
   owned: WeaponBase[],
   ownedPassives: Map<PassiveId, PassiveState>,
   mode?: string,
-  opts: { guaranteeWeapon?: boolean; pool?: readonly WeaponId[]; luck?: boolean; favor?: string; favorChance?: number; epicMul?: number; upgradesOnly?: boolean; sockets?: SocketCard[] } = {},
+  opts: { guaranteeWeapon?: boolean; pool?: readonly WeaponId[]; luck?: boolean; favor?: string; favorChance?: number; epicMul?: number; upgradesOnly?: boolean; sockets?: SocketCard[]; extras?: Choice[] } = {},
 ): Choice[] {
   // 개편 2단계: 레벨업 카드는 장착한 것(소켓)만 강화. 새 아이템·교체·특수 능력은 보급 상자에서
-  if (opts.upgradesOnly) return upgradeChoices(owned, ownedPassives, opts.sockets ?? []);
+  if (opts.upgradesOnly) return upgradeChoices(owned, ownedPassives, opts.sockets ?? [], opts.extras ?? []);
   luck = !!opts.luck;
   epicMul = 1;
   const forcedRarity = mode === 'boss' ? undefined : mode;
@@ -234,7 +238,8 @@ export interface SocketCard {
   art?: string;
 }
 
-function upgradeChoices(owned: WeaponBase[], ownedPassives: Map<PassiveId, PassiveState>, sockets: SocketCard[]): Choice[] {
+/** extras: 칩셋 카드 (강화 카드와 섞여 나옴, 소켓이 다 차면 칩셋만) */
+function upgradeChoices(owned: WeaponBase[], ownedPassives: Map<PassiveId, PassiveState>, sockets: SocketCard[], extras: Choice[]): Choice[] {
   const common = gameData.rarity[0];
   const pool: Choice[] = [];
   for (const w of owned) {
@@ -249,6 +254,7 @@ function upgradeChoices(owned: WeaponBase[], ownedPassives: Map<PassiveId, Passi
     if (k.level >= k.maxLevel) continue;
     pool.push({ kind: 'passive', id: k.id, art: k.art, socket: k.part, rarity: common, title: k.title, levelLabel: t('lvl.socket', { lv: k.level + 1 }), desc: k.nextDesc });
   }
+  pool.push(...extras);
   const out = Phaser.Utils.Array.Shuffle(pool).slice(0, 3);
   const left = Phaser.Utils.Array.Shuffle(gameData.overflow.slice());
   while (out.length < 3 && left.length) {

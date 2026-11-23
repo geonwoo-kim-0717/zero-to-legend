@@ -702,6 +702,8 @@
       "osSwap": 0
     }
   },
+  "chipsetCardsNote": "레벨업 때 강화 카드와 섞어 넣을 칩셋 카드 수 (소켓이 다 차면 칩셋만 나옴)",
+  "chipsetCards": 3,
   "mythicAwakenNote": "신화 무기 각성: 신화 무기는 신화 능력만 가지고, 그 무기의 태그 하나가 장착 전체(무기 2 + 사이버웨어 3 + 장비 2)에서 mythicAwaken개 이상이면 전설 능력도 하나 고름 (한 번 얻으면 유지)",
   "mythicAwaken": 5,
   "twinStick": {

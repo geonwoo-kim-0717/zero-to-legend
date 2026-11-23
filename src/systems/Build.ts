@@ -84,6 +84,14 @@ export interface ItemRoll {
   kind: ItemKind;
   id: string;
   rarity: Rarity;
+  /** 등급 승급 카드: 이미 끼고 있는 아이템이 또 나옴 → 고르면 등급 +1 (rarity = 오를 등급) */
+  promote?: boolean;
+}
+
+/** 다음 등급 (신화면 null) */
+export function nextRarity(id: string): Rarity | null {
+  const i = rarities.findIndex((r) => r.id === id);
+  return i >= 0 && i < rarities.length - 1 ? rarities[i + 1] : null;
 }
 
 /** 등급 굴리기 (min 이상만). weights가 있으면 그 가중치로 (없는 등급은 안 나옴) */
@@ -107,10 +115,17 @@ function itemPool(): { kind: ItemKind; id: string }[] {
   return out;
 }
 
-/** 보급 상자: 서로 다른 아이템 n개. equipped에 있는 아이템(같은 id)은 빼고, minRarity 이상 */
-export function rollItems(n: number, equipped: Set<string>, minRarity?: string, weights?: Record<string, number>): ItemRoll[] {
-  const pool = Phaser.Utils.Array.Shuffle(itemPool().filter((p) => !equipped.has(p.id)));
-  return pool.slice(0, n).map((p) => ({ ...p, rarity: rollItemRarity(minRarity, weights) }));
+/**
+ * 보급 상자·상점: 서로 다른 아이템 n개 (minRarity 이상, weights가 있으면 그 확률).
+ * equipped: 끼고 있는 아이템 id → 지금 등급. 신화가 아니면 '등급 승급' 카드로 나옴(오를 등급 고정), 신화면 안 나옴
+ */
+export function rollItems(n: number, equipped: Map<string, string>, minRarity?: string, weights?: Record<string, number>): ItemRoll[] {
+  const pool = Phaser.Utils.Array.Shuffle(itemPool().filter((p) => !equipped.has(p.id) || nextRarity(equipped.get(p.id)!)));
+  return pool.slice(0, n).map((p) => {
+    const cur = equipped.get(p.id);
+    if (cur) return { ...p, rarity: nextRarity(cur)!, promote: true };
+    return { ...p, rarity: rollItemRarity(minRarity, weights) };
+  });
 }
 
 export function itemName(kind: ItemKind, id: string): string {

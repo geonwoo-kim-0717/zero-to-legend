@@ -22,6 +22,7 @@ import { rollItems, itemName, itemText, socketLabel, weaponAbilities, ITEMS, rar
 import { Loadout, weaponTags, itemTags, combosWith, type Sock } from '../systems/Loadout';
 import { OsState, OS_IDS, OS_DEFS, devOsPick, saveDevOsPick } from '../systems/Os';
 import { tagName, tierShort, comboName, comboShort } from '../ui/synergyText';
+import { CHIPSETS, chipName, chipText, rollChipsets } from '../systems/Chipsets';
 import type { GameContext, Stats, DamageTag, FxOpts } from '../weapons/types';
 import meta from '../data/meta.json';
 import zonesData from '../data/zones.json';
@@ -158,6 +159,8 @@ interface Station {
   arrow: Phaser.GameObjects.Text;
   /** 상점 진열 (처음 열 때 굴림) */
   stock: ItemRoll[] | null;
+  /** 상점 칩셋 한 칸 (산 뒤 null) */
+  chip?: string | null;
   rerolls: number;
   healed: boolean;
   /** 리퍼닥 OS 목록 쪽수 (-1이면 첫 화면) */
@@ -320,6 +323,12 @@ export class GameScene extends Phaser.Scene implements GameContext {
   private gShield = 0;
   private gShieldCd = 0;
   private reactiveT = 0;
+  /** 칩셋: id → 중첩 (칸 제한 없음) */
+  private chipsets = new Map<string, number>();
+  /** 칩셋 효과용 셈: 주무기 적중 수, 처치 수, 냉각 칩셋 주기 */
+  private rhythmHits = 0;
+  private chipKills = 0;
+  private frostT = 0;
   private grenadeReactT = 0;
   private sinceDash = 99;
   /** 감전·화상 (남은 초) */
@@ -690,6 +699,8 @@ export class GameScene extends Phaser.Scene implements GameContext {
     this.wTags = new Map();
     this.gShield = this.gShieldCd = this.reactiveT = this.grenadeReactT = 0;
     this.sinceDash = 99;
+    this.chipsets = new Map();
+    this.rhythmHits = this.chipKills = this.frostT = 0;
     this.dots = new Map();
     this.echoes = [];
     this.zaps = [];
@@ -994,6 +1005,14 @@ export class GameScene extends Phaser.Scene implements GameContext {
       this.burst(e.x, e.y, 0x39ff88, 8);
     }
     if (L.has('cyber.eliteDmg') && (e.isBoss || e.maxHp >= 1000)) amount *= 1 + L.v('cyber.eliteDmg') / 100;
+    // 칩셋: 사냥꾼(엘리트·보스), 리듬 탄(주무기 n번째 적중), 처형(일반 적 낮은 체력 즉사)
+    if (L.has('chip.bossDmg') && (e.isBoss || e.maxHp >= 1000)) amount *= 1 + L.v('chip.bossDmg') / 100;
+    if (proc && L.has('chip.rhythm') && src && src === this.weapons.find((w) => w.slot === 'primary')?.id && ++this.rhythmHits >= Math.max(2, L.v('chip.rhythm', 'n', 8))) {
+      this.rhythmHits = 0;
+      amount *= L.v('chip.rhythm', 'mul', 2);
+      this.burst(e.x, e.y, COLORS.cyan, 4);
+    }
+    if (L.has('chip.execute') && !e.isBoss && e.maxHp < 1000 && e.hp - amount <= (e.maxHp * Math.min(30, L.v('chip.execute'))) / 100) amount = Math.max(amount, e.hp);
     if (src === 'mantisBlade' && L.has('combo.bladeReflex') && this.sinceDash <= L.v('combo.bladeReflex', 't')) amount *= L.v('combo.bladeReflex', 'mul', 1);
     // 강화 근섬유 특수 능력: 치명타 · 치명 폭주 · 분노 · 연속 처치
     const frenzy = this.pHas('critFrenzy');
@@ -1004,7 +1023,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
       this.burst(e.x, e.y, critMul === 3 ? 0xff2a3a : COLORS.yellow, 4);
     }
     // 개편 2-2 치명타: 타겟팅 아이 + 정밀 2단계 확률, 정밀 3단계 배율, 레일건 + 타겟팅 아이 조합
-    const critPct = L.v('cyber.crit') + L.v('syn.prec2');
+    const critPct = L.v('cyber.crit') + L.v('syn.prec2') + L.v('chip.crit');
     let crit = false;
     if (critMul === 1 && proc && critPct > 0 && Math.random() * 100 < critPct) {
       crit = true;
@@ -1822,6 +1841,8 @@ export class GameScene extends Phaser.Scene implements GameContext {
       luck: this.pHas('luckCircuit'),
       upgradesOnly: true,
       sockets: this.socketCards(),
+      // 칩셋: 강화 카드와 섞여 나옴 (소켓이 다 차면 칩셋만)
+      extras: rollChipsets(gameData.chipsetCards).map((id) => this.chipChoice(id)),
       // 첫 판 3분 전까지: 플라즈마 유탄이 조금 더 자주, 영웅(보라) 카드가 조금 더 자주
       ...(Save.data.stats.runs === 0 && this.elapsed < 180 ? { favor: 'plasmaGrenade', favorChance: 0.35, epicMul: 2.5 } : {}),
     });
@@ -1835,7 +1856,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
     if (!this.rewardOpen) this.forcedRarity = undefined;
     // UI: 강화 카드는 장착한 아이템의 등급·소켓·태그로 보여 줌 (카드 등급은 효과용이라 그대로 둠)
     for (const c of this.choices) {
-      if (c.card || c.item || c.pickAbility || c.ability || c.rarity.id !== 'common') continue;
+      if (c.card || c.item || c.pickAbility || c.ability || c.chipset || c.rarity.id !== 'common') continue;
       if (c.socket) {
         const k = this.sockets.get(c.socket);
         if (k) c.card = upgradeCard({ kind: ITEMS[k.id].kind as ItemKind, id: k.id, rarity: rarityById(k.rarity), tags: itemTags(k.id), lv: k.level, desc: c.desc });
@@ -1880,7 +1901,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
 
   /** 칩 얻기 (수집 시야: 칩 획득 +%) */
   private addChips(n: number): void {
-    this.chips += n * (1 + this.kit.v('cyber.pickup', 'chip') / 100);
+    this.chips += n * (1 + (this.kit.v('cyber.pickup', 'chip') + this.kit.v('chip.chips')) / 100);
   }
 
   private pick(i: number): void {
@@ -1897,7 +1918,9 @@ export class GameScene extends Phaser.Scene implements GameContext {
       this.pickItem(c);
       return;
     }
-    if (c.kind === 'weapon') {
+    if (c.chipset) {
+      this.addChipset(c.chipset);
+    } else if (c.kind === 'weapon') {
       const id = c.id as WeaponId;
       const owned = this.weapons.find((o) => o.id === id);
       const w = owned ?? this.addWeapon(id);
@@ -2096,9 +2119,14 @@ export class GameScene extends Phaser.Scene implements GameContext {
     if (s.kind === 'shop') {
       // UI: 블랙마켓 화면 (src/ui/StationUI.ts)
       const SH = ST.shop;
-      if (!s.stock) s.stock = rollItems(SH.items, this.equippedIds(), undefined, SH.rarity);
+      if (!s.stock) {
+        s.stock = rollItems(SH.items, this.equippedRarity(), undefined, SH.rarity);
+        s.chip = rollChipsets(1)[0] ?? null;
+      }
       const stock = s.stock;
       const items = stock.map((r) => ({ choice: this.itemChoice(r), price: (SH.price as Record<string, number>)[r.rarity.id] ?? 50 }));
+      // 칩셋 한 칸 (편집 페이지 값)
+      if (s.chip) items.push({ choice: this.chipChoice(s.chip), price: CHIPSETS[s.chip].price ?? 45 });
       const rr = SH.reroll + SH.rerollStep * s.rerolls;
       this.stationUi.showShop(
         { chips, items, heal: s.healed ? undefined : { pct: SH.heal.pct, price: SH.heal.price }, reroll: s.rerolls >= SH.rerollMax ? undefined : { price: rr } },
@@ -2106,7 +2134,8 @@ export class GameScene extends Phaser.Scene implements GameContext {
           buy: (i) => {
             const it = items[i];
             if (!it || !pay(it.price)) return;
-            s.stock = s.stock!.filter((x) => x !== stock[i]);
+            if (it.choice.chipset) s.chip = null;
+            else s.stock = s.stock!.filter((x) => x !== stock[i]);
             this.equipItem(it.choice);
             after();
           },
@@ -2119,7 +2148,8 @@ export class GameScene extends Phaser.Scene implements GameContext {
           reroll: () => {
             if (s.rerolls >= SH.rerollMax || !pay(rr)) return;
             s.rerolls++;
-            s.stock = rollItems(SH.items, this.equippedIds(), undefined, SH.rarity);
+            s.stock = rollItems(SH.items, this.equippedRarity(), undefined, SH.rarity);
+            s.chip = rollChipsets(1)[0] ?? null;
             after();
           },
           leave,
@@ -2204,6 +2234,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
       this.weapons.map((w) => ({ id: w.id, abilities: w.abilities })),
       this.sockets,
       this.os.def.tags,
+      this.chipsets,
     );
     const L = this.kit;
     this.wMul.clear();
@@ -2304,13 +2335,72 @@ export class GameScene extends Phaser.Scene implements GameContext {
     if (this.state === 'play') Sound.play('levelup');
     this.state = 'levelup';
     const min = this.chestQueue.shift();
-    const rolls = rollItems(3, this.equippedIds(), min);
+    const rolls = rollItems(3, this.equippedRarity(), min);
     this.choices = rolls.map((r) => this.itemChoice(r));
     this.levelUi.show(this.choices, 0, (i) => this.pick(i), () => undefined, tr('item.title'), this.skipButton(Math.max(0, gameData.rarity.findIndex((r) => r.id === min)), () => undefined));
   }
 
+  /** 칩셋 카드 (레벨업·블랙마켓) */
+  private chipChoice(id: string): Choice {
+    const n = this.chipsets.get(id) ?? 0;
+    const def = CHIPSETS[id];
+    const kindLabel = tr(def.kind === 'stat' ? 'chip.stat' : 'chip.special');
+    const foot = n ? tr('chip.stack', { a: n, b: n + 1 }) : tr('chip.new');
+    return {
+      kind: 'overflow',
+      id,
+      chipset: id,
+      art: 'chip',
+      rarity: rarityById('common'),
+      title: chipName(id),
+      levelLabel: `${kindLabel} · ${foot}`,
+      desc: chipText(id, n + 1),
+      card: { slot: kindLabel, short: chipText(id, n + 1), tags: [], foot: { left: foot, right: n ? `×${n + 1}` : '' } },
+    } as Choice;
+  }
+
+  /** 칩셋 하나 더 (중첩 +1) */
+  private addChipset(id: string): void {
+    this.chipsets.set(id, (this.chipsets.get(id) ?? 0) + 1);
+    const oldMax = this.player.maxHp;
+    this.rebuildLoadout(false);
+    this.player.hp += Math.max(0, this.player.maxHp - oldMax);
+  }
+
+  /** 끼고 있는 아이템 id → 등급 (등급 승급 카드용) */
+  private equippedRarity(): Map<string, string> {
+    const m = new Map<string, string>();
+    for (const w of this.weapons) m.set(w.id, w.rarity);
+    for (const k of this.sockets.values()) m.set(k.id, k.rarity);
+    return m;
+  }
+
+  /** 등급 승급 카드: 같은 아이템의 등급 +1 (소켓 레벨 그대로) */
+  private promoteChoice(r: ItemRoll): Choice {
+    const kind = r.kind === 'weapon' ? 'weapon' : 'passive';
+    const w = r.kind === 'weapon' ? this.weapons.find((o) => o.id === r.id) : undefined;
+    const k = r.kind === 'weapon' ? undefined : this.sockets.get(ITEMS[r.id].part);
+    const from = rarityById(w?.rarity ?? k?.rarity ?? 'common');
+    const lv = w?.level ?? k?.level ?? 1;
+    let desc = tr('item.promoteDesc', { from: from.label, to: r.rarity.label });
+    if (r.kind === 'weapon') {
+      desc += r.rarity.weaponBonus > 0 ? tr('lvl.bonus', { v: Math.round(r.rarity.weaponBonus * 100) }) : '';
+      const tier = r.rarity.ability ? (r.rarity.id as 'legendary' | 'mythic') : null;
+      if (tier && w && !weaponAbilities(r.id as WeaponId, tier).some((a) => w.abilities.has(a.id))) desc += '\n' + tr('item.pickAbility', { tier: r.rarity.label });
+    } else desc += '\n' + itemText(r.id, lv, r.rarity.id);
+    const card = itemCard({ kind: r.kind, id: r.id, rarity: r.rarity, lv, cur: null, tagCount: this.kit.tagCount, equipped: this.equippedIds(), activeCombos: this.kit.combos.map((c) => c.name) });
+    card.foot = { left: tr('item.promote', { from: from.label, to: r.rarity.label }), right: `Lv ${lv}` };
+    // 이미 끼고 있는 아이템이라 태그가 새로 늘지 않음: 추천·단계 ▲·경고는 빼고 태그만
+    card.rec = undefined;
+    card.warn = undefined;
+    card.tags = card.tags.map((t) => ({ ...t, up: undefined }));
+    if (r.kind !== 'weapon') card.short = itemText(r.id, lv, r.rarity.id);
+    return { kind, id: r.id, art: itemArt(r.id), rarity: r.rarity, title: itemName(r.kind, r.id), levelLabel: tr('item.promote', { from: from.label, to: r.rarity.label }), desc, item: { kind: r.kind, id: r.id }, promote: true, card } as Choice;
+  }
+
   /** 아이템 카드 (보급 상자·상점) */
   private itemChoice(r: ItemRoll): Choice {
+    if (r.promote) return this.promoteChoice(r);
     const kind = r.kind === 'weapon' ? 'weapon' : 'passive';
     let desc = '';
     let lv = 1;
@@ -2367,6 +2457,26 @@ export class GameScene extends Phaser.Scene implements GameContext {
 
   /** 아이템·능력 장착 (화면 넘김 없음: 보급 상자·상점이 같이 씀) */
   private equipItem(c: Choice): void {
+    if (c.chipset) return void this.addChipset(c.chipset);
+    if (c.promote) {
+      // 등급 승급: 같은 아이템 등급 +1 (무기는 피해 보너스, 전설·신화가 되면 그 등급 능력을 아직 없으면 고름)
+      if (c.item!.kind === 'weapon') {
+        const w = this.weapons.find((o) => o.id === c.id);
+        if (w) {
+          w.rarity = c.rarity.id;
+          w.bonus = c.rarity.weaponBonus;
+          const tier = c.rarity.ability ? (c.rarity.id as 'legendary' | 'mythic') : null;
+          if (tier && !weaponAbilities(w.id as WeaponId, tier).some((a) => w.abilities.has(a.id))) this.abilityPending = { weapon: w.id as WeaponId, tier };
+        }
+      } else {
+        const k = this.sockets.get(ITEMS[c.id].part);
+        if (k) k.rarity = c.rarity.id;
+      }
+      const oldMax = this.player.maxHp;
+      this.rebuildLoadout();
+      this.player.hp += Math.max(0, this.player.maxHp - oldMax);
+      return;
+    }
     if (c.pickAbility) {
       const w = this.weapons.find((o) => o.id === c.pickAbility!.weapon);
       const abId = (c as unknown as { abilityId: string }).abilityId;
@@ -2553,6 +2663,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
       // 칼날 대시: 지나간 길의 적에게 피해
       if (this.pHas('bladeDash')) this.lineDamage(this.dashPath, 14, 60 * this.stats.damageMul, COLORS.magenta);
       // 근접 4단계: 대시가 끝날 때 주변 베기
+      if (this.kit.has('chip.dashBolt')) this.zapNearest(p.x, p.y, this.kit.v('chip.dashBolt', 'n', 2), this.kit.v('chip.dashBolt', 'dmg') * this.stats.damageMul);
       if (this.kit.has('syn.melee4')) this.synBlast(p.x, p.y, this.kit.v('syn.melee4', 'r', 60), this.kit.v('syn.melee4', 'dmg') * this.stats.damageMul * this.stats.meleeMul, COLORS.magenta, 'melee');
     }
     this.wasDashing = p.dashing;
@@ -2939,9 +3050,10 @@ export class GameScene extends Phaser.Scene implements GameContext {
     if (!bossHit) dmg *= 1 + ((this.elapsed - this.zoneStart) / 60) * gameData.enemyDamageGrowthPerMin;
     if (this.pHas('steelSkin')) dmg *= 0.85;
     const L = this.kit;
-    dmg *= 1 - Math.min(80, L.v('gear.dr')) / 100;
+    dmg *= 1 - Math.min(80, L.v('gear.dr') + Math.min(50, L.v('chip.dr'))) / 100;
     this.sinceHurt = 0;
     // 개편 2-2 반격: 반응 장갑 충격파, 반격 유탄 (맞으면 바로, 막아도)
+    if (L.has('chip.hurtZap')) this.zapNearest(p.x, p.y, L.v('chip.hurtZap', 'n', 2), L.v('chip.hurtZap', 'dmg') * this.stats.damageMul);
     if (L.has('gear.reactive') && this.reactiveT <= 0) {
       this.reactiveT = 1;
       this.synBlast(p.x, p.y, L.v('gear.reactive', 'r', 70), L.v('gear.reactive') * this.stats.damageMul, COLORS.orange);
@@ -3271,6 +3383,15 @@ export class GameScene extends Phaser.Scene implements GameContext {
     const dot = this.dots.get(e);
     this.dots.delete(e);
     if (L.has('syn.melee3') && (tag === 'melee' || wt.includes('근접'))) this.heal(L.v('syn.melee3', 'heal', 1), true);
+    // 칩셋: 연쇄 폭발, 흡혈, 처치 보호막
+    if (L.has('chip.killBoom') && Math.random() * 100 < L.v('chip.killBoom', 'chance')) this.synBlast(e.x, e.y, L.v('chip.killBoom', 'r', 40), L.v('chip.killBoom', 'dmg') * this.stats.damageMul, COLORS.orange, 'explosive');
+    if (L.has('chip.vamp') && Math.random() * 100 < L.v('chip.vamp', 'chance')) this.heal(L.v('chip.vamp', 'heal', 1), true);
+    if (L.has('chip.killShield') && ++this.chipKills >= Math.max(1, L.v('chip.killShield', 'n', 25))) {
+      this.chipKills = 0;
+      const p = this.player;
+      p.shield = Math.max(p.shield, L.v('chip.killShield'));
+      p.shieldT = Math.max(p.shieldT, 5);
+    }
     if (dot && dot.shock > 0 && L.has('syn.elec3')) {
       // 감전된 적이 죽으면 근처 n명에게 번개 (감전 초당 피해의 3배)
       let n = L.v('syn.elec3', 'n', 2);
@@ -3336,6 +3457,16 @@ export class GameScene extends Phaser.Scene implements GameContext {
     this.synRing(x, y, r, color);
   }
 
+  /** 가까운 적 n명에게 번개 (칩셋 대시 방전·피격 방전) */
+  private zapNearest(x: number, y: number, n: number, dmg: number): void {
+    const list = this.grid.query(x, y, 140, this.chainBuf).filter((o) => o.active && (o.x - x) ** 2 + (o.y - y) ** 2 < 140 * 140);
+    list.sort((a, b) => (a.x - x) ** 2 + (a.y - y) ** 2 - ((b.x - x) ** 2 + (b.y - y) ** 2));
+    for (const o of list.slice(0, Math.max(0, Math.round(n)))) {
+      this.zap(x, y, o.x, o.y, COLORS.cyan);
+      this.synDamage(o, dmg, 'electric');
+    }
+  }
+
   private synRing(x: number, y: number, r: number, color: number): void {
     if (this.synRings.length < 40) this.synRings.push({ x, y, r: r * 0.3, max: r, life: 0.3, color });
   }
@@ -3356,6 +3487,14 @@ export class GameScene extends Phaser.Scene implements GameContext {
     this.reactiveT -= dt;
     this.grenadeReactT -= dt;
     if (L.has('gear.regen') && p.hp < p.maxHp && p.hp > 0) this.heal(L.v('gear.regen') * dt, true);
+    if (L.has('chip.regen') && p.hp < p.maxHp && p.hp > 0) this.heal(L.v('chip.regen') * dt, true);
+    // 냉각 칩셋: 0.25초마다 주변 적 감속
+    if (L.has('chip.frost') && (this.frostT -= dt) <= 0) {
+      this.frostT = 0.25;
+      const r = L.v('chip.frost', 'r', 50);
+      for (const o of this.grid.query(p.x, p.y, r, this.chainBuf)) if (o.active && (o.x - p.x) ** 2 + (o.y - p.y) ** 2 < r * r) this.slow(o, 0.4);
+      this.fx.lineStyle(1, 0x9fe8ff, 0.18).strokeCircle(p.x, p.y, r);
+    }
     if (L.has('gear.shield') && this.gShield <= 0 && (this.gShieldCd -= dt) <= 0) {
       this.gShield = L.v('gear.shield');
       this.gShieldCd = L.v('gear.shield', 'cd', 10);
@@ -3492,7 +3631,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
   }
 
   private gainXp(v: number): void {
-    this.xp += v * (this.pHas('dataGorge') ? 1.3 : 1);
+    this.xp += v * (this.pHas('dataGorge') ? 1.3 : 1) * (1 + this.kit.v('chip.xp') / 100);
     while (this.xp >= this.xpToNext()) {
       this.xp -= this.xpToNext();
       this.level++;
@@ -3852,6 +3991,13 @@ export class GameScene extends Phaser.Scene implements GameContext {
     st.pickupMul *= 1 + L.v('cyber.pickup') / 100;
     st.maxHpBonus += L.v('cyber.maxHp');
     st.moveMul *= 1 + L.v('cyber.move') / 100;
+    // 칩셋 (능력치)
+    st.damageMul *= 1 + L.v('chip.dmg') / 100;
+    st.cooldownMul = Math.max(0.25, st.cooldownMul / (1 + L.v('chip.atkSpeed') / 100));
+    st.maxHpBonus += L.v('chip.maxHp');
+    st.moveMul *= 1 + L.v('chip.move') / 100;
+    st.areaMul *= 1 + L.v('chip.area') / 100;
+    st.pickupMul *= 1 + L.v('chip.pickup') / 100;
     const m = this.runner.mods as Partial<Record<'creditMul' | 'maxHpMul' | 'meleeMul' | 'explosiveMul' | 'areaMul', number>>;
     st.damageMul *= 1 + Save.clinicValue('dmg') / 100;
     st.moveMul *= (1 + Save.clinicValue('spd') / 100) * (this.berserk && this.os.has('berserk.move') ? 1 + this.os.v('move') / 100 : 1);

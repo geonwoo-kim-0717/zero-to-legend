@@ -935,5 +935,355 @@
    "hook": "combo.droneScanner",
    "enabled": true
   }
+ },
+ "chipsets": {
+  "cs_dmg": {
+   "name": "공격 칩셋",
+   "nameEn": "Power Chipset",
+   "kind": "stat",
+   "text": "모든 피해 +{v}%",
+   "params": {
+    "v": {
+     "base": 4,
+     "per": 4
+    }
+   },
+   "hook": "chip.dmg",
+   "weight": 1,
+   "price": 45,
+   "enabled": true
+  },
+  "cs_rate": {
+   "name": "클럭 칩셋",
+   "nameEn": "Clock Chipset",
+   "kind": "stat",
+   "text": "공격 속도 +{v}%",
+   "params": {
+    "v": {
+     "base": 4,
+     "per": 4
+    }
+   },
+   "hook": "chip.atkSpeed",
+   "weight": 1,
+   "price": 45,
+   "enabled": true
+  },
+  "cs_hp": {
+   "name": "장갑 칩셋",
+   "nameEn": "Plating Chipset",
+   "kind": "stat",
+   "text": "최대 체력 +{v}",
+   "params": {
+    "v": {
+     "base": 8,
+     "per": 8
+    }
+   },
+   "hook": "chip.maxHp",
+   "weight": 1,
+   "price": 45,
+   "enabled": true
+  },
+  "cs_move": {
+   "name": "구동 칩셋",
+   "nameEn": "Servo Chipset",
+   "kind": "stat",
+   "text": "이동 속도 +{v}%",
+   "params": {
+    "v": {
+     "base": 3,
+     "per": 3
+    }
+   },
+   "hook": "chip.move",
+   "weight": 1,
+   "price": 45,
+   "enabled": true
+  },
+  "cs_crit": {
+   "name": "조준 칩셋",
+   "nameEn": "Aim Chipset",
+   "kind": "stat",
+   "text": "치명타 확률 +{v}%",
+   "params": {
+    "v": {
+     "base": 2,
+     "per": 2
+    }
+   },
+   "hook": "chip.crit",
+   "weight": 1,
+   "price": 45,
+   "enabled": true
+  },
+  "cs_area": {
+   "name": "확산 칩셋",
+   "nameEn": "Spread Chipset",
+   "kind": "stat",
+   "text": "공격 범위 +{v}%",
+   "params": {
+    "v": {
+     "base": 4,
+     "per": 4
+    }
+   },
+   "hook": "chip.area",
+   "weight": 1,
+   "price": 45,
+   "enabled": true
+  },
+  "cs_pick": {
+   "name": "자석 칩셋",
+   "nameEn": "Magnet Chipset",
+   "kind": "stat",
+   "text": "아이템 획득 범위 +{v}%",
+   "params": {
+    "v": {
+     "base": 10,
+     "per": 10
+    }
+   },
+   "hook": "chip.pickup",
+   "weight": 1,
+   "price": 45,
+   "enabled": true
+  },
+  "cs_xp": {
+   "name": "학습 칩셋",
+   "nameEn": "Learning Chipset",
+   "kind": "stat",
+   "text": "경험치 +{v}%",
+   "params": {
+    "v": {
+     "base": 5,
+     "per": 5
+    }
+   },
+   "hook": "chip.xp",
+   "weight": 1,
+   "price": 45,
+   "enabled": true
+  },
+  "cs_regen": {
+   "name": "재생 칩셋",
+   "nameEn": "Regen Chipset",
+   "kind": "stat",
+   "text": "초당 체력 {v} 회복",
+   "params": {
+    "v": {
+     "base": 0.2,
+     "per": 0.2
+    }
+   },
+   "hook": "chip.regen",
+   "weight": 1,
+   "price": 45,
+   "enabled": true
+  },
+  "cs_dr": {
+   "name": "완충 칩셋",
+   "nameEn": "Buffer Chipset",
+   "kind": "stat",
+   "text": "받는 피해 -{v}% (최대 50%)",
+   "params": {
+    "v": {
+     "base": 2,
+     "per": 2
+    }
+   },
+   "hook": "chip.dr",
+   "weight": 1,
+   "price": 45,
+   "enabled": true
+  },
+  "cs_killBoom": {
+   "name": "연쇄 폭발",
+   "nameEn": "Chain Blast",
+   "kind": "special",
+   "text": "처치하면 {chance}% 확률로 반경 {r}px 폭발 ({dmg} 피해)",
+   "params": {
+    "chance": {
+     "base": 8,
+     "per": 4
+    },
+    "dmg": {
+     "base": 20,
+     "per": 10
+    },
+    "r": {
+     "base": 40,
+     "per": 0
+    }
+   },
+   "hook": "chip.killBoom",
+   "weight": 1,
+   "price": 45,
+   "enabled": true
+  },
+  "cs_dashBolt": {
+   "name": "대시 방전",
+   "nameEn": "Dash Discharge",
+   "kind": "special",
+   "text": "대시가 끝나면 가까운 적 {n}명에게 번개 ({dmg} 피해)",
+   "params": {
+    "dmg": {
+     "base": 25,
+     "per": 10
+    },
+    "n": {
+     "base": 2,
+     "per": 1
+    }
+   },
+   "hook": "chip.dashBolt",
+   "weight": 1,
+   "price": 45,
+   "enabled": true
+  },
+  "cs_rhythm": {
+   "name": "리듬 탄",
+   "nameEn": "Rhythm Round",
+   "kind": "special",
+   "text": "주무기가 {n}번 맞힐 때마다 한 번 피해 ×{mul}",
+   "params": {
+    "mul": {
+     "base": 2,
+     "per": 0.5
+    },
+    "n": {
+     "base": 8,
+     "per": 0
+    }
+   },
+   "hook": "chip.rhythm",
+   "weight": 1,
+   "price": 45,
+   "enabled": true
+  },
+  "cs_hurtZap": {
+   "name": "피격 방전",
+   "nameEn": "Pain Discharge",
+   "kind": "special",
+   "text": "맞으면 가까운 적 {n}명에게 번개 ({dmg} 피해)",
+   "params": {
+    "dmg": {
+     "base": 30,
+     "per": 10
+    },
+    "n": {
+     "base": 2,
+     "per": 1
+    }
+   },
+   "hook": "chip.hurtZap",
+   "weight": 1,
+   "price": 45,
+   "enabled": true
+  },
+  "cs_vamp": {
+   "name": "흡혈 칩셋",
+   "nameEn": "Leech Chipset",
+   "kind": "special",
+   "text": "처치하면 {chance}% 확률로 체력 +{heal}",
+   "params": {
+    "chance": {
+     "base": 6,
+     "per": 3
+    },
+    "heal": {
+     "base": 2,
+     "per": 0
+    }
+   },
+   "hook": "chip.vamp",
+   "weight": 1,
+   "price": 45,
+   "enabled": true
+  },
+  "cs_luck": {
+   "name": "행운 칩셋",
+   "nameEn": "Luck Chipset",
+   "kind": "special",
+   "text": "칩 획득 +{v}%",
+   "params": {
+    "v": {
+     "base": 10,
+     "per": 10
+    }
+   },
+   "hook": "chip.chips",
+   "weight": 1,
+   "price": 45,
+   "enabled": true
+  },
+  "cs_killShield": {
+   "name": "처치 보호막",
+   "nameEn": "Kill Shield",
+   "kind": "special",
+   "text": "{n}명 처치마다 보호막 {v} (5초)",
+   "params": {
+    "n": {
+     "base": 25,
+     "per": 0
+    },
+    "v": {
+     "base": 10,
+     "per": 5
+    }
+   },
+   "hook": "chip.killShield",
+   "weight": 1,
+   "price": 45,
+   "enabled": true
+  },
+  "cs_execute": {
+   "name": "처형 칩셋",
+   "nameEn": "Executioner Chipset",
+   "kind": "special",
+   "text": "체력 {v}% 이하 일반 적은 맞으면 즉사 (최대 30%)",
+   "params": {
+    "v": {
+     "base": 6,
+     "per": 2
+    }
+   },
+   "hook": "chip.execute",
+   "weight": 1,
+   "price": 45,
+   "enabled": true
+  },
+  "cs_hunter": {
+   "name": "사냥꾼 칩셋",
+   "nameEn": "Hunter Chipset",
+   "kind": "special",
+   "text": "엘리트·보스 피해 +{v}%",
+   "params": {
+    "v": {
+     "base": 6,
+     "per": 6
+    }
+   },
+   "hook": "chip.bossDmg",
+   "weight": 1,
+   "price": 45,
+   "enabled": true
+  },
+  "cs_frost": {
+   "name": "냉각 칩셋",
+   "nameEn": "Frost Chipset",
+   "kind": "special",
+   "text": "주변 {r}px 적 감속",
+   "params": {
+    "r": {
+     "base": 50,
+     "per": 10
+    }
+   },
+   "hook": "chip.frost",
+   "weight": 1,
+   "price": 45,
+   "enabled": true
+  }
  }
 }

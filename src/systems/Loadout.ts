@@ -1,5 +1,6 @@
 import build from '../data/build.json';
 import { ITEMS, itemValues } from './Build';
+import { CHIPSETS, chipValues } from './Chipsets';
 
 /**
  * 개편 2단계 (2-2): 장착한 것 전체(무기 2 + 사이버웨어 3 + 장비 2)에서 효과를 모은다.
@@ -72,7 +73,8 @@ export class Loadout {
   readonly combos: ActiveCombo[] = [];
 
   /** osTags: 낀 OS의 태그 (OS 소켓도 태그 수에 들어감) */
-  constructor(weapons: { id: string; abilities: Iterable<string> }[], sockets: Map<string, Sock>, osTags: string[] = []) {
+  /** chips: 칩셋 id → 중첩 (태그 없음, 값만 hook으로) */
+  constructor(weapons: { id: string; abilities: Iterable<string> }[], sockets: Map<string, Sock>, osTags: string[] = [], chips: Map<string, number> = new Map()) {
     const ids = new Set<string>();
     const addTags = (tags: string[]) => {
       for (const t of new Set(tags)) this.tagCount.set(t, (this.tagCount.get(t) ?? 0) + 1);
@@ -82,6 +84,7 @@ export class Loadout {
       addTags(weaponTags(w.id, w.abilities));
     }
     if (osTags.length) addTags(osTags);
+    for (const [id, n] of chips) if (CHIPSETS[id] && n > 0) this.mods.set(CHIPSETS[id].hook, chipValues(id, n));
     for (const s of sockets.values()) {
       const it = ITEMS[s.id];
       if (!it) continue;

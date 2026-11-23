@@ -150,7 +150,8 @@ export class StationUI {
       () => undefined,
       t('station.shop'),
       undefined,
-      { top: 56, cw: 184, tight: true, fixedH: SHOP_CARD_H, titleColor: '#fff23a', dimmed },
+      // 카드 수에 맞춰 폭을 줄임 (아이템 3 + 칩셋 1 = 4장)
+      { top: 56, cw: Math.min(184, Math.floor((VIEW_W - 24 - 12 * (m.items.length - 1)) / Math.max(1, m.items.length))), tight: true, fixedH: SHOP_CARD_H, titleColor: '#fff23a', dimmed },
     );
     this.txt(VIEW_W / 2, 43, t('station.shopHint'), 9, '#8a7aa8').setOrigin(0.5, 0);
     this.balance(m.chips);
