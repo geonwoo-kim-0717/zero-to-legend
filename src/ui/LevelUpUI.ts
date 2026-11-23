@@ -388,6 +388,14 @@ export class LevelUpUI {
     return { xs: built.map((b) => b.x), cw, top, ch };
   }
 
+  /** 잠깐 키 입력을 막음 (카드 위에 인벤토리를 띄운 동안) */
+  suspendKeys(on: boolean): void {
+    if (!this.keyHandler) return;
+    const kb = this.scene.input.keyboard!;
+    kb.off('keydown', this.keyHandler);
+    if (!on) kb.on('keydown', this.keyHandler);
+  }
+
   hide(): void {
     for (const tw of this.tweens) tw.remove();
     this.tweens = [];

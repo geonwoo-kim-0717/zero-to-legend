@@ -127,7 +127,8 @@ function views(d: EquipInput): Record<SlotKey, SlotView> {
  * 일시정지 장비창 (UI 시안 B 확정본): 왼쪽은 캐릭터 둘레의 소켓 8칸, 오른쪽은 고른 칸 자세히 · 시너지 · 조합.
  * 컨테이너 하나로 돌려주므로 pauseUi에 넣으면 같이 지워진다.
  */
-export function buildEquipPanel(scene: Phaser.Scene, d: EquipInput, cb: { onResume: () => void; onAbandon: () => void }): Phaser.GameObjects.Container {
+/** cb.onAbandon이 없으면(카드 고르기 중 보기) 임무 포기 버튼 없이 '돌아가기'만 */
+export function buildEquipPanel(scene: Phaser.Scene, d: EquipInput, cb: { onResume: () => void; onAbandon?: () => void }): Phaser.GameObjects.Container {
   const s = scene;
   const root = s.add.container(0, 0).setScrollFactor(0).setDepth(131);
   // 컨테이너 안 물체도 각자 스크롤을 0으로 (안 그러면 누르기 판정이 카메라 스크롤만큼 어긋남)
@@ -152,7 +153,7 @@ export function buildEquipPanel(scene: Phaser.Scene, d: EquipInput, cb: { onResu
   // 뒤 어둡게 + 빈 곳을 눌러도 계속되지 않게 막는 판
   const blocker = add(s.add.rectangle(0, 0, VIEW_W, VIEW_H, 0x04020a, 0.72).setOrigin(0));
   blocker.setInteractive();
-  txt(18, 8, en ? 'PAUSED' : '일시정지', 13, '#00f0ff', { fontStyle: '900', strokeThickness: 2 }).setLetterSpacing(2).setShadow(0, 0, '#00f0ff', 6, true, true);
+  txt(18, 8, cb.onAbandon ? (en ? 'PAUSED' : '일시정지') : en ? 'INVENTORY' : '인벤토리', 13, '#00f0ff', { fontStyle: '900', strokeThickness: 2 }).setLetterSpacing(2).setShadow(0, 0, '#00f0ff', 6, true, true);
   txt(96, 11, en ? 'Gear · 8 sockets' : '장비 · 소켓 8칸', 9, '#8a7aa8', { strokeThickness: 0 });
 
   const V = views(d);
@@ -377,8 +378,8 @@ export function buildEquipPanel(scene: Phaser.Scene, d: EquipInput, cb: { onResu
     });
     return b;
   };
-  const go = button(RX, en ? 'Resume' : '계속하기', '#00f0ff', cb.onResume);
-  button(go.x + go.width + 8, t('pause.abandon'), '#ff5a6a', cb.onAbandon);
+  const go = button(RX, cb.onAbandon ? (en ? 'Resume' : '계속하기') : en ? 'Back' : '돌아가기', '#00f0ff', cb.onResume);
+  if (cb.onAbandon) button(go.x + go.width + 8, t('pause.abandon'), '#ff5a6a', cb.onAbandon);
 
   drawSel();
   drawRight();

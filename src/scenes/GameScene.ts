@@ -825,6 +825,8 @@ export class GameScene extends Phaser.Scene implements GameContext {
     this.input.setDefaultCursor('none');
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.input.setDefaultCursor('default'));
     this.levelUi = new LevelUpUI(this);
+    this.invPanel = null;
+    this.makeInvButton();
     this.stationUi = new StationUI(this, this.levelUi);
 
     this.sparks = this.add
@@ -1569,6 +1571,57 @@ export class GameScene extends Phaser.Scene implements GameContext {
     this.tweens.add({ targets: b, alpha: 0.25, duration: 200, yoyo: true, repeat: 4, ease: 'Sine.inOut' });
   }
 
+  /** 장비창에 넘길 정보. OS 칸: 이름 + 레벨, 자세히에는 레벨별 능력 줄 (● 켜짐, ○ 아직) */
+  private equipInput(): Parameters<typeof buildEquipPanel>[1] {
+    const os = this.os;
+    const osDesc = os.lines().map((l, i) => `${l.on ? '●' : '○'} ${i + 1}. ${l.text}`).join('\n');
+    return { weapons: this.weapons, sockets: this.sockets, os: { id: os.id, name: `${os.name} Lv${os.level}`, color: os.def.color, desc: osDesc }, tagCount: this.kit.tagCount, tiers: this.kit.tiers, combos: this.kit.combos };
+  }
+
+  // ───── 카드 고르기 중 인벤토리 보기 (레벨업·보급 상자·능력 고르기) ─────
+  private invBtn: Phaser.GameObjects.Text | null = null;
+  private invPanel: Phaser.GameObjects.Container | null = null;
+  /** 카드가 비쳐 보이지 않게 까는 어두운 판 */
+  private invBack: Phaser.GameObjects.Rectangle | null = null;
+
+  private makeInvButton(): void {
+    this.invBtn = this.add
+      .text(8, VIEW_H - 30, tr('inv.button'), { ...TEXT, fontSize: '11px', color: '#00f0ff', backgroundColor: '#120a24', padding: { x: 8, y: 5 } })
+      .setScrollFactor(0)
+      .setDepth(305)
+      .setVisible(false)
+      .setInteractive({ useHandCursor: true });
+    this.invBtn.on('pointerup', () => this.toggleInv());
+    this.input.keyboard!.on('keydown-I', () => (this.invPanel || this.invBtn?.visible) && this.toggleInv());
+  }
+
+  /** 카드 화면이 열려 있을 때만 버튼을 보임 */
+  private syncInvButton(): void {
+    const show = this.state === 'levelup' && this.levelUi.open && !this.invPanel;
+    this.invBtn?.setVisible(show);
+    if (this.invPanel && !(this.state === 'levelup' && this.levelUi.open)) this.closeInv();
+  }
+
+  private toggleInv(): void {
+    if (this.invPanel) return this.closeInv();
+    if (this.state !== 'levelup' || !this.levelUi.open) return;
+    Sound.play('select');
+    this.levelUi.suspendKeys(true);
+    this.invBack = this.add.rectangle(0, 0, VIEW_W, VIEW_H, 0x07060f, 0.88).setOrigin(0).setScrollFactor(0).setDepth(399).setInteractive();
+    this.invPanel = buildEquipPanel(this, this.equipInput(), { onResume: () => this.closeInv() }).setDepth(400);
+    this.invBtn?.setVisible(false);
+  }
+
+  private closeInv(): void {
+    if (!this.invPanel) return;
+    this.invPanel.destroy();
+    this.invPanel = null;
+    this.invBack?.destroy();
+    this.invBack = null;
+    this.levelUi.suspendKeys(false);
+    Sound.play('hover');
+  }
+
   /** 일시정지 화면의 '임무 포기' 버튼 (누르면 한 번 더 묻고, 포기하면 패배로 결과 화면) */
   private showPauseMenu(on: boolean): void {
     for (const o of this.pauseUi) o.destroy();
@@ -1612,16 +1665,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
       });
     };
     // UI: 장비창 (소켓 8칸 인체도 + 자세히·시너지·조합)
-    // OS 칸: 이름 + 레벨, 자세히에는 레벨별 능력 줄 (● 켜짐, ○ 아직)
-    const os = this.os;
-    const osDesc = os.lines().map((l, i) => `${l.on ? '●' : '○'} ${i + 1}. ${l.text}`).join('\n');
-    this.pauseUi.push(
-      buildEquipPanel(
-        this,
-        { weapons: this.weapons, sockets: this.sockets, os: { id: os.id, name: `${os.name} Lv${os.level}`, color: os.def.color, desc: osDesc }, tagCount: this.kit.tagCount, tiers: this.kit.tiers, combos: this.kit.combos },
-        { onResume: () => this.togglePause(), onAbandon: abandon },
-      ),
-    );
+    this.pauseUi.push(buildEquipPanel(this, this.equipInput(), { onResume: () => this.togglePause(), onAbandon: abandon }));
     this.hud.center.setVisible(false);
   }
 
@@ -2423,6 +2467,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
   update(_time: number, deltaMs: number): void {
     // 입력 버튼(보조무기·대시·OS)과 조준점은 전투 중에만
     this.controls?.setVisible(this.state === 'play');
+    this.syncInvButton();
     // 포털에 '지금 조작 중인지' 알림 (레벨업·대화·일시정지·이월 화면은 플레이 아님)
     Ads.setPlaying(this.state === 'play');
     this.syncOdFx();
