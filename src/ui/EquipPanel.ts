@@ -287,16 +287,19 @@ export function buildEquipPanel(scene: Phaser.Scene, d: EquipInput, cb: { onResu
     shown.forEach(([id, n], i) => {
       const x = RX + (i % 2) * colW;
       const y = y0 + Math.floor(i / 2) * rowH;
-      const kc = CHIP_COLOR[CHIPSETS[id].kind] ?? CHIP_COLOR.stat;
+      const def = CHIPSETS[id];
+      // 무기 전용 칩셋인데 그 무기를 안 끼고 있으면 효과가 꺼짐 (중첩은 남음): 흐리게
+      const off = def.kind === 'weapon' && !d.weapons.some((w) => w.id === def.weapon);
+      const kc = off ? '#5a4a78' : (CHIP_COLOR[def.kind] ?? CHIP_COLOR.stat);
       const key = `icon_chip_${id}`;
-      if (s.textures.exists(key)) add(s.add.image(x + 12, y + 12, key), right);
-      const nm = txt(x + 28, y, chipName(id), 9.5, '#e8f7ff', { strokeThickness: 0 }, right);
+      if (s.textures.exists(key)) add(s.add.image(x + 12, y + 12, key), right).setAlpha(off ? 0.35 : 1);
+      const nm = txt(x + 28, y, chipName(id), 9.5, off ? '#5a4a78' : '#e8f7ff', { strokeThickness: 0 }, right);
       const st = txt(nm.x + nm.width + 4, y, `×${n}`, 9.5, kc, { strokeThickness: 0, fontStyle: '900' }, right);
       if (st.x + st.width > x + colW - 4) {
         fit(nm, Math.max(20, x + colW - 4 - 28 - st.width - 4));
         st.setX(nm.x + nm.width + 4);
       }
-      fit(txt(x + 28, y + 13, chipShort(id, n), 8.5, '#8a7aa8', { strokeThickness: 0 }, right), colW - 32);
+      fit(txt(x + 28, y + 13, off ? (en ? 'Off · weapon not equipped' : '꺼짐 · 무기 없음') : chipShort(id, n), 8.5, off ? '#6a5a88' : '#8a7aa8', { strokeThickness: 0 }, right), colW - 32);
     });
     if (shown.length < list.length) {
       const i = shown.length;
