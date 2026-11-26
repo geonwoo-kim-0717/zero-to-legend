@@ -1,5 +1,5 @@
 {
- "note": "UI 세션: 카드·장비창에 보이는 짧은 시너지·조합 문장(ko·en)과 태그·조합 영어 이름. {값}은 build.json params로 채움. 원문은 build.json(편집 페이지) · chipsets: 칩셋 짧은 문장 (값은 build.json chipsets params, 중첩에 따라)",
+ "note": "UI 세션: 카드·장비창에 보이는 짧은 시너지·조합 문장(ko·en)과 태그·조합 영어 이름. {값}은 build.json params로 채움. 원문은 build.json(편집 페이지) · chipsets: 칩셋 짧은 문장 (값은 build.json chipsets params, 중첩에 따라) · chipsets ko/en: 장비창 한 줄 요약, ko_l/en_l: 카드 서술 문장 ({w}=무기 이름)",
  "tags": {
   "전기": "Electric",
   "폭발": "Explosive",
@@ -142,131 +142,195 @@
  "chipsets": {
   "cs_dmg": {
    "ko": "피해 +{v}%",
-   "en": "Damage +{v}%"
+   "en": "Damage +{v}%",
+   "ko_l": "모든 공격의 피해가 {v}% 증가한다.",
+   "en_l": "All damage increases by {v}%."
   },
   "cs_rate": {
    "ko": "공격 속도 +{v}%",
-   "en": "Attack speed +{v}%"
+   "en": "Attack speed +{v}%",
+   "ko_l": "공격 속도가 {v}% 빨라진다.",
+   "en_l": "Attacks grow {v}% faster."
   },
   "cs_hp": {
    "ko": "최대 체력 +{v}",
-   "en": "Max HP +{v}"
+   "en": "Max HP +{v}",
+   "ko_l": "최대 체력이 {v} 늘어난다.",
+   "en_l": "Max HP rises by {v}."
   },
   "cs_move": {
    "ko": "이동 속도 +{v}%",
-   "en": "Move speed +{v}%"
+   "en": "Move speed +{v}%",
+   "ko_l": "이동 속도가 {v}% 빨라진다.",
+   "en_l": "You move {v}% faster."
   },
   "cs_crit": {
    "ko": "치명타 +{v}%",
-   "en": "Crit +{v}%"
+   "en": "Crit +{v}%",
+   "ko_l": "치명타 확률이 {v}% 오른다.",
+   "en_l": "Crit chance rises by {v}%."
   },
   "cs_area": {
    "ko": "공격 범위 +{v}%",
-   "en": "Area +{v}%"
+   "en": "Area +{v}%",
+   "ko_l": "공격 범위가 {v}% 넓어진다.",
+   "en_l": "Attacks reach {v}% wider."
   },
   "cs_pick": {
    "ko": "획득 범위 +{v}%",
-   "en": "Pickup range +{v}%"
+   "en": "Pickup range +{v}%",
+   "ko_l": "아이템을 끌어오는 범위가 {v}% 넓어진다.",
+   "en_l": "Items are pulled in from {v}% farther."
   },
   "cs_xp": {
    "ko": "경험치 +{v}%",
-   "en": "XP +{v}%"
+   "en": "XP +{v}%",
+   "ko_l": "얻는 경험치가 {v}% 늘어난다.",
+   "en_l": "Experience gained rises by {v}%."
   },
   "cs_regen": {
    "ko": "초당 체력 +{v}",
-   "en": "Regen {v} HP/s"
+   "en": "Regen {v} HP/s",
+   "ko_l": "매초 체력을 {v}씩 회복한다.",
+   "en_l": "Restores {v} HP every second."
   },
   "cs_dr": {
    "ko": "받는 피해 -{v}%",
-   "en": "Damage taken -{v}%"
+   "en": "Damage taken -{v}%",
+   "ko_l": "받는 피해가 {v}% 줄어든다.",
+   "en_l": "Damage taken falls by {v}%."
   },
   "cs_killBoom": {
    "ko": "처치 {chance}% 폭발 {dmg}",
-   "en": "Kill {chance}%: blast {dmg}"
+   "en": "Kill {chance}%: blast {dmg}",
+   "ko_l": "적을 처치하면 {chance}% 확률로 폭발하여 주변에 {dmg} 피해를 준다.",
+   "en_l": "Kills have a {chance}% chance to erupt, dealing {dmg} damage around them."
   },
   "cs_dashBolt": {
    "ko": "대시 끝 번개 {n}명",
-   "en": "Dash end: bolt ×{n}"
+   "en": "Dash end: bolt ×{n}",
+   "ko_l": "대시가 끝나면 가까운 적 {n}명에게 번개가 내리쳐 {dmg} 피해를 준다.",
+   "en_l": "When a dash ends, lightning strikes the {n} nearest foes for {dmg} damage."
   },
   "cs_rhythm": {
    "ko": "{n}번째 적중 ×{mul}",
-   "en": "Every {n}th hit ×{mul}"
+   "en": "Every {n}th hit ×{mul}",
+   "ko_l": "주무기가 {n}번 적중할 때마다 그 일격은 {mul}배의 피해를 준다.",
+   "en_l": "Every {n}th main-weapon hit deals {mul}× damage."
   },
   "cs_hurtZap": {
    "ko": "맞으면 번개 {n}명",
-   "en": "Hurt: bolt ×{n}"
+   "en": "Hurt: bolt ×{n}",
+   "ko_l": "피격당하면 가까운 적 {n}명에게 번개를 되돌려 {dmg} 피해를 준다.",
+   "en_l": "When hit, lightning lashes back at the {n} nearest foes for {dmg} damage."
   },
   "cs_vamp": {
    "ko": "처치 {chance}% 체력 +{heal}",
-   "en": "Kill {chance}%: +{heal} HP"
+   "en": "Kill {chance}%: +{heal} HP",
+   "ko_l": "적을 처치하면 {chance}% 확률로 체력을 {heal} 흡수한다.",
+   "en_l": "Kills have a {chance}% chance to drain {heal} HP."
   },
   "cs_luck": {
    "ko": "칩 +{v}%",
-   "en": "Chips +{v}%"
+   "en": "Chips +{v}%",
+   "ko_l": "칩을 {v}% 더 많이 얻는다.",
+   "en_l": "Chips are found {v}% more often."
   },
   "cs_killShield": {
    "ko": "{n}처치마다 보호막 {v}",
-   "en": "Shield {v} every {n} kills"
+   "en": "Shield {v} every {n} kills",
+   "ko_l": "적을 {n}명 처치할 때마다 5초간 {v}의 보호막을 두른다.",
+   "en_l": "Every {n} kills grants a {v} shield for 5 seconds."
   },
   "cs_execute": {
    "ko": "체력 {v}% 이하 즉사",
-   "en": "Execute below {v}%"
+   "en": "Execute below {v}%",
+   "ko_l": "체력이 {v}% 이하로 떨어진 일반 적은 공격을 받는 즉시 처형된다.",
+   "en_l": "Normal foes below {v}% HP are executed on hit."
   },
   "cs_hunter": {
    "ko": "엘리트·보스 +{v}%",
-   "en": "Elite·boss +{v}%"
+   "en": "Elite·boss +{v}%",
+   "ko_l": "엘리트와 보스에게 주는 피해가 {v}% 증가한다.",
+   "en_l": "Damage to elites and bosses rises by {v}%."
   },
   "cs_frost": {
    "ko": "주변 {r}px 감속",
-   "en": "Slow within {r}px"
+   "en": "Slow within {r}px",
+   "ko_l": "주변 {r}px 안의 적은 냉기에 둔해진다.",
+   "en_l": "Foes within {r}px are slowed by the cold."
   },
   "cw_smartPistol": {
    "ko": "피해 +{v}%, 탄 +{n}",
-   "en": "Dmg +{v}%, shots +{n}"
+   "en": "Dmg +{v}%, shots +{n}",
+   "ko_l": "{w}의 피해가 {v}% 증가하고, 탄이 {n}발 늘어난다.",
+   "en_l": "{w} deals {v}% more damage and fires {n} more rounds."
   },
   "cw_shotgun": {
    "ko": "피해 +{v}%, 산탄 +{n}",
-   "en": "Dmg +{v}%, pellets +{n}"
+   "en": "Dmg +{v}%, pellets +{n}",
+   "ko_l": "{w}의 피해가 {v}% 증가하고, 산탄이 {n}발 늘어난다.",
+   "en_l": "{w} deals {v}% more damage and fires {n} more pellets."
   },
   "cw_railgun": {
    "ko": "피해 +{v}%, 빔 +{n}",
-   "en": "Dmg +{v}%, beams +{n}"
+   "en": "Dmg +{v}%, beams +{n}",
+   "ko_l": "{w}의 피해가 {v}% 증가하고, 빔이 {n}줄 늘어난다.",
+   "en_l": "{w} deals {v}% more damage and fires {n} more beams."
   },
   "cw_mantisBlade": {
    "ko": "피해 +{v}%, 베기 +{n}",
-   "en": "Dmg +{v}%, slashes +{n}"
+   "en": "Dmg +{v}%, slashes +{n}",
+   "ko_l": "{w}의 피해가 {v}% 증가하고, 베는 방향이 {n}개 늘어난다.",
+   "en_l": "{w} deals {v}% more damage and slashes in {n} more directions."
   },
   "cw_monowire": {
    "ko": "피해 +{v}%, 채찍 +{n}",
-   "en": "Dmg +{v}%, whips +{n}"
+   "en": "Dmg +{v}%, whips +{n}",
+   "ko_l": "{w}의 피해가 {v}% 증가하고, 채찍이 {n}줄 늘어난다.",
+   "en_l": "{w} deals {v}% more damage and lashes {n} more whips."
   },
   "cw_arcCoil": {
    "ko": "피해 +{v}%, 연쇄 +{n}",
-   "en": "Dmg +{v}%, chain +{n}"
+   "en": "Dmg +{v}%, chain +{n}",
+   "ko_l": "{w}의 피해가 {v}% 증가하고, 번개가 {n}번 더 연쇄된다.",
+   "en_l": "{w} deals {v}% more damage and chains {n} more times."
   },
   "cw_plasmaGrenade": {
    "ko": "피해 +{v}%, 유탄 +{n}",
-   "en": "Dmg +{v}%, grenades +{n}"
+   "en": "Dmg +{v}%, grenades +{n}",
+   "ko_l": "{w}의 피해가 {v}% 증가하고, 유탄이 {n}발 늘어난다.",
+   "en_l": "{w} deals {v}% more damage and lobs {n} more grenades."
   },
   "cw_microMissile": {
    "ko": "피해 +{v}%, 미사일 +{n}",
-   "en": "Dmg +{v}%, missiles +{n}"
+   "en": "Dmg +{v}%, missiles +{n}",
+   "ko_l": "{w}의 피해가 {v}% 증가하고, 미사일이 {n}발 늘어난다.",
+   "en_l": "{w} deals {v}% more damage and fires {n} more missiles."
   },
   "cw_proxMine": {
    "ko": "피해 +{v}%, 지뢰 +{n}",
-   "en": "Dmg +{v}%, mines +{n}"
+   "en": "Dmg +{v}%, mines +{n}",
+   "ko_l": "{w}의 피해가 {v}% 증가하고, 지뢰가 {n}개 늘어난다.",
+   "en_l": "{w} deals {v}% more damage and lays {n} more mines."
   },
   "cw_turret": {
    "ko": "피해 +{v}%, 포탑 +{n}",
-   "en": "Dmg +{v}%, turrets +{n}"
+   "en": "Dmg +{v}%, turrets +{n}",
+   "ko_l": "{w}의 피해가 {v}% 증가하고, 동시에 세우는 포탑이 {n}대 늘어난다.",
+   "en_l": "{w} deals {v}% more damage and keeps {n} more turrets up."
   },
   "cw_hackDrone": {
    "ko": "피해 +{v}%, 드론 +{n}",
-   "en": "Dmg +{v}%, drones +{n}"
+   "en": "Dmg +{v}%, drones +{n}",
+   "ko_l": "{w}의 피해가 {v}% 증가하고, 드론이 {n}대 늘어난다.",
+   "en_l": "{w} deals {v}% more damage and launches {n} more drones."
   },
   "cw_empField": {
    "ko": "피해 +{v}%, 켜짐 +{t}초",
-   "en": "Dmg +{v}%, +{t}s on"
+   "en": "Dmg +{v}%, +{t}s on",
+   "ko_l": "{w}의 피해가 {v}% 증가하고, 켜져 있는 시간이 {t}초 늘어난다.",
+   "en_l": "{w} deals {v}% more damage and stays on {t}s longer."
   }
  }
 }

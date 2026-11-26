@@ -1,8 +1,8 @@
 import syn from '../data/synergyShort.json';
 import build from '../data/build.json';
 import { I18n } from '../i18n';
-import { chipText, chipValues } from '../systems/Chipsets';
-import { displayNum } from '../systems/Build';
+import { CHIPSETS, chipText, chipValues } from '../systems/Chipsets';
+import { displayNum, itemName } from '../systems/Build';
 
 /** 화면용 태그·시너지·조합 글자 (짧게, 한국어·영어). 원문 데이터는 build.json */
 type ComboDef = { name: string; needs: string[]; params?: Record<string, number> };
@@ -50,11 +50,26 @@ export function tierShort(tag: string, count: number, fallback = ''): string {
   return text ? fill(text, def?.params) : fallback;
 }
 
-/** 칩셋 짧은 문장 (중첩 n일 때). 없으면 원문 chipText */
-export function chipShort(id: string, n: number): string {
-  const s = (syn as unknown as { chipsets?: Record<string, { ko?: string; en?: string }> }).chipsets?.[id];
-  const text = en() ? s?.en : s?.ko;
-  if (!text) return chipText(id, n);
+type ChipText = { ko?: string; en?: string; ko_l?: string; en_l?: string };
+const chipEntry = (id: string) => (syn as unknown as { chipsets?: Record<string, ChipText> }).chipsets?.[id];
+const fillChip = (id: string, n: number, text: string) => {
   const v = chipValues(id, n);
-  return text.replace(/\{([A-Za-z][A-Za-z0-9_]*)\}/g, (_m, k: string) => (k in v ? String(displayNum(v[k])) : '?'));
+  const weapon = CHIPSETS[id]?.weapon;
+  return text.replace(/\{([A-Za-z][A-Za-z0-9_]*)\}/g, (_m, k: string) =>
+    k === 'w' ? (weapon ? itemName('weapon', weapon) : '') : k in v ? String(displayNum(v[k])) : '?',
+  );
+};
+
+/** 칩셋 카드 문장 (중첩 n일 때, 서술체). 없으면 한 줄 요약, 그것도 없으면 원문 chipText */
+export function chipShort(id: string, n: number): string {
+  const s = chipEntry(id);
+  const text = en() ? s?.en_l : s?.ko_l;
+  return text ? fillChip(id, n, text) : chipStat(id, n);
+}
+
+/** 칩셋 한 줄 요약 (장비창 목록용, 예: 피해 +8%) */
+export function chipStat(id: string, n: number): string {
+  const s = chipEntry(id);
+  const text = en() ? s?.en : s?.ko;
+  return text ? fillChip(id, n, text) : chipText(id, n);
 }
