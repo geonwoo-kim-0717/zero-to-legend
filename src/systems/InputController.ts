@@ -40,6 +40,8 @@ export class InputController {
   private readonly stickR = 36;
   // UI 시안 A: 오른쪽 아래 보조 버튼을 엄지 자리로, 왼쪽에 대시, 왼쪽 위에 OS (누름 판정도 이 좌표)
   private readonly secBtn = { x: VIEW_W - 50, y: VIEW_H - 52, r: 26 };
+  /** 보조무기 자동 발사 (game.json twinStick.autoSecondary): 보조 버튼은 누르지 못하는 재사용 표시로만 남음 */
+  private readonly autoSub = (gameData.twinStick as { autoSecondary?: boolean }).autoSecondary === true;
   private readonly dashBtn = { x: VIEW_W - 118, y: VIEW_H - 36, r: 20 };
   private readonly skillBtn = { x: VIEW_W - 102, y: VIEW_H - 94, r: 21 };
   private gfx: Phaser.GameObjects.Graphics;
@@ -74,7 +76,7 @@ export class InputController {
       return o;
     };
     // 버튼 아래 이름
-    txt(this.secBtn.x, this.secBtn.y + this.secBtn.r + 7, t('ui.sub'), 8, '#b8a8d8', { strokeThickness: 2 });
+    txt(this.secBtn.x, this.secBtn.y + this.secBtn.r + 7, t(this.autoSub ? 'ui.subAuto' : 'ui.sub'), 8, '#b8a8d8', { strokeThickness: 2 });
     txt(this.dashBtn.x, this.dashBtn.y + this.dashBtn.r + 7, t('ui.dash'), 8, '#b8a8d8', { strokeThickness: 2 });
     txt(this.skillBtn.x, this.skillBtn.y + this.skillBtn.r + 8, 'OS', 8, '#b8a8d8', { strokeThickness: 2 });
     this.dashTxt = txt(this.dashBtn.x, this.dashBtn.y - 2, '»', 17, '#00f0ff', { fontStyle: '900' });
@@ -100,7 +102,7 @@ export class InputController {
       this.aimMode = 'auto';
       if (near(x, y, this.dashBtn)) return void (this.dashQueued = true);
       if (near(x, y, this.skillBtn)) return void (this.skillQueued = true);
-      if (this.subUse !== 'none' && near(x, y, this.secBtn)) return void this.startSub(p.id, x, y);
+      if (!this.autoSub && this.subUse !== 'none' && near(x, y, this.secBtn)) return void this.startSub(p.id, x, y);
       const s = this.moveStick;
       if (s.id === null) {
         s.id = p.id;
@@ -285,7 +287,7 @@ export class InputController {
       if (!subOn) cover(sb, subReady);
       g.lineStyle(2, col, 1).strokeCircle(sb.x, sb.y, sb.r);
       if (subOn) g.lineStyle(3, col, 0.5 + Math.sin(now / 80) * 0.4).strokeCircle(sb.x, sb.y, sb.r + 4);
-      else if (ready) {
+      else if (ready && !this.autoSub) {
         g.lineStyle(3, COLORS.yellow, 1).strokeCircle(sb.x, sb.y, sb.r + 4);
         g.lineStyle(2, COLORS.yellow, 0.25).strokeCircle(sb.x, sb.y, sb.r + 7);
       }
