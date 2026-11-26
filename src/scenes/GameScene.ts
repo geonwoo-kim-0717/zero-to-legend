@@ -167,6 +167,8 @@ interface Station {
   healed: boolean;
   /** 리퍼닥 OS 목록 쪽수 (-1이면 첫 화면) */
   osPage: number;
+  /** 상점 값 배율 (k번째 상점 × 1.15^(k-1)) */
+  priceMul: number;
 }
 /** 진압대 걷기 루프 재생 속도 (아트: 한 걸음 주기 1초) */
 const WALK_FPS = 12;
@@ -251,6 +253,30 @@ export class GameScene extends Phaser.Scene implements GameContext {
     return { e: best, d2: bd };
   }
 
+  private dense: { x: number; y: number } | null = null;
+  private denseT = 0;
+
+  /** 플레이어에서 r 안, 적이 가장 몰린 자리 (반경 55px 안 적 수가 가장 많은 적 위치). 0.15초마다 다시 셈 */
+  private densestSpot(r: number): { x: number; y: number } | null {
+    if ((this.denseT -= this.game.loop.delta / 1000) > 0 && this.dense) return this.dense;
+    this.denseT = 0.15;
+    const p = this.player;
+    const list = this.grid.query(p.x, p.y, r, this.chainBuf).filter((e) => e.active && e.charmT <= 0 && (e.x - p.x) ** 2 + (e.y - p.y) ** 2 < r * r).slice(0, 40);
+    let best: Enemy | null = null;
+    let bn = 0;
+    for (const e of list) {
+      let n = 0;
+      for (const o of list) if ((o.x - e.x) ** 2 + (o.y - e.y) ** 2 < 55 * 55) n++;
+      if (e.isBoss) n += 3;
+      if (n > bn) {
+        bn = n;
+        best = e;
+      }
+    }
+    this.dense = best ? { x: best.x, y: best.y } : null;
+    return this.dense;
+  }
+
   /**
    * 이번 프레임 조준
    * - 주무기: 자동 발사. 마우스를 쓰면 커서 방향, 아니면(터치) 가장 가까운 적. fireRange 안에 적이 있을 때만 쏨
@@ -275,23 +301,23 @@ export class GameScene extends Phaser.Scene implements GameContext {
       this.aim.y = p.y + p.dirY * 100;
     }
     this.aim.primary = !!near.e && near.d2 < TS.fireRange * TS.fireRange;
-    if (c.autoAim) {
-      this.aim.secondary = !!near.e && near.d2 < 200 * 200;
-      this.aim.subX = this.aim.x;
-      this.aim.subY = this.aim.y;
+    // 보조무기: 자동 발사 (재사용이 끝나면). 누르기형(드론·EMP·미사일)은 가까운 적이 사거리 안이면,
+    // 끌어 놓기형(유탄·지뢰·포탑)은 적이 가장 몰린 곳에
+    const sub = this.weapons.find((w) => w.slot === 'secondary');
+    const use = sub ? ((weaponsData[sub.id as WeaponId] as { use?: string }).use ?? 'tap') : 'tap';
+    if (use === 'drag') {
+      const spot = this.densestSpot(TS.subRange);
+      this.aim.secondary = !!spot;
+      if (spot) {
+        this.aim.subX = spot.x;
+        this.aim.subY = spot.y;
+      }
     } else {
-      this.aim.secondary = c.secondaryPending;
-      const at = c.secondaryTarget;
-      if (at) {
-        const w = this.cameras.main.getWorldPoint(at.x * ZOOM, at.y * ZOOM);
-        this.aim.subX = w.x;
-        this.aim.subY = w.y;
-      } else if (near.e) {
+      const r = sub?.id === 'microMissile' ? TS.fireRange : TS.subRange;
+      this.aim.secondary = !!near.e && near.d2 < r * r;
+      if (near.e) {
         this.aim.subX = near.e.x;
         this.aim.subY = near.e.y;
-      } else {
-        this.aim.subX = p.x + p.dirX * 80;
-        this.aim.subY = p.y + p.dirY * 80;
       }
     }
     p.aimX = this.aim.x;
@@ -311,8 +337,11 @@ export class GameScene extends Phaser.Scene implements GameContext {
   private abilityPending: { weapon: WeaponId; tier: 'legendary' | 'mythic' } | null = null;
   /** 개편 2단계: 판 안 재화 (칩). 3단계에서 상점·리퍼닥에 씀 */
   private chips = 0;
-  /** 보급 상자를 떨어뜨릴 다음 처치 수 */
-  private nextChestKills = 0;
+  /** 다음 보급 상자까지 (초), 다음 맵 칩 무더기까지 (초) */
+  private nextChestT = 0;
+  private mapChipT = 0;
+  /** 이번 판에 나온 상점 수 (값 오름) */
+  private shopsSeen = 0;
   // ───── 개편 2-2: 사이버웨어·장비 소켓과 시너지 ─────
   /** 사이버웨어·장비 소켓 (부위 → 낀 아이템) */
   private sockets = new Map<string, Sock>();
@@ -689,7 +718,9 @@ export class GameScene extends Phaser.Scene implements GameContext {
     this.elapsed = this.kills = this.xp = this.pendingLevels = this.bossRewards = this.chips = 0;
     this.chestQueue = [];
     this.abilityPending = null;
-    this.nextChestKills = gameData.supply.everyKills;
+    this.nextChestT = Phaser.Math.FloatBetween(gameData.supply.chestEvery[0], gameData.supply.chestEvery[1]);
+    this.mapChipT = gameData.supply.mapChips.every;
+    this.shopsSeen = 0;
     this.rewardOpen = false;
     this.level = 1;
     this.rerolls = gameData.rerollsPerRun;
@@ -1844,8 +1875,9 @@ export class GameScene extends Phaser.Scene implements GameContext {
       luck: this.pHas('luckCircuit'),
       upgradesOnly: true,
       sockets: this.socketCards(),
-      // 칩셋: 강화 카드와 섞여 나옴 (소켓이 다 차면 칩셋만)
-      extras: rollChipsets(gameData.chipsetCards, new Set(this.weapons.map((w) => w.id))).map((id) => this.chipChoice(id)),
+      // 칩셋: 소켓 8칸이 다 찬 뒤부터 강화 카드와 섞여 나옴. 모자라면 칩·회복 카드
+      extras: (this.chipsetsOpen() ? rollChipsets(gameData.chipsetCards, this.weaponRarity()) : []).map((id) => this.chipChoice(id)),
+      fillers: this.fillerChoices(),
       // 첫 판 3분 전까지: 플라즈마 유탄이 조금 더 자주, 영웅(보라) 카드가 조금 더 자주
       ...(Save.data.stats.runs === 0 && this.elapsed < 180 ? { favor: 'plasmaGrenade', favorChance: 0.35, epicMul: 2.5 } : {}),
     });
@@ -1923,6 +1955,10 @@ export class GameScene extends Phaser.Scene implements GameContext {
     }
     if (c.chipset) {
       this.addChipset(c.chipset);
+    } else if (c.id === 'fillChips') {
+      this.addChips(gameData.levelFillers.chips);
+    } else if (c.id === 'fillHeal') {
+      this.heal(Math.round((this.player.maxHp * gameData.levelFillers.healPct) / 100));
     } else if (c.kind === 'weapon') {
       const id = c.id as WeaponId;
       const owned = this.weapons.find((o) => o.id === id);
@@ -1997,6 +2033,36 @@ export class GameScene extends Phaser.Scene implements GameContext {
   /** 지금 열려 있는 상점·리퍼닥 (능력 고르기 뒤 다시 열기용) */
   private stationOpen: Station | null = null;
 
+  /** [값, 가중치] 목록에서 하나 */
+  private pickWeighted(list: number[][]): number {
+    const total = list.reduce((a, [, w]) => a + w, 0);
+    let r = Math.random() * total;
+    for (const [v, w] of list) if ((r -= w) < 0) return v;
+    return list[list.length - 1][0];
+  }
+
+  /** 보급 상자(40~60초마다, 플레이어 근처)와 맵 칩 무더기(30초마다, 조금 떨어진 곳) */
+  private updateSupply(dt: number): void {
+    const SU = gameData.supply;
+    const p = this.player;
+    if ((this.nextChestT -= dt) <= 0) {
+      this.nextChestT = Phaser.Math.FloatBetween(SU.chestEvery[0], SU.chestEvery[1]);
+      const a = Math.random() * Math.PI * 2;
+      const d = Phaser.Math.Between(90, 140);
+      this.dropChest(p.x + Math.cos(a) * d, p.y + Math.sin(a) * d);
+    }
+    if ((this.mapChipT -= dt) <= 0) {
+      const M = SU.mapChips;
+      this.mapChipT = M.every;
+      const a = Math.random() * Math.PI * 2;
+      const d = Phaser.Math.Between(M.dist[0], M.dist[1]);
+      const cx = p.x + Math.cos(a) * d;
+      const cy = p.y + Math.sin(a) * d * 0.7;
+      const n = Phaser.Math.Between(M.count[0], M.count[1]);
+      for (let i = 0; i < n; i++) this.dropPickup('chip', cx + Phaser.Math.Between(-16, 16), cy + Phaser.Math.Between(-12, 12), 1);
+    }
+  }
+
   private clearStations(): void {
     for (const s of this.stations) {
       s.label.destroy();
@@ -2017,8 +2083,9 @@ export class GameScene extends Phaser.Scene implements GameContext {
       const name = tr(kind === 'shop' ? 'station.shop' : 'station.ripper');
       const label = this.add.text(x, y - 22, name, { ...TEXT, fontSize: '10px', color }).setOrigin(0.5, 1).setDepth(12);
       const arrow = this.add.text(0, 0, '', { ...TEXT, fontSize: '9px', color }).setOrigin(0.5).setScrollFactor(0).setDepth(115);
-      return { kind, x, y, t: ST.life, label, arrow, stock: null, rerolls: 0, healed: false, osPage: -1 };
+      return { kind, x, y, t: ST.life, label, arrow, stock: null, rerolls: 0, healed: false, osPage: -1, priceMul: kind === 'shop' ? ST.shop.priceGrowth ** Math.max(0, this.shopsSeen - 1) : 1 };
     };
+    this.shopsSeen++;
     this.stations.push(make('shop', a), make('ripper', a + 2.2));
     // 진이 알려 줌
     this.phoneMsg(tr('station.notice'));
@@ -2124,15 +2191,18 @@ export class GameScene extends Phaser.Scene implements GameContext {
       const SH = ST.shop;
       if (!s.stock) {
         s.stock = rollItems(SH.items, this.equippedRarity(), undefined, SH.rarity);
-        s.chip = rollChipsets(1, new Set(this.weapons.map((w) => w.id)))[0] ?? null;
+        s.chip = (this.chipsetsOpen() ? rollChipsets(1, this.weaponRarity())[0] : undefined) ?? null;
       }
       const stock = s.stock;
-      const items = stock.map((r) => ({ choice: this.itemChoice(r), price: (SH.price as Record<string, number>)[r.rarity.id] ?? 50 }));
+      // 값: 상점이 나올 때마다 ×priceGrowth (아이템·칩셋·다시 뽑기·회복 모두)
+      const pm = (n: number) => Math.round(n * s.priceMul);
+      const healPrice = pm(SH.heal.price);
+      const items = stock.map((r) => ({ choice: this.itemChoice(r), price: pm((SH.price as Record<string, number>)[r.rarity.id] ?? 50) }));
       // 칩셋 한 칸 (편집 페이지 값)
-      if (s.chip) items.push({ choice: this.chipChoice(s.chip), price: CHIPSETS[s.chip].price ?? 45 });
-      const rr = SH.reroll + SH.rerollStep * s.rerolls;
+      if (s.chip) items.push({ choice: this.chipChoice(s.chip), price: pm(CHIPSETS[s.chip].price ?? 45) });
+      const rr = pm(SH.reroll + SH.rerollStep * s.rerolls);
       this.stationUi.showShop(
-        { chips, items, heal: s.healed ? undefined : { pct: SH.heal.pct, price: SH.heal.price }, reroll: s.rerolls >= SH.rerollMax ? undefined : { price: rr } },
+        { chips, items, heal: s.healed ? undefined : { pct: SH.heal.pct, price: healPrice }, reroll: s.rerolls >= SH.rerollMax ? undefined : { price: rr } },
         {
           buy: (i) => {
             const it = items[i];
@@ -2143,7 +2213,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
             after();
           },
           heal: () => {
-            if (!pay(SH.heal.price)) return;
+            if (!pay(healPrice)) return;
             s.healed = true;
             this.heal(Math.round((this.player.maxHp * SH.heal.pct) / 100));
             after();
@@ -2152,7 +2222,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
             if (s.rerolls >= SH.rerollMax || !pay(rr)) return;
             s.rerolls++;
             s.stock = rollItems(SH.items, this.equippedRarity(), undefined, SH.rarity);
-            s.chip = rollChipsets(1, new Set(this.weapons.map((w) => w.id)))[0] ?? null;
+            s.chip = (this.chipsetsOpen() ? rollChipsets(1, this.weaponRarity())[0] : undefined) ?? null;
             after();
           },
           leave,
@@ -2343,6 +2413,26 @@ export class GameScene extends Phaser.Scene implements GameContext {
     const rolls = rollItems(3, this.equippedRarity(), min);
     this.choices = rolls.map((r) => this.itemChoice(r));
     this.levelUi.show(this.choices, 0, (i) => this.pick(i), () => undefined, tr('item.title'), this.skipButton(Math.max(0, gameData.rarity.findIndex((r) => r.id === min)), () => undefined));
+  }
+
+  /** 칩셋이 나오는지: 소켓 8칸(무기 2·사이버웨어 3·장비 2·OS)이 다 찼을 때부터 */
+  private chipsetsOpen(): boolean {
+    return this.weapons.length >= 2 && this.sockets.size >= 5;
+  }
+
+  /** 끼고 있는 무기 id → 등급 (무기 전용 칩셋은 전설 이상일 때만) */
+  private weaponRarity(): Map<string, string> {
+    return new Map(this.weapons.map((w) => [w.id, w.rarity]));
+  }
+
+  /** 레벨업 빈자리 카드: 칩·체력 회복 (강화할 것도 칩셋도 모자랄 때) */
+  private fillerChoices(): Choice[] {
+    const common = rarityById('common');
+    const F = gameData.levelFillers;
+    return [
+      { kind: 'overflow', id: 'fillChips', art: 'chip', rarity: common, title: tr('fill.chips', { n: F.chips }), levelLabel: tr('fill.label'), desc: tr('fill.chipsDesc', { n: F.chips }), card: { slot: tr('fill.label'), short: tr('fill.chipsDesc', { n: F.chips }), tags: [] } },
+      { kind: 'overflow', id: 'fillHeal', art: 'heal', rarity: common, title: tr('fill.heal'), levelLabel: tr('fill.label'), desc: tr('fill.healDesc', { pct: F.healPct }), card: { slot: tr('fill.label'), short: tr('fill.healDesc', { pct: F.healPct }), tags: [] } },
+    ] as Choice[];
   }
 
   /** 칩셋 카드 (레벨업·블랙마켓) */
@@ -2746,6 +2836,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
     this.updateZoneRule(dt);
     if (this.transitionT <= 0) this.updateCounters(dt, zt);
     this.updateStations(dt, zt);
+    if (this.transitionT <= 0) this.updateSupply(dt);
     this.thornT -= dt;
 
     this.grid.clear();
@@ -3339,13 +3430,12 @@ export class GameScene extends Phaser.Scene implements GameContext {
     this.burst(e.x, e.y, e.id === 'thug' ? COLORS.orange : e.id === 'gunner' ? 0xb6ff3a : e.id.startsWith('trooper') ? 0xff2a3a : COLORS.magenta, e.id.startsWith('trooper') ? 20 : 8);
     Sound.play('kill');
     this.dropPickup('xp', e.x, e.y, e.xp);
-    // 개편 2단계: 칩, 처치 수마다 보급 상자, 블랙 실드는 가끔 희귀 이상 상자
+    // 칩: 일반 처치는 확률로 1~3개 드롭, 블랙 실드 대원은 늘 드롭. 대원은 가끔 희귀 이상 상자 (상자는 시간마다 따로)
     const SU = gameData.supply;
-    this.addChips(e.id.startsWith('trooper') ? SU.chips.trooper : SU.chips.kill);
-    if (this.kills >= this.nextChestKills) {
-      this.nextChestKills = this.kills + SU.everyKills;
-      this.dropChest(e.x, e.y);
-    } else if (e.id.startsWith('trooper') && Math.random() < SU.trooperChance) this.dropChest(e.x, e.y, 'rare');
+    if (e.id.startsWith('trooper')) {
+      this.dropPickup('chip', e.x + 5, e.y - 3, SU.chips.trooper);
+      if (Math.random() < SU.trooperChance) this.dropChest(e.x, e.y, 'rare');
+    } else if (Math.random() * 100 < SU.chipDrop.chance) this.dropPickup('chip', e.x + 5, e.y - 3, this.pickWeighted(SU.chipDrop.counts));
     if (Math.random() < gameData.healDropChance) this.dropPickup('heal', e.x + 6, e.y, gameData.healAmount);
     // OS 게이지: chargeKills명 처치로 가득
     const act = this.os.def.active;
@@ -3596,6 +3686,9 @@ export class GameScene extends Phaser.Scene implements GameContext {
         } else if (k.kind === 'chest') {
           this.chestQueue.push(gameData.rarity[Math.round(k.value)]?.id ?? 'common');
           Sound.play('select');
+        } else if (k.kind === 'chip') {
+          this.addChips(k.value);
+          Sound.play('hover');
         } else {
           this.gainXp(k.value);
           // 연달아 주우면 음이 한 칸씩 올라간다 (무작위 음정 대신 계단처럼). 잠깐 쉬면 처음 음으로

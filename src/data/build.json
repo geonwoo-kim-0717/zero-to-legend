@@ -951,7 +951,7 @@
    "hook": "chip.dmg",
    "weight": 1,
    "price": 45,
-   "enabled": true
+   "enabled": false
   },
   "cs_rate": {
    "name": "클럭 칩셋",
@@ -967,7 +967,7 @@
    "hook": "chip.atkSpeed",
    "weight": 1,
    "price": 45,
-   "enabled": true
+   "enabled": false
   },
   "cs_hp": {
    "name": "장갑 칩셋",
@@ -983,7 +983,7 @@
    "hook": "chip.maxHp",
    "weight": 1,
    "price": 45,
-   "enabled": true
+   "enabled": false
   },
   "cs_move": {
    "name": "구동 칩셋",
@@ -999,7 +999,7 @@
    "hook": "chip.move",
    "weight": 1,
    "price": 45,
-   "enabled": true
+   "enabled": false
   },
   "cs_crit": {
    "name": "조준 칩셋",
@@ -1015,7 +1015,7 @@
    "hook": "chip.crit",
    "weight": 1,
    "price": 45,
-   "enabled": true
+   "enabled": false
   },
   "cs_area": {
    "name": "확산 칩셋",
@@ -1031,7 +1031,7 @@
    "hook": "chip.area",
    "weight": 1,
    "price": 45,
-   "enabled": true
+   "enabled": false
   },
   "cs_pick": {
    "name": "자석 칩셋",
@@ -1047,7 +1047,7 @@
    "hook": "chip.pickup",
    "weight": 1,
    "price": 45,
-   "enabled": true
+   "enabled": false
   },
   "cs_xp": {
    "name": "학습 칩셋",
@@ -1063,7 +1063,7 @@
    "hook": "chip.xp",
    "weight": 1,
    "price": 45,
-   "enabled": true
+   "enabled": false
   },
   "cs_regen": {
    "name": "재생 칩셋",
@@ -1079,7 +1079,7 @@
    "hook": "chip.regen",
    "weight": 1,
    "price": 45,
-   "enabled": true
+   "enabled": false
   },
   "cs_dr": {
    "name": "완충 칩셋",
@@ -1095,7 +1095,7 @@
    "hook": "chip.dr",
    "weight": 1,
    "price": 45,
-   "enabled": true
+   "enabled": false
   },
   "cs_killBoom": {
    "name": "연쇄 폭발",
@@ -1304,7 +1304,7 @@
    "hook": "wchip.smartPistol",
    "weight": 2,
    "price": 55,
-   "enabled": true
+   "enabled": false
   },
   "cw_shotgun": {
    "name": "산탄 증설",
@@ -1325,7 +1325,7 @@
    "hook": "wchip.shotgun",
    "weight": 2,
    "price": 55,
-   "enabled": true
+   "enabled": false
   },
   "cw_railgun": {
    "name": "분광 렌즈",
@@ -1346,7 +1346,7 @@
    "hook": "wchip.railgun",
    "weight": 2,
    "price": 55,
-   "enabled": true
+   "enabled": false
   },
   "cw_mantisBlade": {
    "name": "쌍날 회로",
@@ -1367,7 +1367,7 @@
    "hook": "wchip.mantisBlade",
    "weight": 2,
    "price": 55,
-   "enabled": true
+   "enabled": false
   },
   "cw_monowire": {
    "name": "다중 와이어",
@@ -1388,7 +1388,7 @@
    "hook": "wchip.monowire",
    "weight": 2,
    "price": 55,
-   "enabled": true
+   "enabled": false
   },
   "cw_arcCoil": {
    "name": "연쇄 증폭기",
@@ -1409,7 +1409,7 @@
    "hook": "wchip.arcCoil",
    "weight": 2,
    "price": 55,
-   "enabled": true
+   "enabled": false
   },
   "cw_plasmaGrenade": {
    "name": "유탄 장전기",
@@ -1430,7 +1430,7 @@
    "hook": "wchip.plasmaGrenade",
    "weight": 2,
    "price": 55,
-   "enabled": true
+   "enabled": false
   },
   "cw_microMissile": {
    "name": "미사일 포드",
@@ -1451,7 +1451,7 @@
    "hook": "wchip.microMissile",
    "weight": 2,
    "price": 55,
-   "enabled": true
+   "enabled": false
   },
   "cw_proxMine": {
    "name": "지뢰 증설",
@@ -1472,7 +1472,7 @@
    "hook": "wchip.proxMine",
    "weight": 2,
    "price": 55,
-   "enabled": true
+   "enabled": false
   },
   "cw_turret": {
    "name": "포탑 증설",
@@ -1493,7 +1493,7 @@
    "hook": "wchip.turret",
    "weight": 2,
    "price": 55,
-   "enabled": true
+   "enabled": false
   },
   "cw_hackDrone": {
    "name": "드론 증설",
@@ -1514,7 +1514,7 @@
    "hook": "wchip.hackDrone",
    "weight": 2,
    "price": 55,
-   "enabled": true
+   "enabled": false
   },
   "cw_empField": {
    "name": "고용량 축전기",
@@ -1535,7 +1535,7 @@
    "hook": "wchip.empField",
    "weight": 2,
    "price": 55,
-   "enabled": true
+   "enabled": false
   }
  }
 }

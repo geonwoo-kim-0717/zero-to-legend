@@ -124,10 +124,10 @@ export function rollChoices(
   owned: WeaponBase[],
   ownedPassives: Map<PassiveId, PassiveState>,
   mode?: string,
-  opts: { guaranteeWeapon?: boolean; pool?: readonly WeaponId[]; luck?: boolean; favor?: string; favorChance?: number; epicMul?: number; upgradesOnly?: boolean; sockets?: SocketCard[]; extras?: Choice[] } = {},
+  opts: { guaranteeWeapon?: boolean; pool?: readonly WeaponId[]; luck?: boolean; favor?: string; favorChance?: number; epicMul?: number; upgradesOnly?: boolean; sockets?: SocketCard[]; extras?: Choice[]; fillers?: Choice[] } = {},
 ): Choice[] {
   // 개편 2단계: 레벨업 카드는 장착한 것(소켓)만 강화. 새 아이템·교체·특수 능력은 보급 상자에서
-  if (opts.upgradesOnly) return upgradeChoices(owned, ownedPassives, opts.sockets ?? [], opts.extras ?? []);
+  if (opts.upgradesOnly) return upgradeChoices(owned, ownedPassives, opts.sockets ?? [], opts.extras ?? [], opts.fillers);
   luck = !!opts.luck;
   epicMul = 1;
   const forcedRarity = mode === 'boss' ? undefined : mode;
@@ -239,7 +239,8 @@ export interface SocketCard {
 }
 
 /** extras: 칩셋 카드 (강화 카드와 섞여 나옴, 소켓이 다 차면 칩셋만) */
-function upgradeChoices(owned: WeaponBase[], ownedPassives: Map<PassiveId, PassiveState>, sockets: SocketCard[], extras: Choice[]): Choice[] {
+/** fillers: 모자라면 채울 카드 (칩·회복). 없으면 예전 반복 강화 카드 */
+function upgradeChoices(owned: WeaponBase[], ownedPassives: Map<PassiveId, PassiveState>, sockets: SocketCard[], extras: Choice[], fillers?: Choice[]): Choice[] {
   const common = gameData.rarity[0];
   const pool: Choice[] = [];
   for (const w of owned) {
@@ -256,6 +257,10 @@ function upgradeChoices(owned: WeaponBase[], ownedPassives: Map<PassiveId, Passi
   }
   pool.push(...extras);
   const out = Phaser.Utils.Array.Shuffle(pool).slice(0, 3);
+  if (fillers) {
+    for (const f of fillers) if (out.length < 3) out.push(f);
+    return out;
+  }
   const left = Phaser.Utils.Array.Shuffle(gameData.overflow.slice());
   while (out.length < 3 && left.length) {
     const o = left.pop()!;
