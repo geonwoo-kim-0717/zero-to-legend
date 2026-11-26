@@ -1,37 +1,272 @@
 {
-  "note": "UI 세션: 카드·장비창에 보이는 짧은 시너지·조합 문장(ko·en)과 태그·조합 영어 이름. {값}은 build.json params로 채움. 원문은 build.json(편집 페이지)",
-  "tags": { "전기": "Electric", "폭발": "Explosive", "정밀": "Precision", "근접": "Melee", "기계": "Mech", "해킹": "Hack" },
-  "combos": {
-    "c_droneNeural": { "en": "Neural Hacknet", "ko_s": "드론 적중 {chance}% 아군화", "en_s": "Drone hits {chance}% ally" },
-    "c_empShield": { "en": "Overload Shield", "ko_s": "보호막 깨지면 EMP 폭발", "en_s": "Shield break → EMP blast" },
-    "c_railEye": { "en": "Sniper Sight", "ko_s": "레일건 치명타 +{v}%", "en_s": "Railgun crit +{v}%" },
-    "c_turretDock": { "en": "Turret Base", "ko_s": "포탑 +{n}", "en_s": "Turrets +{n}" },
-    "c_bladeReflex": { "en": "Counter Slash", "ko_s": "대시 직후 베기 ×{mul}", "en_s": "Slash ×{mul} after dash" },
-    "c_coilAmp": { "en": "Storm Coil", "ko_s": "아크 코일 연쇄 +{n}", "en_s": "Arc Coil chain +{n}" },
-    "c_grenadeReactive": { "en": "Counter Grenade", "ko_s": "맞으면 유탄 반격", "en_s": "Hit → grenade back" },
-    "c_shotgunLegs": { "en": "Charge Shot", "ko_s": "대시하면 샷건 재장전", "en_s": "Dash reloads shotgun" },
-    "c_missileThermal": { "en": "Heat Seeker", "ko_s": "미사일 엘리트 우선 +{v}%", "en_s": "Missiles hunt elites +{v}%" },
-    "c_wireMuscle": { "en": "Tension Boost", "ko_s": "채찍 길이 +{v}%", "en_s": "Whip length +{v}%" },
-    "c_droneScanner": { "en": "Drone Sniper Net", "ko_s": "드론이 레이저 사격", "en_s": "Drones fire lasers" }
+ "note": "UI 세션: 카드·장비창에 보이는 짧은 시너지·조합 문장(ko·en)과 태그·조합 영어 이름. {값}은 build.json params로 채움. 원문은 build.json(편집 페이지) · chipsets: 칩셋 짧은 문장 (값은 build.json chipsets params, 중첩에 따라)",
+ "tags": {
+  "전기": "Electric",
+  "폭발": "Explosive",
+  "정밀": "Precision",
+  "근접": "Melee",
+  "기계": "Mech",
+  "해킹": "Hack"
+ },
+ "combos": {
+  "c_droneNeural": {
+   "en": "Neural Hacknet",
+   "ko_s": "드론 적중 {chance}% 아군화",
+   "en_s": "Drone hits {chance}% ally"
   },
-  "tiers": {
-    "전기:2": { "ko": "감전 {chance}%", "en": "Shock {chance}%" },
-    "전기:3": { "ko": "감전 처치 시 번개 {n}", "en": "Shock kill → bolt ×{n}" },
-    "전기:4": { "ko": "연쇄 +{n}, 감전 ×{mul}", "en": "Chain +{n}, shock ×{mul}" },
-    "폭발:2": { "ko": "폭발 범위 +{v}%", "en": "Blast size +{v}%" },
-    "폭발:3": { "ko": "폭발 화상", "en": "Blasts burn" },
-    "폭발:4": { "ko": "폭발 한 번 더", "en": "Blasts echo" },
-    "정밀:2": { "ko": "치명타 +{v}%", "en": "Crit +{v}%" },
-    "정밀:3": { "ko": "치명타 피해 ×{mul}", "en": "Crit dmg ×{mul}" },
-    "정밀:4": { "ko": "치명타 관통 +{n}", "en": "Crits pierce +{n}" },
-    "근접:2": { "ko": "근접 피해 +{v}%", "en": "Melee +{v}%" },
-    "근접:3": { "ko": "근접 처치 체력 +{heal}", "en": "Melee kill +{heal} HP" },
-    "근접:4": { "ko": "대시 끝 베기", "en": "Dash-end slash" },
-    "기계:2": { "ko": "드론·포탑 +{n}", "en": "Drones·turrets +{n}" },
-    "기계:3": { "ko": "드론·포탑 공속 +{v}%", "en": "Drone·turret speed +{v}%" },
-    "기계:4": { "ko": "포탑 소멸 폭발", "en": "Turrets explode" },
-    "해킹:2": { "ko": "아군화 +{v}%", "en": "Ally time +{v}%" },
-    "해킹:3": { "ko": "처치 시 {chance}% 아군화", "en": "Kill → {chance}% ally" },
-    "해킹:4": { "ko": "아군 사망 시 EMP", "en": "Ally death → EMP" }
+  "c_empShield": {
+   "en": "Overload Shield",
+   "ko_s": "보호막 깨지면 EMP 폭발",
+   "en_s": "Shield break → EMP blast"
+  },
+  "c_railEye": {
+   "en": "Sniper Sight",
+   "ko_s": "레일건 치명타 +{v}%",
+   "en_s": "Railgun crit +{v}%"
+  },
+  "c_turretDock": {
+   "en": "Turret Base",
+   "ko_s": "포탑 +{n}",
+   "en_s": "Turrets +{n}"
+  },
+  "c_bladeReflex": {
+   "en": "Counter Slash",
+   "ko_s": "대시 직후 베기 ×{mul}",
+   "en_s": "Slash ×{mul} after dash"
+  },
+  "c_coilAmp": {
+   "en": "Storm Coil",
+   "ko_s": "아크 코일 연쇄 +{n}",
+   "en_s": "Arc Coil chain +{n}"
+  },
+  "c_grenadeReactive": {
+   "en": "Counter Grenade",
+   "ko_s": "맞으면 유탄 반격",
+   "en_s": "Hit → grenade back"
+  },
+  "c_shotgunLegs": {
+   "en": "Charge Shot",
+   "ko_s": "대시하면 샷건 재장전",
+   "en_s": "Dash reloads shotgun"
+  },
+  "c_missileThermal": {
+   "en": "Heat Seeker",
+   "ko_s": "미사일 엘리트 우선 +{v}%",
+   "en_s": "Missiles hunt elites +{v}%"
+  },
+  "c_wireMuscle": {
+   "en": "Tension Boost",
+   "ko_s": "채찍 길이 +{v}%",
+   "en_s": "Whip length +{v}%"
+  },
+  "c_droneScanner": {
+   "en": "Drone Sniper Net",
+   "ko_s": "드론이 레이저 사격",
+   "en_s": "Drones fire lasers"
   }
+ },
+ "tiers": {
+  "전기:2": {
+   "ko": "감전 {chance}%",
+   "en": "Shock {chance}%"
+  },
+  "전기:3": {
+   "ko": "감전 처치 시 번개 {n}",
+   "en": "Shock kill → bolt ×{n}"
+  },
+  "전기:4": {
+   "ko": "연쇄 +{n}, 감전 ×{mul}",
+   "en": "Chain +{n}, shock ×{mul}"
+  },
+  "폭발:2": {
+   "ko": "폭발 범위 +{v}%",
+   "en": "Blast size +{v}%"
+  },
+  "폭발:3": {
+   "ko": "폭발 화상",
+   "en": "Blasts burn"
+  },
+  "폭발:4": {
+   "ko": "폭발 한 번 더",
+   "en": "Blasts echo"
+  },
+  "정밀:2": {
+   "ko": "치명타 +{v}%",
+   "en": "Crit +{v}%"
+  },
+  "정밀:3": {
+   "ko": "치명타 피해 ×{mul}",
+   "en": "Crit dmg ×{mul}"
+  },
+  "정밀:4": {
+   "ko": "치명타 관통 +{n}",
+   "en": "Crits pierce +{n}"
+  },
+  "근접:2": {
+   "ko": "근접 피해 +{v}%",
+   "en": "Melee +{v}%"
+  },
+  "근접:3": {
+   "ko": "근접 처치 체력 +{heal}",
+   "en": "Melee kill +{heal} HP"
+  },
+  "근접:4": {
+   "ko": "대시 끝 베기",
+   "en": "Dash-end slash"
+  },
+  "기계:2": {
+   "ko": "드론·포탑 +{n}",
+   "en": "Drones·turrets +{n}"
+  },
+  "기계:3": {
+   "ko": "드론·포탑 공속 +{v}%",
+   "en": "Drone·turret speed +{v}%"
+  },
+  "기계:4": {
+   "ko": "포탑 소멸 폭발",
+   "en": "Turrets explode"
+  },
+  "해킹:2": {
+   "ko": "아군화 +{v}%",
+   "en": "Ally time +{v}%"
+  },
+  "해킹:3": {
+   "ko": "처치 시 {chance}% 아군화",
+   "en": "Kill → {chance}% ally"
+  },
+  "해킹:4": {
+   "ko": "아군 사망 시 EMP",
+   "en": "Ally death → EMP"
+  }
+ },
+ "chipsets": {
+  "cs_dmg": {
+   "ko": "피해 +{v}%",
+   "en": "Damage +{v}%"
+  },
+  "cs_rate": {
+   "ko": "공격 속도 +{v}%",
+   "en": "Attack speed +{v}%"
+  },
+  "cs_hp": {
+   "ko": "최대 체력 +{v}",
+   "en": "Max HP +{v}"
+  },
+  "cs_move": {
+   "ko": "이동 속도 +{v}%",
+   "en": "Move speed +{v}%"
+  },
+  "cs_crit": {
+   "ko": "치명타 +{v}%",
+   "en": "Crit +{v}%"
+  },
+  "cs_area": {
+   "ko": "공격 범위 +{v}%",
+   "en": "Area +{v}%"
+  },
+  "cs_pick": {
+   "ko": "획득 범위 +{v}%",
+   "en": "Pickup range +{v}%"
+  },
+  "cs_xp": {
+   "ko": "경험치 +{v}%",
+   "en": "XP +{v}%"
+  },
+  "cs_regen": {
+   "ko": "초당 체력 +{v}",
+   "en": "Regen {v} HP/s"
+  },
+  "cs_dr": {
+   "ko": "받는 피해 -{v}%",
+   "en": "Damage taken -{v}%"
+  },
+  "cs_killBoom": {
+   "ko": "처치 {chance}% 폭발 {dmg}",
+   "en": "Kill {chance}%: blast {dmg}"
+  },
+  "cs_dashBolt": {
+   "ko": "대시 끝 번개 {n}명",
+   "en": "Dash end: bolt ×{n}"
+  },
+  "cs_rhythm": {
+   "ko": "{n}번째 적중 ×{mul}",
+   "en": "Every {n}th hit ×{mul}"
+  },
+  "cs_hurtZap": {
+   "ko": "맞으면 번개 {n}명",
+   "en": "Hurt: bolt ×{n}"
+  },
+  "cs_vamp": {
+   "ko": "처치 {chance}% 체력 +{heal}",
+   "en": "Kill {chance}%: +{heal} HP"
+  },
+  "cs_luck": {
+   "ko": "칩 +{v}%",
+   "en": "Chips +{v}%"
+  },
+  "cs_killShield": {
+   "ko": "{n}처치마다 보호막 {v}",
+   "en": "Shield {v} every {n} kills"
+  },
+  "cs_execute": {
+   "ko": "체력 {v}% 이하 즉사",
+   "en": "Execute below {v}%"
+  },
+  "cs_hunter": {
+   "ko": "엘리트·보스 +{v}%",
+   "en": "Elite·boss +{v}%"
+  },
+  "cs_frost": {
+   "ko": "주변 {r}px 감속",
+   "en": "Slow within {r}px"
+  },
+  "cw_smartPistol": {
+   "ko": "피해 +{v}%, 탄 +{n}",
+   "en": "Dmg +{v}%, shots +{n}"
+  },
+  "cw_shotgun": {
+   "ko": "피해 +{v}%, 산탄 +{n}",
+   "en": "Dmg +{v}%, pellets +{n}"
+  },
+  "cw_railgun": {
+   "ko": "피해 +{v}%, 빔 +{n}",
+   "en": "Dmg +{v}%, beams +{n}"
+  },
+  "cw_mantisBlade": {
+   "ko": "피해 +{v}%, 베기 +{n}",
+   "en": "Dmg +{v}%, slashes +{n}"
+  },
+  "cw_monowire": {
+   "ko": "피해 +{v}%, 채찍 +{n}",
+   "en": "Dmg +{v}%, whips +{n}"
+  },
+  "cw_arcCoil": {
+   "ko": "피해 +{v}%, 연쇄 +{n}",
+   "en": "Dmg +{v}%, chain +{n}"
+  },
+  "cw_plasmaGrenade": {
+   "ko": "피해 +{v}%, 유탄 +{n}",
+   "en": "Dmg +{v}%, grenades +{n}"
+  },
+  "cw_microMissile": {
+   "ko": "피해 +{v}%, 미사일 +{n}",
+   "en": "Dmg +{v}%, missiles +{n}"
+  },
+  "cw_proxMine": {
+   "ko": "피해 +{v}%, 지뢰 +{n}",
+   "en": "Dmg +{v}%, mines +{n}"
+  },
+  "cw_turret": {
+   "ko": "피해 +{v}%, 포탑 +{n}",
+   "en": "Dmg +{v}%, turrets +{n}"
+  },
+  "cw_hackDrone": {
+   "ko": "피해 +{v}%, 드론 +{n}",
+   "en": "Dmg +{v}%, drones +{n}"
+  },
+  "cw_empField": {
+   "ko": "피해 +{v}%, 켜짐 +{t}초",
+   "en": "Dmg +{v}%, +{t}s on"
+  }
+ }
 }

@@ -36,6 +36,8 @@ import { rollChoices, abilityCard, computeStats, passiveAmount, passiveAbility, 
 import { LevelUpUI } from '../ui/LevelUpUI';
 import { itemCard, shortText, upgradeCard, recommend } from '../ui/cardInfo';
 import { StationUI } from '../ui/StationUI';
+import { makeChipArt, chipArt, CHIP_COLOR } from '../ui/ChipArt';
+import { chipShort } from '../ui/synergyText';
 import { drawStall, drawMarker } from '../ui/StationMarks';
 import { buildEquipPanel } from '../ui/EquipPanel';
 import { Hud } from '../ui/Hud';
@@ -836,6 +838,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
     this.input.setDefaultCursor('none');
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.input.setDefaultCursor('default'));
     this.levelUi = new LevelUpUI(this);
+    makeChipArt(this);
     this.invPanel = null;
     this.makeInvButton();
     this.stationUi = new StationUI(this, this.levelUi);
@@ -1594,7 +1597,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
   private equipInput(): Parameters<typeof buildEquipPanel>[1] {
     const os = this.os;
     const osDesc = os.lines().map((l, i) => `${l.on ? '●' : '○'} ${i + 1}. ${l.text}`).join('\n');
-    return { weapons: this.weapons, sockets: this.sockets, os: { id: os.id, name: `${os.name} Lv${os.level}`, color: os.def.color, desc: osDesc }, tagCount: this.kit.tagCount, tiers: this.kit.tiers, combos: this.kit.combos };
+    return { weapons: this.weapons, sockets: this.sockets, os: { id: os.id, name: `${os.name} Lv${os.level}`, color: os.def.color, desc: osDesc }, tagCount: this.kit.tagCount, tiers: this.kit.tiers, combos: this.kit.combos, chipsets: this.chipsets };
   }
 
   // ───── 카드 고르기 중 인벤토리 보기 (레벨업·보급 상자·능력 고르기) ─────
@@ -2352,12 +2355,19 @@ export class GameScene extends Phaser.Scene implements GameContext {
       kind: 'overflow',
       id,
       chipset: id,
-      art: 'chip',
+      art: chipArt(id),
       rarity: rarityById('common'),
       title: chipName(id),
       levelLabel: `${kindLabel} · ${foot}`,
       desc: chipText(id, n + 1),
-      card: { slot: kindLabel, short: chipText(id, n + 1), tags: [], foot: { left: foot, right: n ? `×${n + 1}` : '' } },
+      // UI: 칩셋 카드는 종류 색 띠(능력치 시안·특수 주황·무기 분홍)와 짧은 문장 (card.rarity는 표시만)
+      card: {
+        slot: '',
+        short: chipShort(id, n + 1),
+        tags: [],
+        foot: { left: foot, right: n ? `×${n + 1}` : '' },
+        rarity: { ...rarityById('rare'), label: kindLabel, color: CHIP_COLOR[def.kind] ?? CHIP_COLOR.stat },
+      },
     } as Choice;
   }
 

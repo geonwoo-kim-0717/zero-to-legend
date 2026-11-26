@@ -249,7 +249,11 @@ export class LevelUpUI {
         for (let k = 0; k < 3; k++) band.fillGradientStyle(seg[k], seg[k + 1], seg[k], seg[k + 1], 1).fillRect(x + (cw / 3) * k, top, cw / 3 + 1, bh);
       } else band.fillStyle(col).fillRect(x, top, cw, bh);
       const label = isMyth ? `◆ ${b.label} ◆` : isLeg ? `★ ${b.label} ★` : b.label;
-      txt(cx, top + bh / 2, label, 11, '#0a0614', { strokeThickness: 0, fontStyle: '900' }).setOrigin(0.5).setLetterSpacing(2);
+      // 띠 글자: 번호(왼쪽)·꼬리표(오른쪽) 자리를 비우고, 넘치면 간격을 줄이고 크기를 맞춤
+      const bl = txt(cx, top + bh / 2, label, 11, '#0a0614', { strokeThickness: 0, fontStyle: '900' }).setOrigin(0.5).setLetterSpacing(2);
+      const room = cw - 2 * (b.info.rec || b.c.promote ? 46 : 18);
+      if (bl.width > room) bl.setLetterSpacing(0);
+      if (bl.width > room) bl.setScale(room / bl.width);
       txt(x + 6, top + bh / 2, String(i + 1), 10, '#0a0614', { strokeThickness: 0, fontStyle: '900' }).setOrigin(0, 0.5);
 
       // 후광 + 원판 + 아이콘
@@ -287,6 +291,20 @@ export class LevelUpUI {
         // '추천' 꼬리표는 등급 띠 오른쪽 안에 (위 안내 문장과 겹치지 않게)
         const tagT = txt(x + cw - 9, top + 9, t('rec.badge'), 9, '#0a0614', { strokeThickness: 0, fontStyle: '900' }, D + 7).setOrigin(1, 0.5);
         add(s.add.rectangle(tagT.x + 4, top + 2, tagT.width + 8, 14, rc, 1).setOrigin(1, 0).setStrokeStyle(1, 0x0a0614, 0.8), D + 6);
+      }
+
+      // 등급 승급 카드: 띠 오른쪽에 '▲ 승급' (새 아이템과 구분), 아래 줄은 오를 등급 색
+      if (b.c.promote) {
+        const pt = txt(x + cw - 9, top + 9, t('item.promoteBadge'), 9, '#0a0614', { strokeThickness: 0, fontStyle: '900' }, D + 7).setOrigin(1, 0.5);
+        add(s.add.rectangle(pt.x + 4, top + 2, pt.width + 8, 14, 0xffffff, 1).setOrigin(1, 0).setStrokeStyle(1, 0x0a0614, 0.8), D + 6);
+        // 위로 오르는 화살 무늬 (후광 양옆)
+        const ar = add(s.add.graphics(), D + 2);
+        for (const dx of [-46, 46])
+          for (let k = 0; k < 3; k++) {
+            const ay = top + 70 - k * 12;
+            ar.fillStyle(col, 0.35 + k * 0.2).fillTriangle(cx + dx - 6, ay + 5, cx + dx + 6, ay + 5, cx + dx, ay - 3);
+          }
+        this.tweens.push(s.tweens.add({ targets: ar, y: -6, alpha: { from: 1, to: 0.4 }, duration: 700, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' }));
       }
 
       // 테두리: 일반 1px 회색, 희귀·영웅 2px, 전설·신화 3px + 안쪽 한 줄 + 모서리 꺾쇠
