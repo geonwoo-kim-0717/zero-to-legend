@@ -1,6 +1,8 @@
 import syn from '../data/synergyShort.json';
 import build from '../data/build.json';
 import { I18n } from '../i18n';
+import { chipText, chipValues } from '../systems/Chipsets';
+import { displayNum } from '../systems/Build';
 
 /** 화면용 태그·시너지·조합 글자 (짧게, 한국어·영어). 원문 데이터는 build.json */
 type ComboDef = { name: string; needs: string[]; params?: Record<string, number> };
@@ -46,4 +48,13 @@ export function tierShort(tag: string, count: number, fallback = ''): string {
   const text = en() ? s?.en : s?.ko;
   const def = TIERS[tag]?.find((d) => d.count === count);
   return text ? fill(text, def?.params) : fallback;
+}
+
+/** 칩셋 짧은 문장 (중첩 n일 때). 없으면 원문 chipText */
+export function chipShort(id: string, n: number): string {
+  const s = (syn as unknown as { chipsets?: Record<string, { ko?: string; en?: string }> }).chipsets?.[id];
+  const text = en() ? s?.en : s?.ko;
+  if (!text) return chipText(id, n);
+  const v = chipValues(id, n);
+  return text.replace(/\{([A-Za-z][A-Za-z0-9_]*)\}/g, (_m, k: string) => (k in v ? String(displayNum(v[k])) : '?'));
 }

@@ -11,7 +11,9 @@ import { ITEMS, itemName, itemText, itemArt, type ItemKind } from '../systems/Bu
 import { weaponTags, itemTags, type Sock, type ActiveTier, type ActiveCombo } from '../systems/Loadout';
 import { shortText } from './cardInfo';
 import { TAG_COLOR } from './LevelUpUI';
-import { tagName, tierShort, comboName, comboShort } from './synergyText';
+import { tagName, tierShort, comboName, comboShort, chipShort } from './synergyText';
+import { CHIPSETS, chipName } from '../systems/Chipsets';
+import { CHIP_COLOR } from './ChipArt';
 import { I18n, t } from '../i18n';
 
 /** 장비창에 넘길 것 (GameScene이 가진 그대로) */
@@ -22,6 +24,8 @@ export interface EquipInput {
   tagCount: ReadonlyMap<string, number>;
   tiers: readonly ActiveTier[];
   combos: readonly ActiveCombo[];
+  /** 칩셋 id → 중첩 (없으면 칩셋 탭 숨김) */
+  chipsets?: ReadonlyMap<string, number>;
 }
 
 type SlotKey = 'primary' | 'secondary' | 'os' | 'neural' | 'optic' | 'skeletal' | 'defense' | 'tactical';
@@ -266,6 +270,40 @@ export function buildEquipPanel(scene: Phaser.Scene, d: EquipInput, cb: { onResu
   const right = add(s.add.container(0, 0));
   const RX = 356;
   const RW = 266;
+  let tab: 'syn' | 'chip' = 'syn';
+  /** 칩셋 탭: 두 줄 칸 (그림·이름 ×중첩·짧은 효과), 종류별로 모음 */
+  const drawChips = (list: [string, number][], y0: number) => {
+    if (!list.length) {
+      txt(RX, y0, en ? 'No chipsets yet · from level-ups and the black market' : '아직 칩셋 없음 · 레벨업·블랙마켓에서 얻음', 9.5, '#5a4a78', { strokeThickness: 0 }, right);
+      return;
+    }
+    const order = { weapon: 0, special: 1, stat: 2 } as Record<string, number>;
+    list.sort((a, b) => (order[CHIPSETS[a[0]].kind] ?? 3) - (order[CHIPSETS[b[0]].kind] ?? 3) || b[1] - a[1]);
+    const colW = Math.floor(RW / 2);
+    const rowH = 27;
+    const rowsFit = Math.max(1, Math.floor((VIEW_H - 46 - y0) / rowH));
+    const cap = rowsFit * 2;
+    const shown = list.length > cap ? list.slice(0, cap - 1) : list;
+    shown.forEach(([id, n], i) => {
+      const x = RX + (i % 2) * colW;
+      const y = y0 + Math.floor(i / 2) * rowH;
+      const kc = CHIP_COLOR[CHIPSETS[id].kind] ?? CHIP_COLOR.stat;
+      const key = `icon_chip_${id}`;
+      if (s.textures.exists(key)) add(s.add.image(x + 12, y + 12, key), right);
+      const nm = txt(x + 28, y, chipName(id), 9.5, '#e8f7ff', { strokeThickness: 0 }, right);
+      const st = txt(nm.x + nm.width + 4, y, `×${n}`, 9.5, kc, { strokeThickness: 0, fontStyle: '900' }, right);
+      if (st.x + st.width > x + colW - 4) {
+        fit(nm, Math.max(20, x + colW - 4 - 28 - st.width - 4));
+        st.setX(nm.x + nm.width + 4);
+      }
+      fit(txt(x + 28, y + 13, chipShort(id, n), 8.5, '#8a7aa8', { strokeThickness: 0 }, right), colW - 32);
+    });
+    if (shown.length < list.length) {
+      const i = shown.length;
+      txt(RX + (i % 2) * colW + 28, y0 + Math.floor(i / 2) * rowH + 6, en ? `+${list.length - shown.length} more` : `외 ${list.length - shown.length}종`, 9.5, '#8a7aa8', { strokeThickness: 0 }, right);
+    }
+  };
+
   const drawRight = () => {
     right.removeAll(true);
     const v = V[sel];
@@ -315,10 +353,38 @@ export function buildEquipPanel(scene: Phaser.Scene, d: EquipInput, cb: { onResu
     const lvTxt = v.level !== undefined ? `${v.label} · Lv ${v.level} / ${v.maxLevel}` : v.label;
     txt(RX + RW - 6, y + bandH / 2, lvTxt, 10, '#0a0614', { strokeThickness: 0, fontStyle: '900' }, right).setOrigin(1, 0.5);
 
-    // 시너지: 장착한 태그만 (많은 순)
+    // 탭: 시너지·조합 | 칩셋 (n)
     y = bottom + 8;
-    txt(RX, y, en ? 'SYNERGY' : '시너지', 10, '#b8a8d8', { strokeThickness: 0 }, right).setLetterSpacing(1);
-    y += 15;
+    const chips = [...(d.chipsets ?? new Map<string, number>())].filter(([id, n]) => n > 0 && CHIPSETS[id]);
+    const tabs: ['syn' | 'chip', string][] = [['syn', en ? 'SYNERGY' : '시너지']];
+    if (d.chipsets) tabs.push(['chip', `${en ? 'CHIPSETS' : '칩셋'} ${chips.reduce((a, [, n]) => a + n, 0)}`]);
+    let tx0 = RX;
+    for (const [k, label] of tabs) {
+      const on = tab === k;
+      const tt = txt(tx0 + 6, y, label, 10, on ? '#ffffff' : '#8a7aa8', { strokeThickness: 0, fontStyle: on ? '900' : 'bold' }, right).setLetterSpacing(1);
+      const tg = add(s.add.graphics(), right);
+      if (on) tg.fillStyle(0x00f0ff, 1).fillRect(tx0, y + 14, tt.width + 12, 2);
+      if (tabs.length > 1) {
+        const hit = add(s.add.rectangle(tx0, y - 3, tt.width + 12, 19, 0xffffff, 0).setOrigin(0), right);
+        let armed = false;
+        hit.setInteractive({ useHandCursor: true });
+        hit.on('pointerdown', () => (armed = true));
+        hit.on('pointerout', () => (armed = false));
+        hit.on('pointerup', () => {
+          if (!armed || tab === k) return;
+          armed = false;
+          tab = k;
+          Sound.play('hover');
+          drawRight();
+        });
+      }
+      tx0 += tt.width + 18;
+    }
+    y += 19;
+    if (tab === 'chip') {
+      drawChips(chips, y);
+      return;
+    }
     const rows = [...d.tagCount].filter(([, n]) => n > 0).sort((a, b) => b[1] - a[1]);
     const top: Record<string, ActiveTier> = {};
     for (const tr of d.tiers) if (!top[tr.tag] || top[tr.tag].count < tr.count) top[tr.tag] = tr;
