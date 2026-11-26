@@ -1284,6 +1284,258 @@
    "weight": 1,
    "price": 45,
    "enabled": true
+  },
+  "cw_smartPistol": {
+   "name": "추적 탄창",
+   "nameEn": "Tracking Mag",
+   "kind": "weapon",
+   "weapon": "smartPistol",
+   "text": "스마트 피스톨 피해 +{v}%, 탄 +{n} (최대 +6)",
+   "params": {
+    "n": {
+     "base": 1,
+     "per": 1
+    },
+    "v": {
+     "base": 10,
+     "per": 10
+    }
+   },
+   "hook": "wchip.smartPistol",
+   "weight": 2,
+   "price": 55,
+   "enabled": true
+  },
+  "cw_shotgun": {
+   "name": "산탄 증설",
+   "nameEn": "Buckshot Expansion",
+   "kind": "weapon",
+   "weapon": "shotgun",
+   "text": "스캐터 샷건 피해 +{v}%, 산탄 +{n} (최대 +6)",
+   "params": {
+    "n": {
+     "base": 2,
+     "per": 1
+    },
+    "v": {
+     "base": 10,
+     "per": 10
+    }
+   },
+   "hook": "wchip.shotgun",
+   "weight": 2,
+   "price": 55,
+   "enabled": true
+  },
+  "cw_railgun": {
+   "name": "분광 렌즈",
+   "nameEn": "Prism Lens",
+   "kind": "weapon",
+   "weapon": "railgun",
+   "text": "레일건 피해 +{v}%, 빔 +{n}줄 (최대 +6)",
+   "params": {
+    "n": {
+     "base": 1,
+     "per": 1
+    },
+    "v": {
+     "base": 10,
+     "per": 10
+    }
+   },
+   "hook": "wchip.railgun",
+   "weight": 2,
+   "price": 55,
+   "enabled": true
+  },
+  "cw_mantisBlade": {
+   "name": "쌍날 회로",
+   "nameEn": "Twin-Edge Circuit",
+   "kind": "weapon",
+   "weapon": "mantisBlade",
+   "text": "맨티스 블레이드 피해 +{v}%, 베기 방향 +{n} (최대 +6)",
+   "params": {
+    "n": {
+     "base": 1,
+     "per": 1
+    },
+    "v": {
+     "base": 10,
+     "per": 10
+    }
+   },
+   "hook": "wchip.mantisBlade",
+   "weight": 2,
+   "price": 55,
+   "enabled": true
+  },
+  "cw_monowire": {
+   "name": "다중 와이어",
+   "nameEn": "Multi-Wire",
+   "kind": "weapon",
+   "weapon": "monowire",
+   "text": "모노와이어 피해 +{v}%, 채찍 +{n} (최대 4줄)",
+   "params": {
+    "n": {
+     "base": 1,
+     "per": 1
+    },
+    "v": {
+     "base": 10,
+     "per": 10
+    }
+   },
+   "hook": "wchip.monowire",
+   "weight": 2,
+   "price": 55,
+   "enabled": true
+  },
+  "cw_arcCoil": {
+   "name": "연쇄 증폭기",
+   "nameEn": "Chain Amplifier",
+   "kind": "weapon",
+   "weapon": "arcCoil",
+   "text": "아크 코일 피해 +{v}%, 연쇄 +{n} (최대 +6)",
+   "params": {
+    "n": {
+     "base": 1,
+     "per": 1
+    },
+    "v": {
+     "base": 10,
+     "per": 10
+    }
+   },
+   "hook": "wchip.arcCoil",
+   "weight": 2,
+   "price": 55,
+   "enabled": true
+  },
+  "cw_plasmaGrenade": {
+   "name": "유탄 장전기",
+   "nameEn": "Grenade Loader",
+   "kind": "weapon",
+   "weapon": "plasmaGrenade",
+   "text": "플라즈마 유탄 피해 +{v}%, 유탄 +{n} (최대 +6)",
+   "params": {
+    "n": {
+     "base": 1,
+     "per": 1
+    },
+    "v": {
+     "base": 10,
+     "per": 10
+    }
+   },
+   "hook": "wchip.plasmaGrenade",
+   "weight": 2,
+   "price": 55,
+   "enabled": true
+  },
+  "cw_microMissile": {
+   "name": "미사일 포드",
+   "nameEn": "Missile Pod",
+   "kind": "weapon",
+   "weapon": "microMissile",
+   "text": "마이크로 미사일 피해 +{v}%, 미사일 +{n} (최대 +6)",
+   "params": {
+    "n": {
+     "base": 1,
+     "per": 1
+    },
+    "v": {
+     "base": 10,
+     "per": 10
+    }
+   },
+   "hook": "wchip.microMissile",
+   "weight": 2,
+   "price": 55,
+   "enabled": true
+  },
+  "cw_proxMine": {
+   "name": "지뢰 증설",
+   "nameEn": "Mine Expansion",
+   "kind": "weapon",
+   "weapon": "proxMine",
+   "text": "근접 지뢰 피해 +{v}%, 지뢰 +{n} (최대 +6)",
+   "params": {
+    "n": {
+     "base": 1,
+     "per": 1
+    },
+    "v": {
+     "base": 10,
+     "per": 10
+    }
+   },
+   "hook": "wchip.proxMine",
+   "weight": 2,
+   "price": 55,
+   "enabled": true
+  },
+  "cw_turret": {
+   "name": "포탑 증설",
+   "nameEn": "Turret Expansion",
+   "kind": "weapon",
+   "weapon": "turret",
+   "text": "포탑 피해 +{v}%, 동시 포탑 +{n} (최대 +6)",
+   "params": {
+    "n": {
+     "base": 1,
+     "per": 1
+    },
+    "v": {
+     "base": 10,
+     "per": 10
+    }
+   },
+   "hook": "wchip.turret",
+   "weight": 2,
+   "price": 55,
+   "enabled": true
+  },
+  "cw_hackDrone": {
+   "name": "드론 증설",
+   "nameEn": "Drone Expansion",
+   "kind": "weapon",
+   "weapon": "hackDrone",
+   "text": "해킹 드론 피해 +{v}%, 드론 +{n} (최대 +6)",
+   "params": {
+    "n": {
+     "base": 1,
+     "per": 1
+    },
+    "v": {
+     "base": 10,
+     "per": 10
+    }
+   },
+   "hook": "wchip.hackDrone",
+   "weight": 2,
+   "price": 55,
+   "enabled": true
+  },
+  "cw_empField": {
+   "name": "고용량 축전기",
+   "nameEn": "High-Cap Capacitor",
+   "kind": "weapon",
+   "weapon": "empField",
+   "text": "EMP 필드 피해 +{v}%, 켜짐 시간 +{t}초",
+   "params": {
+    "t": {
+     "base": 2,
+     "per": 1
+    },
+    "v": {
+     "base": 10,
+     "per": 10
+    }
+   },
+   "hook": "wchip.empField",
+   "weight": 2,
+   "price": 55,
+   "enabled": true
   }
  }
 }

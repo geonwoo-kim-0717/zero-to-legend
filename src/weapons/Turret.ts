@@ -35,7 +35,7 @@ export class Turret extends WeaponBase {
     const fortress = this.has('fortress');
     const mobile = this.has('mobilePost');
     // 개편 2-2: 기계 2단계·포탑 거점 조합이 동시 포탑 수를 늘림
-    const max = this.s.count + (fortress ? 2 : 0) + (this.ctx.mod('syn.mech2')?.n ?? 0) + (this.ctx.mod('combo.turretDock')?.n ?? 0);
+    const max = this.cnt + (fortress ? 2 : 0) + (this.ctx.mod('syn.mech2')?.n ?? 0) + (this.ctx.mod('combo.turretDock')?.n ?? 0);
     this.timer -= dt;
     if (this.timer <= 0 && this.trigger) {
       // 트윈스틱: 오른쪽 클릭으로 커서 자리에 설치 (휴대 포탑은 플레이어 곁)

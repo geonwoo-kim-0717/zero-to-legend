@@ -90,7 +90,7 @@ export class ArcCoil extends WeaponBase {
     const over = this.has('overcurrent');
     const chain: Enemy[] = [];
     // 개편 2-2: 전기 4단계·폭풍 코일 조합이 연쇄 수를 늘림
-    const hops = this.s.count + (this.ctx.mod('syn.elec4')?.n ?? 0) + (this.ctx.mod('combo.coilAmp')?.n ?? 0);
+    const hops = this.cnt + (this.ctx.mod('syn.elec4')?.n ?? 0) + (this.ctx.mod('combo.coilAmp')?.n ?? 0);
     for (let i = 0; i <= hops && cur; i++) {
       this.seen.add(cur);
       chain.push(cur);

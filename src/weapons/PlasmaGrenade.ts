@@ -62,8 +62,8 @@ export class PlasmaGrenade extends WeaponBase {
       this.fired();
       this.timer = this.has('orbitalStrike') ? 3 : this.interval;
       const at = this.aimPoint(this.has('orbitalStrike') ? 300 : THROW_RANGE);
-      for (let i = 0; i < this.s.count; i++) {
-        const a = (i / Math.max(1, this.s.count)) * Math.PI * 2;
+      for (let i = 0; i < this.cnt; i++) {
+        const a = (i / Math.max(1, this.cnt)) * Math.PI * 2;
         const r = i === 0 ? 0 : 28;
         this.throwOne(p.x, p.y, at.x + Math.cos(a) * r, at.y + Math.sin(a) * r);
       }
@@ -178,7 +178,7 @@ export class PlasmaGrenade extends WeaponBase {
       this.grenades.push({ sx: tx, sy: ty, tx, ty, t: 0, fuse: 0.6, r: r * 2, dmg: this.damage, mini: false, orbital: true, sprite: null });
     } else {
       // 유탄이 1개 늘 때마다 한 발 피해 -10% (장판·집속탄도 이 피해를 따름)
-      const split = Math.max(0.5, 1 - gameData.falloff.grenadeSplit * (this.s.count - 1));
+      const split = Math.max(0.5, 1 - gameData.falloff.grenadeSplit * (this.cnt - 1));
       this.launch(px, py, tx, ty, r, this.damage * split, false);
     }
   }

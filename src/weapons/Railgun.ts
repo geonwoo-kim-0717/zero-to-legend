@@ -32,7 +32,7 @@ export class Railgun extends WeaponBase {
       {
         this.timer = this.interval;
         // 트윈스틱: 커서 방향으로. 여러 발이면 좁은 부채꼴
-        const n = Math.max(1, this.s.count);
+        const n = Math.max(1, this.cnt);
         const angles = Array.from({ length: n }, (_, i) => this.aimAngle + (i - (n - 1) / 2) * 0.08);
         p.attackPose(p.x + Math.cos(angles[0]) * 10, 0.2);
         if (chargeShot) {

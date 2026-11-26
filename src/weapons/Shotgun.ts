@@ -65,7 +65,7 @@ export class Shotgun extends WeaponBase {
       const k = this.has('flechette') ? 4 : 1;
       for (let i = 0; i < k; i++) {
         const a = angle + (i * Math.PI * 2) / k;
-        this.ctx.fireBullet(p.x, p.y, a, this.s.speed * 1.2, dmg * this.s.count, {
+        this.ctx.fireBullet(p.x, p.y, a, this.s.speed * 1.2, dmg * this.cnt, {
           pierce: 999,
           falloff: false,
           texture: 'fx_shotgun_pellet_1',
@@ -80,7 +80,7 @@ export class Shotgun extends WeaponBase {
     }
     // 신화 플레셰트 폭풍: 사방 360도로 두 배
     const ring = this.has('flechette');
-    const n = ring ? this.s.count * 2 : this.s.count;
+    const n = ring ? this.cnt * 2 : this.cnt;
     for (let i = 0; i < n; i++) {
       const a = ring ? angle + (i / n) * Math.PI * 2 : angle + (n > 1 ? (i / (n - 1) - 0.5) * SPREAD : 0) + (Math.random() - 0.5) * 0.06;
       this.ctx.fireBullet(p.x, p.y, a, this.s.speed * (0.9 + Math.random() * 0.2), dmg, {

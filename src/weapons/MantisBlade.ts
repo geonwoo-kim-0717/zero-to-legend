@@ -32,7 +32,7 @@ export class MantisBlade extends WeaponBase {
       // 트윈스틱: 커서 방향으로 벤다 (검기도 같은 방향)
       const base = this.aimAngle;
       const half = whirl ? Math.PI : HALF_ARC;
-      const sides = whirl ? 1 : this.s.count;
+      const sides = whirl ? 1 : this.cnt;
       const reaper = this.has('reaperHarvest');
       p.attackPose(p.x + Math.cos(base) * 10, 0.18);
       this.ctx.sfx('slash');

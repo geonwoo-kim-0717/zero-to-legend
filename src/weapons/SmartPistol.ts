@@ -29,7 +29,7 @@ export class SmartPistol extends WeaponBase {
   }
 
   private get shots(): number {
-    return Math.min(MAX_SHOTS, Math.max(1, this.s.count));
+    return Math.min(MAX_SHOTS, Math.max(1, this.cnt));
   }
 
   /** 탄 수에 따라 깎인 한 발 피해 (일반 사격만. 신화 탄막 오버로드·데드아이는 깎지 않는다) */

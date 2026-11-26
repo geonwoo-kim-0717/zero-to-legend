@@ -1842,7 +1842,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
       upgradesOnly: true,
       sockets: this.socketCards(),
       // 칩셋: 강화 카드와 섞여 나옴 (소켓이 다 차면 칩셋만)
-      extras: rollChipsets(gameData.chipsetCards).map((id) => this.chipChoice(id)),
+      extras: rollChipsets(gameData.chipsetCards, new Set(this.weapons.map((w) => w.id))).map((id) => this.chipChoice(id)),
       // 첫 판 3분 전까지: 플라즈마 유탄이 조금 더 자주, 영웅(보라) 카드가 조금 더 자주
       ...(Save.data.stats.runs === 0 && this.elapsed < 180 ? { favor: 'plasmaGrenade', favorChance: 0.35, epicMul: 2.5 } : {}),
     });
@@ -2121,7 +2121,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
       const SH = ST.shop;
       if (!s.stock) {
         s.stock = rollItems(SH.items, this.equippedRarity(), undefined, SH.rarity);
-        s.chip = rollChipsets(1)[0] ?? null;
+        s.chip = rollChipsets(1, new Set(this.weapons.map((w) => w.id)))[0] ?? null;
       }
       const stock = s.stock;
       const items = stock.map((r) => ({ choice: this.itemChoice(r), price: (SH.price as Record<string, number>)[r.rarity.id] ?? 50 }));
@@ -2149,7 +2149,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
             if (s.rerolls >= SH.rerollMax || !pay(rr)) return;
             s.rerolls++;
             s.stock = rollItems(SH.items, this.equippedRarity(), undefined, SH.rarity);
-            s.chip = rollChipsets(1)[0] ?? null;
+            s.chip = rollChipsets(1, new Set(this.weapons.map((w) => w.id)))[0] ?? null;
             after();
           },
           leave,
@@ -2249,6 +2249,8 @@ export class GameScene extends Phaser.Scene implements GameContext {
       if (mech) dmg *= 1 + L.v('gear.mechDmg') / 100;
       if (tags.includes('근접')) dmg *= 1 + L.v('syn.melee2') / 100;
       if (w.id === 'microMissile') dmg *= 1 + L.v('combo.missileThermal') / 100;
+      // 무기 전용 칩셋: 그 무기 피해 +v%
+      dmg *= 1 + L.v(`wchip.${w.id}`) / 100;
       if (mech) cd /= 1 + L.v('syn.mech3') / 100;
       if (tags.includes('전기')) area *= 1 + L.v('gear.elecRange') / 100;
       if (tags.includes('폭발')) area *= 1 + L.v('syn.boom2') / 100;
@@ -2344,7 +2346,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
   private chipChoice(id: string): Choice {
     const n = this.chipsets.get(id) ?? 0;
     const def = CHIPSETS[id];
-    const kindLabel = tr(def.kind === 'stat' ? 'chip.stat' : 'chip.special');
+    const kindLabel = def.kind === 'weapon' ? tr('chip.weapon', { name: weaponsData[def.weapon as WeaponId]?.name ?? '' }) : tr(def.kind === 'stat' ? 'chip.stat' : 'chip.special');
     const foot = n ? tr('chip.stack', { a: n, b: n + 1 }) : tr('chip.new');
     return {
       kind: 'overflow',

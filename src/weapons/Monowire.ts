@@ -33,7 +33,7 @@ export class Monowire extends WeaponBase {
       const base = this.aimAngle;
       p.attackPose(p.x + Math.cos(base) * 10, 0.18);
       // count 1: 앞, 2: 앞뒤, 4: 네 방향
-      const n = this.s.count >= 4 ? 4 : this.s.count;
+      const n = this.cnt >= 4 ? 4 : this.cnt;
       const step = n === 4 ? Math.PI / 2 : Math.PI;
       if (this.has('puppet') && (this.puppetT -= this.interval) <= 0) {
         this.puppetT = 8;

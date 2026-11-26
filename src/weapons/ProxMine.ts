@@ -36,7 +36,7 @@ export class ProxMine extends WeaponBase {
       this.fired();
       this.timer = this.interval;
       const at = this.aimPoint(160);
-      for (let i = 0; i < this.s.count; i++) this.drop(at.x + (i ? Math.cos(i * 2.4) * 18 : 0), at.y + (i ? Math.sin(i * 2.4) * 18 : 0), ARM);
+      for (let i = 0; i < this.cnt; i++) this.drop(at.x + (i ? Math.cos(i * 2.4) * 18 : 0), at.y + (i ? Math.sin(i * 2.4) * 18 : 0), ARM);
     }
     // 신화: 클레이모어 벽
     if (this.has('claymore') && (this.clayT -= dt) <= 0) {

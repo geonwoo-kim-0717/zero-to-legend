@@ -10,7 +10,10 @@ import { displayNum } from './Build';
 export interface ChipsetDef {
   name: string;
   nameEn?: string;
-  kind: 'stat' | 'special';
+  /** stat 능력치 · special 특수 효과 · weapon 무기 전용 (그 무기를 끼고 있을 때만 나옴) */
+  kind: 'stat' | 'special' | 'weapon';
+  /** 무기 전용 칩셋의 무기 id */
+  weapon?: string;
   text: string;
   params?: Record<string, { base: number; per: number }>;
   hook: string;
@@ -40,9 +43,9 @@ export function chipName(id: string): string {
   return (I18n.lang === 'en' && c?.nameEn) || c?.name || id;
 }
 
-/** 가중치대로 서로 다른 칩셋 n개 */
-export function rollChipsets(n: number): string[] {
-  const pool = [...CHIPSET_IDS];
+/** 가중치대로 서로 다른 칩셋 n개. 무기 전용 칩셋은 weapons(끼고 있는 무기)에 있을 때만 */
+export function rollChipsets(n: number, weapons: Set<string> = new Set()): string[] {
+  const pool = CHIPSET_IDS.filter((id) => CHIPSETS[id].kind !== 'weapon' || weapons.has(CHIPSETS[id].weapon ?? ''));
   const out: string[] = [];
   while (out.length < n && pool.length) {
     const total = pool.reduce((s, id) => s + (CHIPSETS[id].weight ?? 1), 0);

@@ -36,7 +36,7 @@ export class HackDrone extends WeaponBase {
 
   private get droneCount(): number {
     // 개편 2-2: 기계 2단계 드론 +n
-    return this.s.count * (this.has('swarm') ? 2 : 1) + (this.ctx.mod('syn.mech2')?.n ?? 0);
+    return this.cnt * (this.has('swarm') ? 2 : 1) + (this.ctx.mod('syn.mech2')?.n ?? 0);
   }
 
   protected onLevel(): void {
