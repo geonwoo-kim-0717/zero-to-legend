@@ -147,7 +147,7 @@
   "plasmaGrenade": {
     "use": "drag",
     "name": "플라즈마 유탄",
-    "desc": "커서 자리에 유탄을 던져 범위 폭발",
+    "desc": "적이 몰린 곳에 유탄을 던져 범위 폭발",
     "slot": "secondary",
     "base": {
       "damage": 30,
@@ -386,7 +386,7 @@
   "turret": {
     "use": "drag",
     "name": "포탑 배치",
-    "desc": "커서 자리에 10초 동안 자동 포탑을 세움 (한 번에 탄 2발)",
+    "desc": "적이 몰린 곳에 10초 동안 자동 포탑을 세움 (한 번에 탄 2발)",
     "slot": "secondary",
     "base": {
       "damage": 10,
@@ -434,7 +434,7 @@
   "microMissile": {
     "use": "tap",
     "name": "마이크로 미사일",
-    "desc": "커서 근처 적들에게 유도 미사일, 작은 폭발",
+    "desc": "가까운 적들에게 유도 미사일, 작은 폭발",
     "slot": "secondary",
     "base": {
       "damage": 14,
@@ -528,7 +528,7 @@
   "proxMine": {
     "use": "drag",
     "name": "근접 지뢰",
-    "desc": "커서 자리에 지뢰 2개, 적이 밟으면 폭발",
+    "desc": "적이 몰린 곳에 지뢰 2개, 적이 밟으면 폭발",
     "slot": "secondary",
     "base": {
       "damage": 40,

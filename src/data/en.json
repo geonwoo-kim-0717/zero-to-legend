@@ -92,7 +92,7 @@
     },
     "plasmaGrenade": {
       "name": "Plasma Grenade",
-      "desc": "Throw a grenade at the cursor for an area blast",
+      "desc": "Throw a grenade where foes crowd for an area blast",
       "levels": {
         "0": {
           "desc": "Acquired"
@@ -242,7 +242,7 @@
     },
     "turret": {
       "name": "Deploy Turret",
-      "desc": "Place an auto turret at the cursor for 10s (2 shots per burst)",
+      "desc": "Place an auto turret where foes crowd for 10s (2 shots per burst)",
       "levels": {
         "0": {
           "desc": "Acquired"
@@ -272,7 +272,7 @@
     },
     "microMissile": {
       "name": "Micro Missiles",
-      "desc": "Homing missiles at enemies near the cursor, small blasts",
+      "desc": "Homing missiles at nearby foes, small blasts",
       "levels": {
         "0": {
           "desc": "Acquired"
@@ -332,7 +332,7 @@
     },
     "proxMine": {
       "name": "Proximity Mine",
-      "desc": "Drop 2 mines at the cursor; they explode when stepped on",
+      "desc": "Drop 2 mines where foes crowd; they explode when stepped on",
       "levels": {
         "0": {
           "desc": "Acquired"
