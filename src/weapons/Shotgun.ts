@@ -2,7 +2,6 @@ import { WeaponBase } from './WeaponBase';
 import type { Enemy } from '../entities/Enemy';
 import { COLORS } from '../config';
 
-const RANGE = 240;
 /** 기본 넉백 거리 */
 const KNOCK = 12;
 const SPREAD = 0.6;
@@ -14,28 +13,42 @@ export class Shotgun extends WeaponBase {
   private again = -1;
   private lastAngle = 0;
   /** 넉백은 한 번 발사의 산탄이 다 도착한 뒤 적마다 한 번만 (먼저 맞은 산탄이 적을 밀어 나머지가 빗나가지 않게) */
-  private knocks: { t: number; hits: Map<Enemy, { a: number; d: number }> }[] = [];
+  private knocks: { t: number; dmg: number; hits: Map<Enemy, { a: number; d: number }> }[] = [];
+  private crashBuf: Enemy[] = [];
 
   update(dt: number): void {
     this.timer -= dt;
     this.tickEffects(dt, COLORS.orange);
     for (const k of this.knocks) {
       if ((k.t -= dt) > 0) continue;
+      const crash = this.wc('c');
+      const hitBy = new Set<Enemy>();
       for (const [e, v] of k.hits) {
         if (!e.active) continue;
-        const k = this.ctx.ccMul(e);
-        e.x += Math.cos(v.a) * v.d * k;
-        e.y += Math.sin(v.a) * v.d * k;
+        const m = this.ctx.ccMul(e);
+        e.x += Math.cos(v.a) * v.d * m;
+        e.y += Math.sin(v.a) * v.d * m;
+        // 무기 전용 칩셋 충돌: 밀려난 적이 다른 적과 부딪히면 둘 다 피해 (발사마다 적 하나에 한 번)
+        if (crash > 0 && m > 0 && !hitBy.has(e)) {
+          for (const o of this.ctx.grid.query(e.x, e.y, 40, this.crashBuf)) {
+            if (o === e || !o.active || hitBy.has(o) || (o.x - e.x) ** 2 + (o.y - e.y) ** 2 > (e.radius + o.radius) ** 2) continue;
+            const dmg = (k.dmg * crash) / 100;
+            hitBy.add(e).add(o);
+            this.ctx.burst((e.x + o.x) / 2, (e.y + o.y) / 2, COLORS.orange, 4);
+            this.ctx.damage(e, dmg);
+            this.ctx.damage(o, dmg);
+            break;
+          }
+        }
       }
     }
     this.knocks = this.knocks.filter((k) => k.t > 0);
     if (this.again > 0 && (this.again -= dt) <= 0) this.volley(this.lastAngle);
-    if (this.timer > 0) return;
-    const p = this.ctx.player;
-    const t = this.nearest(p.x, p.y, RANGE);
-    if (!t) return;
+    if (this.timer > 0 || !this.trigger) return;
     this.timer = this.interval;
-    this.lastAngle = Math.atan2(t.y - p.y, t.x - p.x);
+    // 트윈스틱: 커서 방향으로
+    this.lastAngle = this.aimAngle;
+    this.ctx.player.attackPose(this.ctx.player.x + Math.cos(this.lastAngle) * 10, 0.15);
     this.volley(this.lastAngle);
     // 신화: 이중 장전
     if (this.has('doubleTap')) this.again = 0.2;
@@ -49,7 +62,7 @@ export class Shotgun extends WeaponBase {
     const dmg = this.damage;
     this.ctx.sfx('shotgun');
     this.ctx.playFx('shotgun_blast', p.x + Math.cos(angle) * 6, p.y + Math.sin(angle) * 6, { angle, originX: 0 });
-    const vol = { t: 0.15, hits: new Map<Enemy, { a: number; d: number }>() };
+    const vol = { t: 0.15, dmg, hits: new Map<Enemy, { a: number; d: number }>() };
     this.knocks.push(vol);
     const onHit = (a: number, knock: number) => (e: Enemy, killed: boolean) => {
       // 전설: 근거리 사냥 (가까운 적에게 ×1.6)
@@ -67,7 +80,7 @@ export class Shotgun extends WeaponBase {
       const k = this.has('flechette') ? 4 : 1;
       for (let i = 0; i < k; i++) {
         const a = angle + (i * Math.PI * 2) / k;
-        this.ctx.fireBullet(p.x, p.y, a, this.s.speed * 1.2, dmg * this.s.count, {
+        this.ctx.fireBullet(p.x, p.y, a, this.s.speed * 1.2, dmg * this.cnt, {
           pierce: 999,
           falloff: false,
           texture: 'fx_shotgun_pellet_1',
@@ -82,7 +95,7 @@ export class Shotgun extends WeaponBase {
     }
     // 신화 플레셰트 폭풍: 사방 360도로 두 배
     const ring = this.has('flechette');
-    const n = ring ? this.s.count * 2 : this.s.count;
+    const n = ring ? this.cnt * 2 : this.cnt;
     for (let i = 0; i < n; i++) {
       const a = ring ? angle + (i / n) * Math.PI * 2 : angle + (n > 1 ? (i / (n - 1) - 0.5) * SPREAD : 0) + (Math.random() - 0.5) * 0.06;
       this.ctx.fireBullet(p.x, p.y, a, this.s.speed * (0.9 + Math.random() * 0.2), dmg, {

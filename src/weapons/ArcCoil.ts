@@ -9,6 +9,7 @@ const HOP = 90;
 export class ArcCoil extends WeaponBase {
   protected readonly tag = 'electric' as const;
   private bolts: { pts: number[]; life: number }[] = [];
+  private blasts: { x: number; y: number; r: number; life: number }[] = [];
   private stormT = 5;
   private readonly seen = new Set<Enemy>();
   private rodT = 3;
@@ -18,9 +19,15 @@ export class ArcCoil extends WeaponBase {
   update(dt: number): void {
     const { player: p, fx } = this.ctx;
     this.timer -= dt;
-    if (this.timer <= 0) {
-      const first = this.nearest(p.x, p.y, RANGE * this.area);
-      if (first) {
+    if (this.timer <= 0 && this.trigger) {
+      // 트윈스틱: 조준선 근처의 첫 적에게서 시작 (없으면 커서 쪽 가장 가까운 적, 그래도 없으면 헛방전)
+      const first = this.aimTarget(RANGE * this.area, 0.6) ?? this.nearestTo(this.aimPoint(RANGE * this.area), 60);
+      if (!first) {
+        this.timer = this.interval * 0.5;
+        const ap = this.aimPoint(RANGE * this.area);
+        this.bolts.push({ pts: this.zigzag(p.x, p.y, ap.x, ap.y), life: 0.12 });
+      } else {
+        p.attackPose(first.x, 0.15);
         this.timer = this.interval;
         this.chain(p.x, p.y, first);
         this.ctx.sfx('glitch');
@@ -75,6 +82,12 @@ export class ArcCoil extends WeaponBase {
       fx.strokePath();
     }
     this.bolts = this.bolts.filter((b) => b.life > 0);
+    for (const b of this.blasts) {
+      b.life -= dt;
+      fx.fillStyle(COLORS.cyan, (b.life / 0.2) * 0.3).fillCircle(b.x, b.y, b.r);
+      fx.lineStyle(1, 0xffffff, b.life / 0.2).strokeCircle(b.x, b.y, b.r);
+    }
+    this.blasts = this.blasts.filter((b) => b.life > 0);
   }
 
   private chain(sx: number, sy: number, first: Enemy): void {
@@ -83,7 +96,9 @@ export class ArcCoil extends WeaponBase {
     let cur: Enemy | null = first;
     const over = this.has('overcurrent');
     const chain: Enemy[] = [];
-    for (let i = 0; i <= this.s.count && cur; i++) {
+    // 개편 2-2: 전기 4단계·폭풍 코일 조합이 연쇄 수를 늘림
+    const hops = this.cnt + (this.ctx.mod('syn.elec4')?.n ?? 0) + (this.ctx.mod('combo.coilAmp')?.n ?? 0);
+    for (let i = 0; i <= hops && cur; i++) {
       this.seen.add(cur);
       chain.push(cur);
       this.bolts.push({ pts: this.zigzag(from.x, from.y, cur.x, cur.y), life: 0.15 });
@@ -95,6 +110,13 @@ export class ArcCoil extends WeaponBase {
       if (cur.id === 'c_insulator') break;
       from = { x: cur.x, y: cur.y };
       cur = this.nearest(from.x, from.y, HOP * this.area, this.seen);
+    }
+    // 무기 전용 칩셋 끝 방전: 연쇄의 마지막 적 자리에서 반경 r px 폭발 (코일 피해)
+    const endR = this.wc('r');
+    if (endR > 0 && chain.length) {
+      const r = endR * this.area;
+      this.hitCircle(from.x, from.y, r, this.damage);
+      this.blasts.push({ x: from.x, y: from.y, r, life: 0.2 });
     }
     // 신화: 테슬라 감옥
     if (this.has('teslaCage') && chain.length > 1 && this.cages.length < 6) this.cages.push({ list: chain, t: 2, acc: 0 });

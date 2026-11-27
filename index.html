@@ -3,10 +3,12 @@
 <head>
   <meta charset="UTF-8" />
   <script>
-    // 개편판 미리보기: GitHub Pages에서 ?debug 로 열면 개편 브랜치 빌드(redesign/)로 보냄. ?debug&legacy 는 기존 판 개발자 모드
+    // GitHub Pages 맨 위 주소에서만: ?legacy 는 기존 판(legacy/, 예전 저장 그대로), ?preview 는 개편 브랜치 미리보기(redesign/)로 보냄
     (function () {
       var q = new URLSearchParams(location.search);
-      if (/github\.io$/.test(location.hostname) && q.has('debug') && !q.has('legacy')) location.replace('redesign/' + location.search + location.hash);
+      var root = /github\.io$/.test(location.hostname) && /\/zero-to-legend\/(index\.html)?$/.test(location.pathname);
+      if (root && q.has('legacy')) location.replace('legacy/' + location.search + location.hash);
+      else if (root && q.has('preview')) location.replace('redesign/' + location.search + location.hash);
     })();
   </script>
   <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no, viewport-fit=cover" />

@@ -22,30 +22,17 @@ export class MantisBlade extends WeaponBase {
     const { player: p, fx } = this.ctx;
     const whirl = this.has('whirlwind');
     this.timer -= dt;
-    // 베기 범위(검기가 있으면 검기 사거리) 안에 적이 있을 때만 벰
-    // 판정은 베기 그림보다 10% 넓어서, 베기가 시작되면 범위 끝의 작은 적도 맞음
-    const reach = this.has('swordWave') ? 260 : BASE_R * this.area * (whirl ? 1.15 : 1);
-    if (this.timer <= 0 && this.nearest(p.x, p.y, reach)) {
+    // 트윈스틱: 왼쪽 클릭을 누르고 있으면 커서 방향으로 벰 (판정은 베기 그림보다 10% 넓음)
+    if (this.timer <= 0 && this.trigger) {
       this.timer = this.interval * (whirl ? 0.6 : 1);
       // 전설: 반격 자세 — 대시 직후 강화
       const counter = this.has('counterStance') && p.sinceDash < 0.5 ? 2 : 1;
       const r = BASE_R * this.area * counter * (whirl ? 1.15 : 1);
       const dmg = this.damage * counter;
-      let base = Math.atan2(p.dirY, p.dirX);
-      // 전설 검기: 바라보는 방향 대신 가장 가까운 적 쪽으로 벤다
-      if (this.has('swordWave')) {
-        let best = 260 * 260;
-        for (const e of this.ctx.enemies) {
-          if (!e.active) continue;
-          const d2 = (e.x - p.x) ** 2 + (e.y - p.y) ** 2;
-          if (d2 < best) {
-            best = d2;
-            base = Math.atan2(e.y - p.y, e.x - p.x);
-          }
-        }
-      }
+      // 트윈스틱: 커서 방향으로 벤다 (검기도 같은 방향)
+      const base = this.aimAngle;
       const half = whirl ? Math.PI : HALF_ARC;
-      const sides = whirl ? 1 : this.s.count;
+      const sides = whirl ? 1 : this.cnt;
       const reaper = this.has('reaperHarvest');
       p.attackPose(p.x + Math.cos(base) * 10, 0.18);
       this.ctx.sfx('slash');
@@ -65,6 +52,9 @@ export class MantisBlade extends WeaponBase {
             }
           },
         );
+        // 무기 전용 칩셋 탄 반사: 베기에 닿은 적 탄을 되받아침 (블레이드 피해의 p%)
+        const ref = this.wc('p');
+        if (ref > 0) this.ctx.reflectEnemyBullets(p.x, p.y, r * HIT_MUL, (bx, by) => whirl || Math.abs(Phaser.Math.Angle.Wrap(Math.atan2(by - p.y, bx - p.x) - a)) <= half, (dmg * ref) / 100);
         this.slashes.push({ angle: a, half, r, life: 0.15 });
         // 칼날 궤적 그림 (회전 칼날은 네 방향)
         for (let q = 0; q < (whirl ? 4 : 1); q++) this.ctx.playFx('mantisBlade_slash', p.x, p.y, { angle: a + (q * Math.PI) / 2, originX: 8 / 48, scale: r / 40, frameTime: 0.035 });

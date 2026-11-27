@@ -4,9 +4,10 @@ import weapons from '../data/weapons.json';
 import abilities from '../data/abilities.json';
 import gameData from '../data/game.json';
 import { WEAPON_IDS, WeaponBase, type WeaponId } from '../weapons';
-import { WEAPON_MAX_LEVEL, type AbilityTier } from '../weapons/WeaponBase';
+import { WEAPON_MAX_LEVEL, weaponSlot, type AbilityTier } from '../weapons/WeaponBase';
 import type { Stats } from '../weapons/types';
 import { t } from '../i18n';
+import type { CardInfo } from '../ui/cardInfo';
 
 export type PassiveId = keyof typeof passives;
 export type Rarity = (typeof gameData.rarity)[number];
@@ -22,6 +23,10 @@ export interface PassiveState {
   abilities?: string[];
   /** 공격 속도 사이버웨어: 고를 때마다 곱해진 배율 (곱연산) */
   speedMul?: number;
+  /** 개편 2단계: 이 소켓에 낀 사이버웨어 아이템 id와 등급, 다음 레벨 설명 */
+  item?: string;
+  rarity?: string;
+  nextDesc?: string;
 }
 
 export interface Ability {
@@ -38,10 +43,26 @@ export interface Choice {
   levelLabel: string;
   /** 아직 없는 무기·사이버웨어 (신규) */
   isNew?: boolean;
+  /** 트윈스틱: 같은 소켓의 무기와 바꿔 끼는 카드 */
+  swap?: boolean;
+  /** 개편 2단계: 보급 상자 아이템 카드 (kind 'weapon'·'passive'와 함께, 장착하면 그 소켓에 들어감) */
+  item?: { kind: 'weapon' | 'cyber' | 'gear'; id: string };
+  /** 개편 2단계: 전설·신화 무기를 얻을 때 고르는 능력 카드 */
+  pickAbility?: { weapon: string; tier: 'legendary' | 'mythic' };
+  /** 카드 그림 이름 (card_<art>), 없으면 id */
+  art?: string;
+  /** 칩셋 카드 (칩셋 id) */
+  chipset?: string;
+  /** 등급 승급 카드 (이미 끼고 있는 아이템, rarity = 오를 등급) */
+  promote?: boolean;
+  /** 개편 2-2: 사이버웨어·장비 소켓 강화 카드 (소켓 부위) */
+  socket?: string;
   /** 최대 레벨인데 특수 능력만 받는 카드 (레벨은 오르지 않음) */
   maxed?: boolean;
   desc: string;
   ability?: Ability;
+  /** UI: 카드에 그릴 정리된 정보 (없으면 desc를 그대로) */
+  card?: CardInfo;
 }
 
 /** 공격 간격이 원래의 25%보다 짧아지지는 않게 (공격 속도 4배까지) */
@@ -103,18 +124,28 @@ export function rollChoices(
   owned: WeaponBase[],
   ownedPassives: Map<PassiveId, PassiveState>,
   mode?: string,
-  opts: { guaranteeWeapon?: boolean; pool?: readonly WeaponId[]; luck?: boolean; favor?: string; favorChance?: number; epicMul?: number } = {},
+  opts: { guaranteeWeapon?: boolean; pool?: readonly WeaponId[]; luck?: boolean; favor?: string; favorChance?: number; epicMul?: number; upgradesOnly?: boolean; sockets?: SocketCard[]; extras?: Choice[]; fillers?: Choice[] } = {},
 ): Choice[] {
+  // 개편 2단계: 레벨업 카드는 장착한 것(소켓)만 강화. 새 아이템·교체·특수 능력은 보급 상자에서
+  if (opts.upgradesOnly) return upgradeChoices(owned, ownedPassives, opts.sockets ?? [], opts.extras ?? [], opts.fillers);
   luck = !!opts.luck;
   epicMul = 1;
   const forcedRarity = mode === 'boss' ? undefined : mode;
   const pool: Omit<Choice, 'rarity' | 'desc'>[] = [];
+  // 트윈스틱: 주무기·보조무기 소켓 하나씩. 가진 무기는 강화, 소켓이 비었으면 신규, 차 있으면 교체 카드(소켓 레벨 이어받음) 몇 장만
+  const swaps: Omit<Choice, 'rarity' | 'desc'>[] = [];
   for (const id of WEAPON_IDS) {
     if (opts.pool && !opts.pool.includes(id)) continue;
     const w = owned.find((o) => o.id === id);
-    if (w && w.level < WEAPON_MAX_LEVEL) pool.push({ kind: 'weapon', id, title: w.name, levelLabel: `Lv.${w.level + 1}` });
-    else if (!w && owned.length < gameData.maxWeapons) pool.push({ kind: 'weapon', id, title: weapons[id].name, levelLabel: t('lvl.new'), isNew: true });
+    if (w) {
+      if (w.level < WEAPON_MAX_LEVEL) pool.push({ kind: 'weapon', id, title: w.name, levelLabel: `Lv.${w.level + 1}` });
+      continue;
+    }
+    const cur = owned.find((o) => o.slot === weaponSlot(id));
+    if (!cur) pool.push({ kind: 'weapon', id, title: weapons[id].name, levelLabel: t('lvl.new'), isNew: true });
+    else swaps.push({ kind: 'weapon', id, title: weapons[id].name, levelLabel: t('lvl.swap', { lv: cur.level }), isNew: true, swap: true });
   }
+  pool.push(...Phaser.Utils.Array.Shuffle(swaps).slice(0, gameData.twinStickCards.swapPerRoll));
   for (const id of PASSIVE_IDS) {
     const st = ownedPassives.get(id);
     if (st && st.level < passives[id].maxLevel) pool.push({ kind: 'passive', id, title: passives[id].name, levelLabel: `Lv.${st.level + 1}` });
@@ -159,7 +190,7 @@ export function rollChoices(
     }
   }
   // 초반 무기 확정: 무기가 적을 때는 새 무기 카드가 최소 한 장 나오게
-  const isNewWeapon = (c: (typeof pool)[number]) => c.kind === 'weapon' && !!c.isNew;
+  const isNewWeapon = (c: (typeof pool)[number]) => c.kind === 'weapon' && !!c.isNew && !c.swap;
   if (opts.guaranteeWeapon && !picks.some(isNewWeapon)) {
     const nw = pool.filter((c) => isNewWeapon(c) && !picks.includes(c));
     if (nw.length) {
@@ -190,6 +221,50 @@ export function rollChoices(
   while (out.length < 3 && left.length) {
     const o = left.pop()!;
     out.push({ kind: 'overflow', id: o.id, rarity: gameData.rarity[0], title: o.name, levelLabel: t('lvl.overflow'), desc: o.desc.replace('{v}', String(o.amount)) });
+  }
+  return out;
+}
+
+/** 개편 2단계 레벨업 카드: 장착한 무기 소켓(최대 8)·사이버웨어 소켓(최대 5) 강화 중 3장, 모자라면 작은 강화 */
+/** 레벨업 카드에 넣을 사이버웨어·장비 소켓 (GameScene이 만듦) */
+export interface SocketCard {
+  part: string;
+  id: string;
+  title: string;
+  level: number;
+  maxLevel: number;
+  /** 다음 레벨 효과 문구 */
+  nextDesc: string;
+  art?: string;
+}
+
+/** extras: 칩셋 카드 (강화 카드와 섞여 나옴, 소켓이 다 차면 칩셋만) */
+/** fillers: 모자라면 채울 카드 (칩·회복). 없으면 예전 반복 강화 카드 */
+function upgradeChoices(owned: WeaponBase[], ownedPassives: Map<PassiveId, PassiveState>, sockets: SocketCard[], extras: Choice[], fillers?: Choice[]): Choice[] {
+  const common = gameData.rarity[0];
+  const pool: Choice[] = [];
+  for (const w of owned) {
+    if (w.level >= WEAPON_MAX_LEVEL) continue;
+    pool.push({ kind: 'weapon', id: w.id, rarity: common, title: w.name, levelLabel: t('lvl.socket', { lv: w.level + 1 }), desc: WeaponBase.levelDesc(w.id, w.level + 1) });
+  }
+  for (const [id, st] of ownedPassives) {
+    if (st.level >= passives[id].maxLevel) continue;
+    pool.push({ kind: 'passive', id, rarity: common, title: passives[id].name, levelLabel: t('lvl.socket', { lv: st.level + 1 }), desc: st.nextDesc ?? passives[id].desc });
+  }
+  for (const k of sockets) {
+    if (k.level >= k.maxLevel) continue;
+    pool.push({ kind: 'passive', id: k.id, art: k.art, socket: k.part, rarity: common, title: k.title, levelLabel: t('lvl.socket', { lv: k.level + 1 }), desc: k.nextDesc });
+  }
+  pool.push(...extras);
+  const out = Phaser.Utils.Array.Shuffle(pool).slice(0, 3);
+  if (fillers) {
+    for (const f of fillers) if (out.length < 3) out.push(f);
+    return out;
+  }
+  const left = Phaser.Utils.Array.Shuffle(gameData.overflow.slice());
+  while (out.length < 3 && left.length) {
+    const o = left.pop()!;
+    out.push({ kind: 'overflow', id: o.id, rarity: common, title: o.name, levelLabel: t('lvl.overflow'), desc: o.desc.replace('{v}', String(o.amount)) });
   }
   return out;
 }
@@ -230,6 +305,9 @@ function describe(c: { kind: string; id: string }, rarity: Rarity, owned: Weapon
     const id = c.id as WeaponId;
     const w = owned.find((o) => o.id === id);
     let desc = w ? WeaponBase.levelDesc(id, w.level + 1) : weapons[id].desc;
+    // 교체 카드: 지금 그 소켓 무기와 레벨
+    const cur = w ? undefined : owned.find((o) => o.slot === weaponSlot(id));
+    if (cur) desc += t('lvl.swapDesc', { cur: cur.name, lv: cur.level });
     if (rarity.weaponBonus > 0) desc += t('lvl.bonus', { v: Math.round(rarity.weaponBonus * 100) });
     return desc;
   }

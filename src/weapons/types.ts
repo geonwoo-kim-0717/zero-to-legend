@@ -40,6 +40,10 @@ export interface GameContext {
   grid: SpatialGrid<Enemy>;
   stats: Stats;
   overdrive: boolean;
+  /** 뉴럴 오버클럭 중 공격속도 배율 (꺼져 있으면 1). OS 레벨마다 다름 */
+  readonly odFireMul: number;
+  /** 택티컬 OS: 표식된 적인지 (포탑이 먼저 노림) */
+  isMarked(e: Enemy): boolean;
   fx: Phaser.GameObjects.Graphics;
   /** 피해를 주고, 그 공격으로 죽었으면 true */
   damage(e: Enemy, amount: number, tag?: DamageTag): boolean;
@@ -53,6 +57,16 @@ export interface GameContext {
   screenFlash(color: number, alpha: number, ms: number): void;
   /** (x,y) 반경 r 안의 적 탄을 지운다. 지운 수 반환 */
   blockEnemyBullets(x: number, y: number, r: number): number;
+  /** (x,y) 반경 r 안에서 inArc를 만족하는 적 탄을 되받아친다 (쏜 쪽으로 dmg 피해 탄). 되받아친 수 반환 */
+  reflectEnemyBullets(x: number, y: number, r: number, inArc: (bx: number, by: number) => boolean, dmg: number): number;
+  /** (x,y) 반경 r 안의 가장 가까운 적 탄(미사일 포함)을 터뜨리고 그 자리를 돌려준다 (없으면 null) */
+  interceptEnemyBullet(x: number, y: number, r: number): { x: number; y: number } | null;
+  /** 적들을 seconds초 동안 이어, 하나가 입은 피해의 pct%를 나머지도 입게 한다 (연결 칩셋) */
+  linkEnemies(list: Enemy[], seconds: number, pct: number): void;
+  /** 적을 seconds초 동안 띄움: 공격·이동 못 하고, 떨어질 때 dmg 피해 (띄우기 칩셋, 보스 제외) */
+  launchEnemy(e: Enemy, seconds: number, dmg: number): void;
+  /** 폭발 한 번: 폭발 5단계 '대폭발'이면 n번째 폭발에 범위·피해 배율(아니면 1) */
+  boomScale(): number;
   /** 플레이어 중심 고리(안쪽 반지름~바깥 반지름)에 걸친 적 탄을 지운다 */
   blockEnemyBulletsRing(rIn: number, rOut: number): number;
   /** 적을 잠깐 느리게 (둔화 면역 카운터는 무시) */
@@ -69,4 +83,22 @@ export interface GameContext {
   playFx(name: string, x: number, y: number, o?: FxOpts): void;
   /** 지금 화면에 보이는 월드 영역 */
   view(): { x: number; y: number; width: number; height: number };
+  /** 트윈스틱 조준: 조준점(월드), 주무기 방아쇠(자동: 사거리 안에 적), 보조무기 신호(눌렀음, 아직 안 씀)와 쓸 자리 */
+  readonly aim: AimState;
+  /** 보조무기 신호를 썼음 (한 번 누르면 한 번만 발사) */
+  consumeSecondary(): void;
+  /** 개편 2-2: 켜진 효과 값 (사이버웨어·장비 cyber.·gear., 태그 단계 syn., 조합 combo.). 없으면 undefined */
+  mod(hook: string): Record<string, number> | undefined;
+  /** 개편 2-2: 이 무기의 배율 (dmg 피해, cd 공격 간격, sub 보조무기 재사용 대기, area 범위) */
+  weaponMul(id: string): { dmg: number; cd: number; sub: number; area: number };
+}
+
+export interface AimState {
+  x: number;
+  y: number;
+  primary: boolean;
+  secondary: boolean;
+  /** 보조무기를 쓸 자리 (월드) */
+  subX: number;
+  subY: number;
 }

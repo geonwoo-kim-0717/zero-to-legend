@@ -57,10 +57,16 @@ export class PlasmaGrenade extends WeaponBase {
     const { player: p, fx } = this.ctx;
     this.chainBudget = Math.min(25, this.chainBudget + 25 * dt);
     this.timer -= dt;
-    if (this.timer <= 0) {
-      // 궤도 폭격: 유탄 대신 3초마다 하늘에서 폭격
+    if (this.timer <= 0 && this.trigger) {
+      // 트윈스틱: 오른쪽 클릭으로 커서 자리에 던짐 (여러 개면 그 둘레에). 궤도 폭격은 3초마다 폭격
+      this.fired();
       this.timer = this.has('orbitalStrike') ? 3 : this.interval;
-      for (let i = 0; i < this.s.count; i++) this.throwOne(p.x, p.y);
+      const at = this.aimPoint(this.has('orbitalStrike') ? 300 : THROW_RANGE);
+      for (let i = 0; i < this.cnt; i++) {
+        const a = (i / Math.max(1, this.cnt)) * Math.PI * 2;
+        const r = i === 0 ? 0 : 28;
+        this.throwOne(p.x, p.y, at.x + Math.cos(a) * r, at.y + Math.sin(a) * r);
+      }
     }
 
     for (const g of this.grenades) {
@@ -125,6 +131,12 @@ export class PlasmaGrenade extends WeaponBase {
   }
 
   private explode(x: number, y: number, r: number, dmg: number, primary: boolean): void {
+    // 폭발 5단계 대폭발: n번째 폭발은 범위·피해 배율
+    if (primary) {
+      const big = this.ctx.boomScale();
+      r *= big;
+      dmg *= big;
+    }
     // 전설: 중력탄 — 주변 적을 중심으로 끌어당김
     if (primary && this.has('gravity')) {
       for (const e of this.ctx.grid.query(x, y, r * 2, this.pullBuf)) {
@@ -135,7 +147,11 @@ export class PlasmaGrenade extends WeaponBase {
       }
     }
     const chainOn = this.has('chainReaction');
+    // 무기 전용 칩셋 띄우기: 맞은 적이 t초 동안 떠올랐다가 떨어질 때 유탄 피해의 p%
+    const air = this.wc('t');
+    const airDmg = (dmg * this.wc('p', 50)) / 100;
     this.hitCircle(x, y, r, dmg, undefined, (e, killed) => {
+      if (!killed && air > 0) this.ctx.launchEnemy(e, air, airDmg);
       if (killed && chainOn && this.chainBudget >= 1 && this.chainFree(e.x, e.y)) {
         this.chainBudget--;
         // 연쇄될 때마다 피해 ×0.6 누적
@@ -163,20 +179,8 @@ export class PlasmaGrenade extends WeaponBase {
     this.grenades.push({ sx, sy, tx, ty, t: 0, fuse: mini ? 0.3 : FUSE, r, dmg, mini, orbital: false, sprite });
   }
 
-  private throwOne(px: number, py: number): void {
+  private throwOne(px: number, py: number, tx: number, ty: number): void {
     const orbital = this.has('orbitalStrike');
-    const range = orbital ? 300 : THROW_RANGE;
-    let tx = px + Phaser.Math.Between(-120, 120);
-    let ty = py + Phaser.Math.Between(-120, 120);
-    const list = this.ctx.enemies;
-    for (let tries = 0; tries < 12 && list.length > 0; tries++) {
-      const e = list[(Math.random() * list.length) | 0];
-      if (e.active && (e.x - px) ** 2 + (e.y - py) ** 2 < range * range) {
-        tx = e.x;
-        ty = e.y;
-        break;
-      }
-    }
     this.ctx.player.attackPose(tx, 0.2);
     const r = BASE_R * this.area;
     if (orbital) {
@@ -184,9 +188,14 @@ export class PlasmaGrenade extends WeaponBase {
       this.grenades.push({ sx: tx, sy: ty, tx, ty, t: 0, fuse: 0.6, r: r * 2, dmg: this.damage, mini: false, orbital: true, sprite: null });
     } else {
       // 유탄이 1개 늘 때마다 한 발 피해 -10% (장판·집속탄도 이 피해를 따름)
-      const split = Math.max(0.5, 1 - gameData.falloff.grenadeSplit * (this.s.count - 1));
+      const split = Math.max(0.5, 1 - gameData.falloff.grenadeSplit * (this.cnt - 1));
       this.launch(px, py, tx, ty, r, this.damage * split, false);
     }
+  }
+
+  /** 반격 유탄 조합: 플레이어 자리에서 (tx, ty)로 유탄 한 발 */
+  autoThrow(tx: number, ty: number): void {
+    this.throwOne(this.ctx.player.x, this.ctx.player.y, tx, ty);
   }
 
   destroy(): void {

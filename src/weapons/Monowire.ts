@@ -4,9 +4,10 @@ import type { Enemy } from '../entities/Enemy';
 
 const BASE_LEN = 118;
 /** 가까운 적을 찾는 거리 (없으면 이동 방향으로 휘두름) */
-const AIM_RANGE = 260;
 /** 실제 판정 길이 = 보이는 채찍 길이 × 1.1 */
 const HIT_MUL = 1.1;
+/** 연결 칩셋: 이어져 있는 시간 (초) */
+const LINK_T = 3;
 
 /** 모노와이어: 가장 가까운 적 방향(과 반대·옆)으로 긴 채찍. 줄 위의 적을 모두 베고 잠깐 느리게 */
 export class Monowire extends WeaponBase {
@@ -28,12 +29,13 @@ export class Monowire extends WeaponBase {
     const { player: p, fx } = this.ctx;
     this.timer -= dt;
     // 채찍 길이 안에 적이 있을 때만 휘두름 (판정은 이보다 10% 더 길어서, 휘두르면 끝의 작은 적도 맞음)
-    if (this.timer <= 0 && this.nearest(p.x, p.y, BASE_LEN * this.area)) {
+    if (this.timer <= 0 && this.trigger) {
       this.timer = this.interval;
-      const t = this.nearest(p.x, p.y, AIM_RANGE);
-      const base = t ? Math.atan2(t.y - p.y, t.x - p.x) : Math.atan2(p.dirY, p.dirX);
+      // 트윈스틱: 커서 방향으로 휘두름
+      const base = this.aimAngle;
+      p.attackPose(p.x + Math.cos(base) * 10, 0.18);
       // count 1: 앞, 2: 앞뒤, 4: 네 방향
-      const n = this.s.count >= 4 ? 4 : this.s.count;
+      const n = this.cnt >= 4 ? 4 : this.cnt;
       const step = n === 4 ? Math.PI / 2 : Math.PI;
       if (this.has('puppet') && (this.puppetT -= this.interval) <= 0) {
         this.puppetT = 8;
@@ -84,13 +86,14 @@ export class Monowire extends WeaponBase {
 
   private lash(angle: number, mul: number, wide = false): void {
     const p = this.ctx.player;
-    const len = BASE_LEN * this.area;
+    // 개편 2-2: 채찍 강화 조합(모노와이어+강화 근섬유)이 길이를 늘림
+    const len = BASE_LEN * this.area * (1 + (this.ctx.mod('combo.wireMuscle')?.v ?? 0) / 100);
     const x2 = p.x + Math.cos(angle) * len;
     const y2 = p.y + Math.sin(angle) * len;
     const dmg = this.damage * mul;
     const hx = p.x + Math.cos(angle) * len * HIT_MUL;
     const hy = p.y + Math.sin(angle) * len * HIT_MUL;
-    this.hitLine(p.x, p.y, hx, hy, 7, dmg, (e: Enemy, killed) => {
+    const hit = this.hitLine(p.x, p.y, hx, hy, 7, dmg, (e: Enemy, killed) => {
       this.ctx.playFx('monowire_hit', e.x, e.y);
       // Lv.4부터: 맞은 자리 주변 적 2명에게 확산 피해 (맞힌 피해의 50%)
       if (this.level >= 4) {
@@ -115,6 +118,12 @@ export class Monowire extends WeaponBase {
         this.ctx.charm(e, 3);
       }
     });
+    // 무기 전용 칩셋 연결: 함께 맞은 적끼리 LINK_T초 동안 이어져 피해의 s%를 나눔
+    const share = this.wc('s');
+    if (share > 0) {
+      const live = hit.filter((e) => e.active);
+      if (live.length >= 2) this.ctx.linkEnemies(live, LINK_T, share);
+    }
     if (this.lashes.length < 60) this.lashes.push({ x1: p.x, y1: p.y, x2, y2, life: 0.18, wide });
   }
 }

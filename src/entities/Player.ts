@@ -22,6 +22,8 @@ export class Player {
   cloakT = 0;
   dirX = 1;
   dirY = 0;
+  /** 트윈스틱 조준점 x (있으면 그쪽을 바라봄) */
+  aimX: number | null = null;
   readonly sprite: Phaser.GameObjects.Image;
   /** 걷기 그림이 있는 러너는 움직일 때 두 장을 번갈아 보여준다 */
   private readonly baseTex: string;
@@ -91,7 +93,9 @@ export class Player {
     this.glow.setPosition(this.x, this.y);
     // 피격 무적 중 깜빡임
     this.sprite.setAlpha(this.invuln > 0 && !this.dashing ? (Math.floor(this.invuln * 20) % 2 ? 0.3 : 1) : 1);
-    if (Math.abs(mx) > 0.01) this.sprite.setFlipX(mx < 0);
+    // 트윈스틱: 조준점 쪽을 바라봄 (조준점이 없으면 움직이는 쪽)
+    if (this.aimX !== null) this.sprite.setFlipX(this.aimX < this.x);
+    else if (Math.abs(mx) > 0.01) this.sprite.setFlipX(mx < 0);
     // 걷기 애니메이션 (초당 약 8프레임)
     this.atkT = Math.max(0, this.atkT - dt);
     if (this.walkTex) {

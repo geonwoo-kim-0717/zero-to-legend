@@ -1,0 +1,1620 @@
+{
+ "note": "OS 설계실 편집 페이지에서 옮김 (tools/redesign/import_editor.py). 직접 고치지 말고 편집 페이지에서 고친 뒤 다시 옮길 것",
+ "items": {
+  "n_accel": {
+   "kind": "cyber",
+   "part": "neural",
+   "name": "신경 가속기",
+   "nameEn": "Neural Accelerator",
+   "tags": [
+    "전기"
+   ],
+   "text": "모든 무기 공격 속도 +{v}%",
+   "params": {
+    "v": {
+     "base": 8,
+     "perLv": 6
+    }
+   },
+   "rarityKeys": [
+    "v"
+   ],
+   "maxLevel": 5,
+   "enabled": true,
+   "hook": "cyber.atkSpeed"
+  },
+  "n_reflex": {
+   "kind": "cyber",
+   "part": "neural",
+   "name": "반사 신경 증폭기",
+   "nameEn": "Reflex Booster",
+   "tags": [
+    "근접"
+   ],
+   "text": "대시 재사용 대기 -{v}%",
+   "params": {
+    "v": {
+     "base": 8,
+     "perLv": 5
+    }
+   },
+   "rarityKeys": [
+    "v"
+   ],
+   "maxLevel": 5,
+   "enabled": true,
+   "hook": "cyber.dashCd"
+  },
+  "n_multitask": {
+   "kind": "cyber",
+   "part": "neural",
+   "name": "멀티태스킹 프로세서",
+   "nameEn": "Multitask CPU",
+   "tags": [
+    "기계",
+    "해킹"
+   ],
+   "text": "보조무기 재사용 대기 -{v}%",
+   "params": {
+    "v": {
+     "base": 8,
+     "perLv": 5
+    }
+   },
+   "rarityKeys": [
+    "v"
+   ],
+   "maxLevel": 5,
+   "enabled": true,
+   "hook": "cyber.subCd"
+  },
+  "o_target": {
+   "kind": "cyber",
+   "part": "optic",
+   "name": "타겟팅 아이",
+   "nameEn": "Targeting Eye",
+   "tags": [
+    "정밀"
+   ],
+   "text": "치명타 확률 +{v}% (치명타 피해 ×2)",
+   "params": {
+    "v": {
+     "base": 5,
+     "perLv": 3
+    }
+   },
+   "rarityKeys": [
+    "v"
+   ],
+   "maxLevel": 5,
+   "enabled": true,
+   "hook": "cyber.crit"
+  },
+  "o_thermal": {
+   "kind": "cyber",
+   "part": "optic",
+   "name": "열 감지 시야",
+   "nameEn": "Thermal Vision",
+   "tags": [
+    "정밀",
+    "폭발"
+   ],
+   "text": "엘리트·보스에게 주는 피해 +{v}%",
+   "params": {
+    "v": {
+     "base": 8,
+     "perLv": 5
+    }
+   },
+   "rarityKeys": [
+    "v"
+   ],
+   "maxLevel": 5,
+   "enabled": true,
+   "hook": "cyber.eliteDmg"
+  },
+  "o_collector": {
+   "kind": "cyber",
+   "part": "optic",
+   "name": "수집 시야",
+   "nameEn": "Collector Optics",
+   "tags": [
+    "해킹"
+   ],
+   "text": "아이템 획득 범위 +{v}%, 칩 획득 +{chip}%",
+   "params": {
+    "chip": {
+     "base": 5,
+     "perLv": 5
+    },
+    "v": {
+     "base": 25,
+     "perLv": 15
+    }
+   },
+   "rarityKeys": [
+    "v",
+    "chip"
+   ],
+   "maxLevel": 5,
+   "enabled": true,
+   "hook": "cyber.pickup"
+  },
+  "s_muscle": {
+   "kind": "cyber",
+   "part": "skeletal",
+   "name": "강화 근섬유",
+   "nameEn": "Muscle Fiber",
+   "tags": [
+    "근접"
+   ],
+   "text": "모든 무기 공격력 +{v}%",
+   "params": {
+    "v": {
+     "base": 8,
+     "perLv": 6
+    }
+   },
+   "rarityKeys": [
+    "v"
+   ],
+   "maxLevel": 5,
+   "enabled": true,
+   "hook": "cyber.dmg"
+  },
+  "s_dermal": {
+   "kind": "cyber",
+   "part": "skeletal",
+   "name": "피하 장갑",
+   "nameEn": "Dermal Plating",
+   "tags": [
+    "기계"
+   ],
+   "text": "최대 체력 +{v}",
+   "params": {
+    "v": {
+     "base": 15,
+     "perLv": 10
+    }
+   },
+   "rarityKeys": [
+    "v"
+   ],
+   "maxLevel": 5,
+   "enabled": true,
+   "hook": "cyber.maxHp"
+  },
+  "s_hydraulic": {
+   "kind": "cyber",
+   "part": "skeletal",
+   "name": "유압식 하지",
+   "nameEn": "Hydraulic Legs",
+   "tags": [
+    "근접"
+   ],
+   "text": "이동 속도 +{v}%",
+   "params": {
+    "v": {
+     "base": 5,
+     "perLv": 3
+    }
+   },
+   "rarityKeys": [
+    "v"
+   ],
+   "maxLevel": 5,
+   "enabled": true,
+   "hook": "cyber.move"
+  },
+  "g_exo": {
+   "kind": "gear",
+   "part": "defense",
+   "name": "강화 외골격",
+   "nameEn": "Exo Frame",
+   "tags": [
+    "근접"
+   ],
+   "text": "받는 피해 -{v}%",
+   "params": {
+    "v": {
+     "base": 6,
+     "perLv": 3
+    }
+   },
+   "rarityKeys": [
+    "v"
+   ],
+   "maxLevel": 5,
+   "enabled": true,
+   "hook": "gear.dr"
+  },
+  "g_shield": {
+   "kind": "gear",
+   "part": "defense",
+   "name": "에너지 실드",
+   "nameEn": "Energy Shield",
+   "tags": [
+    "전기"
+   ],
+   "text": "{cd}초마다 피해 {v} 흡수 보호막",
+   "params": {
+    "cd": {
+     "base": 12,
+     "perLv": -1
+    },
+    "v": {
+     "base": 15,
+     "perLv": 8
+    }
+   },
+   "rarityKeys": [
+    "v"
+   ],
+   "maxLevel": 5,
+   "enabled": true,
+   "hook": "gear.shield"
+  },
+  "g_nano": {
+   "kind": "gear",
+   "part": "defense",
+   "name": "나노 수복기",
+   "nameEn": "Nano Repair",
+   "tags": [
+    "기계"
+   ],
+   "text": "초당 체력 {v} 회복",
+   "params": {
+    "v": {
+     "base": 0.4,
+     "perLv": 0.3
+    }
+   },
+   "rarityKeys": [
+    "v"
+   ],
+   "maxLevel": 5,
+   "enabled": true,
+   "hook": "gear.regen"
+  },
+  "g_reactive": {
+   "kind": "gear",
+   "part": "defense",
+   "name": "반응 장갑",
+   "nameEn": "Reactive Armor",
+   "tags": [
+    "폭발"
+   ],
+   "text": "맞으면 주변 {r}px 충격파 {v} 피해 (1초에 1번)",
+   "params": {
+    "r": {
+     "base": 70,
+     "perLv": 5
+    },
+    "v": {
+     "base": 30,
+     "perLv": 20
+    }
+   },
+   "rarityKeys": [
+    "v"
+   ],
+   "maxLevel": 5,
+   "enabled": true,
+   "hook": "gear.reactive"
+  },
+  "t_dock": {
+   "kind": "gear",
+   "part": "tactical",
+   "name": "드론 도킹 모듈",
+   "nameEn": "Drone Dock",
+   "tags": [
+    "기계"
+   ],
+   "text": "드론·포탑 피해 +{v}%",
+   "params": {
+    "v": {
+     "base": 15,
+     "perLv": 10
+    }
+   },
+   "rarityKeys": [
+    "v"
+   ],
+   "maxLevel": 5,
+   "enabled": true,
+   "hook": "gear.mechDmg"
+  },
+  "t_amp": {
+   "kind": "gear",
+   "part": "tactical",
+   "name": "전파 증폭기",
+   "nameEn": "Signal Amplifier",
+   "tags": [
+    "전기"
+   ],
+   "text": "전기 공격 범위·연쇄 거리 +{v}%",
+   "params": {
+    "v": {
+     "base": 10,
+     "perLv": 8
+    }
+   },
+   "rarityKeys": [
+    "v"
+   ],
+   "maxLevel": 5,
+   "enabled": true,
+   "hook": "gear.elecRange"
+  },
+  "t_adren": {
+   "kind": "gear",
+   "part": "tactical",
+   "name": "아드레날린 주입기",
+   "nameEn": "Adrenal Injector",
+   "tags": [
+    "근접"
+   ],
+   "text": "체력 50% 이하일 때 공격 속도 +{v}%",
+   "params": {
+    "v": {
+     "base": 15,
+     "perLv": 10
+    }
+   },
+   "rarityKeys": [
+    "v"
+   ],
+   "maxLevel": 5,
+   "enabled": true,
+   "hook": "gear.lowHpSpeed"
+  },
+  "t_scanner": {
+   "kind": "gear",
+   "part": "tactical",
+   "name": "전술 스캐너",
+   "nameEn": "Tactical Scanner",
+   "tags": [
+    "정밀",
+    "해킹"
+   ],
+   "text": "커서 근처 적에게 약점 표시: 받는 피해 +{v}%",
+   "params": {
+    "v": {
+     "base": 10,
+     "perLv": 5
+    }
+   },
+   "rarityKeys": [
+    "v"
+   ],
+   "maxLevel": 5,
+   "enabled": true,
+   "hook": "gear.mark"
+  }
+ },
+ "weaponTags": {
+  "smartPistol": [
+   "정밀",
+   "해킹"
+  ],
+  "shotgun": [
+   "근접"
+  ],
+  "railgun": [
+   "정밀",
+   "전기"
+  ],
+  "mantisBlade": [
+   "근접"
+  ],
+  "monowire": [
+   "근접",
+   "해킹"
+  ],
+  "arcCoil": [
+   "전기"
+  ],
+  "plasmaGrenade": [
+   "폭발"
+  ],
+  "microMissile": [
+   "폭발",
+   "기계"
+  ],
+  "proxMine": [
+   "폭발"
+  ],
+  "turret": [
+   "정밀",
+   "기계"
+  ],
+  "hackDrone": [
+   "기계",
+   "해킹",
+   "전기"
+  ],
+  "empField": [
+   "전기",
+   "해킹"
+  ]
+ },
+ "abilityTags": {
+  "smartPistol": {
+   "chainShot": [
+    "전기"
+   ],
+   "targetLock": [
+    "정밀"
+   ],
+   "bulletStorm": [],
+   "deadeye": [
+    "정밀"
+   ]
+  },
+  "mantisBlade": {
+   "swordWave": [
+    "정밀"
+   ],
+   "counterStance": [
+    "근접"
+   ],
+   "whirlwind": [
+    "근접"
+   ],
+   "reaperHarvest": [
+    "근접"
+   ]
+  },
+  "hackDrone": {
+   "kamikazeDrone": [
+    "폭발"
+   ],
+   "defenseOrbit": [
+    "기계"
+   ],
+   "swarm": [],
+   "netCrash": [
+    "전기"
+   ]
+  },
+  "plasmaGrenade": {
+   "plasmaPool": [
+    "폭발"
+   ],
+   "cluster": [
+    "폭발"
+   ],
+   "gravity": [
+    "해킹"
+   ],
+   "orbitalStrike": [
+    "정밀"
+   ],
+   "chainReaction": [
+    "폭발"
+   ]
+  },
+  "monowire": {
+   "entangle": [
+    "해킹"
+   ],
+   "bleed": [
+    "근접"
+   ],
+   "rewind": [],
+   "laserNet": [],
+   "cutStorm": [],
+   "puppet": [
+    "해킹"
+   ]
+  },
+  "empField": {
+   "overcharge": [
+    "해킹"
+   ],
+   "magShield": [
+    "기계"
+   ],
+   "ampCurrent": [],
+   "blackout": [
+    "폭발"
+   ],
+   "roamStorm": [],
+   "shutdown": [
+    "해킹"
+   ]
+  },
+  "railgun": {
+   "piercingAmp": [
+    "정밀"
+   ],
+   "heatTrail": [
+    "폭발"
+   ],
+   "weakSpot": [
+    "정밀"
+   ],
+   "crossfire": [],
+   "orbitalRail": [],
+   "chargeShot": [
+    "정밀"
+   ]
+  },
+  "shotgun": {
+   "slug": [
+    "정밀"
+   ],
+   "dragonBreath": [
+    "폭발"
+   ],
+   "closeHunt": [
+    "근접"
+   ],
+   "doubleTap": [],
+   "flechette": [],
+   "shrapnel": [
+    "폭발"
+   ]
+  },
+  "turret": {
+   "repairPost": [
+    "근접"
+   ],
+   "rocketPost": [
+    "폭발"
+   ],
+   "sentryNet": [],
+   "fortress": [
+    "전기"
+   ],
+   "mobilePost": [
+    "근접"
+   ]
+  },
+  "microMissile": {
+   "cluster": [],
+   "incendiary": [
+    "폭발"
+   ],
+   "retarget": [
+    "정밀"
+   ],
+   "missileStorm": [],
+   "bigWarhead": [
+    "정밀"
+   ],
+   "infiniteReload": []
+  },
+  "arcCoil": {
+   "staticShock": [
+    "해킹"
+   ],
+   "overcurrent": [],
+   "lightningRod": [
+    "근접"
+   ],
+   "thunderstorm": [],
+   "teslaCage": [
+    "기계"
+   ],
+   "boltDash": [
+    "근접"
+   ]
+  },
+  "proxMine": {
+   "sticky": [
+    "기계"
+   ],
+   "fragMine": [
+    "정밀"
+   ],
+   "claymore": [
+    "근접"
+   ],
+   "mineRain": [],
+   "blackHole": [
+    "해킹"
+   ]
+  }
+ },
+ "abilityMemos": {
+  "smartPistol.bulletStorm": "탄막오버로드로 발사된 총알도 적을 추적"
+ },
+ "tagTiers": {
+  "전기": [
+   {
+    "count": 2,
+    "hook": "syn.elec2",
+    "params": {
+     "chance": 25,
+     "dps": 10,
+     "dur": 2
+    },
+    "text": "전기 공격에 맞은 적 {chance}% 확률로 감전 ({dur}초, 초당 {dps} 피해)"
+   },
+   {
+    "count": 3,
+    "hook": "syn.elec3",
+    "params": {
+     "n": 2
+    },
+    "text": "감전된 적이 죽으면 근처 {n}명에게 번개"
+   },
+   {
+    "count": 4,
+    "hook": "syn.elec4",
+    "params": {
+     "mul": 2,
+     "n": 2
+    },
+    "text": "번개 연쇄 +{n}, 감전 피해 ×{mul}"
+   },
+   {
+    "count": 5,
+    "hook": "syn.elec5",
+    "params": {
+     "dmg": 80,
+     "n": 100
+    },
+    "text": "과충전: 전기 공격이 {n}번 적중할 때마다 화면 안의 모든 적에게 방전해 {dmg} 피해를 준다.",
+    "textEn": "Overcharge: Every {n} electric hits discharge across the screen, dealing {dmg} damage to every foe."
+   }
+  ],
+  "폭발": [
+   {
+    "count": 2,
+    "hook": "syn.boom2",
+    "params": {
+     "v": 15
+    },
+    "text": "폭발 범위 +{v}%"
+   },
+   {
+    "count": 3,
+    "hook": "syn.boom3",
+    "params": {
+     "dps": 10,
+     "dur": 2
+    },
+    "text": "폭발에 맞은 적 {dur}초 화상 (초당 {dps})"
+   },
+   {
+    "count": 4,
+    "hook": "syn.boom4",
+    "params": {
+     "delay": 0.4,
+     "pct": 40
+    },
+    "text": "폭발이 {delay}초 뒤 한 번 더 작게 터짐 ({pct}% 피해)"
+   },
+   {
+    "count": 5,
+    "hook": "syn.boom5",
+    "params": {
+     "mul": 2,
+     "n": 10
+    },
+    "text": "대폭발: 폭발 {n}번 중 한 번은 범위와 피해가 {mul}배인 큰 폭발로 터진다.",
+    "textEn": "Big Bang: Every {n}th explosion is a big one with {mul}× area and damage."
+   }
+  ],
+  "정밀": [
+   {
+    "count": 2,
+    "hook": "syn.prec2",
+    "params": {
+     "v": 5
+    },
+    "text": "치명타 확률 +{v}%"
+   },
+   {
+    "count": 3,
+    "hook": "syn.prec3",
+    "params": {
+     "mul": 2
+    },
+    "text": "치명타 피해 ×{mul}"
+   },
+   {
+    "count": 4,
+    "hook": "syn.prec4",
+    "params": {
+     "n": 1
+    },
+    "text": "치명타는 관통 +{n}"
+   },
+   {
+    "count": 5,
+    "hook": "syn.prec5",
+    "params": {
+     "max": 5,
+     "t": 3,
+     "v": 5
+    },
+    "text": "집중: 치명타로 처치하면 {t}초 동안 공격 속도가 {v}% 오르고, 최대 {max}번까지 겹친다.",
+    "textEn": "Focus: Critical kills raise attack speed by {v}% for {t}s, stacking up to {max} times."
+   }
+  ],
+  "근접": [
+   {
+    "count": 2,
+    "hook": "syn.melee2",
+    "params": {
+     "v": 30
+    },
+    "text": "근접 피해 +{v}%"
+   },
+   {
+    "count": 3,
+    "hook": "syn.melee3",
+    "params": {
+     "heal": 1
+    },
+    "text": "근접 무기로 처치하면 체력 +{heal}"
+   },
+   {
+    "count": 4,
+    "hook": "syn.melee4",
+    "params": {
+     "dmg": 100,
+     "r": 150
+    },
+    "text": "대시가 끝날 때 주변 {r}px 베기 ({dmg} 피해)"
+   },
+   {
+    "count": 5,
+    "hook": "syn.melee5",
+    "params": {
+     "n": 15
+    },
+    "text": "연속 돌진: 근접 무기로 {n}명을 처치할 때마다 대시 재사용 대기가 바로 끝난다.",
+    "textEn": "Dash Chain: Every {n} melee kills instantly reset your dash."
+   }
+  ],
+  "기계": [
+   {
+    "count": 2,
+    "hook": "syn.mech2",
+    "params": {
+     "n": 1
+    },
+    "text": "드론·포탑 수 +{n}"
+   },
+   {
+    "count": 3,
+    "hook": "syn.mech3",
+    "params": {
+     "v": 25
+    },
+    "text": "드론·포탑 공격 속도 +{v}%"
+   },
+   {
+    "count": 4,
+    "hook": "syn.mech4",
+    "params": {
+     "dmg": 150,
+     "r": 100
+    },
+    "text": "포탑이 사라질 때 반경 {r}px 폭발 ({dmg} 피해)"
+   },
+   {
+    "count": 5,
+    "hook": "syn.mech5",
+    "params": {
+     "max": 3,
+     "n": 30,
+     "t": 10
+    },
+    "text": "부품 조립: 드론과 포탑이 {n}명을 처치할 때마다 작은 드론 1기가 {t}초 동안 따라다니며 사격하고, 최대 {max}기까지 모인다.",
+    "textEn": "Assembly: Every {n} kills by drones and turrets assemble a mini drone that follows and fires for {t}s, up to {max} at once."
+   }
+  ],
+  "해킹": [
+   {
+    "count": 2,
+    "hook": "syn.hack2",
+    "params": {
+     "v": 50
+    },
+    "text": "아군이 된 적의 지속 시간 +{v}%"
+   },
+   {
+    "count": 3,
+    "hook": "syn.hack3",
+    "params": {
+     "chance": 10,
+     "dur": 4
+    },
+    "text": "처치하면 {chance}% 확률로 근처 적 1명을 {dur}초 아군화"
+   },
+   {
+    "count": 4,
+    "hook": "syn.hack4",
+    "params": {
+     "r": 70,
+     "slow": 1.5
+    },
+    "text": "아군화된 적이 죽으면 반경 {r}px EMP (감속 {slow}초)"
+   },
+   {
+    "count": 5,
+    "hook": "syn.hack5",
+    "params": {
+     "atk": 50,
+     "n": 5,
+     "scale": 1.2,
+     "spd": 50
+    },
+    "text": "사이코시스: 아군이 된 적 중 무작위 {n}명이 광폭화하여 공격력과 이동 속도가 {atk}% 오른다.",
+    "textEn": "Psychosis: {n} random allies go berserk, gaining {atk}% attack and move speed."
+   }
+  ]
+ },
+ "combos": {
+  "c_droneNeural": {
+   "name": "신경 해킹망",
+   "needs": [
+    "hackDrone",
+    "n_multitask"
+   ],
+   "text": "드론에 맞은 적 {chance}% 확률로 {dur}초 아군화",
+   "params": {
+    "chance": 15,
+    "dur": 3
+   },
+   "hook": "combo.droneNeural",
+   "enabled": true
+  },
+  "c_empShield": {
+   "name": "과부하 실드",
+   "needs": [
+    "empField",
+    "g_shield"
+   ],
+   "text": "보호막이 깨질 때 반경 {r}px EMP 폭발 ({dmg} 피해)",
+   "params": {
+    "dmg": 60,
+    "r": 90
+   },
+   "hook": "combo.empShield",
+   "enabled": true
+  },
+  "c_railEye": {
+   "name": "저격 조준선",
+   "needs": [
+    "railgun",
+    "o_target"
+   ],
+   "text": "레일건 치명타 피해 +{v}%",
+   "params": {
+    "v": 50
+   },
+   "hook": "combo.railEye",
+   "enabled": true
+  },
+  "c_turretDock": {
+   "name": "포탑 거점",
+   "needs": [
+    "turret",
+    "t_dock"
+   ],
+   "text": "포탑 동시 설치 +{n}",
+   "params": {
+    "n": 1
+   },
+   "hook": "combo.turretDock",
+   "enabled": true
+  },
+  "c_bladeReflex": {
+   "name": "반격 베기",
+   "needs": [
+    "mantisBlade",
+    "n_reflex"
+   ],
+   "text": "대시 직후 {t}초 안의 베기 피해 ×{mul}",
+   "params": {
+    "mul": 2,
+    "t": 0.5
+   },
+   "hook": "combo.bladeReflex",
+   "enabled": true
+  },
+  "c_coilAmp": {
+   "name": "폭풍 코일",
+   "needs": [
+    "arcCoil",
+    "t_amp"
+   ],
+   "text": "아크 코일 연쇄 +{n}",
+   "params": {
+    "n": 2
+   },
+   "hook": "combo.coilAmp",
+   "enabled": true
+  },
+  "c_grenadeReactive": {
+   "name": "반격 유탄",
+   "needs": [
+    "plasmaGrenade",
+    "g_reactive"
+   ],
+   "text": "맞으면 유탄 {n}개를 공격한 적에게 자동 발사 ({cd}초에 1번)",
+   "params": {
+    "cd": 2,
+    "n": 1
+   },
+   "hook": "combo.grenadeReactive",
+   "enabled": true
+  },
+  "c_shotgunLegs": {
+   "name": "돌격 산탄",
+   "needs": [
+    "shotgun",
+    "s_hydraulic"
+   ],
+   "text": "대시하면 샷건 재장전 즉시",
+   "params": {},
+   "hook": "combo.shotgunLegs",
+   "enabled": true
+  },
+  "c_missileThermal": {
+   "name": "열추적 탄두",
+   "needs": [
+    "microMissile",
+    "o_thermal"
+   ],
+   "text": "미사일이 엘리트·보스를 먼저 노리고 피해 +{v}%",
+   "params": {
+    "v": 30
+   },
+   "hook": "combo.missileThermal",
+   "enabled": true
+  },
+  "c_wireMuscle": {
+   "name": "장력 강화",
+   "needs": [
+    "monowire",
+    "s_muscle"
+   ],
+   "text": "채찍 길이 +{v}%, 채찍 데미지 +30%",
+   "params": {
+    "v": 30
+   },
+   "hook": "combo.wireMuscle",
+   "enabled": true
+  },
+  "c_droneScanner": {
+   "name": "드론 저격망",
+   "needs": [
+    "hackDrone",
+    "t_scanner"
+   ],
+   "text": "드론이 켜진 동안 {range}px 안의 적에게 레이저 (드론 피해의 {pct}%, {gap}초마다, 표식된 적 먼저)",
+   "params": {
+    "gap": 0.8,
+    "pct": 60,
+    "range": 150
+   },
+   "hook": "combo.droneScanner",
+   "enabled": true
+  }
+ },
+ "chipsets": {
+  "cs_dmg": {
+   "name": "공격 칩셋",
+   "nameEn": "Power Chipset",
+   "kind": "stat",
+   "text": "모든 피해 +{v}%",
+   "params": {
+    "v": {
+     "base": 4,
+     "per": 4
+    }
+   },
+   "hook": "chip.dmg",
+   "weight": 1,
+   "price": 45,
+   "enabled": false
+  },
+  "cs_rate": {
+   "name": "클럭 칩셋",
+   "nameEn": "Clock Chipset",
+   "kind": "stat",
+   "text": "공격 속도 +{v}%",
+   "params": {
+    "v": {
+     "base": 4,
+     "per": 4
+    }
+   },
+   "hook": "chip.atkSpeed",
+   "weight": 1,
+   "price": 45,
+   "enabled": false
+  },
+  "cs_hp": {
+   "name": "장갑 칩셋",
+   "nameEn": "Plating Chipset",
+   "kind": "stat",
+   "text": "최대 체력 +{v}",
+   "params": {
+    "v": {
+     "base": 8,
+     "per": 8
+    }
+   },
+   "hook": "chip.maxHp",
+   "weight": 1,
+   "price": 45,
+   "enabled": false
+  },
+  "cs_move": {
+   "name": "구동 칩셋",
+   "nameEn": "Servo Chipset",
+   "kind": "stat",
+   "text": "이동 속도 +{v}%",
+   "params": {
+    "v": {
+     "base": 3,
+     "per": 3
+    }
+   },
+   "hook": "chip.move",
+   "weight": 1,
+   "price": 45,
+   "enabled": false
+  },
+  "cs_crit": {
+   "name": "조준 칩셋",
+   "nameEn": "Aim Chipset",
+   "kind": "stat",
+   "text": "치명타 확률 +{v}%",
+   "params": {
+    "v": {
+     "base": 2,
+     "per": 2
+    }
+   },
+   "hook": "chip.crit",
+   "weight": 1,
+   "price": 45,
+   "enabled": false
+  },
+  "cs_area": {
+   "name": "확산 칩셋",
+   "nameEn": "Spread Chipset",
+   "kind": "stat",
+   "text": "공격 범위 +{v}%",
+   "params": {
+    "v": {
+     "base": 4,
+     "per": 4
+    }
+   },
+   "hook": "chip.area",
+   "weight": 1,
+   "price": 45,
+   "enabled": false
+  },
+  "cs_pick": {
+   "name": "자석 칩셋",
+   "nameEn": "Magnet Chipset",
+   "kind": "stat",
+   "text": "아이템 획득 범위 +{v}%",
+   "params": {
+    "v": {
+     "base": 10,
+     "per": 10
+    }
+   },
+   "hook": "chip.pickup",
+   "weight": 1,
+   "price": 45,
+   "enabled": false
+  },
+  "cs_xp": {
+   "name": "학습 칩셋",
+   "nameEn": "Learning Chipset",
+   "kind": "stat",
+   "text": "경험치 +{v}%",
+   "params": {
+    "v": {
+     "base": 5,
+     "per": 5
+    }
+   },
+   "hook": "chip.xp",
+   "weight": 1,
+   "price": 45,
+   "enabled": false
+  },
+  "cs_regen": {
+   "name": "재생 칩셋",
+   "nameEn": "Regen Chipset",
+   "kind": "stat",
+   "text": "초당 체력 {v} 회복",
+   "params": {
+    "v": {
+     "base": 0.2,
+     "per": 0.2
+    }
+   },
+   "hook": "chip.regen",
+   "weight": 1,
+   "price": 45,
+   "enabled": false
+  },
+  "cs_dr": {
+   "name": "완충 칩셋",
+   "nameEn": "Buffer Chipset",
+   "kind": "stat",
+   "text": "받는 피해 -{v}% (최대 50%)",
+   "params": {
+    "v": {
+     "base": 2,
+     "per": 2
+    }
+   },
+   "hook": "chip.dr",
+   "weight": 1,
+   "price": 45,
+   "enabled": false
+  },
+  "cs_killBoom": {
+   "name": "연쇄 폭발",
+   "nameEn": "Chain Blast",
+   "kind": "special",
+   "text": "처치하면 {chance}% 확률로 반경 {r}px 폭발 ({dmg} 피해)",
+   "params": {
+    "chance": {
+     "base": 8,
+     "per": 4
+    },
+    "dmg": {
+     "base": 20,
+     "per": 10
+    },
+    "r": {
+     "base": 40,
+     "per": 0
+    }
+   },
+   "hook": "chip.killBoom",
+   "weight": 1,
+   "price": 45,
+   "enabled": true
+  },
+  "cs_dashBolt": {
+   "name": "대시 방전",
+   "nameEn": "Dash Discharge",
+   "kind": "special",
+   "text": "대시가 끝나면 가까운 적 {n}명에게 번개 ({dmg} 피해)",
+   "params": {
+    "dmg": {
+     "base": 25,
+     "per": 10
+    },
+    "n": {
+     "base": 2,
+     "per": 1
+    }
+   },
+   "hook": "chip.dashBolt",
+   "weight": 1,
+   "price": 45,
+   "enabled": true
+  },
+  "cs_rhythm": {
+   "name": "리듬 탄",
+   "nameEn": "Rhythm Round",
+   "kind": "special",
+   "text": "주무기가 {n}번 맞힐 때마다 한 번 피해 ×{mul}",
+   "params": {
+    "mul": {
+     "base": 2,
+     "per": 0.5
+    },
+    "n": {
+     "base": 8,
+     "per": 0
+    }
+   },
+   "hook": "chip.rhythm",
+   "weight": 1,
+   "price": 45,
+   "enabled": true
+  },
+  "cs_hurtZap": {
+   "name": "피격 방전",
+   "nameEn": "Pain Discharge",
+   "kind": "special",
+   "text": "맞으면 가까운 적 {n}명에게 번개 ({dmg} 피해)",
+   "params": {
+    "dmg": {
+     "base": 30,
+     "per": 10
+    },
+    "n": {
+     "base": 2,
+     "per": 1
+    }
+   },
+   "hook": "chip.hurtZap",
+   "weight": 1,
+   "price": 45,
+   "enabled": true
+  },
+  "cs_vamp": {
+   "name": "흡혈 칩셋",
+   "nameEn": "Leech Chipset",
+   "kind": "special",
+   "text": "처치하면 {chance}% 확률로 체력 +{heal}",
+   "params": {
+    "chance": {
+     "base": 6,
+     "per": 3
+    },
+    "heal": {
+     "base": 2,
+     "per": 0
+    }
+   },
+   "hook": "chip.vamp",
+   "weight": 1,
+   "price": 45,
+   "enabled": true
+  },
+  "cs_luck": {
+   "name": "행운 칩셋",
+   "nameEn": "Luck Chipset",
+   "kind": "special",
+   "text": "칩 획득 +{v}%",
+   "params": {
+    "v": {
+     "base": 10,
+     "per": 10
+    }
+   },
+   "hook": "chip.chips",
+   "weight": 1,
+   "price": 45,
+   "enabled": true
+  },
+  "cs_killShield": {
+   "name": "처치 보호막",
+   "nameEn": "Kill Shield",
+   "kind": "special",
+   "text": "{n}명 처치마다 보호막 {v} (5초)",
+   "params": {
+    "n": {
+     "base": 25,
+     "per": 0
+    },
+    "v": {
+     "base": 10,
+     "per": 5
+    }
+   },
+   "hook": "chip.killShield",
+   "weight": 1,
+   "price": 45,
+   "enabled": true
+  },
+  "cs_execute": {
+   "name": "처형 칩셋",
+   "nameEn": "Executioner Chipset",
+   "kind": "special",
+   "text": "체력 {v}% 이하 일반 적은 맞으면 즉사 (최대 30%)",
+   "params": {
+    "v": {
+     "base": 6,
+     "per": 2
+    }
+   },
+   "hook": "chip.execute",
+   "weight": 1,
+   "price": 45,
+   "enabled": true
+  },
+  "cs_hunter": {
+   "name": "사냥꾼 칩셋",
+   "nameEn": "Hunter Chipset",
+   "kind": "special",
+   "text": "엘리트·보스 피해 +{v}%",
+   "params": {
+    "v": {
+     "base": 6,
+     "per": 6
+    }
+   },
+   "hook": "chip.bossDmg",
+   "weight": 1,
+   "price": 45,
+   "enabled": true
+  },
+  "cs_frost": {
+   "name": "냉각 칩셋",
+   "nameEn": "Frost Chipset",
+   "kind": "special",
+   "text": "주변 {r}px 적 감속",
+   "params": {
+    "r": {
+     "base": 50,
+     "per": 10
+    }
+   },
+   "hook": "chip.frost",
+   "weight": 1,
+   "price": 45,
+   "enabled": true
+  },
+  "cw_smartPistol": {
+   "name": "재조준",
+   "nameEn": "Re-aim",
+   "kind": "weapon",
+   "weapon": "smartPistol",
+   "text": "스마트 피스톨의 피해가 {v}% 오르고, 빗나간 탄은 사라지기 전에 가까운 적을 {r}번까지 다시 쫓는다.",
+   "textEn": "Smart Pistol deals {v}% more damage, and missed shots chase a nearby foe up to {r} more times before fading.",
+   "params": {
+    "r": {
+     "base": 1,
+     "per": 1
+    },
+    "v": {
+     "base": 10,
+     "per": 10
+    }
+   },
+   "hook": "wchip.smartPistol",
+   "weight": 2,
+   "price": 55,
+   "enabled": true
+  },
+  "cw_shotgun": {
+   "name": "충돌",
+   "nameEn": "Collision",
+   "kind": "weapon",
+   "weapon": "shotgun",
+   "text": "스캐터 샷건의 피해가 {v}% 오르고, 산탄에 밀려난 적이 다른 적과 부딪히면 둘 다 샷건 피해의 {c}%를 입는다.",
+   "textEn": "Scatter Shotgun deals {v}% more damage, and foes knocked into other foes both take {c}% of the shotgun's damage.",
+   "params": {
+    "c": {
+     "base": 30,
+     "per": 15
+    },
+    "v": {
+     "base": 10,
+     "per": 10
+    }
+   },
+   "hook": "wchip.shotgun",
+   "weight": 2,
+   "price": 55,
+   "enabled": true
+  },
+  "cw_railgun": {
+   "name": "굴절",
+   "nameEn": "Refraction",
+   "kind": "weapon",
+   "weapon": "railgun",
+   "text": "레일건의 피해가 {v}% 오르고, 빔이 적을 처치하면 가장 가까운 적 쪽으로 최대 {r}번 꺾인다.",
+   "textEn": "Railgun deals {v}% more damage, and a beam that kills bends toward the nearest foe up to {r} times.",
+   "params": {
+    "r": {
+     "base": 1,
+     "per": 1
+    },
+    "v": {
+     "base": 10,
+     "per": 10
+    }
+   },
+   "hook": "wchip.railgun",
+   "weight": 2,
+   "price": 55,
+   "enabled": true
+  },
+  "cw_mantisBlade": {
+   "name": "탄 반사",
+   "nameEn": "Deflect",
+   "kind": "weapon",
+   "weapon": "mantisBlade",
+   "text": "맨티스 블레이드의 피해가 {v}% 오르고, 베기에 닿은 적 탄은 되받아쳐져 블레이드 피해의 {p}%를 준다.",
+   "textEn": "Mantis Blade deals {v}% more damage, and slashes knock enemy shots back for {p}% of the blade's damage.",
+   "params": {
+    "p": {
+     "base": 50,
+     "per": 25
+    },
+    "v": {
+     "base": 10,
+     "per": 10
+    }
+   },
+   "hook": "wchip.mantisBlade",
+   "weight": 2,
+   "price": 55,
+   "enabled": true
+  },
+  "cw_monowire": {
+   "name": "연결",
+   "nameEn": "Linked",
+   "kind": "weapon",
+   "weapon": "monowire",
+   "text": "모노와이어의 피해가 {v}% 오르고, 한 번에 함께 맞은 적들은 3초 동안 이어져 하나가 입은 피해의 {s}%를 나머지도 입는다.",
+   "textEn": "Monowire deals {v}% more damage, and foes hit by the same swing are linked for 3s, sharing {s}% of the damage any one takes.",
+   "params": {
+    "s": {
+     "base": 20,
+     "per": 10
+    },
+    "v": {
+     "base": 10,
+     "per": 10
+    }
+   },
+   "hook": "wchip.monowire",
+   "weight": 2,
+   "price": 55,
+   "enabled": true
+  },
+  "cw_arcCoil": {
+   "name": "끝 방전",
+   "nameEn": "End Discharge",
+   "kind": "weapon",
+   "weapon": "arcCoil",
+   "text": "아크 코일의 피해가 {v}% 오르고, 연쇄의 마지막 적이 반경 {r}px로 터져 코일 피해를 준다.",
+   "textEn": "Arc Coil deals {v}% more damage, and the last foe in a chain bursts, dealing coil damage within {r}px.",
+   "params": {
+    "r": {
+     "base": 40,
+     "per": 10
+    },
+    "v": {
+     "base": 10,
+     "per": 10
+    }
+   },
+   "hook": "wchip.arcCoil",
+   "weight": 2,
+   "price": 55,
+   "enabled": true
+  },
+  "cw_plasmaGrenade": {
+   "name": "띄우기",
+   "nameEn": "Launch",
+   "kind": "weapon",
+   "weapon": "plasmaGrenade",
+   "text": "플라즈마 유탄의 피해가 {v}% 오르고, 폭발에 맞은 적은 {t}초 동안 떠올라 공격하지 못하며, 떨어질 때 유탄 피해의 {p}%를 더 입는다.",
+   "textEn": "Plasma Grenade deals {v}% more damage. Foes caught in the blast float helplessly for {t}s and take {p}% of the grenade's damage when they land.",
+   "params": {
+    "p": {
+     "base": 50,
+     "per": 0
+    },
+    "t": {
+     "base": 0.5,
+     "per": 0.1
+    },
+    "v": {
+     "base": 10,
+     "per": 10
+    }
+   },
+   "hook": "wchip.plasmaGrenade",
+   "weight": 2,
+   "price": 55,
+   "enabled": true
+  },
+  "cw_microMissile": {
+   "name": "요격",
+   "nameEn": "Intercept",
+   "kind": "weapon",
+   "weapon": "microMissile",
+   "text": "마이크로 미사일의 피해가 {v}% 오르고, 미사일은 {c}% 확률로 가까운 적 탄이나 적 미사일을 쫓아가 터뜨린다.",
+   "textEn": "Micro Missiles deal {v}% more damage, and each missile has a {c}% chance to hunt down a nearby enemy shot or missile.",
+   "params": {
+    "c": {
+     "base": 15,
+     "per": 10
+    },
+    "v": {
+     "base": 10,
+     "per": 10
+    }
+   },
+   "hook": "wchip.microMissile",
+   "weight": 2,
+   "price": 55,
+   "enabled": true
+  },
+  "cw_proxMine": {
+   "name": "연쇄 기폭",
+   "nameEn": "Chain Detonation",
+   "kind": "weapon",
+   "weapon": "proxMine",
+   "text": "근접 지뢰의 피해가 {v}% 오르고, 지뢰가 터지면 가까운 지뢰도 함께 터지며, 이어질 때마다 피해가 {p}%씩 오른다.",
+   "textEn": "Proximity Mine deals {v}% more damage. A blast sets off nearby mines, and each link deals {p}% more damage.",
+   "params": {
+    "p": {
+     "base": 20,
+     "per": 10
+    },
+    "v": {
+     "base": 10,
+     "per": 10
+    }
+   },
+   "hook": "wchip.proxMine",
+   "weight": 2,
+   "price": 55,
+   "enabled": true
+  },
+  "cw_turret": {
+   "name": "가열 연사",
+   "nameEn": "Heat Up",
+   "kind": "weapon",
+   "weapon": "turret",
+   "text": "포탑의 피해가 {v}% 오르고, 포탑은 쏠수록 공격 속도가 올라 최대 {m}%까지 빨라진다.",
+   "textEn": "Turrets deal {v}% more damage and fire faster the longer they shoot, up to {m}%.",
+   "params": {
+    "m": {
+     "base": 40,
+     "per": 20
+    },
+    "v": {
+     "base": 10,
+     "per": 10
+    }
+   },
+   "hook": "wchip.turret",
+   "weight": 2,
+   "price": 55,
+   "enabled": true
+  },
+  "cw_hackDrone": {
+   "name": "교란",
+   "nameEn": "Disrupt",
+   "kind": "weapon",
+   "weapon": "hackDrone",
+   "text": "해킹 드론의 피해가 {v}% 오르고, 드론에 닿은 원거리 적은 {t}초 동안 쏘지 못한다.",
+   "textEn": "Hack Drone deals {v}% more damage, and ranged foes touched by a drone can't shoot for {t}s.",
+   "params": {
+    "t": {
+     "base": 1,
+     "per": 0.5
+    },
+    "v": {
+     "base": 10,
+     "per": 10
+    }
+   },
+   "hook": "wchip.hackDrone",
+   "weight": 2,
+   "price": 55,
+   "enabled": true
+  },
+  "cw_empField": {
+   "name": "방출",
+   "nameEn": "Discharge",
+   "kind": "weapon",
+   "weapon": "empField",
+   "text": "EMP 필드의 피해가 {v}% 오르고, 장이 꺼질 때 켜져 있는 동안 준 피해의 {p}%를 한 번에 터뜨린다.",
+   "textEn": "EMP Field deals {v}% more damage. When the field ends, it releases {p}% of the damage it dealt in one blast.",
+   "params": {
+    "p": {
+     "base": 20,
+     "per": 10
+    },
+    "v": {
+     "base": 10,
+     "per": 10
+    }
+   },
+   "hook": "wchip.empField",
+   "weight": 2,
+   "price": 55,
+   "enabled": true
+  }
+ }
+}

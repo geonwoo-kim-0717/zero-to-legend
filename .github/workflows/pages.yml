@@ -23,7 +23,14 @@ jobs:
         env:
           # 게시자 ID는 .env.web 에 있음. 승인 후 저장소 Variables 에 AD_TEST=0 을 넣으면 실제 광고
           VITE_AD_TEST: ${{ vars.AD_TEST || '1' }}
-      # 개편판 미리보기: 개편 브랜치를 따로 빌드해 dist/redesign/ 에 넣음 (?debug 로 열면 이리로 감)
+      # 기존 판: legacy 브랜치를 따로 빌드해 dist/legacy/ 에 넣음 (?legacy 로 열면 이리로 감, 예전 저장 그대로)
+      - uses: actions/checkout@v4
+        with: { ref: legacy, path: legacy-src, fetch-depth: 0 }
+      - run: npm ci && npm run build:web && mkdir -p ../dist/legacy && cp -r dist/. ../dist/legacy/ && rm -f ../dist/legacy/ads.txt ../dist/legacy/robots.txt ../dist/legacy/sitemap.xml ../dist/legacy/google*.html
+        working-directory: legacy-src
+        env:
+          VITE_AD_TEST: '1'
+      # 개편 브랜치 미리보기: dist/redesign/ (?preview 로 열면 이리로 감)
       - uses: actions/checkout@v4
         with: { ref: redesign/step1-twinstick, path: redesign-src, fetch-depth: 0 }
       - run: npm ci && npm run build:web && mkdir -p ../dist/redesign && cp -r dist/. ../dist/redesign/ && rm -f ../dist/redesign/ads.txt ../dist/redesign/robots.txt ../dist/redesign/sitemap.xml ../dist/redesign/google*.html

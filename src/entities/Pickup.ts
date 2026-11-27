@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 
-export type PickupKind = 'xp' | 'heal';
+/** chip: 판 안 재화 칩 (value = 개수) */
+export type PickupKind = 'xp' | 'heal' | 'chest' | 'chip';
 
 export class Pickup {
   active = false;
@@ -31,7 +32,8 @@ export class Pickup {
       .setTexture(kind)
       .setPosition(x, y)
       .setVisible(true)
-      .setScale(kind === 'xp' && value >= 3 ? 1.5 : 1)
+      .setScale(kind === 'xp' && value >= 3 ? 1.5 : kind === 'chip' ? 0.8 + Math.min(3, value) * 0.15 : 1)
+      .setTint(kind === 'chest' ? [0xe8f7ff, 0x00f0ff, 0xff2bd6, 0xfff23a, 0xff2a3a][Math.round(value)] ?? 0xffffff : 0xffffff)
       .setBlendMode(kind === 'xp' ? Phaser.BlendModes.ADD : Phaser.BlendModes.NORMAL);
   }
 

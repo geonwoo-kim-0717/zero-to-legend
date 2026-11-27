@@ -4,6 +4,8 @@ import { COLORS, MAX_ENEMY_RADIUS } from '../config';
 import type { Enemy } from '../entities/Enemy';
 
 const BASE_R = 50;
+/** 방출 칩셋: 폭발 피해 상한 (무기 피해의 배수) */
+const RELEASE_CAP = 15;
 
 /** EMP 필드: 플레이어 주위 원 안의 적에게 주기적으로 피해 + 둔화 */
 export class EmpField extends WeaponBase {
@@ -24,6 +26,14 @@ export class EmpField extends WeaponBase {
   private ringIdx = 0;
 
   update(dt: number): void {
+    // 트윈스틱 보조무기: 오른쪽 클릭으로 켜면 정해진 시간 동안만 전자기장
+    if (!this.activeWindow(dt)) {
+      for (const r of this.rings) r.setVisible(false);
+      if (this.wasOn) this.release();
+      this.wasOn = false;
+      return;
+    }
+    this.wasOn = true;
     const { player: p, fx } = this.ctx;
     const r = BASE_R * this.area;
     this.pulse += dt;
@@ -68,6 +78,25 @@ export class EmpField extends WeaponBase {
     }
   }
 
+  /** 방출 칩셋: 장이 켜져 있는 동안 준 피해 합 */
+  private stored = 0;
+  private wasOn = false;
+
+  /** 무기 전용 칩셋 방출: 장이 꺼질 때 모은 피해의 p%를 폭발로 (적 하나당 무기 피해 RELEASE_CAP배까지) */
+  private release(): void {
+    const pct = this.wc('p');
+    const pool = (this.stored * pct) / 100;
+    this.stored = 0;
+    if (pct <= 0 || pool <= 0) return;
+    const p = this.ctx.player;
+    const r = BASE_R * this.area * 1.5;
+    this.hitCircle(p.x, p.y, r, Math.min(pool, this.damage * RELEASE_CAP));
+    this.ctx.playFx('microMissile_boom', p.x, p.y, { scale: (r * 1.5) / 40, frameTime: 0.05, alpha: 0.8 });
+    this.ctx.burst(p.x, p.y, COLORS.cyan, 16);
+    this.ctx.screenFlash(0x00f0ff, 0.12, 180);
+    this.ctx.sfx('netcrash');
+  }
+
   private tick(x: number, y: number, r: number): void {
     const over = this.has('overcharge') && this.ticks % 6 === 0;
     let dmg = this.damage;
@@ -78,6 +107,7 @@ export class EmpField extends WeaponBase {
       dmg *= 1 + n * 0.05;
     }
     this.hitCircle(x, y, r, dmg, undefined, (e, killed) => {
+      this.stored += dmg;
       if (Math.random() < 0.35) this.ctx.playFx('empField_arc', e.x, e.y, { angle: Math.random() * 6.28 });
       if (killed) return;
       this.ctx.slow(e, 0.6);

@@ -1,7 +1,7 @@
 import type Phaser from 'phaser';
 import { WeaponBase } from './WeaponBase';
 import { COLORS } from '../config';
-import gameData from '../data/game.json';
+import type { Enemy } from '../entities/Enemy';
 
 /** 포탑 유지 시간 (블랙마켓 상향: 6 → 8초) */
 const LIFE = 10;
@@ -9,6 +9,8 @@ const FIRE = 0.4;
 const RANGE = 160;
 /** 수리 포탑: 이 거리 안이면 회복 */
 const REPAIR_R = 70;
+/** 가열 연사 칩셋: 최대 속도까지 걸리는 발사 수 */
+const RAMP_SHOTS = 12;
 
 interface Post {
   x: number;
@@ -34,17 +36,23 @@ export class Turret extends WeaponBase {
     const sentry = this.has('sentryNet');
     const fortress = this.has('fortress');
     const mobile = this.has('mobilePost');
-    const max = this.s.count + (fortress ? 2 : 0);
+    // 개편 2-2: 기계 2단계·포탑 거점 조합이 동시 포탑 수를 늘림
+    const max = this.cnt + (fortress ? 2 : 0) + (this.ctx.mod('syn.mech2')?.n ?? 0) + (this.ctx.mod('combo.turretDock')?.n ?? 0);
     this.timer -= dt;
-    if (this.timer <= 0) {
+    if (this.timer <= 0 && this.trigger) {
+      // 트윈스틱: 오른쪽 클릭으로 커서 자리에 설치 (휴대 포탑은 플레이어 곁)
+      this.fired();
       this.timer = this.interval;
+      const at = this.aimPoint(140);
       // 신화 센트리 네트워크: 동시 포탑 수 제한 없음 (각 포탑은 유지 시간이 끝나야 사라짐)
       if (!sentry && this.posts.length >= max) this.expire(this.posts.shift()!);
       const a = this.placed++ * 2.4;
       const ox = mobile ? Math.cos(a) * 34 : 0;
       const oy = mobile ? Math.sin(a) * 34 : 6;
-      const img = this.ctx.phaser.add.image(p.x + ox, p.y + oy, 'turretw').setDepth(9);
-      this.posts.push({ x: p.x + ox, y: p.y + oy, life: LIFE * (sentry ? 2 : 1), fire: 0.2, shots: 0, ox, oy, img });
+      const bx = mobile ? p.x : at.x;
+      const by = mobile ? p.y : at.y;
+      const img = this.ctx.phaser.add.image(bx + ox, by + oy, 'turretw').setDepth(9);
+      this.posts.push({ x: bx + ox, y: by + oy, life: LIFE * (sentry ? 2 : 1), fire: 0.2, shots: 0, ox, oy, img });
       this.ctx.sfx('select');
     }
     const range = RANGE * this.area;
@@ -63,10 +71,13 @@ export class Turret extends WeaponBase {
       const jam = this.ctx.jammed(t.x, t.y);
       t.img.setTint(jam ? 0x39ff88 : 0xffffff);
       if (t.fire <= 0 && !jam) {
-        const e = this.nearest(t.x, t.y, range);
+        // 택티컬 OS 2줄: 표식된 적을 먼저
+        const e = this.markedNear(t.x, t.y, range) ?? this.nearest(t.x, t.y, range);
         if (e) {
           // 발사 간격에도 공격속도(신경 가속기·냉각 코어)와 오버클럭이 적용된다
-          t.fire = FIRE * this.ctx.stats.cooldownMul * (this.ctx.overdrive ? 1 / gameData.overdrive.fireRateMul : 1);
+          // 무기 전용 칩셋 가열 연사: 쏠수록(RAMP_SHOTS발에 걸쳐) 공격 속도가 최대 m%까지 오름
+          const heat = 1 + (this.wc('m') / 100) * Math.min(1, t.shots / RAMP_SHOTS);
+          t.fire = (FIRE * this.ctx.stats.cooldownMul * this.ctx.weaponMul(this.id).cd) / this.ctx.odFireMul / heat;
           t.shots++;
           const a = Math.atan2(e.y - t.y, e.x - t.x);
           t.img.setRotation(a);
@@ -119,7 +130,29 @@ export class Turret extends WeaponBase {
     this.blasts = this.blasts.filter((b) => b.life > 0);
   }
 
+  private markedNear(x: number, y: number, r: number): Enemy | null {
+    if (!this.ctx.mod('tactical.focus')) return null;
+    let best: Enemy | null = null;
+    let bd = r * r;
+    for (const e of this.ctx.grid.query(x, y, r, this.focusBuf)) {
+      if (!e.active || !this.ctx.isMarked(e)) continue;
+      const d = (e.x - x) ** 2 + (e.y - y) ** 2;
+      if (d < bd) {
+        bd = d;
+        best = e;
+      }
+    }
+    return best;
+  }
+  private readonly focusBuf: Enemy[] = [];
+
   private expire(t: Post): void {
+    // 개편 2-2 기계 4단계: 포탑이 사라질 때 폭발
+    const boom = this.ctx.mod('syn.mech4');
+    if (boom && t.img.active) {
+      this.hitCircle(t.x, t.y, boom.r ?? 60, (boom.dmg ?? 60) * this.ctx.stats.damageMul);
+      if (this.blasts.length < 30) this.blasts.push({ x: t.x, y: t.y, r: boom.r ?? 60, life: 0.3 });
+    }
     t.life = 0;
     t.img.destroy();
   }

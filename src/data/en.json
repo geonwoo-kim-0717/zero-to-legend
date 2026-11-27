@@ -2,7 +2,7 @@
   "weapons": {
     "smartPistol": {
       "name": "Smart Pistol",
-      "desc": "Homing shots at nearby enemies (range 190)",
+      "desc": "Rapid fire toward the cursor; shots curve slightly toward enemies near your aim",
       "levels": {
         "0": {
           "desc": "Acquired"
@@ -32,7 +32,7 @@
     },
     "mantisBlade": {
       "name": "Mantis Blade",
-      "desc": "Wide slash in the facing direction",
+      "desc": "Wide slash toward the cursor",
       "levels": {
         "0": {
           "desc": "Acquired"
@@ -62,7 +62,7 @@
     },
     "hackDrone": {
       "name": "Hack Drone",
-      "desc": "Orbiting drones damage enemies they touch",
+      "desc": "Turn on for 8s: orbiting drones hurt enemies they touch (14s cooldown)",
       "levels": {
         "0": {
           "desc": "Acquired"
@@ -83,16 +83,16 @@
           "desc": "Orbit +25%"
         },
         "6": {
-          "desc": "Damage +8"
+          "desc": "Damage +8, Drones +2"
         },
         "7": {
-          "desc": "Drones +2"
+          "desc": "Stays active with no cooldown."
         }
       }
     },
     "plasmaGrenade": {
       "name": "Plasma Grenade",
-      "desc": "Lobs grenades at nearby enemies for area blasts",
+      "desc": "Throw a grenade at the cursor for an area blast",
       "levels": {
         "0": {
           "desc": "Acquired"
@@ -122,7 +122,7 @@
     },
     "monowire": {
       "name": "Monowire",
-      "desc": "Lashes a long wire at the nearest enemy; anything hit fights for you for 1s",
+      "desc": "Lash a long wire toward the cursor, cutting every enemy on it; anything hit fights for you for 1s",
       "levels": {
         "0": {
           "desc": "Acquired"
@@ -152,7 +152,7 @@
     },
     "empField": {
       "name": "EMP Field",
-      "desc": "Damages and slows nearby enemies",
+      "desc": "Turn on for 8s: an EM field around you deals steady damage and slows enemies (14s cooldown)",
       "levels": {
         "0": {
           "desc": "Acquired"
@@ -182,7 +182,7 @@
     },
     "railgun": {
       "name": "Railgun",
-      "desc": "Fires a screen-piercing beam at the on-screen enemy with the most HP",
+      "desc": "Fire a screen-piercing beam toward the cursor",
       "levels": {
         "0": {
           "desc": "Acquired"
@@ -212,7 +212,7 @@
     },
     "shotgun": {
       "name": "Scatter Shotgun",
-      "desc": "Fires 7 piercing pellets in a cone at a nearby enemy, knocking enemies back",
+      "desc": "Fire 7 piercing pellets in a fan toward the cursor, knocking enemies back",
       "levels": {
         "0": {
           "desc": "Acquired"
@@ -242,7 +242,7 @@
     },
     "turret": {
       "name": "Deploy Turret",
-      "desc": "Drops an auto turret for 10 seconds (2 bullets per shot)",
+      "desc": "Place an auto turret at the cursor for 10s (2 shots per burst)",
       "levels": {
         "0": {
           "desc": "Acquired"
@@ -272,7 +272,7 @@
     },
     "microMissile": {
       "name": "Micro Missiles",
-      "desc": "Homing missiles with small blasts",
+      "desc": "Homing missiles at enemies near the cursor, small blasts",
       "levels": {
         "0": {
           "desc": "Acquired"
@@ -302,7 +302,7 @@
     },
     "arcCoil": {
       "name": "Arc Coil",
-      "desc": "Lightning strikes the nearest enemy and chains onward",
+      "desc": "Lightning at the enemy toward the cursor, chaining to nearby enemies",
       "levels": {
         "0": {
           "desc": "Acquired"
@@ -332,7 +332,7 @@
     },
     "proxMine": {
       "name": "Proximity Mine",
-      "desc": "Drops 2 mines that blow up when stepped on",
+      "desc": "Drop 2 mines at the cursor; they explode when stepped on",
       "levels": {
         "0": {
           "desc": "Acquired"

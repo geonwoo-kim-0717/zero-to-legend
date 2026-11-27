@@ -1,0 +1,449 @@
+{
+ "note": "OS 설계실 편집 페이지에서 옮김 (tools/redesign/import_editor.py). 직접 고치지 말고 편집 페이지에서 고친 뒤 다시 옮길 것",
+ "gacha": {
+  "basicOs": "stock",
+  "copies": [
+   1,
+   2,
+   4,
+   8,
+   12
+  ],
+  "price": 300,
+  "refund": 100,
+  "runIncome": 800,
+  "tenPrice": 2700,
+  "weights": {
+   "berserk": 1,
+   "cloak": 1,
+   "guardian": 1,
+   "hacker": 1,
+   "neural": 1,
+   "orbital": 1,
+   "tactical": 1
+  }
+ },
+ "os": {
+  "stock": {
+   "active": null,
+   "basic": true,
+   "color": "#8a8fb0",
+   "enabled": true,
+   "label": "STOCK OS",
+   "levels": [
+    {
+     "hook": "stock.dashCd",
+     "params": {
+      "dashCd": 10
+     },
+     "text": "대시 재사용 대기 -{dashCd}%"
+    }
+   ],
+   "memo": "처음부터 주는 기본 OS. 레벨 1 고정, 뽑기에 안 나옴.",
+   "name": "표준 OS",
+   "nameEn": "Stock OS",
+   "tags": []
+  },
+  "neural": {
+   "active": {
+    "chargeKills": 160,
+    "minCooldown": 20
+   },
+   "color": "#ff2bd6",
+   "enabled": true,
+   "label": "NEURAL OVERCLOCK",
+   "levels": [
+    {
+     "hook": "neural.q",
+     "params": {
+      "atk": 1.5,
+      "dur": 6,
+      "slow": 0.7
+     },
+     "text": "[Q] {dur}초 동안 공격속도 ×{atk}, 적·적 탄 속도 ×{slow}"
+    },
+    {
+     "hook": "neural.boost2",
+     "params": {
+      "atk": 1.75,
+      "slow": 0.6
+     },
+     "text": "오버클럭 강화: 공격속도 ×{atk}, 적·적 탄 속도 ×{slow}"
+    },
+    {
+     "hook": "neural.extend",
+     "params": {
+      "ext": 0.2,
+      "extMax": 4
+     },
+     "text": "발동 중 처치 1명마다 지속 +{ext}초 (최대 +{extMax}초)"
+    },
+    {
+     "hook": "neural.boost4",
+     "params": {
+      "atk": 2,
+      "dur": 10,
+      "slow": 0.5
+     },
+     "text": "완전 오버클럭: 공격속도 ×{atk}, 적·적 탄 속도 ×{slow}, 기본 지속 {dur}초"
+    },
+    {
+     "hook": "neural.flush",
+     "params": {
+      "radius": 160,
+      "slowT": 2
+     },
+     "text": "발동 중 보조무기 재사용 대기 없음, 끝날 때 주변 {radius}px 적 {slowT}초 감속"
+    }
+   ],
+   "memo": "지금 특수 능력(공격속도 2배, 적·적 탄 0.5배, 10초)이 4레벨 수준.",
+   "name": "뉴럴 오버클럭",
+   "nameEn": "Neural Overclock",
+   "tags": [
+    "정밀",
+    "해킹"
+   ]
+  },
+  "berserk": {
+   "active": {
+    "chargeKills": 150,
+    "minCooldown": 20
+   },
+   "color": "#ff2a3a",
+   "enabled": true,
+   "label": "BERSERK",
+   "levels": [
+    {
+     "hook": "berserk.q",
+     "params": {
+      "dur": 8,
+      "melee": 1.4
+     },
+     "text": "[Q] {dur}초 동안 근접 피해 ×{melee}"
+    },
+    {
+     "hook": "berserk.move",
+     "params": {
+      "move": 20
+     },
+     "text": "발동 중 이동속도 +{move}%"
+    },
+    {
+     "hook": "berserk.heal",
+     "params": {
+      "heal": 2
+     },
+     "text": "발동 중 근접 무기로 처치하면 체력 +{heal}"
+    },
+    {
+     "hook": "berserk.boost4",
+     "params": {
+      "dur": 10,
+      "melee": 2
+     },
+     "text": "피의 광기: 근접 피해 ×{melee}, 지속 {dur}초"
+    },
+    {
+     "hook": "berserk.last",
+     "params": {
+      "dr": 30,
+      "hpPct": 30
+     },
+     "text": "체력 {hpPct}% 이하가 되면 자동 발동, 발동 중 받는 피해 -{dr}%"
+    }
+   ],
+   "memo": "지금 특수 능력(근접 피해 2배, 이동 +20%, 근접 처치 시 체력 2)이 4레벨 수준.",
+   "name": "광전사 모드",
+   "nameEn": "Berserk",
+   "tags": [
+    "근접"
+   ]
+  },
+  "cloak": {
+   "active": {
+    "chargeKills": 180,
+    "minCooldown": 25
+   },
+   "color": "#39ff88",
+   "enabled": true,
+   "label": "OPTICAL CAMO",
+   "levels": [
+    {
+     "hook": "cloak.q",
+     "params": {
+      "dur": 3
+     },
+     "text": "[Q] {dur}초 동안 투명: 일반 적이 플레이어를 놓침"
+    },
+    {
+     "hook": "cloak.invuln",
+     "params": {},
+     "text": "투명한 동안 피해를 받지 않음"
+    },
+    {
+     "hook": "cloak.ambush",
+     "params": {
+      "amb": 2
+     },
+     "text": "투명이 풀린 뒤 첫 공격 피해 ×{amb}"
+    },
+    {
+     "hook": "cloak.full",
+     "params": {
+      "dur": 5
+     },
+     "text": "완전 위장: 엘리트·보스도 플레이어를 놓침, 지속 {dur}초"
+    },
+    {
+     "hook": "cloak.chain",
+     "params": {
+      "ext": 0.5,
+      "extMax": 3
+     },
+     "text": "투명 중 처치하면 투명 {ext}초 연장 (최대 {extMax}초)"
+    }
+   ],
+   "memo": "지금 특수 능력(보스까지 모두 놓침, 투명 중 무적)이 4레벨 수준.",
+   "name": "광학 위장",
+   "nameEn": "Optical Camo",
+   "tags": [
+    "해킹",
+    "정밀"
+   ]
+  },
+  "orbital": {
+   "active": {
+    "chargeKills": 220,
+    "minCooldown": 30
+   },
+   "color": "#fff23a",
+   "enabled": true,
+   "label": "ORBITAL STRIKE",
+   "levels": [
+    {
+     "hook": "orbital.q",
+     "params": {
+      "dmg": 250,
+      "strikes": 2,
+      "targets": 6
+     },
+     "text": "[Q] 화면 안 무작위 적 {targets}명에게 폭격 {strikes}번, 한 번에 {dmg} 피해"
+    },
+    {
+     "hook": "orbital.more",
+     "params": {
+      "strikes": 3
+     },
+     "text": "폭격 {strikes}번으로 증가"
+    },
+    {
+     "hook": "orbital.burn",
+     "params": {
+      "burn": 30,
+      "burnT": 3
+     },
+     "text": "폭격 자리에 {burnT}초 화염 지대 (초당 {burn} 피해)"
+    },
+    {
+     "hook": "orbital.full",
+     "params": {
+      "dmg": 400,
+      "strikes": 4
+     },
+     "text": "전면 폭격: 화면 안 모든 적에게 {strikes}번, 한 번에 {dmg} 피해"
+    },
+    {
+     "hook": "orbital.stun",
+     "params": {
+      "bossCd": 15,
+      "stun": 1
+     },
+     "text": "보스가 맞으면 {stun}초 기절 (보스마다 {bossCd}초에 1번)"
+    }
+   ],
+   "memo": "지금 특수 능력(10초 동안 4번, 화면 안 모든 적 400 피해)이 4레벨 수준.",
+   "name": "궤도 폭격",
+   "nameEn": "Orbital Strike",
+   "tags": [
+    "폭발"
+   ]
+  },
+  "guardian": {
+   "active": {
+    "chargeKills": 140,
+    "minCooldown": 18
+   },
+   "color": "#4fa8ff",
+   "enabled": true,
+   "label": "GUARDIAN",
+   "levels": [
+    {
+     "hook": "guardian.q",
+     "params": {
+      "dur": 6,
+      "shield": 40
+     },
+     "text": "[Q] {dur}초 동안 보호막 {shield} (피해를 먼저 흡수)"
+    },
+    {
+     "hook": "guardian.stand",
+     "params": {
+      "move": 10
+     },
+     "text": "보호막이 남아 있으면 넉백 무시, 이동속도 +{move}%"
+    },
+    {
+     "hook": "guardian.burst",
+     "params": {
+      "dmg": 120,
+      "radius": 120
+     },
+     "text": "보호막이 깨질 때 주변 {radius}px 충격파 {dmg} 피해"
+    },
+    {
+     "hook": "guardian.share",
+     "params": {
+      "shield": 80
+     },
+     "text": "보호막 {shield}, 협동이면 동료에게도 절반"
+    },
+    {
+     "hook": "guardian.reflect",
+     "params": {
+      "reflect": 50
+     },
+     "text": "보호막이 있을 때 받은 피해의 {reflect}%를 공격한 적에게 돌려줌"
+    }
+   ],
+   "memo": "새 OS (방어형). 협동에서 동료 보호 역할.",
+   "name": "가디언",
+   "nameEn": "Guardian",
+   "tags": [
+    "근접",
+    "기계"
+   ]
+  },
+  "tactical": {
+   "active": {
+    "chargeKills": 120,
+    "minCooldown": 15
+   },
+   "color": "#00e5f2",
+   "enabled": true,
+   "label": "TACTICAL",
+   "levels": [
+    {
+     "hook": "tactical.q",
+     "params": {
+      "dur": 8,
+      "mark": 25
+     },
+     "text": "[Q] 커서 근처 적에게 표식: {dur}초 동안 받는 피해 +{mark}%"
+    },
+    {
+     "hook": "tactical.focus",
+     "params": {},
+     "text": "포탑·드론이 표식된 적을 먼저 공격"
+    },
+    {
+     "hook": "tactical.multi",
+     "params": {
+      "count": 5
+     },
+     "text": "표식을 한 번에 {count}명까지"
+    },
+    {
+     "hook": "tactical.cdr",
+     "params": {
+      "cdr": 1
+     },
+     "text": "표식된 적을 처치하면 보조무기 재사용 대기 -{cdr}초"
+    },
+    {
+     "hook": "tactical.drop",
+     "params": {
+      "turrets": 2
+     },
+     "text": "발동하면 커서 자리에 포탑 {turrets}기 무료 설치"
+    }
+   ],
+   "memo": "새 OS (표식·포탑·드론). 보조무기 포탑·해킹 드론과 시너지.",
+   "name": "택티컬",
+   "nameEn": "Tactical",
+   "tags": [
+    "기계",
+    "정밀"
+   ]
+  },
+  "hacker": {
+   "active": {
+    "chargeKills": 160,
+    "minCooldown": 20
+   },
+   "color": "#9d6bff",
+   "enabled": true,
+   "label": "HACKER",
+   "levels": [
+    {
+     "hook": "hacker.q",
+     "params": {
+      "convP": 20,
+      "convT": 5,
+      "dot": 15,
+      "dur": 4,
+      "radius": 120
+     },
+     "text": "[Q] 커서 근처 {radius}px 안의 적을 {dur}초 동안 감전시켜 초당 {dot} 피해를 주고, 보스를 제외한 적은 {convP}% 확률로 {convT}초간 아군이 된다.",
+     "textEn": "[Q] Shocks foes within {radius}px of the cursor for {dur}s, dealing {dot} damage per second. Each non-boss foe has a {convP}% chance to become an ally for {convT}s."
+    },
+    {
+     "hook": "hacker.slow",
+     "params": {
+      "convP": 28,
+      "convT": 6,
+      "slow": 30
+     },
+     "text": "감전된 적은 이동 속도가 {slow}% 느려진다. 아군화 확률은 {convP}%, 지속 시간은 {convT}초가 된다.",
+     "textEn": "Shocked foes move {slow}% slower. Ally chance rises to {convP}% for {convT}s."
+    },
+    {
+     "hook": "hacker.chain",
+     "params": {
+      "chain": 2,
+      "convP": 35,
+      "convT": 8
+     },
+     "text": "감전된 적이 죽으면 감전이 근처 적 {chain}명에게 옮겨 간다. 아군화 확률은 {convP}%, 지속 시간은 {convT}초가 된다.",
+     "textEn": "When a shocked foe dies, the shock spreads to {chain} nearby foes. Ally chance rises to {convP}% for {convT}s."
+    },
+    {
+     "hook": "hacker.convert",
+     "params": {
+      "convP": 43,
+      "convT": 9
+     },
+     "text": "아군화 확률이 {convP}%로 오르고, 아군으로 남는 시간이 {convT}초로 늘어난다.",
+     "textEn": "Ally chance rises to {convP}%, and allies stay for {convT}s."
+    },
+    {
+     "hook": "hacker.stun",
+     "params": {
+      "bossCd": 15,
+      "convP": 50,
+      "convT": 10,
+      "stun": 1
+     },
+     "text": "감전된 엘리트와 보스는 {stun}초간 마비된다. 보스는 {bossCd}초에 한 번만 마비된다. 아군화 확률은 {convP}%, 지속 시간은 {convT}초가 된다.",
+     "textEn": "Shocked elites and bosses are paralyzed for {stun}s, a boss at most once every {bossCd}s. Ally chance rises to {convP}% for {convT}s."
+    }
+   ],
+   "memo": "새 OS (감전·교란·아군화). 아크 코일·EMP·모노와이어와 시너지.",
+   "name": "해커",
+   "nameEn": "Hacker",
+   "tags": [
+    "해킹",
+    "전기"
+   ]
+  }
+ }
+}

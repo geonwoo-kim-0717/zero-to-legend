@@ -4,6 +4,8 @@ import { COLORS } from '../config';
 
 /** 폭발 반경 (블랙마켓 상향: 26 → 30) */
 const BASE_R = 30;
+/** 요격 칩셋: 플레이어에서 이 거리 안의 적 탄을 노림 */
+const INTERCEPT_R = 260;
 
 /** 마이크로 미사일: 화면 안 무작위 적에게 유도 미사일, 맞으면 작은 폭발 */
 export class MicroMissile extends WeaponBase {
@@ -21,8 +23,10 @@ export class MicroMissile extends WeaponBase {
     const fx = this.ctx.fx;
     this.timer -= dt;
     this.reloadBudget = Math.min(8, this.reloadBudget + dt * 8);
-    if (this.timer <= 0) {
-      if (this.launch(this.s.count)) this.timer = this.interval;
+    if (this.timer <= 0 && this.trigger) {
+      // 트윈스틱: 오른쪽 클릭으로 커서 근처 적들에게 일제 발사 (근처에 없으면 화면 안 적)
+      this.fired();
+      if (this.launch(this.cnt, true)) this.timer = this.interval;
     }
     // 신화: 미사일 폭풍 (6초마다 20발을 1초 동안)
     if (this.has('missileStorm') && (this.stormT -= dt) <= 0) {
@@ -53,16 +57,45 @@ export class MicroMissile extends WeaponBase {
     this.tickEffects(dt, COLORS.orange);
   }
 
-  private launch(n: number): boolean {
+  private launch(n: number, aimed = false): boolean {
     let fired = 0;
+    const near = aimed ? this.nearAim(n) : [];
+    const icpt = this.wc('c');
     for (let i = 0; i < n; i++) {
-      const e = this.randomOnScreen();
+      // 무기 전용 칩셋 요격: c% 확률로 이 미사일은 가까운 적 탄·적 미사일을 터뜨림
+      if (icpt > 0 && Math.random() * 100 < icpt && this.intercept()) {
+        fired++;
+        continue;
+      }
+      const e = near.length ? near[i % near.length] : this.randomOnScreen();
       if (!e) break;
       this.missile(e, BASE_R * this.area * (this.has('cluster') ? 1.6 : 1), this.damage, false, this.has('retarget'));
       fired++;
     }
     if (fired) this.ctx.sfx('shoot');
     return fired > 0;
+  }
+
+  /** 요격: 플레이어 근처 적 탄 하나를 터뜨림 (미사일 궤적과 작은 폭발 그림) */
+  private intercept(): boolean {
+    const p = this.ctx.player;
+    const at = this.ctx.interceptEnemyBullet(p.x, p.y, INTERCEPT_R);
+    if (!at) return false;
+    this.ctx.fx.lineStyle(2, COLORS.yellow, 0.7).lineBetween(p.x, p.y, at.x, at.y);
+    this.ctx.playFx('microMissile_boom', at.x, at.y, { scale: 0.5, frameTime: 0.04, alpha: 0.9 });
+    return true;
+  }
+
+  /** 커서 근처(반경 120) 적을 가까운 순으로 n마리까지 */
+  private nearAim(n: number): Enemy[] {
+    const a = this.aimPoint(420);
+    const list: Enemy[] = [];
+    // 개편 2-2 열추적 탄두 조합: 엘리트·보스를 먼저 (더 멀리서도)
+    const thermal = !!this.ctx.mod('combo.missileThermal');
+    const big = (e: Enemy) => thermal && (e.isBoss || e.maxHp >= 1000);
+    for (const e of this.ctx.enemies) if (e.active && (e.x - a.x) ** 2 + (e.y - a.y) ** 2 < (big(e) ? 220 : 120) ** 2) list.push(e);
+    list.sort((p, q) => (big(q) ? 1 : 0) - (big(p) ? 1 : 0) || (p.x - a.x) ** 2 + (p.y - a.y) ** 2 - ((q.x - a.x) ** 2 + (q.y - a.y) ** 2));
+    return list.slice(0, n);
   }
 
   private missile(e: Enemy, r: number, dmg: number, big: boolean, retarget = false, from?: { x: number; y: number }): void {
@@ -74,6 +107,10 @@ export class MicroMissile extends WeaponBase {
       life: 2.5,
       turnRate: 5,
       onHit: (hit) => {
+        // 폭발 5단계 대폭발: n번째 폭발은 범위·피해 배율
+        const bs = this.ctx.boomScale();
+        r *= bs;
+        dmg *= bs;
         this.hitCircle(hit.x, hit.y, r, dmg, undefined, (_k, killed) => {
           // 신화: 무한 장전 (처치하면 1발 더)
           if (killed && this.has('infiniteReload') && this.reloadBudget >= 1) {

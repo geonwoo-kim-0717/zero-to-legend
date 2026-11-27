@@ -15,8 +15,14 @@ import { Pool } from '../systems/Pool';
 import { SpatialGrid } from '../systems/SpatialGrid';
 import { Spawner, hpScaleAt } from '../systems/Spawner';
 import { pickBoss, pickBasili, pickGregor, pickXm4, type BossAct, type BasiliAct, type GregorAct, type Xm4Act } from '../systems/BossBrain';
-import { InputController } from '../systems/InputController';
-import { createWeapon, type WeaponBase, type WeaponId } from '../weapons';
+import { InputController, type SubUse } from '../systems/InputController';
+import { createWeapon, WEAPON_IDS, type WeaponBase, type WeaponId } from '../weapons';
+import { weaponSlot } from '../weapons/WeaponBase';
+import { rollItems, itemName, itemText, socketLabel, weaponAbilities, ITEMS, rarityById, itemArt, PART_NAME, abilityTags, type ItemKind, type ItemRoll } from '../systems/Build';
+import { Loadout, weaponTags, itemTags, combosWith, type Sock } from '../systems/Loadout';
+import { OsState, OS_IDS, OS_DEFS, devOsPick, saveDevOsPick } from '../systems/Os';
+import { tagName, tierShort, comboName, comboShort } from '../ui/synergyText';
+import { CHIPSETS, chipName, chipText, rollChipsets } from '../systems/Chipsets';
 import type { GameContext, Stats, DamageTag, FxOpts } from '../weapons/types';
 import meta from '../data/meta.json';
 import zonesData from '../data/zones.json';
@@ -25,9 +31,16 @@ import bossAnim from '../data/boss_anim.json';
 import boss2Anim from '../data/boss2_anim.json';
 import wavesData from '../data/waves.json';
 import type { Wave } from '../systems/Spawner';
-import { Save, type Runner, type RunnerId, type SpecialId, type RunStats } from '../systems/Save';
-import { rollChoices, abilityCard, computeStats, passiveAmount, passiveAbility, type Choice, type PassiveId, type PassiveState } from '../systems/Progression';
+import { Save, type Runner, type RunnerId, type RunStats } from '../systems/Save';
+import { rollChoices, abilityCard, computeStats, passiveAmount, passiveAbility, type Choice, type PassiveId, type PassiveState, type SocketCard } from '../systems/Progression';
 import { LevelUpUI } from '../ui/LevelUpUI';
+import { itemCard, shortText, upgradeCard, recommend } from '../ui/cardInfo';
+import { StationUI } from '../ui/StationUI';
+import { makeChipArt, chipArt, CHIP_COLOR } from '../ui/ChipArt';
+import { chipShort } from '../ui/synergyText';
+import { drawStall, drawMarker } from '../ui/StationMarks';
+import { buildEquipPanel } from '../ui/EquipPanel';
+import { Hud } from '../ui/Hud';
 import { Sound, type SfxKey, type MusicKey } from '../systems/Sound';
 import { addMuteToggle, addFxToggle, addDmgToggle, addIntroToggle, addFullscreenToggle } from '../ui/MuteToggle';
 import { isTouch } from '../systems/Fullscreen';
@@ -39,6 +52,13 @@ import { pickAct, roleOf, type Role } from '../systems/SquadBrain';
 import { RANGED, type DirSense } from '../systems/Director';
 import visorAnchors from '../data/visor_anchors.json';
 
+/** 아군이 된 적 빛깔 (사이코시스 광폭화는 빨간빛) */
+const CHARM_TINT = 0xff2bd6;
+const PSYCHO_TINT = 0xff4a5a;
+/** 띄우기 칩셋: 가장 높이 떴을 때 높이 (px) */
+const AIR_LIFT = 26;
+/** 기계 5단계 작은 드론: 사격 간격(초), 사거리, 한 발 피해 */
+const MINI_DRONE = { gap: 0.5, range: 180, damage: 12 };
 /** 공격 상태가 없는 접촉형 적: 플레이어에게 붙으면 공격 그림 */
 const CONTACT_POSE = new Set<string>(['trooper_tank', 'thug', 'sec_bot', 'drone', 'rat_bot']);
 
@@ -54,7 +74,6 @@ type Volley = { volleyEvery: number; volleyCount: number; bulletSpeed: number; b
 const ZONES = zonesData.zones;
 const ZR = gameData.zoneRules;
 /** 왼쪽 위 체력바 폭 */
-const HP_W = 120;
 type BossPhase = 'walk' | 'aim' | 'charge' | 'leap' | 'air' | 'slam' | 'enter' | 'taunt' | 'hookAim' | 'hookFly' | 'hookPull' | 'hookGap' | 'hookBack' | 'walkIn' | 'phaseShift' | 'gatling' | 'call' | 'stomp' | 'stompRec' | 'drop' | 'sweepAim' | 'sweep' | 'mgAim' | 'mg' | 'plasma' | 'missileFire' | 'rise' | 'lower' | 'deploy';
 /** 블랙 실드 요원 공격 그림·이펙트 (아트 tools/art/sprites2026/scripts/troopers6/keys/atk_meta.json) */
 const TROOPER_ATK = {
@@ -137,6 +156,27 @@ function josa(name: string, a: string, b: string): string {
 const AI_SHOW = import.meta.env.VITE_AI_SHOW === '1' || new URLSearchParams(location.search).has('ai');
 /** 개발자 도구 버튼(배속·무적·보스 소환 등): AI 표시 모드 또는 주소에 ?debug */
 const DEV_TOOLS = new URLSearchParams(location.search).has('debug');
+
+/** 개편 3단계: 판 안 상점·리퍼닥 노점 */
+interface Station {
+  kind: 'shop' | 'ripper';
+  x: number;
+  y: number;
+  /** 남은 시간 (0이면 사라짐) */
+  t: number;
+  label: Phaser.GameObjects.Text;
+  arrow: Phaser.GameObjects.Text;
+  /** 상점 진열 (처음 열 때 굴림) */
+  stock: ItemRoll[] | null;
+  /** 상점 칩셋 한 칸 (산 뒤 null) */
+  chip?: string | null;
+  rerolls: number;
+  healed: boolean;
+  /** 리퍼닥 OS 목록 쪽수 (-1이면 첫 화면) */
+  osPage: number;
+  /** 상점 값 배율 (k번째 상점 × 1.15^(k-1)) */
+  priceMul: number;
+}
 /** 진압대 걷기 루프 재생 속도 (아트: 한 걸음 주기 1초) */
 const WALK_FPS = 12;
 
@@ -193,8 +233,101 @@ export class GameScene extends Phaser.Scene implements GameContext {
   private skyline!: Phaser.GameObjects.TileSprite;
   private sparks!: Phaser.GameObjects.Particles.ParticleEmitter;
   private levelUi!: LevelUpUI;
+  private stationUi!: StationUI;
 
   private weapons: WeaponBase[] = [];
+  /** 트윈스틱 조준 상태 (무기가 GameContext.aim으로 읽음). subX·subY: 보조무기를 쓸 자리 */
+  readonly aim = { x: 0, y: 0, primary: false, secondary: false, subX: 0, subY: 0 };
+
+  consumeSecondary(): void {
+    this.aim.secondary = false;
+  }
+
+  /** 플레이어에게서 r 안의 가장 가까운 적 (거리 제곱도) */
+  private nearestEnemy(r: number): { e: Enemy | null; d2: number } {
+    const p = this.player;
+    let best: Enemy | null = null;
+    let bd = r * r;
+    for (const e of this.grid.query(p.x, p.y, r, this.chainBuf)) {
+      if (!e.active || e.charmT > 0) continue;
+      const d = (e.x - p.x) ** 2 + (e.y - p.y) ** 2;
+      if (d < bd) {
+        bd = d;
+        best = e;
+      }
+    }
+    return { e: best, d2: bd };
+  }
+
+  private dense: { x: number; y: number } | null = null;
+  private denseT = 0;
+
+  /** 플레이어에서 r 안, 적이 가장 몰린 자리 (반경 55px 안 적 수가 가장 많은 적 위치). 0.15초마다 다시 셈 */
+  private densestSpot(r: number): { x: number; y: number } | null {
+    if ((this.denseT -= this.game.loop.delta / 1000) > 0 && this.dense) return this.dense;
+    this.denseT = 0.15;
+    const p = this.player;
+    const list = this.grid.query(p.x, p.y, r, this.chainBuf).filter((e) => e.active && e.charmT <= 0 && (e.x - p.x) ** 2 + (e.y - p.y) ** 2 < r * r).slice(0, 40);
+    let best: Enemy | null = null;
+    let bn = 0;
+    for (const e of list) {
+      let n = 0;
+      for (const o of list) if ((o.x - e.x) ** 2 + (o.y - e.y) ** 2 < 55 * 55) n++;
+      if (e.isBoss) n += 3;
+      if (n > bn) {
+        bn = n;
+        best = e;
+      }
+    }
+    this.dense = best ? { x: best.x, y: best.y } : null;
+    return this.dense;
+  }
+
+  /**
+   * 이번 프레임 조준
+   * - 주무기: 자동 발사. 마우스를 쓰면 커서 방향, 아니면(터치) 가장 가까운 적. fireRange 안에 적이 있을 때만 쏨
+   * - 보조무기: 신호를 받은 자리(우클릭·E = 커서, 끌어 놓은 자리). 자리 없이 누르면 가까운 적
+   * - 자동 조준(봇·개발자 도구): 가까운 적, 보조무기도 적이 가까우면 알아서
+   */
+  private updateAim(): void {
+    const p = this.player;
+    const c = this.controls;
+    const TS = gameData.twinStick;
+    const near = this.nearestEnemy(Math.max(TS.autoAimRange, TS.fireRange));
+    const mouse = c.aimMode === 'mouse' && !c.autoAim;
+    if (mouse) {
+      const w = this.cameras.main.getWorldPoint(c.pointerX * ZOOM, c.pointerY * ZOOM);
+      this.aim.x = w.x;
+      this.aim.y = w.y;
+    } else if (near.e) {
+      this.aim.x = near.e.x;
+      this.aim.y = near.e.y;
+    } else {
+      this.aim.x = p.x + p.dirX * 100;
+      this.aim.y = p.y + p.dirY * 100;
+    }
+    this.aim.primary = !!near.e && near.d2 < TS.fireRange * TS.fireRange;
+    // 보조무기: 자동 발사 (재사용이 끝나면). 누르기형(드론·EMP·미사일)은 가까운 적이 사거리 안이면,
+    // 끌어 놓기형(유탄·지뢰·포탑)은 적이 가장 몰린 곳에
+    const sub = this.weapons.find((w) => w.slot === 'secondary');
+    const use = sub ? ((weaponsData[sub.id as WeaponId] as { use?: string }).use ?? 'tap') : 'tap';
+    if (use === 'drag') {
+      const spot = this.densestSpot(TS.subRange);
+      this.aim.secondary = !!spot;
+      if (spot) {
+        this.aim.subX = spot.x;
+        this.aim.subY = spot.y;
+      }
+    } else {
+      const r = sub?.id === 'microMissile' ? TS.fireRange : TS.subRange;
+      this.aim.secondary = !!near.e && near.d2 < r * r;
+      if (near.e) {
+        this.aim.subX = near.e.x;
+        this.aim.subY = near.e.y;
+      }
+    }
+    p.aimX = this.aim.x;
+  }
   private passives = new Map<PassiveId, PassiveState>();
   private state: State = 'play';
   private elapsed = 0;
@@ -204,6 +337,45 @@ export class GameScene extends Phaser.Scene implements GameContext {
   private pendingLevels = 0;
   /** 엘리트(중간) 보스 처치로 받을 전설·신화 확정 보상 수 */
   private bossRewards = 0;
+  /** 개편 2단계: 열 보급 상자 (각 상자의 최소 등급 id) */
+  private chestQueue: string[] = [];
+  /** 개편 2단계: 전설·신화 무기를 얻은 뒤 고를 능력 */
+  private abilityPending: { weapon: WeaponId; tier: 'legendary' | 'mythic' } | null = null;
+  /** 개편 2단계: 판 안 재화 (칩). 3단계에서 상점·리퍼닥에 씀 */
+  private chips = 0;
+  /** 다음 보급 상자까지 (초), 다음 맵 칩 무더기까지 (초) */
+  private nextChestT = 0;
+  private mapChipT = 0;
+  /** 이번 판에 나온 상점 수 (값 오름) */
+  private shopsSeen = 0;
+  // ───── 개편 2-2: 사이버웨어·장비 소켓과 시너지 ─────
+  /** 사이버웨어·장비 소켓 (부위 → 낀 아이템) */
+  private sockets = new Map<string, Sock>();
+  /** 지금 켜진 효과 (아이템·태그 단계·조합) */
+  private kit = new Loadout([], new Map());
+  /** 무기별 배율: dmg 피해, cd 공격 간격, sub 재사용 대기, area 범위 */
+  private wMul = new Map<string, { dmg: number; cd: number; sub: number; area: number }>();
+  private wTags = new Map<string, string[]>();
+  /** 에너지 실드 남은 흡수량, 다시 차기까지 */
+  private gShield = 0;
+  private gShieldCd = 0;
+  private reactiveT = 0;
+  /** 칩셋: id → 중첩 (칸 제한 없음) */
+  private chipsets = new Map<string, number>();
+  /** 칩셋 효과용 셈: 주무기 적중 수, 처치 수, 냉각 칩셋 주기 */
+  private rhythmHits = 0;
+  private chipKills = 0;
+  private frostT = 0;
+  private grenadeReactT = 0;
+  private sinceDash = 99;
+  /** 감전·화상 (남은 초) */
+  private dots = new Map<Enemy, { shock: number; burn: number; hack: number; acc: number }>();
+  /** 폭발 4단계: 잠시 뒤 한 번 더 */
+  private echoes: { e: Enemy; t: number; dmg: number }[] = [];
+  private zaps: { pts: number[]; life: number }[] = [];
+  private synRings: { x: number; y: number; r: number; max: number; life: number; color: number }[] = [];
+  /** 시너지 효과가 낸 피해 중 (다른 시너지를 또 터뜨리지 않게) */
+  private procLock = false;
   private rewardOpen = false;
   private rerolls = 0;
   private choices: Choice[] = [];
@@ -212,7 +384,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
 
   /** 이번 판의 러너와 장착한 특수 능력 */
   private runner!: Runner;
-  private specialId: SpecialId = 'neural';
+  private specialId = 'stock';
   /** 특수 능력 발동 중 (뉴럴 오버클럭이면 overdrive도 true) */
   private specialOn = false;
   private berserk = false;
@@ -525,8 +697,8 @@ export class GameScene extends Phaser.Scene implements GameContext {
   private dashGhostT = 0;
   private dashRings: { r: number; life: number }[] = [];
   private flashRect!: Phaser.GameObjects.Rectangle;
-  private icons: { img: Phaser.GameObjects.Image; lvl: Phaser.GameObjects.Text; star: Phaser.GameObjects.Text }[] = [];
 
+  private hudUi!: Hud;
   private hud!: {
     time: Phaser.GameObjects.Text;
     kills: Phaser.GameObjects.Text;
@@ -549,12 +721,35 @@ export class GameScene extends Phaser.Scene implements GameContext {
   create(): void {
     // scene.start()로 다시 들어올 때 같은 인스턴스를 재사용하므로 상태를 전부 초기화
     this.state = 'play';
-    this.elapsed = this.kills = this.xp = this.pendingLevels = this.bossRewards = 0;
+    this.elapsed = this.kills = this.xp = this.pendingLevels = this.bossRewards = this.chips = 0;
+    // 판 시작: 칩셋·5단계 상태 초기화 (씬은 다시 쓰이므로)
+    this.wireLinks.clear();
+    this.miniDrones = [];
+    this.focusUntil = [];
+    this.elecHits = this.boomCount = this.meleeKills5 = this.mechKills = 0;
+    this.chestQueue = [];
+    this.abilityPending = null;
+    this.nextChestT = Phaser.Math.FloatBetween(gameData.supply.chestEvery[0], gameData.supply.chestEvery[1]);
+    this.mapChipT = gameData.supply.mapChips.every;
+    this.shopsSeen = 0;
     this.rewardOpen = false;
     this.level = 1;
     this.rerolls = gameData.rerollsPerRun;
     this.weapons = [];
     this.passives = new Map();
+    this.sockets = new Map();
+    this.kit = new Loadout([], new Map());
+    this.wMul = new Map();
+    this.wTags = new Map();
+    this.gShield = this.gShieldCd = this.reactiveT = this.grenadeReactT = 0;
+    this.sinceDash = 99;
+    this.chipsets = new Map();
+    this.rhythmHits = this.chipKills = this.frostT = 0;
+    this.dots = new Map();
+    this.echoes = [];
+    this.zaps = [];
+    this.synRings = [];
+    this.procLock = false;
     this.forcedRarity = undefined;
     this.levelUps = 0;
     this.giftScreen = null;
@@ -577,7 +772,8 @@ export class GameScene extends Phaser.Scene implements GameContext {
     this.dmgSec = [];
     this.mergeT = this.dashGhostT = 0;
     this.dashRings = [];
-    this.icons = [];
+    this.devUi = [];
+    this.devRows = [];
     this.dpsBuckets = new Map();
     this.dpsStart = new Map();
     this.dmgNums = [];
@@ -586,7 +782,20 @@ export class GameScene extends Phaser.Scene implements GameContext {
     this.dmgSrc = null;
     this.overdrive = this.specialOn = this.berserk = this.wasUntracked = false;
     this.runner = Save.runner();
-    this.specialId = Save.special(this.runner.id as RunnerId);
+    // OS: 아지트에서 낀 OS (레벨 = 뽑기로 모은 개수). ?debug 개발자 도구에서 고른 OS·레벨이 있으면 그것
+    {
+      const dev = DEV_TOOLS ? devOsPick() : null;
+      this.os = dev ? new OsState(dev.id, dev.level) : new OsState(Save.data.os, Save.osLevel(Save.data.os));
+      this.specialId = this.os.id;
+    }
+    this.osCdT = this.bossStunT = this.bossStunCd = this.osExt = 0;
+    this.ambush = false;
+    this.marks = new Map();
+    this.fireZones = [];
+    for (const t of this.freeTurrets) t.img.destroy();
+    this.freeTurrets = [];
+    this.orbitalTargets = [];
+    this.orbitalPick = -1;
     this.revives = Save.clinicLevel('revive');
     this.regen = Save.clinicValue('regen');
     this.run = { kills: 0, droneKills: 0, meleeKills: 0, trooperKills: 0, midbossKills: 0, bossKills: 0, hexKills: 0, coreKills: 0, time: 0, level: 1, zone: 1 };
@@ -594,6 +803,9 @@ export class GameScene extends Phaser.Scene implements GameContext {
     const startZone = Phaser.Math.Clamp(Number((this.scene.settings.data as { startZone?: number } | undefined)?.startZone ?? 0), 0, ZONES.length - 1);
     this.zoneIdx = startZone;
     this.zoneStart = 0;
+    this.stations = [];
+    this.stationOpen = null;
+    this.stationsFired = 0;
     this.transitionT = 0;
     this.raidsInZone = 0;
     this.dodgeRings = [];
@@ -606,8 +818,8 @@ export class GameScene extends Phaser.Scene implements GameContext {
     this.counterSeen = new Set();
     this.carryUi = [];
     // 블랙마켓에서 산 무기 중 꺼 둔 것은 빼고 (러너 시작 무기는 항상 포함)
-    const marketOn = Save.data.market.filter((id) => !Save.data.marketOff.includes(id));
-    this.weaponPool = Array.from(new Set([...meta.market.starter, ...marketOn, this.runner.startWeapon])) as WeaponId[];
+    // 개편 4단계: 블랙마켓 없음, 무기는 처음부터 모두 열림
+    this.weaponPool = [...WEAPON_IDS];
     this.odGauge = this.odTime = this.ghostTimer = 0;
     this.ghosts = [];
     this.phoneQueue = [];
@@ -664,7 +876,14 @@ export class GameScene extends Phaser.Scene implements GameContext {
     this.grid = new SpatialGrid<Enemy>(GRID_CELL);
     this.spawner = new Spawner((id, x, y, s) => this.spawnEnemy(id, x, y, s));
     this.controls = new InputController(this);
+    // 트윈스틱: 마우스 커서 대신 게임 십자선을 보여 줌 (장면이 끝나면 되돌림)
+    this.input.setDefaultCursor('none');
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.input.setDefaultCursor('default'));
     this.levelUi = new LevelUpUI(this);
+    makeChipArt(this);
+    this.invPanel = null;
+    this.makeInvButton();
+    this.stationUi = new StationUI(this, this.levelUi);
 
     this.sparks = this.add
       .particles(0, 0, 'spark', {
@@ -689,7 +908,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
     this.createHud();
     this.applyZone(false);
 
-    this.addWeapon(this.runner.startWeapon as WeaponId);
+    this.addStartWeapons();
     this.bindKeys();
     // 리퍼닥 '전투 시뮬레이션 칩': 판 시작 때 레벨업 카드를 미리 고른다 (첫 대화가 끝난 뒤 열림)
     this.pendingLevels += Save.clinicValue('startPick');
@@ -731,12 +950,13 @@ export class GameScene extends Phaser.Scene implements GameContext {
     if (this.zoneIdx > 0) {
       // 챕터 바로 시작(임시): 그 챕터 브리핑 뒤 전설·신화 확정 카드를 startCards[챕터]번 고름
       const zs = ZONES[this.zoneIdx] as Zone & { intro?: Line[] };
-      this.bossRewards = (gameData as unknown as { startCards: number[] }).startCards[this.zoneIdx] ?? 0;
+      for (let i = 0; i < ((gameData as unknown as { startCards: number[] }).startCards[this.zoneIdx] ?? 0); i++) this.chestQueue.push('legendary');
       this.startDialog(zs.intro ?? [], () => undefined);
     } else this.startDialog(lines ?? z0.intro ?? [], () => undefined);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.game.events.off(Phaser.Core.Events.BLUR, this.onBlur, this);
       this.levelUi.hide();
+      this.stationUi.hide();
       Sound.musicRate(1);
       Sound.slowWorld(false);
       Sound.raidFocus(false);
@@ -793,25 +1013,11 @@ export class GameScene extends Phaser.Scene implements GameContext {
   }
 
   private createHud(): void {
-    const fixed = <T extends Phaser.GameObjects.Text>(t: T) => t.setScrollFactor(0).setDepth(100);
-    this.hud = {
-      bars: this.add.graphics().setScrollFactor(0).setDepth(100),
-      time: fixed(this.add.text(VIEW_W / 2, 10, '00:00', { ...TEXT, fontSize: '16px' }).setOrigin(0.5, 0)),
-      level: fixed(this.add.text(HP_W + 14, 6, 'LV 1', TEXT)),
-      hp: fixed(this.add.text(8 + HP_W / 2, 6, '', { ...TEXT, fontSize: '10px', strokeThickness: 3 }).setOrigin(0.5, 0)),
-      kills: fixed(this.add.text(VIEW_W - 8, 10, '0', TEXT).setOrigin(1, 0)),
-      debug: fixed(this.add.text(VIEW_W - 8, 42, '', { ...TEXT, fontSize: '11px', color: '#39ff88', align: 'right' }).setOrigin(1, 0)),
-      od: fixed(this.add.text(VIEW_W / 2, VIEW_H - 22, this.specialLabel(), { ...TEXT, fontSize: '11px', color: SP[this.specialId].color }).setOrigin(0.5, 1)),
-      credits: fixed(this.add.text(VIEW_W - 8, 26, '', { ...TEXT, fontSize: '11px', color: '#fff23a' }).setOrigin(1, 0)),
-      bossName: fixed(this.add.text(VIEW_W / 2, 42, '', { ...TEXT, fontSize: '11px', color: '#ff2a3a' }).setOrigin(0.5, 0)),
-      zone: fixed(this.add.text(VIEW_W / 2, 29, '', { ...TEXT, fontSize: '10px', color: '#8a7aa8' }).setOrigin(0.5, 0)),
-      center: fixed(
-        this.add.text(VIEW_W / 2, VIEW_H / 2, '', { ...TEXT, fontSize: '20px', align: 'center' }).setOrigin(0.5).setVisible(false),
-      ),
-    };
-    this.hud.time.setShadow(0, 0, '#00f0ff', 6, true, true);
-    // 무기별 DPS: 왼쪽, 보유 아이콘 아래
-    this.dpsText = fixed(this.add.text(8, 84, '', { ...TEXT, fontSize: '8px', color: '#c8b8e8', lineSpacing: 3 }));
+    // UI: HUD는 src/ui/Hud.ts (글자들은 예전 이름 그대로 this.hud로 씀)
+    this.hudUi = new Hud(this);
+    this.hud = this.hudUi.t;
+    // 무기별 DPS: 왼쪽, 소켓 줄 아래
+    this.dpsText = this.add.text(8, Hud.BELOW, '', { ...TEXT, fontSize: '8px', color: '#c8b8e8', lineSpacing: 3 }).setScrollFactor(0).setDepth(100);
   }
 
   // ───────────────────────────── GameContext ─────────────────────────────
@@ -831,6 +1037,28 @@ export class GameScene extends Phaser.Scene implements GameContext {
     const res = (CT.mul as Record<string, Record<string, number>>)[e.id];
     if (res && tag && res[tag] !== undefined) amount *= res[tag];
     if (e.id === 'c_thorn' && tag === 'melee') this.thornReflect();
+    // 개편 2-2: 사이버웨어·장비·시너지 피해 배율
+    const L = this.kit;
+    const src = this.dmgSrc;
+    const proc = !this.procLock;
+    if (L.has('gear.mark') && (e.x - this.aim.x) ** 2 + (e.y - this.aim.y) ** 2 < 50 * 50) amount *= 1 + L.v('gear.mark') / 100;
+    // OS: 택티컬 표식, 광학 위장 3줄 매복(풀린 뒤 첫 공격)
+    if (this.isMarked(e)) amount *= 1 + this.os.v('mark', 25) / 100;
+    if (this.ambush && proc && src) {
+      this.ambush = false;
+      amount *= this.os.v('amb', 2);
+      this.burst(e.x, e.y, 0x39ff88, 8);
+    }
+    if (L.has('cyber.eliteDmg') && (e.isBoss || e.maxHp >= 1000)) amount *= 1 + L.v('cyber.eliteDmg') / 100;
+    // 칩셋: 사냥꾼(엘리트·보스), 리듬 탄(주무기 n번째 적중), 처형(일반 적 낮은 체력 즉사)
+    if (L.has('chip.bossDmg') && (e.isBoss || e.maxHp >= 1000)) amount *= 1 + L.v('chip.bossDmg') / 100;
+    if (proc && L.has('chip.rhythm') && src && src === this.weapons.find((w) => w.slot === 'primary')?.id && ++this.rhythmHits >= Math.max(2, L.v('chip.rhythm', 'n', 8))) {
+      this.rhythmHits = 0;
+      amount *= L.v('chip.rhythm', 'mul', 2);
+      this.burst(e.x, e.y, COLORS.cyan, 4);
+    }
+    if (L.has('chip.execute') && !e.isBoss && e.maxHp < 1000 && e.hp - amount <= (e.maxHp * Math.min(30, L.v('chip.execute'))) / 100) amount = Math.max(amount, e.hp);
+    if (src === 'mantisBlade' && L.has('combo.bladeReflex') && this.sinceDash <= L.v('combo.bladeReflex', 't')) amount *= L.v('combo.bladeReflex', 'mul', 1);
     // 강화 근섬유 특수 능력: 치명타 · 치명 폭주 · 분노 · 연속 처치
     const frenzy = this.pHas('critFrenzy');
     let critMul = 1;
@@ -839,16 +1067,30 @@ export class GameScene extends Phaser.Scene implements GameContext {
       amount *= critMul;
       this.burst(e.x, e.y, critMul === 3 ? 0xff2a3a : COLORS.yellow, 4);
     }
+    // 개편 2-2 치명타: 타겟팅 아이 + 정밀 2단계 확률, 정밀 3단계 배율, 레일건 + 타겟팅 아이 조합
+    const critPct = L.v('cyber.crit') + L.v('syn.prec2') + L.v('chip.crit');
+    let crit = false;
+    if (critMul === 1 && proc && critPct > 0 && Math.random() * 100 < critPct) {
+      crit = true;
+      critMul = L.v('syn.prec3', 'mul', 2) * (src === 'railgun' ? 1 + L.v('combo.railEye') / 100 : 1);
+      amount *= critMul;
+      this.burst(e.x, e.y, COLORS.yellow, 4);
+    }
     if (this.pHas('rage')) amount *= 1 + 0.4 * (1 - this.player.hp / this.player.maxHp);
     if (this.streak > 0) amount *= 1 + 0.02 * this.streak;
     // 처형자: 맞고 체력 15% 이하로 남는 일반 적은 즉사
     if (!e.isBoss && this.pHas('executioner') && e.hp - amount <= e.maxHp * 0.15) amount = Math.max(amount, e.hp);
+    // 최종 피해는 정수 (반올림, 0보다 크면 최소 1)
+    amount = amount > 0 ? Math.max(1, Math.round(amount)) : 0;
     this.logDamage(Math.min(amount, Math.max(0, e.hp)));
     this.noteDps(Math.min(amount, Math.max(0, e.hp)));
     this.dmgNumber(e, amount, critMul);
     if (e === this.boss) this.xmHitT = Math.max(this.xmHitT, 0.12);
+    if (proc) this.hitProcs(e, amount, tag, src, crit);
+    if (proc && this.wireLinks.size) this.linkShare(e, amount, tag);
     if (e.hit(amount)) {
       if (tag === 'melee') this.run.meleeKills++;
+      this.tier5Kill(tag, src, crit);
       this.killEnemy(e, tag);
       return true;
     }
@@ -1061,8 +1303,8 @@ export class GameScene extends Phaser.Scene implements GameContext {
   charm(e: Enemy, seconds: number): void {
     if (!e.active || e.isBoss) return;
     if (this.hackerShield(e)) return;
-    e.charmT = Math.max(e.charmT, seconds);
-    e.sprite.setTint(0xff2bd6);
+    e.charmT = Math.max(e.charmT, seconds * (1 + this.kit.v('syn.hack2') / 100));
+    e.sprite.setTint(e.psycho ? PSYCHO_TINT : CHARM_TINT);
   }
 
   stun(e: Enemy, seconds: number): void {
@@ -1103,6 +1345,177 @@ export class GameScene extends Phaser.Scene implements GameContext {
       }
     }
     return n;
+  }
+
+  reflectEnemyBullets(x: number, y: number, r: number, inArc: (bx: number, by: number) => boolean, dmg: number): number {
+    let n = 0;
+    for (const b of this.enemyBullets.items) {
+      if (!b.active || (b.x - x) ** 2 + (b.y - y) ** 2 > (r + b.radius) ** 2 || !inArc(b.x, b.y)) continue;
+      const a = Math.atan2(-b.vy, -b.vx);
+      const bx = b.x;
+      const by = b.y;
+      b.kill();
+      this.burst(bx, by, COLORS.cyan, 3);
+      this.fireBullet(bx, by, a, 360, dmg, { pierce: 1, life: 0.9, turnRate: 0, texture: 'wave', scale: 0.5, tag: 'melee' });
+      n++;
+    }
+    if (n) Sound.play('block');
+    return n;
+  }
+
+  interceptEnemyBullet(x: number, y: number, r: number): { x: number; y: number } | null {
+    let best: EnemyBullet | null = null;
+    let bd = r * r;
+    for (const b of this.enemyBullets.items) {
+      if (!b.active) continue;
+      const d = (b.x - x) ** 2 + (b.y - y) ** 2;
+      if (d < bd) ((bd = d), (best = b));
+    }
+    if (!best) return null;
+    const at = { x: best.x, y: best.y };
+    best.kill();
+    return at;
+  }
+
+  /** 연결 칩셋: 이어진 적 무리 (같은 무리는 같은 객체) */
+  private wireLinks = new Map<Enemy, { members: Enemy[]; t: number; pct: number }>();
+
+  linkEnemies(list: Enemy[], seconds: number, pct: number): void {
+    const g = { members: list.slice(), t: seconds, pct };
+    for (const e of list) this.wireLinks.set(e, g);
+  }
+
+  /** 이어진 적이 맞으면 나머지도 pct% 피해 (시너지 피해라 다시 퍼지지 않음) */
+  private linkShare(e: Enemy, amount: number, tag?: DamageTag): void {
+    const g = this.wireLinks.get(e);
+    if (!g || g.t <= 0) return;
+    for (const o of g.members) if (o !== e && o.active) this.synDamage(o, (amount * g.pct) / 100, tag);
+  }
+
+  private updateLinks(dt: number): void {
+    if (!this.wireLinks.size) return;
+    const seen = new Set<object>();
+    for (const [e, g] of this.wireLinks) {
+      if (!seen.has(g)) {
+        seen.add(g);
+        g.t -= dt;
+        const live = g.members.filter((m) => m.active);
+        for (let i = 1; i < live.length; i++) this.fx.lineStyle(1, COLORS.magenta, 0.5).lineBetween(live[i - 1].x, live[i - 1].y, live[i].x, live[i].y);
+      }
+      if (g.t <= 0 || !e.active) this.wireLinks.delete(e);
+    }
+  }
+
+  launchEnemy(e: Enemy, seconds: number, dmg: number): void {
+    if (!e.active || e.isBoss || e.flying || e.airT > 0 || this.ccMul(e) <= 0) return;
+    e.airT = e.airMax = seconds;
+    e.airDmg = dmg;
+  }
+
+  /** 떠 있는 적: 공격·이동 없이 포물선으로 떴다가, 떨어지면 피해 */
+  private updateAir(e: Enemy, dt: number): void {
+    e.airT -= dt;
+    if (e.airT <= 0) {
+      e.airT = 0;
+      this.placeEnemy(e);
+      this.burst(e.x, e.y, COLORS.orange, 5);
+      this.synDamage(e, e.airDmg, 'explosive');
+      return;
+    }
+    const k = 1 - e.airT / e.airMax;
+    this.placeEnemy(e);
+    e.sprite.y -= Math.sin(k * Math.PI) * AIR_LIFT;
+  }
+
+  // ───────────── 태그 시너지 5단계 (해킹 사이코시스는 updatePsycho) ─────────────
+  private elecHits = 0;
+  private boomCount = 0;
+  private meleeKills5 = 0;
+  private mechKills = 0;
+  /** 정밀 5단계 집중: 겹친 공격 속도 증가마다 끝나는 시각 */
+  private focusUntil: number[] = [];
+  /** 기계 5단계 부품 조립: 따라다니는 작은 드론 */
+  private miniDrones: { t: number; fire: number; a: number; img: Phaser.GameObjects.Image }[] = [];
+
+  boomScale(): number {
+    const L = this.kit;
+    if (!L.has('syn.boom5') || ++this.boomCount < L.v('syn.boom5', 'n', 10)) return 1;
+    this.boomCount = 0;
+    this.shake(120, 0.004);
+    return L.v('syn.boom5', 'mul', 2);
+  }
+
+  /** 전기 5단계: 화면 안 모든 적에게 방전 (시너지 피해라 다시 퍼지지 않음) */
+  private overcharge(dmg: number): void {
+    let n = 0;
+    for (const o of this.enemyPool.items) {
+      if (!o.active || !this.onScreen(o.x, o.y)) continue;
+      if (n++ < 40) this.fx.lineStyle(1, COLORS.cyan, 0.8).lineBetween(o.x, o.y - 120, o.x, o.y);
+      this.synDamage(o, dmg * this.stats.damageMul, 'electric');
+    }
+    this.screenFlash(0xe8f7ff, 0.12, 150);
+    Sound.play('glitch');
+  }
+
+  /** 처치 때 5단계 셈: 근접 연속 돌진, 정밀 집중, 기계 부품 조립 */
+  private tier5Kill(tag: DamageTag | undefined, src: string | null, crit: boolean): void {
+    const L = this.kit;
+    const melee = tag === 'melee' || (!!src && (this.wTags.get(src) ?? []).includes('근접'));
+    if (L.has('syn.melee5') && melee && ++this.meleeKills5 >= L.v('syn.melee5', 'n', 15)) {
+      this.meleeKills5 = 0;
+      if (this.player.dashCd > 0) {
+        this.player.dashCd = 0;
+        this.burst(this.player.x, this.player.y, COLORS.cyan, 8);
+      }
+    }
+    if (L.has('syn.prec5') && crit) {
+      const max = L.v('syn.prec5', 'max', 5);
+      this.focusUntil.push(this.elapsed + L.v('syn.prec5', 't', 3));
+      if (this.focusUntil.length > max) this.focusUntil.shift();
+    }
+    if (L.has('syn.mech5') && (src === 'hackDrone' || src === 'turret' || src === 'miniDrone') && ++this.mechKills >= L.v('syn.mech5', 'n', 30)) {
+      this.mechKills = 0;
+      if (this.miniDrones.length < L.v('syn.mech5', 'max', 3)) {
+        const img = this.add.image(this.player.x, this.player.y, 'hackdrone').setScale(0.6).setDepth(18).setTint(0xfff23a);
+        this.miniDrones.push({ t: L.v('syn.mech5', 't', 10), fire: 0.3, a: Math.random() * Math.PI * 2, img });
+      }
+    }
+  }
+
+  /** 정밀 5단계 집중: 지금 겹친 수 */
+  private get focusStacks(): number {
+    if (!this.focusUntil.length) return 0;
+    this.focusUntil = this.focusUntil.filter((t) => t > this.elapsed);
+    return this.focusUntil.length;
+  }
+
+  /** 기계 5단계: 작은 드론이 플레이어 둘레를 돌며 가장 가까운 적에게 사격 */
+  private updateMiniDrones(dt: number): void {
+    if (!this.miniDrones.length) return;
+    const p = this.player;
+    for (const d of this.miniDrones) {
+      d.t -= dt;
+      d.a += dt * 2;
+      const x = p.x + Math.cos(d.a) * 28;
+      const y = p.y + Math.sin(d.a) * 18 - 14;
+      d.img.setPosition(x, y).setAlpha(d.t < 2 && Math.floor(d.t * 6) % 2 ? 0.4 : 1);
+      if ((d.fire -= dt) > 0) continue;
+      d.fire = MINI_DRONE.gap * this.stats.cooldownMul;
+      let best: Enemy | null = null;
+      let bd = MINI_DRONE.range ** 2;
+      for (const e of this.grid.query(x, y, MINI_DRONE.range, this.chainBuf)) {
+        if (!e.active || e.charmT > 0) continue;
+        const dd = (e.x - x) ** 2 + (e.y - y) ** 2;
+        if (dd < bd) ((bd = dd), (best = e));
+      }
+      if (!best) continue;
+      const prev = this.dmgSrc;
+      this.dmgSrc = 'miniDrone';
+      this.fireBullet(x, y, Math.atan2(best.y - y, best.x - x), 340, MINI_DRONE.damage * this.stats.damageMul, { target: best, turnRate: 8, life: 0.8 });
+      this.dmgSrc = prev;
+    }
+    for (const d of this.miniDrones) if (d.t <= 0) d.img.destroy();
+    this.miniDrones = this.miniDrones.filter((d) => d.t > 0);
   }
 
   screenFlash(color: number, alpha: number, ms: number): void {
@@ -1214,6 +1627,18 @@ export class GameScene extends Phaser.Scene implements GameContext {
   }
 
   /** 개발자 도구(AI 표시 빌드·?ai·?debug): 3배속·무적·1분 건너뛰기·보스 무적·레벨업·보스 소환 (관찰·테스트용, 저장하지 않음) */
+  /** 개발자 도구 버튼들 (일시정지 장비창을 가리지 않게 일시정지 중엔 숨김) */
+  private devUi: Phaser.GameObjects.Text[] = [];
+  /** 왼쪽 아래 개발자 버튼 줄 (접기·펴기 대상) */
+  private devRows: Phaser.GameObjects.Text[] = [];
+  /** 개발자 버튼 줄을 접었는지 (다음 판에도 기억) */
+  private devFolded = false;
+
+  /** 개발자 버튼 보이기: 일시정지 중엔 모두 숨김, 접었으면 접기 버튼만 */
+  private syncDevUi(show: boolean): void {
+    for (const b of this.devUi) b.setVisible(show && (!this.devFolded || !this.devRows.includes(b)));
+  }
+
   private makeAiTools(): void {
     const mk = (y: number, label: () => string, toggle: () => void) => {
       const t = this.add
@@ -1222,6 +1647,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
         .setScrollFactor(0)
         .setDepth(160)
         .setInteractive({ useHandCursor: true });
+      this.devUi.push(t);
       t.on('pointerdown', (_p: Phaser.Input.Pointer, _x: number, _y: number, e: Phaser.Types.Input.EventData) => {
         e.stopPropagation();
         toggle();
@@ -1250,6 +1676,8 @@ export class GameScene extends Phaser.Scene implements GameContext {
           .setScrollFactor(0)
           .setDepth(160)
           .setInteractive({ useHandCursor: true });
+        this.devUi.push(t);
+        this.devRows.push(t);
         t.on('pointerdown', (_p: Phaser.Input.Pointer, _x: number, _y: number, e: Phaser.Types.Input.EventData) => {
           e.stopPropagation();
           act();
@@ -1259,6 +1687,56 @@ export class GameScene extends Phaser.Scene implements GameContext {
         x += t.width + 4;
       }
     };
+    // 접기·펴기 버튼 (버튼 줄 바로 위)
+    try {
+      this.devFolded = localStorage.getItem('ztl-dev-folded') === '1';
+    } catch {
+      this.devFolded = false;
+    }
+    const fold = this.add
+      .text(8, VIEW_H - 99, '', { ...TEXT, fontSize: '10px', color: '#fff23a', backgroundColor: '#3a1a5a', padding: { x: 5, y: 2 } })
+      .setScrollFactor(0)
+      .setDepth(160)
+      .setInteractive({ useHandCursor: true });
+    const foldLabel = () => fold.setText(this.devFolded ? '개발 도구 ▶' : '개발 도구 ▼').setY(this.devFolded ? VIEW_H - 26 : VIEW_H - 99);
+    foldLabel();
+    this.devUi.push(fold);
+    fold.on('pointerdown', (_p: Phaser.Input.Pointer, _x: number, _y: number, e: Phaser.Types.Input.EventData) => {
+      e.stopPropagation();
+      this.devFolded = !this.devFolded;
+      try {
+        localStorage.setItem('ztl-dev-folded', this.devFolded ? '1' : '0');
+      } catch {
+        // 저장이 막혀 있으면 이번 판만
+      }
+      foldLabel();
+      this.syncDevUi(this.state !== 'paused');
+      Sound.play('select');
+    });
+    row(VIEW_H - 80, [
+      // 자동 조준: 가까운 적을 노리고 알아서 쏨 (봇·관찰용)
+      [() => `자동 조준: ${this.controls.autoAim ? '켬' : '끔'}`, () => (this.controls.autoAim = !this.controls.autoAim)],
+      // 개편 2-3: OS 고르기·레벨 (판 밖 뽑기가 생기기 전 임시, 다음 판에도 기억)
+      [
+        () => `OS: ${this.os.name} ▶`,
+        () => {
+          const next = OS_IDS[(OS_IDS.indexOf(this.os.id) + 1) % OS_IDS.length];
+          const lv = OS_DEFS[next].active ? this.os.level : 1;
+          this.setOs(next, lv);
+          saveDevOsPick(next, lv);
+        },
+      ],
+      [
+        () => `OS Lv${this.os.level} ▲`,
+        () => {
+          const max = this.os.def.levels.length;
+          const lv = (this.os.level % max) + 1;
+          this.setOs(this.os.id, lv);
+          saveDevOsPick(this.os.id, lv);
+        },
+      ],
+      [() => 'Q 충전', () => this.os.hasActive && !this.specialOn && ((this.osCdT = 0), (this.odGauge = 100))],
+    ]);
     row(VIEW_H - 62, [
       // 보스만 무적 (보스 패턴 관찰용)
       [() => `보스 무적: ${this.bossGod ? '켬' : '끔'}`, () => (this.bossGod = !this.bossGod)],
@@ -1283,6 +1761,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
     const items = gameData.bosses.map((d) => [() => SHORT[d.id] ?? d.id, () => this.devSpawnBoss(d as BossDef)] as [() => string, () => void]);
     row(VIEW_H - 44, [[() => '보스 소환 ▶', () => {}], ...items.slice(0, 3)]);
     row(VIEW_H - 26, items.slice(3));
+    this.syncDevUi(true);
   }
 
   /** 개발자 도구: 보스 바로 소환 (구역 전환, 있던 보스는 보상 없이 치움) */
@@ -1329,15 +1808,66 @@ export class GameScene extends Phaser.Scene implements GameContext {
     this.tweens.add({ targets: b, alpha: 0.25, duration: 200, yoyo: true, repeat: 4, ease: 'Sine.inOut' });
   }
 
+  /** 장비창에 넘길 정보. OS 칸: 이름 + 레벨, 자세히에는 레벨별 능력 줄 (● 켜짐, ○ 아직) */
+  private equipInput(): Parameters<typeof buildEquipPanel>[1] {
+    const os = this.os;
+    const osDesc = os.lines().map((l, i) => `${l.on ? '●' : '○'} ${i + 1}. ${l.text}`).join('\n');
+    return { weapons: this.weapons, sockets: this.sockets, os: { id: os.id, name: `${os.name} Lv${os.level}`, color: os.def.color, desc: osDesc }, tagCount: this.kit.tagCount, tiers: this.kit.tiers, combos: this.kit.combos, chipsets: this.chipsets };
+  }
+
+  // ───── 카드 고르기 중 인벤토리 보기 (레벨업·보급 상자·능력 고르기) ─────
+  private invBtn: Phaser.GameObjects.Text | null = null;
+  private invPanel: Phaser.GameObjects.Container | null = null;
+  /** 카드가 비쳐 보이지 않게 까는 어두운 판 */
+  private invBack: Phaser.GameObjects.Rectangle | null = null;
+
+  private makeInvButton(): void {
+    this.invBtn = this.add
+      .text(8, VIEW_H - 30, tr('inv.button'), { ...TEXT, fontSize: '11px', color: '#00f0ff', backgroundColor: '#120a24', padding: { x: 8, y: 5 } })
+      .setScrollFactor(0)
+      .setDepth(305)
+      .setVisible(false)
+      .setInteractive({ useHandCursor: true });
+    this.invBtn.on('pointerup', () => this.toggleInv());
+    this.input.keyboard!.on('keydown-I', () => (this.invPanel || this.invBtn?.visible) && this.toggleInv());
+  }
+
+  /** 카드 화면이 열려 있을 때만 버튼을 보임 */
+  private syncInvButton(): void {
+    const show = this.state === 'levelup' && this.levelUi.open && !this.invPanel;
+    this.invBtn?.setVisible(show);
+    if (this.invPanel && !(this.state === 'levelup' && this.levelUi.open)) this.closeInv();
+  }
+
+  private toggleInv(): void {
+    if (this.invPanel) return this.closeInv();
+    if (this.state !== 'levelup' || !this.levelUi.open) return;
+    Sound.play('select');
+    this.levelUi.suspendKeys(true);
+    this.invBack = this.add.rectangle(0, 0, VIEW_W, VIEW_H, 0x07060f, 0.88).setOrigin(0).setScrollFactor(0).setDepth(399).setInteractive();
+    this.invPanel = buildEquipPanel(this, this.equipInput(), { onResume: () => this.closeInv() }).setDepth(400);
+    this.invBtn?.setVisible(false);
+  }
+
+  private closeInv(): void {
+    if (!this.invPanel) return;
+    this.invPanel.destroy();
+    this.invPanel = null;
+    this.invBack?.destroy();
+    this.invBack = null;
+    this.levelUi.suspendKeys(false);
+    Sound.play('hover');
+  }
+
   /** 일시정지 화면의 '임무 포기' 버튼 (누르면 한 번 더 묻고, 포기하면 패배로 결과 화면) */
   private showPauseMenu(on: boolean): void {
     for (const o of this.pauseUi) o.destroy();
     this.pauseUi = [];
     for (const b of this.settingUi) b.setVisible(on);
+    this.syncDevUi(!on);
     if (!on) return;
     // 뒤를 어둡게 해서 글자가 잘 보이게
     this.pauseUi.push(this.add.rectangle(0, 0, VIEW_W, VIEW_H, 0x000000, 0.5).setOrigin(0).setScrollFactor(0).setDepth(99));
-    this.buildPanel();
     const btn = (x: number, y: number, label: string, color: string, onClick: () => void) => {
       const b = this.add
         .text(x, y, label, { ...TEXT, fontSize: '13px', color, backgroundColor: '#120a24', padding: { x: 12, y: 6 } })
@@ -1349,7 +1879,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
       this.pauseUi.push(b);
       return b;
     };
-    btn(VIEW_W / 2, VIEW_H / 2 + 84, tr('pause.abandon'), '#ff5a6a', () => {
+    const abandon = () => {
       for (const o of this.pauseUi.slice(1)) o.destroy();
       this.pauseUi = this.pauseUi.slice(0, 1);
       this.hud.center.setVisible(false);
@@ -1370,7 +1900,10 @@ export class GameScene extends Phaser.Scene implements GameContext {
         this.hud.center.setVisible(this.state === 'paused');
         this.showPauseMenu(true);
       });
-    });
+    };
+    // UI: 장비창 (소켓 8칸 인체도 + 자세히·시너지·조합)
+    this.pauseUi.push(buildEquipPanel(this, this.equipInput(), { onResume: () => this.togglePause(), onAbandon: abandon }));
+    this.hud.center.setVisible(false);
   }
 
   /** 일시정지 화면 위쪽: 지금 가진 무기·사이버웨어·추가 강화 카드. 누르면 효과를 보여준다 */
@@ -1396,6 +1929,21 @@ export class GameScene extends Phaser.Scene implements GameContext {
         detail: [passivesData[id].desc.replace('{v}', String(Math.round(st.total))), ...abil.map((a) => `★ ${a.name}\n${a.desc}`)].join('\n'),
         color: abil.length ? rar('legendary').color : '#e8f7ff',
       });
+    }
+    {
+      const os = this.os;
+      const lines = os.lines().map((l, i) => `${l.on ? '●' : '○'} ${i + 1}. ${l.text}`);
+      items.push({ tex: '', title: os.name, sub: `OS Lv.${os.level}`, detail: [`${os.def.tags.length ? `[${os.def.tags.join('·')}]` : ''}`, ...lines].filter(Boolean).join('\n'), color: os.def.color });
+    }
+    for (const k of this.sockets.values()) {
+      const kind = ITEMS[k.id].kind as ItemKind;
+      items.push({ tex: `card_${itemArt(k.id)}`, title: itemName(kind, k.id), sub: `Lv.${k.level}`, detail: `${socketLabel(kind, k.id)}\n${itemText(k.id, k.level, k.rarity)}${this.tagLine(kind, k.id)}`, color: rar(k.rarity).color });
+    }
+    // 켜진 시너지 (태그 단계·조합)
+    const L = this.kit;
+    if (L.tiers.length || L.combos.length) {
+      const tagSum = [...L.tagCount].filter(([, n]) => n >= 2).map(([t, n]) => `${t} ${n}`).join(' · ');
+      items.push({ tex: '', title: tr('syn.title'), sub: `${L.tiers.length + L.combos.length}`, detail: [tagSum, ...L.tiers.map((t) => `${t.tag} ${t.count}: ${t.text}`), ...L.combos.map((c) => `★ ${c.name}: ${c.text}`)].join('\n'), color: '#fff23a' });
     }
     for (const o of gameData.overflow) {
       const v = this.overflow[o.id];
@@ -1502,13 +2050,18 @@ export class GameScene extends Phaser.Scene implements GameContext {
       // 첫 판 튜토리얼: 네 번째 레벨업에 플라즈마 유탄 전설 '집속탄', 3분이 지난 뒤 첫 레벨업에 신화 '연쇄 폭발'
       const first = Save.data.stats.runs === 0;
       this.giftScreen = null;
-      if (first && !Save.data.tutCluster && this.levelUps === 4) this.giftScreen = 'cluster';
-      else if (first && !Save.data.tutChain && this.elapsed >= 180) this.giftScreen = 'chain';
+      // 개편 2단계: 레벨업으로 특수 능력을 주지 않으므로 튜토리얼 선물 카드도 없음
+      void first;
     }
     this.choices = rollChoices(this.weapons, this.passives, this.rewardOpen ? 'boss' : this.forcedRarity, {
       guaranteeWeapon: this.weapons.length < gameData.guaranteeWeaponUntil,
       pool: this.weaponPool,
       luck: this.pHas('luckCircuit'),
+      upgradesOnly: true,
+      sockets: this.socketCards(),
+      // 칩셋: 소켓 8칸이 다 찬 뒤부터 강화 카드와 섞여 나옴. 모자라면 칩·회복 카드
+      extras: (this.chipsetsOpen() ? rollChipsets(gameData.chipsetCards, this.weaponRarity()) : []).map((id) => this.chipChoice(id)),
+      fillers: this.fillerChoices(),
       // 첫 판 3분 전까지: 플라즈마 유탄이 조금 더 자주, 영웅(보라) 카드가 조금 더 자주
       ...(Save.data.stats.runs === 0 && this.elapsed < 180 ? { favor: 'plasmaGrenade', favorChance: 0.35, epicMul: 2.5 } : {}),
     });
@@ -1520,6 +2073,17 @@ export class GameScene extends Phaser.Scene implements GameContext {
       }
     }
     if (!this.rewardOpen) this.forcedRarity = undefined;
+    // UI: 강화 카드는 장착한 아이템의 등급·소켓·태그로 보여 줌 (카드 등급은 효과용이라 그대로 둠)
+    for (const c of this.choices) {
+      if (c.card || c.item || c.pickAbility || c.ability || c.chipset || c.rarity.id !== 'common') continue;
+      if (c.socket) {
+        const k = this.sockets.get(c.socket);
+        if (k) c.card = upgradeCard({ kind: ITEMS[k.id].kind as ItemKind, id: k.id, rarity: rarityById(k.rarity), tags: itemTags(k.id), lv: k.level, desc: c.desc });
+      } else if (c.kind === 'weapon') {
+        const w = this.weapons.find((o) => o.id === c.id);
+        if (w) c.card = upgradeCard({ kind: 'weapon', id: w.id, rarity: rarityById(w.rarity), tags: this.wTags.get(w.id) ?? weaponTags(w.id, w.abilities), lv: w.level, desc: c.desc });
+      }
+    }
     this.levelUi.show(
       this.choices,
       this.rerolls,
@@ -1530,7 +2094,33 @@ export class GameScene extends Phaser.Scene implements GameContext {
         this.openLevelUp(true);
       },
       this.rewardOpen ? 'BOSS REWARD' : 'LEVEL UP',
+      this.skipButton(0, () => {
+        if (this.rewardOpen) this.bossRewards--;
+        else this.pendingLevels--;
+      }),
     );
+  }
+
+  /** 선택 포기 버튼: 칩을 받고 다음 화면으로 (rarityIdx: 상자 최소 등급, 레벨업은 0) */
+  private skipButton(rarityIdx: number, after: () => void): { label: string; onSkip: () => void } {
+    const list = gameData.supply.skipChips;
+    const n = list[Phaser.Math.Clamp(rarityIdx, 0, list.length - 1)];
+    return {
+      label: tr('lvl.skip', { n }),
+      onSkip: () => {
+        if (this.state !== 'levelup') return;
+        this.levelUi.hide();
+        this.addChips(n);
+        Sound.play('select');
+        after();
+        this.nextScreen();
+      },
+    };
+  }
+
+  /** 칩 얻기 (수집 시야: 칩 획득 +%) */
+  private addChips(n: number): void {
+    this.chips += n * (1 + (this.kit.v('cyber.pickup', 'chip') + this.kit.v('chip.chips')) / 100);
   }
 
   private pick(i: number): void {
@@ -1543,7 +2133,17 @@ export class GameScene extends Phaser.Scene implements GameContext {
       Save.write();
     }
     Sound.play('select');
-    if (c.kind === 'weapon') {
+    if (c.item || c.pickAbility) {
+      this.pickItem(c);
+      return;
+    }
+    if (c.chipset) {
+      this.addChipset(c.chipset);
+    } else if (c.id === 'fillChips') {
+      this.addChips(gameData.levelFillers.chips);
+    } else if (c.id === 'fillHeal') {
+      this.heal(Math.round((this.player.maxHp * gameData.levelFillers.healPct) / 100));
+    } else if (c.kind === 'weapon') {
       const id = c.id as WeaponId;
       const owned = this.weapons.find((o) => o.id === id);
       const w = owned ?? this.addWeapon(id);
@@ -1553,6 +2153,14 @@ export class GameScene extends Phaser.Scene implements GameContext {
         w.addAbility(c.ability.id);
         this.keepables.push({ kind: 'weapon', id, abilityId: c.ability.id, rarity: c.rarity.id });
       }
+      if (!owned || c.ability) this.rebuildLoadout();
+    } else if (c.socket) {
+      // 개편 2-2: 사이버웨어·장비 소켓 레벨 +1
+      const k = this.sockets.get(c.socket);
+      if (k) k.level++;
+      const oldMax = this.player.maxHp;
+      this.rebuildLoadout(false);
+      this.player.hp += Math.max(0, this.player.maxHp - oldMax);
     } else if (c.kind === 'passive') {
       const id = c.id as PassiveId;
       const st = this.passives.get(id) ?? { level: 0, total: 0, special: false };
@@ -1564,10 +2172,12 @@ export class GameScene extends Phaser.Scene implements GameContext {
         st.abilities = [...(st.abilities ?? []), c.ability.id];
         if (c.ability.id === 'creditMagnet') this.creditMagnet = true;
       }
-      const amt = c.maxed ? 0 : passiveAmount(id, c.rarity);
-      st.total += amt;
-      // 공격 속도는 곱연산으로 쌓는다
-      if (passivesData[id].stat === 'cooldownMul') st.speedMul = (st.speedMul ?? 1) * (1 + amt / 100);
+      {
+        const amt = c.maxed ? 0 : passiveAmount(id, c.rarity);
+        st.total += amt;
+        // 공격 속도는 곱연산으로 쌓는다
+        if (passivesData[id].stat === 'cooldownMul') st.speedMul = (st.speedMul ?? 1) * (1 + amt / 100);
+      }
       this.passives.set(id, st);
       const oldMax = this.player.maxHp;
       this.recalcStats();
@@ -1587,14 +2197,637 @@ export class GameScene extends Phaser.Scene implements GameContext {
     this.levelUi.hide();
     if (this.rewardOpen) this.bossRewards--;
     else this.pendingLevels--;
-    if (this.pendingLevels > 0 || this.bossRewards > 0) this.openLevelUp();
+    this.nextScreen();
+  }
+
+  /** 고르는 화면이 끝났을 때 다음: 능력 고르기 → 보급 상자 → 레벨업 → 게임 */
+  private nextScreen(): void {
+    if (!this.abilityPending) this.checkMythicAwaken();
+    if (this.abilityPending) this.openAbilityPick();
+    else if (this.stationOpen) this.openStation(this.stationOpen);
+    else if (this.chestQueue.length) this.openChest();
+    else if (this.pendingLevels > 0 || this.bossRewards > 0) this.openLevelUp();
     else this.state = 'play';
   }
 
+  // ───────────── 개편 3단계: 상점·리퍼닥 (챕터 시간표 stations.schedule, 화면 밖에 나타남) ─────────────
+  private stations: Station[] = [];
+  /** 이번 챕터 시간표(stations.schedule)에서 이미 지난 칸 수 */
+  private stationsFired = 0;
+  /** 지금 열려 있는 상점·리퍼닥 (능력 고르기 뒤 다시 열기용) */
+  private stationOpen: Station | null = null;
+
+  /** [값, 가중치] 목록에서 하나 */
+  private pickWeighted(list: number[][]): number {
+    const total = list.reduce((a, [, w]) => a + w, 0);
+    let r = Math.random() * total;
+    for (const [v, w] of list) if ((r -= w) < 0) return v;
+    return list[list.length - 1][0];
+  }
+
+  /** 보급 상자(40~60초마다, 플레이어 근처)와 맵 칩 줄(30초마다, 플레이어에서 한 방향으로) */
+  private updateSupply(dt: number): void {
+    const SU = gameData.supply;
+    const p = this.player;
+    if ((this.nextChestT -= dt) <= 0) {
+      this.nextChestT = Phaser.Math.FloatBetween(SU.chestEvery[0], SU.chestEvery[1]);
+      const a = Math.random() * Math.PI * 2;
+      const d = Phaser.Math.Between(90, 140);
+      this.dropChest(p.x + Math.cos(a) * d, p.y + Math.sin(a) * d);
+    }
+    if ((this.mapChipT -= dt) <= 0) {
+      const M = SU.mapChips;
+      this.mapChipT = M.every;
+      // 빵 부스러기: 플레이어에서 무작위 방향으로 한 줄. 보스 경계 안이면 경계 밖 칸은 버림
+      const a = Math.random() * Math.PI * 2;
+      const n = Phaser.Math.Between(M.count[0], M.count[1]);
+      const ar = this.arena;
+      for (let i = 0; i < n; i++) {
+        const d = M.start + i * M.gap;
+        const x = p.x + Math.cos(a) * d;
+        const y = p.y + Math.sin(a) * d;
+        if (ar && (x < ar.x + 16 || x > ar.x + ar.w - 16 || y < ar.y + 20 || y > ar.y + ar.h - 20)) break;
+        this.dropPickup('chip', x, y, 1);
+      }
+    }
+  }
+
+  private clearStations(): void {
+    for (const s of this.stations) {
+      s.label.destroy();
+      s.arrow.destroy();
+    }
+    this.stations = [];
+    this.stationOpen = null;
+  }
+
+  private spawnStations(kinds: ('shop' | 'ripper')[]): void {
+    if (!kinds.length) return;
+    const ST = gameData.stations;
+    const p = this.player;
+    const a = Math.random() * Math.PI * 2;
+    const make = (kind: 'shop' | 'ripper', ang: number): Station => {
+      const x = p.x + Math.cos(ang) * ST.dist;
+      const y = p.y + Math.sin(ang) * ST.dist * 0.7;
+      const color = kind === 'shop' ? '#fff23a' : '#39ff88';
+      const name = tr(kind === 'shop' ? 'station.shop' : 'station.ripper');
+      const label = this.add.text(x, y - 22, name, { ...TEXT, fontSize: '10px', color }).setOrigin(0.5, 1).setDepth(12);
+      const arrow = this.add.text(0, 0, '', { ...TEXT, fontSize: '9px', color }).setOrigin(0.5).setScrollFactor(0).setDepth(115);
+      return { kind, x, y, t: ST.life, label, arrow, stock: null, rerolls: 0, healed: false, osPage: -1, priceMul: kind === 'shop' ? ST.shop.priceGrowth ** Math.max(0, this.shopsSeen - 1) : 1 };
+    };
+    if (kinds.includes('shop')) this.shopsSeen++;
+    // 이미 떠 있는 곳과 겹치지 않게 방향을 돌림
+    kinds.forEach((k, i) => this.stations.push(make(k, a + i * 2.2)));
+    // 진이 알려 줌
+    this.phoneMsg(tr(kinds.length > 1 ? 'station.notice' : `station.notice.${kinds[0]}`));
+  }
+
+  /** 진 무전 한 줄 (없으면 화면 가운데 안내) */
+  private phoneMsg(text: string): void {
+    const t = this.add.text(VIEW_W / 2, 96, text, { ...TEXT, fontSize: '11px', color: '#39ff88', backgroundColor: '#120a24cc', padding: { x: 8, y: 4 } }).setOrigin(0.5).setScrollFactor(0).setDepth(130);
+    Sound.play('select');
+    this.tweens.add({ targets: t, alpha: 0, delay: 2600, duration: 500, onComplete: () => t.destroy() });
+  }
+
+  private updateStations(dt: number, zt: number): void {
+    const ST = gameData.stations;
+    // 보스전 중이면 끝날 때까지 기다렸다가 나옴 (그 사이 다음 시간이 지나도 한 번만)
+    const SC = ST.schedule as { t: number; kinds: ('shop' | 'ripper')[] }[];
+    if (!this.boss && !this.arena && this.stationsFired < SC.length && zt >= SC[this.stationsFired].t) {
+      const kinds = new Set<'shop' | 'ripper'>();
+      while (this.stationsFired < SC.length && zt >= SC[this.stationsFired].t) for (const k of SC[this.stationsFired++].kinds) kinds.add(k);
+      // 같은 종류가 아직 떠 있으면 새로 띄우지 않고 그대로 둠
+      this.spawnStations([...kinds].filter((k) => !this.stations.some((s) => s.kind === k && s.t > 0)));
+    }
+    if (!this.stations.length) return;
+    const p = this.player;
+    const cam = this.cameras.main;
+    const fx = this.fx;
+    for (const s of this.stations) {
+      s.t -= dt;
+      // 보스가 나오면 문을 닫음
+      if (this.boss || this.arena) s.t = 0;
+      if (s.t <= 0) continue;
+      const blink = s.t < 10 && Math.floor(s.t * 4) % 2 === 0 ? 0.4 : 1;
+      const name = tr(s.kind === 'shop' ? 'station.shop' : 'station.ripper');
+      // UI: 네온 노점 (src/ui/StationMarks.ts, 그림이 오기 전 코드로 그림)
+      drawStall(fx, s.kind, s.x, s.y, blink, this.elapsed, gameData.stations.reach);
+      s.label.setPosition(s.x, s.y - 28).setAlpha(blink).setText(`${name} · ${Math.ceil(s.t)}s`);
+      // 화면 밖이면 가장자리에 둥근 안내 (문양 + 남은 시간 고리 + 방향)
+      const sx = s.x - cam.scrollX;
+      const sy = s.y - cam.scrollY;
+      const inView = sx > 0 && sx < VIEW_W && sy > 0 && sy < VIEW_H;
+      if (inView) s.arrow.setVisible(false);
+      else {
+        const cx = VIEW_W / 2;
+        const cy = VIEW_H / 2;
+        const ang = Math.atan2(sy - cy, sx - cx);
+        // 가장자리 안쪽 테두리 (위는 HUD, 아래는 능력 막대를 피함)
+        const c = Math.cos(ang);
+        const sn = Math.sin(ang);
+        const k = Math.min(c > 0 ? (VIEW_W - 30 - cx) / c : c < 0 ? (30 - cx) / c : 1e9, sn > 0 ? (VIEW_H - 36 - cy) / sn : sn < 0 ? (72 - cy) / sn : 1e9);
+        const ex = cx + c * k;
+        const ey = cy + sn * k;
+        drawMarker(fx, s.kind, cam.scrollX + ex, cam.scrollY + ey, ang, s.t / gameData.stations.life, this.elapsed);
+        // 이름·시간 글자는 표시 아래 (아래쪽 가장자리면 위)
+        s.arrow
+          .setVisible(true)
+          .setPosition(Phaser.Math.Clamp(ex, 44, VIEW_W - 44), ey + (sn > 0.6 ? -27 : 27))
+          .setText(`${name} ${Math.ceil(s.t)}s`);
+      }
+      if (this.state === 'play' && (s.x - p.x) ** 2 + (s.y - p.y) ** 2 < (gameData.stations.reach + p.radius) ** 2) {
+        this.stationUi.reset();
+        this.openStation(s);
+      }
+    }
+    for (const s of this.stations) if (s.t <= 0) {
+      s.label.destroy();
+      s.arrow.destroy();
+    }
+    this.stations = this.stations.filter((s) => s.t > 0);
+  }
+
+  /** 상점·리퍼닥 화면 열기 (고르면 다시 그림, 떠나면 닫힘) */
+  private openStation(s: Station): void {
+    if (this.state === 'play') Sound.play('levelup');
+    this.state = 'levelup';
+    this.stationOpen = s;
+    s.arrow.setVisible(false);
+    const ST = gameData.stations;
+    const chips = Math.floor(this.chips);
+    const pay = (n: number): boolean => {
+      if (chips < n) {
+        Sound.play('block');
+        this.shake(80, 0.004);
+        return false;
+      }
+      this.chips -= n;
+      Sound.play('select');
+      return true;
+    };
+    // 고른 뒤: 전설·신화 무기를 샀으면 능력부터 고르고 다시 이 화면으로, 아니면 화면을 다시 그림
+    const after = () => {
+      if (this.stationOpen !== s) return;
+      if (this.abilityPending) {
+        this.stationUi.hide();
+        this.nextScreen();
+      } else this.openStation(s);
+    };
+    const leave = () => {
+      this.stationUi.hide();
+      // 들렀다 나오면 그 노점은 문을 닫음
+      s.t = 0;
+      this.stationOpen = null;
+      this.nextScreen();
+    };
+    if (s.kind === 'shop') {
+      // UI: 블랙마켓 화면 (src/ui/StationUI.ts)
+      const SH = ST.shop;
+      if (!s.stock) {
+        s.stock = rollItems(SH.items, this.equippedRarity(), undefined, SH.rarity);
+        s.chip = (this.chipsetsOpen() ? rollChipsets(1, this.weaponRarity())[0] : undefined) ?? null;
+      }
+      const stock = s.stock;
+      // 값: 상점이 나올 때마다 ×priceGrowth (아이템·칩셋·다시 뽑기·회복 모두)
+      const pm = (n: number) => Math.round(n * s.priceMul);
+      const healPrice = pm(SH.heal.price);
+      const items = stock.map((r) => ({ choice: this.itemChoice(r), price: pm((SH.price as Record<string, number>)[r.rarity.id] ?? 50) }));
+      // 칩셋 한 칸 (편집 페이지 값)
+      if (s.chip) items.push({ choice: this.chipChoice(s.chip), price: pm(CHIPSETS[s.chip].price ?? 45) });
+      const rr = pm(SH.reroll + SH.rerollStep * s.rerolls);
+      this.stationUi.showShop(
+        { chips, items, heal: s.healed ? undefined : { pct: SH.heal.pct, price: healPrice }, reroll: s.rerolls >= SH.rerollMax ? undefined : { price: rr } },
+        {
+          buy: (i) => {
+            const it = items[i];
+            if (!it || !pay(it.price)) return;
+            if (it.choice.chipset) s.chip = null;
+            else s.stock = s.stock!.filter((x) => x !== stock[i]);
+            this.equipItem(it.choice);
+            after();
+          },
+          heal: () => {
+            if (!pay(healPrice)) return;
+            s.healed = true;
+            this.heal(Math.round((this.player.maxHp * SH.heal.pct) / 100));
+            after();
+          },
+          reroll: () => {
+            if (s.rerolls >= SH.rerollMax || !pay(rr)) return;
+            s.rerolls++;
+            s.stock = rollItems(SH.items, this.equippedRarity(), undefined, SH.rarity);
+            s.chip = (this.chipsetsOpen() ? rollChipsets(1, this.weaponRarity())[0] : undefined) ?? null;
+            after();
+          },
+          leave,
+        },
+      );
+    } else {
+      // UI: 리퍼닥 화면 — 사이버웨어 소켓 레벨 +1 (여러 번 가능), OS 바꿔 끼기
+      const RP = ST.ripper;
+      const cyber = (['neural', 'optic', 'skeletal'] as const).map((part) => {
+        const k = this.sockets.get(part);
+        const label = PART_NAME[part];
+        if (!k) return { part, label };
+        const max = ITEMS[k.id].maxLevel ?? 5;
+        return {
+          part,
+          label,
+          item: {
+            name: itemName('cyber', k.id),
+            art: itemArt(k.id),
+            color: Phaser.Display.Color.HexStringToColor(rarityById(k.rarity).color).color,
+            level: k.level,
+            max,
+            now: shortText(k.id, k.level, k.rarity) ?? itemText(k.id, k.level, k.rarity),
+            next: k.level < max ? (shortText(k.id, k.level + 1, k.rarity) ?? itemText(k.id, k.level + 1, k.rarity)) : '',
+            price: RP.cyberLevel[Math.min(k.level - 1, RP.cyberLevel.length - 1)],
+          },
+        };
+      });
+      // 해금한 OS만 (?debug에서는 모두)
+      const unlocked = (id: string) => DEV_TOOLS || id === this.os.id || Save.osLevel(id) > 0;
+      const list = OS_IDS.filter(unlocked).map((id) => {
+        const st = new OsState(id, this.osLevelFor(id));
+        return { id, name: st.name, level: st.level, color: st.def.color, tags: st.def.tags, lines: st.lines() };
+      });
+      this.stationUi.showRipper(
+        { chips, cyber, os: { cur: this.os.id, price: RP.osSwap, list } },
+        {
+          upgrade: (part) => {
+            const k = this.sockets.get(part);
+            if (!k || k.level >= (ITEMS[k.id].maxLevel ?? 5)) return;
+            const price = RP.cyberLevel[Math.min(k.level - 1, RP.cyberLevel.length - 1)];
+            if (!pay(price)) return;
+            k.level++;
+            const oldMax = this.player.maxHp;
+            this.rebuildLoadout(false);
+            this.player.hp += Math.max(0, this.player.maxHp - oldMax);
+            after();
+          },
+          swap: (id) => {
+            if (id === this.os.id || !unlocked(id) || !pay(RP.osSwap)) return;
+            this.setOs(id, this.osLevelFor(id));
+            after();
+          },
+          leave,
+        },
+      );
+    }
+  }
+
+  /** OS 레벨: 뽑기로 모은 개수 (?debug에서 개발자 도구로 고른 레벨이 있으면 그것, 해금 안 한 것은 1) */
+  private osLevelFor(id: string): number {
+    if (!OS_DEFS[id]?.active) return 1;
+    const dev = DEV_TOOLS ? devOsPick()?.level : undefined;
+    return dev ?? Math.max(1, Save.osLevel(id));
+  }
+
+  // ───────────── 개편 2단계: 보급 상자·아이템 ─────────────
+  /** 장착 중인 아이템 id들 (보급 상자에 같은 것이 다시 나오지 않게) */
+  private equippedIds(): Set<string> {
+    const s = new Set<string>(this.weapons.map((w) => w.id));
+    for (const k of this.sockets.values()) s.add(k.id);
+    return s;
+  }
+
+  /**
+   * 개편 2-2: 장착이 바뀌면 효과(아이템·태그 단계·조합)를 다시 모은다.
+   * announce: 새로 켜진 태그 단계·조합을 화면에 알림
+   */
+  private rebuildLoadout(announce = true): void {
+    const before = new Set([...this.kit.tiers.map((t) => t.hook), ...this.kit.combos.map((c) => c.hook)]);
+    this.kit = new Loadout(
+      this.weapons.map((w) => ({ id: w.id, abilities: w.abilities })),
+      this.sockets,
+      this.os.def.tags,
+      this.chipsets,
+    );
+    const L = this.kit;
+    this.wMul.clear();
+    this.wTags.clear();
+    for (const w of this.weapons) {
+      const tags = weaponTags(w.id, w.abilities);
+      this.wTags.set(w.id, tags);
+      const mech = w.id === 'hackDrone' || w.id === 'turret';
+      let dmg = 1;
+      let cd = 1;
+      let area = 1;
+      if (mech) dmg *= 1 + L.v('gear.mechDmg') / 100;
+      if (tags.includes('근접')) dmg *= 1 + L.v('syn.melee2') / 100;
+      if (w.id === 'microMissile') dmg *= 1 + L.v('combo.missileThermal') / 100;
+      // 무기 전용 칩셋: 그 무기 피해 +v%
+      dmg *= 1 + L.v(`wchip.${w.id}`) / 100;
+      if (mech) cd /= 1 + L.v('syn.mech3') / 100;
+      if (tags.includes('전기')) area *= 1 + L.v('gear.elecRange') / 100;
+      if (tags.includes('폭발')) area *= 1 + L.v('syn.boom2') / 100;
+      // 뉴럴 5줄: 오버클럭 중 보조무기 재사용 대기 없음
+      const flush = this.overdrive && this.os.has('neural.flush');
+      const sub = w.slot === 'secondary' ? (flush ? 0.05 : Math.max(0.2, 1 - L.v('cyber.subCd') / 100)) : 1;
+      this.wMul.set(w.id, { dmg, cd, sub, area });
+    }
+    if (!L.has('gear.shield')) this.gShield = 0;
+    this.recalcStats();
+    if (!announce) return;
+    // 알림 문구는 짧은 문장·영어 이름 (src/ui/synergyText.ts, 없으면 build.json 원문)
+    const fresh = [...L.tiers.map((t) => ({ hook: t.hook, label: `${tagName(t.tag)} ${t.count}`, text: tierShort(t.tag, t.count, t.text) })), ...L.combos.map((c) => ({ hook: c.hook, label: comboName(c.id), text: comboShort(c.id, c.text) }))].filter((x) => !before.has(x.hook));
+    fresh.forEach((f, i) => this.time.delayedCall(i * 900, () => this.synergyToast(f.label, f.text)));
+  }
+
+  /** 시너지 켜짐 알림 (화면 위쪽) */
+  private synergyToast(label: string, text: string): void {
+    const t = this.add
+      .text(VIEW_W / 2, 74, `${tr('syn.on')} · ${label}\n${text}`, { ...TEXT, fontSize: '10px', color: '#fff23a', align: 'center', backgroundColor: '#120a24cc', padding: { x: 8, y: 4 } })
+      .setOrigin(0.5, 0)
+      .setScrollFactor(0)
+      .setDepth(140);
+    Sound.play('select');
+    this.tweens.add({ targets: t, alpha: 0, delay: 2200, duration: 500, onComplete: () => t.destroy() });
+  }
+
+  /** GameContext: 켜진 효과 값 (없으면 undefined) */
+  mod(hook: string): Record<string, number> | undefined {
+    return this.kit.get(hook) ?? (this.os.has(hook) ? this.os.p : undefined);
+  }
+
+  /** GameContext: 무기별 배율 (아드레날린 주입기는 체력이 낮을 때만) */
+  weaponMul(id: string): { dmg: number; cd: number; sub: number; area: number } {
+    const m = this.wMul.get(id) ?? { dmg: 1, cd: 1, sub: 1, area: 1 };
+    const L = this.kit;
+    if (L.has('gear.lowHpSpeed') && this.player.hp < this.player.maxHp * 0.5) return { ...m, cd: m.cd / (1 + L.v('gear.lowHpSpeed') / 100) };
+    return m;
+  }
+
+  /**
+   * 신화 무기 각성: 신화 무기는 처음엔 신화 능력만 가짐.
+   * 그 무기의 태그 중 하나가 장착 전체에서 gameData.mythicAwaken개 이상(태그 시너지 5)이 되면 전설 능력도 하나 고름 (한 번 얻으면 유지)
+   */
+  private checkMythicAwaken(): void {
+    const need = gameData.mythicAwaken;
+    for (const w of this.weapons) {
+      if (w.rarity !== 'mythic') continue;
+      const legend = weaponAbilities(w.id as WeaponId, 'legendary');
+      if (legend.some((a) => w.abilities.has(a.id))) continue;
+      const tag = weaponTags(w.id, w.abilities).find((t) => (this.kit.tagCount.get(t) ?? 0) >= need);
+      if (!tag) continue;
+      this.abilityPending = { weapon: w.id as WeaponId, tier: 'legendary' };
+      this.synergyToast(`${tag} ${need}`, tr('syn.awaken', { name: w.name }));
+      return;
+    }
+  }
+
+  /** 레벨업 카드에 넣을 사이버웨어·장비 소켓 */
+  private socketCards(): SocketCard[] {
+    return [...this.sockets].map(([part, k]) => ({
+      part,
+      id: k.id,
+      art: itemArt(k.id),
+      title: itemName(ITEMS[k.id].kind as ItemKind, k.id),
+      level: k.level,
+      maxLevel: ITEMS[k.id].maxLevel ?? 5,
+      nextDesc: itemText(k.id, k.level + 1, k.rarity),
+    }));
+  }
+
+  /** 카드 설명 끝에 붙는 태그·조합 안내 (조합은 짝을 이미 꼈을 때만) */
+  private tagLine(kind: ItemKind, id: string): string {
+    const tags = kind === 'weapon' ? weaponTags(id) : itemTags(id);
+    const eq = this.equippedIds();
+    const combos = combosWith(id).filter((c) => eq.has(c.other));
+    let out = tags.length ? `\n[${tags.join('·')}]` : '';
+    for (const c of combos) out += `\n${tr('syn.combo', { name: c.name })} ${c.text}`;
+    return out;
+  }
+
+  /** 보급 상자 열기: 아이템 3개 중 1개 */
+  private openChest(): void {
+    if (this.state === 'play') Sound.play('levelup');
+    this.state = 'levelup';
+    const min = this.chestQueue.shift();
+    const rolls = rollItems(3, this.equippedRarity(), min);
+    this.choices = rolls.map((r) => this.itemChoice(r));
+    this.levelUi.show(this.choices, 0, (i) => this.pick(i), () => undefined, tr('item.title'), this.skipButton(Math.max(0, gameData.rarity.findIndex((r) => r.id === min)), () => undefined));
+  }
+
+  /** 칩셋이 나오는지: 소켓 8칸(무기 2·사이버웨어 3·장비 2·OS)이 다 찼을 때부터 */
+  private chipsetsOpen(): boolean {
+    return this.weapons.length >= 2 && this.sockets.size >= 5;
+  }
+
+  /** 끼고 있는 무기 id → 등급 (무기 전용 칩셋은 전설 이상일 때만) */
+  private weaponRarity(): Map<string, string> {
+    return new Map(this.weapons.map((w) => [w.id, w.rarity]));
+  }
+
+  /** 레벨업 빈자리 카드: 칩·체력 회복 (강화할 것도 칩셋도 모자랄 때) */
+  private fillerChoices(): Choice[] {
+    const common = rarityById('common');
+    const F = gameData.levelFillers;
+    return [
+      { kind: 'overflow', id: 'fillChips', art: 'chip', rarity: common, title: tr('fill.chips', { n: F.chips }), levelLabel: tr('fill.label'), desc: tr('fill.chipsDesc', { n: F.chips }), card: { slot: tr('fill.label'), short: tr('fill.chipsDesc', { n: F.chips }), tags: [] } },
+      { kind: 'overflow', id: 'fillHeal', art: 'heal', rarity: common, title: tr('fill.heal'), levelLabel: tr('fill.label'), desc: tr('fill.healDesc', { pct: F.healPct }), card: { slot: tr('fill.label'), short: tr('fill.healDesc', { pct: F.healPct }), tags: [] } },
+    ] as Choice[];
+  }
+
+  /** 칩셋 카드 (레벨업·블랙마켓) */
+  private chipChoice(id: string): Choice {
+    const n = this.chipsets.get(id) ?? 0;
+    const def = CHIPSETS[id];
+    const kindLabel = def.kind === 'weapon' ? tr('chip.weapon', { name: weaponsData[def.weapon as WeaponId]?.name ?? '' }) : tr(def.kind === 'stat' ? 'chip.stat' : 'chip.special');
+    const foot = n ? tr('chip.stack', { a: n, b: n + 1 }) : tr('chip.new');
+    return {
+      kind: 'overflow',
+      id,
+      chipset: id,
+      art: chipArt(id),
+      rarity: rarityById('common'),
+      title: chipName(id),
+      levelLabel: `${kindLabel} · ${foot}`,
+      desc: chipText(id, n + 1),
+      // UI: 칩셋 카드는 종류 색 띠(능력치 시안·특수 주황·무기 분홍)와 짧은 문장 (card.rarity는 표시만)
+      card: {
+        slot: '',
+        short: chipShort(id, n + 1),
+        tags: [],
+        foot: { left: foot, right: n ? `×${n + 1}` : '' },
+        rarity: { ...rarityById('rare'), label: kindLabel, color: CHIP_COLOR[def.kind] ?? CHIP_COLOR.stat },
+      },
+    } as Choice;
+  }
+
+  /** 칩셋 하나 더 (중첩 +1) */
+  private addChipset(id: string): void {
+    this.chipsets.set(id, (this.chipsets.get(id) ?? 0) + 1);
+    const oldMax = this.player.maxHp;
+    this.rebuildLoadout(false);
+    this.player.hp += Math.max(0, this.player.maxHp - oldMax);
+  }
+
+  /** 끼고 있는 아이템 id → 등급 (등급 승급 카드용) */
+  private equippedRarity(): Map<string, string> {
+    const m = new Map<string, string>();
+    for (const w of this.weapons) m.set(w.id, w.rarity);
+    for (const k of this.sockets.values()) m.set(k.id, k.rarity);
+    return m;
+  }
+
+  /** 등급 승급 카드: 같은 아이템의 등급 +1 (소켓 레벨 그대로) */
+  private promoteChoice(r: ItemRoll): Choice {
+    const kind = r.kind === 'weapon' ? 'weapon' : 'passive';
+    const w = r.kind === 'weapon' ? this.weapons.find((o) => o.id === r.id) : undefined;
+    const k = r.kind === 'weapon' ? undefined : this.sockets.get(ITEMS[r.id].part);
+    const from = rarityById(w?.rarity ?? k?.rarity ?? 'common');
+    const lv = w?.level ?? k?.level ?? 1;
+    let desc = tr('item.promoteDesc', { from: from.label, to: r.rarity.label });
+    if (r.kind === 'weapon') {
+      desc += r.rarity.weaponBonus > 0 ? tr('lvl.bonus', { v: Math.round(r.rarity.weaponBonus * 100) }) : '';
+      const tier = r.rarity.ability ? (r.rarity.id as 'legendary' | 'mythic') : null;
+      if (tier && w && !weaponAbilities(r.id as WeaponId, tier).some((a) => w.abilities.has(a.id))) desc += '\n' + tr('item.pickAbility', { tier: r.rarity.label });
+    } else desc += '\n' + itemText(r.id, lv, r.rarity.id);
+    const card = itemCard({ kind: r.kind, id: r.id, rarity: r.rarity, lv, cur: null, tagCount: this.kit.tagCount, equipped: this.equippedIds(), activeCombos: this.kit.combos.map((c) => c.name) });
+    card.foot = { left: tr('item.promote', { from: from.label, to: r.rarity.label }), right: `Lv ${lv}` };
+    // 이미 끼고 있는 아이템이라 태그가 새로 늘지 않음: 추천·단계 ▲·경고는 빼고 태그만
+    card.rec = undefined;
+    card.warn = undefined;
+    card.tags = card.tags.map((t) => ({ ...t, up: undefined }));
+    if (r.kind !== 'weapon') card.short = itemText(r.id, lv, r.rarity.id);
+    return { kind, id: r.id, art: itemArt(r.id), rarity: r.rarity, title: itemName(r.kind, r.id), levelLabel: tr('item.promote', { from: from.label, to: r.rarity.label }), desc, item: { kind: r.kind, id: r.id }, promote: true, card } as Choice;
+  }
+
+  /** 아이템 카드 (보급 상자·상점) */
+  private itemChoice(r: ItemRoll): Choice {
+    if (r.promote) return this.promoteChoice(r);
+    const kind = r.kind === 'weapon' ? 'weapon' : 'passive';
+    let desc = '';
+    let lv = 1;
+    let was: { name: string; tags: string[] } | null = null;
+    let curId: string | undefined;
+    if (r.kind === 'weapon') {
+      const cur = this.weapons.find((w) => w.slot === weaponSlot(r.id as WeaponId));
+      lv = cur?.level ?? 1;
+      curId = cur?.id;
+      if (cur) was = { name: cur.name, tags: this.wTags.get(cur.id) ?? weaponTags(cur.id, cur.abilities) };
+      desc = weaponsData[r.id as WeaponId].desc + (r.rarity.weaponBonus > 0 ? tr('lvl.bonus', { v: Math.round(r.rarity.weaponBonus * 100) }) : '');
+      if (r.rarity.ability) desc += '\n' + tr('item.pickAbility', { tier: r.rarity.label });
+      if (r.rarity.id === 'mythic') desc += '\n' + tr('item.awakenHint', { n: gameData.mythicAwaken });
+      if (cur) desc += '\n' + tr('item.replace', { cur: cur.name });
+    } else {
+      const cur = this.sockets.get(ITEMS[r.id].part);
+      lv = cur?.level ?? 1;
+      curId = cur?.id;
+      if (cur) was = { name: itemName(ITEMS[cur.id].kind as ItemKind, cur.id), tags: itemTags(cur.id) };
+      desc = itemText(r.id, lv, r.rarity.id);
+      if (cur) desc += '\n' + tr('item.replace', { cur: itemName(ITEMS[cur.id].kind as ItemKind, cur.id) });
+    }
+    desc += this.tagLine(r.kind, r.id);
+    return { kind, id: r.id, art: itemArt(r.id), rarity: r.rarity, title: itemName(r.kind, r.id), levelLabel: `${socketLabel(r.kind, r.id)} · ${tr('lvl.socket', { lv })}`, desc, isNew: true, item: { kind: r.kind, id: r.id }, card: itemCard({ kind: r.kind, id: r.id, rarity: r.rarity, lv, cur: was, tagCount: this.kit.tagCount, equipped: this.equippedIds(), activeCombos: this.kit.combos.map((c) => c.name), curId }) } as Choice;
+  }
+
+  /** 전설·신화 무기를 얻은 뒤 그 등급 능력 중 하나 고르기 */
+  private openAbilityPick(): void {
+    const a = this.abilityPending!;
+    this.state = 'levelup';
+    const rar = rarityById(a.tier);
+    // UI: 능력이 무기에 새 태그를 더해 시너지 단계가 오르면 추천
+    const w = this.weapons.find((o) => o.id === a.weapon);
+    const has = new Set(w ? (this.wTags.get(w.id) ?? weaponTags(w.id, w.abilities)) : []);
+    this.choices = weaponAbilities(a.weapon, a.tier).map((ab) => {
+      const tags = abilityTags(a.weapon, ab.id)
+        .filter((tag) => !has.has(tag))
+        .map((tag) => {
+          const next = (this.kit.tagCount.get(tag) ?? 0) + 1;
+          return [2, 3, 4, gameData.mythicAwaken].includes(next) ? { tag, up: next } : { tag };
+        });
+      const card = { slot: `${weaponsData[a.weapon].name}`, short: ab.desc, tags, ...recommend({ id: `${a.weapon}:${ab.id}`, tags }) };
+      return { kind: 'weapon', id: a.weapon, rarity: rar, title: ab.name, levelLabel: `${weaponsData[a.weapon].name} · ${rar.label}`, desc: ab.desc, pickAbility: { weapon: a.weapon, tier: a.tier }, ability: undefined, abilityId: ab.id, card } as unknown as Choice;
+    });
+    this.levelUi.show(this.choices, 0, (i) => this.pick(i), () => undefined, tr('item.abilityTitle', { tier: rar.label }));
+  }
+
+  /** 아이템·능력 카드 고름 */
+  private pickItem(c: Choice): void {
+    this.levelUi.hide();
+    this.equipItem(c);
+    this.nextScreen();
+  }
+
+  /** 아이템·능력 장착 (화면 넘김 없음: 보급 상자·상점이 같이 씀) */
+  private equipItem(c: Choice): void {
+    if (c.chipset) return void this.addChipset(c.chipset);
+    if (c.promote) {
+      // 등급 승급: 같은 아이템 등급 +1 (무기는 피해 보너스, 전설·신화가 되면 그 등급 능력을 아직 없으면 고름)
+      if (c.item!.kind === 'weapon') {
+        const w = this.weapons.find((o) => o.id === c.id);
+        if (w) {
+          w.rarity = c.rarity.id;
+          w.bonus = c.rarity.weaponBonus;
+          const tier = c.rarity.ability ? (c.rarity.id as 'legendary' | 'mythic') : null;
+          if (tier && !weaponAbilities(w.id as WeaponId, tier).some((a) => w.abilities.has(a.id))) this.abilityPending = { weapon: w.id as WeaponId, tier };
+        }
+      } else {
+        const k = this.sockets.get(ITEMS[c.id].part);
+        if (k) k.rarity = c.rarity.id;
+      }
+      const oldMax = this.player.maxHp;
+      this.rebuildLoadout();
+      this.player.hp += Math.max(0, this.player.maxHp - oldMax);
+      return;
+    }
+    if (c.pickAbility) {
+      const w = this.weapons.find((o) => o.id === c.pickAbility!.weapon);
+      const abId = (c as unknown as { abilityId: string }).abilityId;
+      if (w) w.addAbility(abId);
+      this.abilityPending = null;
+      this.rebuildLoadout();
+    } else if (c.item!.kind === 'weapon') {
+      const id = c.id as WeaponId;
+      const w = this.addWeapon(id);
+      // 등급: 피해 보너스 (바꿔 끼우면 새 아이템 등급으로)
+      w.bonus = c.rarity.weaponBonus;
+      w.rarity = c.rarity.id;
+      if (c.rarity.ability) this.abilityPending = { weapon: id, tier: c.rarity.id as 'legendary' | 'mythic' };
+      this.rebuildLoadout();
+    } else {
+      // 사이버웨어·장비: 같은 부위 소켓에 끼움 (소켓 레벨 이어받음)
+      const part = ITEMS[c.id].part;
+      const old = this.sockets.get(part);
+      this.sockets.set(part, { id: c.id, rarity: c.rarity.id, level: old?.level ?? 1 });
+      const oldMax = this.player.maxHp;
+      this.rebuildLoadout();
+      this.player.hp += Math.max(0, this.player.maxHp - oldMax);
+    }
+  }
+
+  /** 보급 상자를 떨어뜨림 (minRarity: 최소 등급) */
+  private dropChest(x: number, y: number, minRarity = 'common'): void {
+    const idx = gameData.rarity.findIndex((r) => r.id === minRarity);
+    this.dropPickup('chest', x, y, Math.max(0, idx));
+  }
+
+  /** 무기 장착: 주무기·보조무기 소켓에 하나씩. 같은 소켓에 있던 무기는 빼고, 소켓 레벨·등급 보너스는 새 무기가 이어받음 */
   private addWeapon(id: WeaponId): WeaponBase {
     const w = createWeapon(id, this);
-    this.weapons.push(w);
+    const slot = weaponSlot(id);
+    const i = this.weapons.findIndex((o) => o.slot === slot);
+    if (i >= 0) {
+      const old = this.weapons[i];
+      while (w.level < old.level) w.levelUp();
+      w.bonus = old.bonus;
+      old.destroy();
+      this.weapons.splice(i, 1, w);
+    } else this.weapons.push(w);
+    // 주무기가 앞에 오게 (일시정지 패널·결과 화면 순서)
+    this.weapons.sort((a, b) => (a.slot === b.slot ? 0 : a.slot === 'primary' ? -1 : 1));
     return w;
+  }
+
+  /** 판 시작 무기: 러너 시작 무기 + 비어 있는 소켓은 기본 무기 (주무기 스마트 피스톨, 보조무기 플라즈마 유탄) */
+  private addStartWeapons(): void {
+    const start = this.runner.startWeapon as WeaponId;
+    this.addWeapon(start);
+    if (weaponSlot(start) !== 'primary') this.addWeapon('smartPistol');
+    if (weaponSlot(start) !== 'secondary') this.addWeapon('plasmaGrenade');
+    this.rebuildLoadout(false);
   }
 
   heal(v: number, silent = false): void {
@@ -1638,6 +2871,9 @@ export class GameScene extends Phaser.Scene implements GameContext {
 
   // ───────────────────────────── 메인 루프 ─────────────────────────────
   update(_time: number, deltaMs: number): void {
+    // 입력 버튼(보조무기·대시·OS)과 조준점은 전투 중에만
+    this.controls?.setVisible(this.state === 'play');
+    this.syncInvButton();
     // 포털에 '지금 조작 중인지' 알림 (레벨업·대화·일시정지·이월 화면은 플레이 아님)
     Ads.setPlaying(this.state === 'play');
     this.syncOdFx();
@@ -1674,11 +2910,26 @@ export class GameScene extends Phaser.Scene implements GameContext {
     const p = this.player;
 
     this.fx.clear();
-    this.controls.update(1 - p.dashCd / p.dashCooldownMax);
+    const subW = this.weapons.find((w) => w.slot === 'secondary');
+    this.controls.subUse = subW ? ((weaponsData[subW.id] as { use?: SubUse }).use ?? 'tap') : 'none';
+    const cam0 = this.cameras.main;
+    // UI: 터치 버튼에 그릴 것 (보조무기 그림·등급 색, OS 문양·게이지)
+    this.controls.look = {
+      subId: subW?.id,
+      subColor: subW ? Phaser.Display.Color.HexStringToColor(rarityById(subW.rarity).color).color : undefined,
+      os: { id: this.os.id, color: Phaser.Display.Color.HexStringToColor(this.os.def.color).color, hasActive: this.os.hasActive, gauge: this.odGauge, on: this.specialOn, cdT: this.osCdT },
+    };
+    this.controls.update(1 - p.dashCd / p.dashCooldownMax, !this.specialOn && this.odGauge >= 100, subW?.readiness() ?? 0, subW?.activeOn ?? false, {
+      x: p.x - cam0.scrollX,
+      y: p.y - cam0.scrollY,
+    });
     if (this.controls.consumeDash() && p.tryDash()) {
       // 화면 전체 번쩍임 대신 잔상 + 작은 고리
       this.dashRings.push({ r: 8, life: 0.22 });
       Sound.play('dash');
+      this.sinceDash = 0;
+      // 돌격 산탄 조합: 대시하면 샷건 재장전 즉시
+      if (this.kit.has('combo.shotgunLegs')) this.weapons.find((w) => w.id === 'shotgun')?.resetCooldown();
       if ((this.runner.mods as { dashCloak?: number }).dashCloak) {
         if (!this.untracked) this.decoy = { x: p.x, y: p.y };
         p.cloakT = (this.runner.mods as { dashCloak?: number }).dashCloak!;
@@ -1700,12 +2951,16 @@ export class GameScene extends Phaser.Scene implements GameContext {
       }
     }
     const hackMul = p.hackT > 0 ? gameData.squadAi.hacker.slow : 1;
-    p.update(dt, this.controls.moveX, this.controls.moveY, this.stats.moveMul * hackMul);
+    const guard = this.specialOn && this.specialId === 'guardian' && this.os.has('guardian.stand') && p.shield > 0 ? 1 + this.os.v('move') / 100 : 1;
+    p.update(dt, this.controls.moveX, this.controls.moveY, this.stats.moveMul * hackMul * guard);
     this.dashPath = null;
     if (this.wasDashing && !p.dashing) {
       this.dashPath = { x1: this.dashFrom.x, y1: this.dashFrom.y, x2: p.x, y2: p.y };
       // 칼날 대시: 지나간 길의 적에게 피해
       if (this.pHas('bladeDash')) this.lineDamage(this.dashPath, 14, 60 * this.stats.damageMul, COLORS.magenta);
+      // 근접 4단계: 대시가 끝날 때 주변 베기
+      if (this.kit.has('chip.dashBolt')) this.zapNearest(p.x, p.y, this.kit.v('chip.dashBolt', 'n', 2), this.kit.v('chip.dashBolt', 'dmg') * this.stats.damageMul);
+      if (this.kit.has('syn.melee4')) this.synBlast(p.x, p.y, this.kit.v('syn.melee4', 'r', 60), this.kit.v('syn.melee4', 'dmg') * this.stats.damageMul * this.stats.meleeMul, COLORS.magenta, 'melee');
     }
     this.wasDashing = p.dashing;
     if (this.zone.rule === 'conveyor' && !p.dashing) {
@@ -1774,6 +3029,8 @@ export class GameScene extends Phaser.Scene implements GameContext {
     if (this.transitionT <= 0) this.spawner.update(dt, zt, zt, (wavesData as Record<string, Wave[]>)[this.zone.id], p.x, p.y, this.zoneHpMul(zt), this.zoneSpawnMul(zt), this.directorSense(), this.elapsed);
     this.updateZoneRule(dt);
     if (this.transitionT <= 0) this.updateCounters(dt, zt);
+    this.updateStations(dt, zt);
+    if (this.transitionT <= 0) this.updateSupply(dt);
     this.thornT -= dt;
 
     this.grid.clear();
@@ -1781,12 +3038,15 @@ export class GameScene extends Phaser.Scene implements GameContext {
 
     this.updateOverdrive(dt);
     this.updateEnemies(dt);
-    if (this.boss) this.updateBoss(dt);
+    // 보스 기절(궤도 폭격·해커 5줄) 중에는 보스가 멈춤
+    if (this.boss && this.bossStunT <= 0) this.updateBoss(dt);
+    this.updateAim();
     for (const w of this.weapons) {
       this.dmgSrc = w.id;
       w.update(dt);
     }
     this.dmgSrc = null;
+    this.updateSynergy(dt);
     this.updateBullets(dt);
     this.updateDps(dt);
     this.updateDmgNums(dt);
@@ -1799,6 +3059,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
     this.updateHud();
 
     if (this.transitionT > 0 && (this.transitionT -= dt) <= 0) this.startZoneDialog();
+    else if (this.transitionT <= 0 && this.chestQueue.length && this.state === 'play') this.openChest();
     else if (this.transitionT <= 0 && (this.pendingLevels > 0 || this.bossRewards > 0) && this.state === 'play') this.openLevelUp();
   }
 
@@ -1853,19 +3114,29 @@ export class GameScene extends Phaser.Scene implements GameContext {
 
   private updateEnemies(dt: number): void {
     const p = this.player;
-    const slow = this.overdrive ? OD.enemySpeedMul : 1;
+    const slow = this.odSlowMul;
     const hidden = this.untracked;
     const conv = this.zone.rule === 'conveyor';
+    this.updatePsycho(dt);
+    this.updateLinks(dt);
+    this.updateMiniDrones(dt);
     for (const e of this.enemyPool.items) {
       if (!e.active) continue;
       if (e.dropT > 0 || e.landT > 0) {
         this.updateDrop(e, dt);
         continue;
       }
+      if (e.airT > 0) {
+        this.updateAir(e, dt);
+        this.tickHitFlash(e, dt);
+        continue;
+      }
       if (e.charmT > 0) {
         e.charmT -= dt;
-        if (e.charmT <= 0) e.sprite.clearTint();
-        else {
+        if (e.charmT <= 0) {
+          e.sprite.clearTint();
+          if (e.psycho) this.setPsycho(e, false);
+        } else {
           this.charmedAi(e, dt);
           this.tickHitFlash(e, dt);
           continue;
@@ -2030,7 +3301,32 @@ export class GameScene extends Phaser.Scene implements GameContext {
     }
   }
 
-  /** 조종당한 적: 가장 가까운 다른 적에게 달려가 들이받는다 */
+  private psychoT = 0;
+  /** 해킹 시너지 5 '사이코시스': 아군이 된 적 중 무작위 n명만 광폭화 (0.25초마다 빈자리 채움) */
+  private updatePsycho(dt: number): void {
+    if ((this.psychoT -= dt) > 0) return;
+    this.psychoT = 0.25;
+    const on = this.kit.has('syn.hack5');
+    const charmed = this.enemyPool.items.filter((e) => e.active && e.charmT > 0);
+    if (!on) {
+      for (const e of charmed) if (e.psycho) this.setPsycho(e, false);
+      return;
+    }
+    let need = this.kit.v('syn.hack5', 'n', 5) - charmed.filter((e) => e.psycho).length;
+    const pool = charmed.filter((e) => !e.psycho);
+    while (need-- > 0 && pool.length) this.setPsycho(pool.splice(Math.floor(Math.random() * pool.length), 1)[0], true);
+  }
+
+  private setPsycho(e: Enemy, on: boolean): void {
+    e.psycho = on;
+    e.sprite.setScale(e.baseScale * (on ? this.kit.v('syn.hack5', 'scale', 1.2) : 1));
+    if (on) {
+      e.sprite.setTint(PSYCHO_TINT);
+      this.burst(e.x, e.y, 0xff3a4a, 6);
+    } else if (e.charmT > 0) e.sprite.setTint(CHARM_TINT);
+  }
+
+  /** 조종당한 적: 가장 가까운 다른 적에게 달려가 들이받는다 (광폭화면 공격력·이동속도 증가) */
   private charmedAi(e: Enemy, dt: number): void {
     let best: Enemy | null = null;
     let bd = 200 * 200;
@@ -2040,13 +3336,15 @@ export class GameScene extends Phaser.Scene implements GameContext {
       if (d < bd) ((bd = d), (best = o));
     }
     e.charmCd -= dt;
+    const spdMul = e.psycho ? 1 + this.kit.v('syn.hack5', 'spd', 50) / 100 : 1;
+    const atkMul = e.psycho ? 1 + this.kit.v('syn.hack5', 'atk', 50) / 100 : 1;
     if (best) {
       const d = Math.sqrt(bd) || 1;
-      e.x += ((best.x - e.x) / d) * e.speed * 1.3 * dt;
-      e.y += ((best.y - e.y) / d) * e.speed * 1.3 * dt;
+      e.x += ((best.x - e.x) / d) * e.speed * 1.3 * spdMul * dt;
+      e.y += ((best.y - e.y) / d) * e.speed * 1.3 * spdMul * dt;
       if (d < e.radius + best.radius + 2 && e.charmCd <= 0) {
         e.charmCd = 0.5;
-        this.damage(best, (20 + e.damage * 3) * this.stats.damageMul, 'melee');
+        this.damage(best, (20 + e.damage * 3) * this.stats.damageMul * atkMul, 'melee');
         this.burst(best.x, best.y, COLORS.magenta, 4);
       }
     }
@@ -2066,11 +3364,13 @@ export class GameScene extends Phaser.Scene implements GameContext {
     const p = this.player;
     // 투명(광학 위장·고스트 대시) 중에는 어떤 공격도 통하지 않는다
     // 투명 중·보스 클로즈업 중에는 피해 없음
-    if (this.god || this.untracked || this.cine) return;
+    // 투명: 대시 위장, 광학 위장 2줄부터는 피해 없음
+    if (this.god || this.cine || (this.untracked && (this.player.cloakT > 0 || this.os.has('cloak.invuln')))) return;
     if (src) this.lastHit = src;
     // 보스(몸통·공격·탄 모두)에게 맞으면 보스 반대쪽으로 bossHitKnock px 밀림
     const kb = this.boss;
-    if (src && kb && src.id === kb.id) {
+    const standing = this.specialOn && this.specialId === 'guardian' && this.os.has('guardian.stand') && p.shield > 0;
+    if (src && kb && src.id === kb.id && !standing) {
       const kx = p.x - kb.x;
       const ky = p.y - kb.y;
       const kd = Math.hypot(kx, ky) || 1;
@@ -2083,12 +3383,57 @@ export class GameScene extends Phaser.Scene implements GameContext {
     const bossHit = !!src && (src.kind === 'boss' || src.kind === 'contact') && /^(mid)?boss/.test(src.id);
     if (!bossHit) dmg *= 1 + ((this.elapsed - this.zoneStart) / 60) * gameData.enemyDamageGrowthPerMin;
     if (this.pHas('steelSkin')) dmg *= 0.85;
+    const L = this.kit;
+    dmg *= 1 - Math.min(80, L.v('gear.dr') + Math.min(50, L.v('chip.dr'))) / 100;
     this.sinceHurt = 0;
-    // 순간 재부팅 쉴드가 먼저 피해를 흡수
+    // 개편 2-2 반격: 반응 장갑 충격파, 반격 유탄 (맞으면 바로, 막아도)
+    if (L.has('chip.hurtZap')) this.zapNearest(p.x, p.y, L.v('chip.hurtZap', 'n', 2), L.v('chip.hurtZap', 'dmg') * this.stats.damageMul);
+    if (L.has('gear.reactive') && this.reactiveT <= 0) {
+      this.reactiveT = 1;
+      this.synBlast(p.x, p.y, L.v('gear.reactive', 'r', 70), L.v('gear.reactive') * this.stats.damageMul, COLORS.orange);
+    }
+    if (L.has('combo.grenadeReactive') && this.grenadeReactT <= 0) {
+      const gw = this.weapons.find((w) => w.id === 'plasmaGrenade') as unknown as { autoThrow?: (x: number, y: number) => void } | undefined;
+      const near = this.nearestEnemy(260).e;
+      if (gw?.autoThrow && near) {
+        this.grenadeReactT = L.v('combo.grenadeReactive', 'cd', 2);
+        for (let i = 0; i < L.v('combo.grenadeReactive', 'n', 1); i++) gw.autoThrow(near.x + (Math.random() - 0.5) * 20 * i, near.y + (Math.random() - 0.5) * 20 * i);
+      }
+    }
+    // 에너지 실드가 먼저 흡수 (깨지면 cd초 뒤 다시 참). 과부하 실드 조합: 깨질 때 EMP 폭발
+    if (this.gShield > 0) {
+      const absorbed = Math.min(this.gShield, dmg);
+      this.gShield -= absorbed;
+      dmg -= absorbed;
+      if (this.gShield <= 0) {
+        this.gShieldCd = L.v('gear.shield', 'cd', 10);
+        if (L.has('combo.empShield')) this.synBlast(p.x, p.y, L.v('combo.empShield', 'r', 90), L.v('combo.empShield', 'dmg') * this.stats.damageMul, 0x66ffff, 'electric');
+      }
+      if (dmg <= 0) {
+        p.invuln = 0.3;
+        this.burst(p.x, p.y, COLORS.cyan, 6);
+        Sound.play('block');
+        return;
+      }
+    }
+    // 광전사 5줄: 발동 중 받는 피해 감소
+    if (this.berserk && this.os.has('berserk.last')) dmg *= 1 - this.os.v('dr') / 100;
+    // 순간 재부팅 쉴드·가디언 보호막이 먼저 피해를 흡수
     if (p.shieldT > 0 && p.shield > 0) {
       const absorbed = Math.min(p.shield, dmg);
       p.shield -= absorbed;
       dmg -= absorbed;
+      const guarding = this.specialOn && this.specialId === 'guardian';
+      // 가디언 5줄: 보호막이 받은 피해 일부를 공격한 적에게 돌려줌
+      if (guarding && this.os.has('guardian.reflect') && src) {
+        const att = src.id === this.boss?.id ? this.boss : this.grid.query(p.x, p.y, 120, this.chainBuf).find((e) => e.active && e.id === src.id);
+        if (att) {
+          this.zap(p.x, p.y, att.x, att.y, 0x4fa8ff);
+          this.synDamage(att, (absorbed * this.os.v('reflect', 50)) / 100);
+        }
+      }
+      // 가디언 3줄: 보호막이 깨질 때 충격파
+      if (guarding && p.shield <= 0 && this.os.has('guardian.burst')) this.synBlast(p.x, p.y, this.os.v('radius', 120), this.os.v('dmg', 120) * this.stats.damageMul, 0x4fa8ff);
       if (dmg <= 0) {
         p.invuln = 0.3;
         this.burst(p.x, p.y, COLORS.cyan, 6);
@@ -2098,6 +3443,8 @@ export class GameScene extends Phaser.Scene implements GameContext {
     }
     p.hp -= dmg;
     p.invuln = bossHit ? PLAYER.bossHurtInvuln : PLAYER.hurtInvuln;
+    // 광전사 5줄: 체력이 낮아지면 게이지가 차 있을 때 자동 발동
+    if (this.specialId === 'berserk' && this.os.has('berserk.last') && !this.specialOn && this.odGauge >= 100 && p.hp > 0 && p.hp <= (p.maxHp * this.os.v('hpPct', 30)) / 100) this.activateSpecial();
     Sound.play('hurt');
     // 불굴: 치명상을 입으면 체력 1로 버티고 3초 무적 (챕터마다 1번)
     if (p.hp <= 0 && this.pHas('undying') && !this.undyingUsed) {
@@ -2203,7 +3550,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
     if (this.streakT > 0 && (this.streakT -= dt) <= 0) this.streak = 0;
     // 가속 연쇄: 처치 후 1초 동안 공격 속도 +20% (곱연산)
     if (this.rushT > 0) this.rushT -= dt;
-    this.stats.cooldownMul = this.baseCooldownMul / (this.rushT > 0 ? 1.2 : 1);
+    this.stats.cooldownMul = this.baseCooldownMul / (this.rushT > 0 ? 1.2 : 1) / (1 + (this.focusStacks * this.kit.v('syn.prec5', 'v', 5)) / 100);
     // 특이점: 화면의 적을 한 점으로 끌어모은 뒤 폭발
     if (this.pHas('singularity')) {
       if (!this.singPull && (this.singT -= dt) <= 0) {
@@ -2281,6 +3628,9 @@ export class GameScene extends Phaser.Scene implements GameContext {
       else if (def.id === 'boss2') this.run.hexKills++;
       else this.run.coreKills++;
       if (def.final && this.zoneIdx < ZONES.length - 1) {
+        // 개편 2단계: 챕터 보스 보상 — 다음 챕터 시작 때 여는 전설 이상 보급 상자 + 칩
+        this.chestQueue.push(gameData.supply.bossMin);
+        this.addChips(gameData.supply.chips.boss);
         // 구역 보스: 주변 적을 정리하고 의뢰인 대화 뒤 다음 구역으로
         this.clearArena();
         this.clearField();
@@ -2298,22 +3648,36 @@ export class GameScene extends Phaser.Scene implements GameContext {
           if (this.state === 'play') this.startDialog((zonesData as { ending?: Line[] }).ending ?? [], () => this.endRun(true));
         });
       } else {
-        // 중간 보스 보상: 큰 경험치 덩어리와 회복
-        this.dropPickup('xp', e.x, e.y, def.rewardXp);
+        // 중간 보스 보상: 큰 경험치(바로 오름)와 회복
+        this.gainXp(def.rewardXp);
         this.dropPickup('heal', e.x + 14, e.y, gameData.healAmount * 2);
-        // 엘리트 보스 보상: 전설·신화 확정 카드
-        this.bossRewards++;
+        // 엘리트 보스 보상: 전설 이상 보급 상자 + 칩
+        this.dropChest(e.x - 14, e.y, gameData.supply.midbossMin);
+        this.addChips(gameData.supply.chips.midboss);
         Sound.music(this.zoneMusic, 1500);
       }
       return;
     }
     this.burst(e.x, e.y, e.id === 'thug' ? COLORS.orange : e.id === 'gunner' ? 0xb6ff3a : e.id.startsWith('trooper') ? 0xff2a3a : COLORS.magenta, e.id.startsWith('trooper') ? 20 : 8);
     Sound.play('kill');
-    this.dropPickup('xp', e.x, e.y, e.xp);
+    // 경험치는 줍지 않아도 바로 오름
+    this.gainXp(e.xp);
+    if (this.pHas('healCollect') && ++this.shardCount >= 50) {
+      this.shardCount = 0;
+      this.heal(5);
+    }
+    // 칩: 일반 처치는 확률로 1~3개 드롭, 블랙 실드 대원은 늘 드롭. 대원은 가끔 희귀 이상 상자 (상자는 시간마다 따로)
+    const SU = gameData.supply;
+    if (e.id.startsWith('trooper')) {
+      this.dropPickup('chip', e.x + 5, e.y - 3, SU.chips.trooper);
+      if (Math.random() < SU.trooperChance) this.dropChest(e.x, e.y, 'rare');
+    } else if (Math.random() * 100 < SU.chipDrop.chance) this.dropPickup('chip', e.x + 5, e.y - 3, this.pickWeighted(SU.chipDrop.counts));
     if (Math.random() < gameData.healDropChance) this.dropPickup('heal', e.x + 6, e.y, gameData.healAmount);
-    if (!this.specialOn) this.odGauge = Math.min(100, this.odGauge + OD.perKill);
+    // OS 게이지: chargeKills명 처치로 가득
+    const act = this.os.def.active;
+    if (!this.specialOn && act) this.odGauge = Math.min(100, this.odGauge + 100 / act.chargeKills);
+    this.osKill(e, tag);
     // 광전사 모드: 근접 무기로 처치했을 때만 체력 회복
-    if (this.berserk && tag === 'melee') this.heal(SP.berserk.healPerKill, true);
     if (this.pHas('killStreak')) {
       this.streak = Math.min(20, this.streak + 1);
       this.streakT = 3;
@@ -2321,7 +3685,213 @@ export class GameScene extends Phaser.Scene implements GameContext {
     if (this.pHas('killRush')) this.rushT = 1;
     if (e.id === 'drone') this.run.droneKills++;
     else if (e.id.startsWith('trooper')) this.run.trooperKills++;
+    this.killProcs(e, tag);
     e.kill();
+  }
+
+  // ───────────── 개편 2-2: 시너지 효과 (태그 단계·조합) ─────────────
+  /** 맞힐 때: 감전·화상·폭발 반복·관통 치명타·드론 아군화 */
+  private hitProcs(e: Enemy, amount: number, tag: DamageTag | undefined, src: string | null, crit: boolean): void {
+    const L = this.kit;
+    const wt = (src && this.wTags.get(src)) || [];
+    // 전기 5단계 과충전: 전기 공격으로 n번 맞히면 화면 안 모든 적에게 방전
+    if (L.has('syn.elec5') && (tag === 'electric' || wt.includes('전기')) && ++this.elecHits >= L.v('syn.elec5', 'n', 100)) {
+      this.elecHits = 0;
+      this.overcharge(L.v('syn.elec5', 'dmg', 80));
+    }
+    if (L.has('syn.elec2') && (tag === 'electric' || wt.includes('전기')) && Math.random() * 100 < L.v('syn.elec2', 'chance')) this.addDot(e, 'shock', L.v('syn.elec2', 'dur'));
+    if (L.has('syn.boom3') && (tag === 'explosive' || wt.includes('폭발'))) this.addDot(e, 'burn', L.v('syn.boom3', 'dur'));
+    if (L.has('syn.boom4') && tag === 'explosive' && this.echoes.length < 80) this.echoes.push({ e, t: L.v('syn.boom4', 'delay'), dmg: (amount * L.v('syn.boom4', 'pct')) / 100 });
+    if (src === 'hackDrone' && L.has('combo.droneNeural') && Math.random() * 100 < L.v('combo.droneNeural', 'chance')) this.charm(e, L.v('combo.droneNeural', 'dur'));
+    // 정밀 4단계: 치명타는 뒤의 적 n명에게도 같은 피해 (관통)
+    if (crit && L.has('syn.prec4')) {
+      const p = this.player;
+      const a = Math.atan2(e.y - p.y, e.x - p.x);
+      let n = L.v('syn.prec4', 'n', 1);
+      const list = this.grid.query(e.x, e.y, 70, this.chainBuf).filter((o) => o.active && o !== e && Math.abs(Phaser.Math.Angle.Wrap(Math.atan2(o.y - e.y, o.x - e.x) - a)) < 0.6);
+      list.sort((u, v) => (u.x - e.x) ** 2 + (u.y - e.y) ** 2 - ((v.x - e.x) ** 2 + (v.y - e.y) ** 2));
+      for (const o of list) {
+        if (n-- <= 0) break;
+        this.zap(e.x, e.y, o.x, o.y, COLORS.yellow);
+        this.synDamage(o, amount, tag);
+      }
+    }
+  }
+
+  /** 처치할 때: 근접 회복·감전 번개·해킹 전염·아군화된 적 EMP */
+  private killProcs(e: Enemy, tag?: DamageTag): void {
+    const L = this.kit;
+    const src = this.dmgSrc;
+    const wt = (src && this.wTags.get(src)) || [];
+    const dot = this.dots.get(e);
+    this.dots.delete(e);
+    if (L.has('syn.melee3') && (tag === 'melee' || wt.includes('근접'))) this.heal(L.v('syn.melee3', 'heal', 1), true);
+    // 칩셋: 연쇄 폭발, 흡혈, 처치 보호막
+    if (L.has('chip.killBoom') && Math.random() * 100 < L.v('chip.killBoom', 'chance')) this.synBlast(e.x, e.y, L.v('chip.killBoom', 'r', 40), L.v('chip.killBoom', 'dmg') * this.stats.damageMul, COLORS.orange, 'explosive');
+    if (L.has('chip.vamp') && Math.random() * 100 < L.v('chip.vamp', 'chance')) this.heal(L.v('chip.vamp', 'heal', 1), true);
+    if (L.has('chip.killShield') && ++this.chipKills >= Math.max(1, L.v('chip.killShield', 'n', 25))) {
+      this.chipKills = 0;
+      const p = this.player;
+      p.shield = Math.max(p.shield, L.v('chip.killShield'));
+      p.shieldT = Math.max(p.shieldT, 5);
+    }
+    if (dot && dot.shock > 0 && L.has('syn.elec3')) {
+      // 감전된 적이 죽으면 근처 n명에게 번개 (감전 초당 피해의 3배)
+      let n = L.v('syn.elec3', 'n', 2);
+      const dmg = this.shockDps() * 3;
+      for (const o of this.grid.query(e.x, e.y, 90, this.chainBuf).slice()) {
+        if (n <= 0) break;
+        if (!o.active || o === e || (o.x - e.x) ** 2 + (o.y - e.y) ** 2 > 90 * 90) continue;
+        n--;
+        this.zap(e.x, e.y, o.x, o.y, COLORS.cyan);
+        this.synDamage(o, dmg, 'electric');
+        if (o.active) this.addDot(o, 'shock', L.v('syn.elec2', 'dur', 2));
+      }
+    }
+    // 해커 3줄: 감전(해킹)된 적이 죽으면 근처로 옮음
+    if (dot && dot.hack > 0 && this.os.has('hacker.chain')) {
+      let n = this.os.v('chain', 2);
+      for (const o of this.grid.query(e.x, e.y, 90, this.chainBuf).slice()) {
+        if (n <= 0) break;
+        if (!o.active || o === e || (o.x - e.x) ** 2 + (o.y - e.y) ** 2 > 90 * 90) continue;
+        n--;
+        this.zap(e.x, e.y, o.x, o.y, 0x9d6bff);
+        this.addDot(o, 'hack', this.os.v('dur', 4));
+        if (this.os.has('hacker.slow')) this.slow(o, this.os.v('dur', 4));
+      }
+    }
+    if (L.has('syn.hack3') && Math.random() * 100 < L.v('syn.hack3', 'chance')) {
+      const o = this.grid.query(e.x, e.y, 110, this.chainBuf).find((q) => q.active && q !== e && !q.isBoss && q.charmT <= 0);
+      if (o) this.charm(o, L.v('syn.hack3', 'dur', 3));
+    }
+    if (e.charmT > 0 && L.has('syn.hack4')) {
+      const r = L.v('syn.hack4', 'r', 70);
+      for (const o of this.grid.query(e.x, e.y, r, this.chainBuf)) if (o.active && o !== e && (o.x - e.x) ** 2 + (o.y - e.y) ** 2 < r * r) this.slow(o, L.v('syn.hack4', 'slow', 1.5));
+      this.synRing(e.x, e.y, r, 0x66ffff);
+    }
+  }
+
+  private shockDps(): number {
+    return this.kit.v('syn.elec2', 'dps') * this.kit.v('syn.elec4', 'mul', 1) * this.stats.damageMul;
+  }
+
+  private addDot(e: Enemy, kind: 'shock' | 'burn' | 'hack', dur: number): void {
+    if (!e.active || dur <= 0) return;
+    let d = this.dots.get(e);
+    if (!d) {
+      if (this.dots.size > 300) return;
+      this.dots.set(e, (d = { shock: 0, burn: 0, hack: 0, acc: 0 }));
+    }
+    d[kind] = Math.max(d[kind], dur);
+  }
+
+  /** 시너지 효과가 내는 피해 (다른 시너지를 다시 터뜨리지 않음) */
+  private synDamage(e: Enemy, amount: number, tag?: DamageTag): boolean {
+    const lock = this.procLock;
+    this.procLock = true;
+    const k = this.damage(e, amount, tag);
+    this.procLock = lock;
+    return k;
+  }
+
+  /** 반경 r 안의 적 모두에게 시너지 피해 + 퍼지는 고리 */
+  private synBlast(x: number, y: number, r: number, dmg: number, color: number, tag?: DamageTag): void {
+    for (const o of this.grid.query(x, y, r, this.chainBuf).slice()) if (o.active && (o.x - x) ** 2 + (o.y - y) ** 2 < (r + o.radius) ** 2) this.synDamage(o, dmg, tag);
+    this.synRing(x, y, r, color);
+  }
+
+  /** 가까운 적 n명에게 번개 (칩셋 대시 방전·피격 방전) */
+  private zapNearest(x: number, y: number, n: number, dmg: number): void {
+    const list = this.grid.query(x, y, 140, this.chainBuf).filter((o) => o.active && (o.x - x) ** 2 + (o.y - y) ** 2 < 140 * 140);
+    list.sort((a, b) => (a.x - x) ** 2 + (a.y - y) ** 2 - ((b.x - x) ** 2 + (b.y - y) ** 2));
+    for (const o of list.slice(0, Math.max(0, Math.round(n)))) {
+      this.zap(x, y, o.x, o.y, COLORS.cyan);
+      this.synDamage(o, dmg, 'electric');
+    }
+  }
+
+  private synRing(x: number, y: number, r: number, color: number): void {
+    if (this.synRings.length < 40) this.synRings.push({ x, y, r: r * 0.3, max: r, life: 0.3, color });
+  }
+
+  private zap(x1: number, y1: number, x2: number, y2: number, color: number): void {
+    if (this.zaps.length >= 40) return;
+    const pts = [x1, y1];
+    for (let i = 1; i < 4; i++) pts.push(x1 + ((x2 - x1) * i) / 4 + (Math.random() - 0.5) * 8, y1 + ((y2 - y1) * i) / 4 + (Math.random() - 0.5) * 8);
+    pts.push(x2, y2, color);
+    this.zaps.push({ pts, life: 0.15 });
+  }
+
+  /** 매 프레임: 장비(재생·실드), 감전·화상, 폭발 반복, 그림 */
+  private updateSynergy(dt: number): void {
+    const L = this.kit;
+    const p = this.player;
+    this.sinceDash += dt;
+    this.reactiveT -= dt;
+    this.grenadeReactT -= dt;
+    if (L.has('gear.regen') && p.hp < p.maxHp && p.hp > 0) this.heal(L.v('gear.regen') * dt, true);
+    if (L.has('chip.regen') && p.hp < p.maxHp && p.hp > 0) this.heal(L.v('chip.regen') * dt, true);
+    // 냉각 칩셋: 0.25초마다 주변 적 감속
+    if (L.has('chip.frost') && (this.frostT -= dt) <= 0) {
+      this.frostT = 0.25;
+      const r = L.v('chip.frost', 'r', 50);
+      for (const o of this.grid.query(p.x, p.y, r, this.chainBuf)) if (o.active && (o.x - p.x) ** 2 + (o.y - p.y) ** 2 < r * r) this.slow(o, 0.4);
+      this.fx.lineStyle(1, 0x9fe8ff, 0.18).strokeCircle(p.x, p.y, r);
+    }
+    if (L.has('gear.shield') && this.gShield <= 0 && (this.gShieldCd -= dt) <= 0) {
+      this.gShield = L.v('gear.shield');
+      this.gShieldCd = L.v('gear.shield', 'cd', 10);
+    }
+    // 감전·화상: 0.5초마다 묶어서
+    if (this.dots.size) {
+      const burnDps = L.v('syn.boom3', 'dps') * this.stats.damageMul;
+      const shockDps = this.shockDps();
+      const hackDps = this.os.v('dot', 15) * this.stats.damageMul;
+      for (const [e, d] of [...this.dots]) {
+        if (!e.active) {
+          this.dots.delete(e);
+          continue;
+        }
+        d.shock = Math.max(0, d.shock - dt);
+        d.burn = Math.max(0, d.burn - dt);
+        d.hack = Math.max(0, d.hack - dt);
+        d.acc += dt;
+        if (d.acc >= 0.5) {
+          const dmg = ((d.shock > 0 ? shockDps : 0) + (d.burn > 0 ? burnDps : 0) + (d.hack > 0 ? hackDps : 0)) * d.acc;
+          d.acc = 0;
+          if (dmg > 0) this.synDamage(e, dmg);
+        }
+        if (d.shock <= 0 && d.burn <= 0 && d.hack <= 0) this.dots.delete(e);
+        else if (e.active && Math.random() < dt * 6) this.burst(e.x, e.y, d.hack > 0 ? 0x9d6bff : d.shock > 0 ? COLORS.cyan : COLORS.orange, 1);
+      }
+    }
+    for (const ec of this.echoes) {
+      ec.t -= dt;
+      if (ec.t <= 0 && ec.e.active) {
+        this.burst(ec.e.x, ec.e.y, COLORS.orange, 3);
+        this.synDamage(ec.e, ec.dmg);
+      }
+    }
+    this.echoes = this.echoes.filter((ec) => ec.t > 0 && ec.e.active);
+    // 그림: 에너지 실드, 번개, 고리
+    const fx = this.fx;
+    if (this.gShield > 0) fx.lineStyle(1.5, COLORS.cyan, 0.55).strokeCircle(p.x, p.y, 17);
+    for (const z of this.zaps) {
+      z.life -= dt;
+      const c = z.pts[z.pts.length - 1];
+      fx.lineStyle(1.5, c, Math.max(0, z.life / 0.15));
+      fx.beginPath();
+      fx.moveTo(z.pts[0], z.pts[1]);
+      for (let i = 2; i < z.pts.length - 1; i += 2) fx.lineTo(z.pts[i], z.pts[i + 1]);
+      fx.strokePath();
+    }
+    this.zaps = this.zaps.filter((z) => z.life > 0);
+    for (const r of this.synRings) {
+      r.life -= dt;
+      r.r += ((r.max - r.r) * dt) / 0.1;
+      fx.lineStyle(2, r.color, Math.max(0, r.life / 0.3)).strokeCircle(r.x, r.y, r.r);
+    }
+    this.synRings = this.synRings.filter((r) => r.life > 0);
   }
 
   private dropPickup(kind: PickupKind, x: number, y: number, v: number): void {
@@ -2354,6 +3924,17 @@ export class GameScene extends Phaser.Scene implements GameContext {
         if (k.kind === 'heal') {
           this.heal(k.value);
           Sound.play('heal');
+        } else if (k.kind === 'chest') {
+          this.chestQueue.push(gameData.rarity[Math.round(k.value)]?.id ?? 'common');
+          Sound.play('select');
+        } else if (k.kind === 'chip') {
+          // 칩 = 재화 + 경험치
+          this.addChips(k.value);
+          this.gainXp(k.value * gameData.supply.chipXp);
+          const now = this.time.now;
+          this.pickupStep = now - this.pickupAt > 400 ? 0 : Math.min(this.pickupStep + 1, 12);
+          this.pickupAt = now;
+          Sound.play('pickup', this.pickupStep * 50);
         } else {
           this.gainXp(k.value);
           // 연달아 주우면 음이 한 칸씩 올라간다 (무작위 음정 대신 계단처럼). 잠깐 쉬면 처음 음으로
@@ -2401,7 +3982,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
   }
 
   private gainXp(v: number): void {
-    this.xp += v * (this.pHas('dataGorge') ? 1.3 : 1);
+    this.xp += v * (this.pHas('dataGorge') ? 1.3 : 1) * (1 + this.kit.v('chip.xp') / 100);
     while (this.xp >= this.xpToNext()) {
       this.xp -= this.xpToNext();
       this.level++;
@@ -2409,12 +3990,60 @@ export class GameScene extends Phaser.Scene implements GameContext {
     }
   }
 
-  // ───────────────────────────── 오버드라이브 ─────────────────────────────
+  // ───────────────────────────── OS (Q 능력) ─────────────────────────────
+  /** 지금 낀 OS (레벨에 따라 켜진 줄) */
+  private os = new OsState('stock', 1);
+  /** 최소 재사용 대기: 발동한 뒤 이 시간이 지나야 게이지가 다시 가득 참 */
+  private osCdT = 0;
+  /** 광학 위장 3줄: 풀린 뒤 첫 공격 강화 */
+  private ambush = false;
+  /** 발동 중 처치로 늘어난 지속 시간 합 (뉴럴 3줄·광학 위장 5줄 상한용) */
+  private osExt = 0;
+  /** 택티컬 표식: 적 → 남은 초 */
+  private marks = new Map<Enemy, number>();
+  /** 궤도 폭격 3줄 화염 지대 */
+  private fireZones: { x: number; y: number; t: number }[] = [];
+  /** 택티컬 5줄 무료 포탑 */
+  private freeTurrets: { x: number; y: number; t: number; fire: number; img: Phaser.GameObjects.Image }[] = [];
+  /** 보스 기절 (궤도 폭격·해커 5줄): 남은 초, 다시 걸 수 있기까지 */
+  private bossStunT = 0;
+  private bossStunCd = 0;
+
+  /** GameContext: 뉴럴 오버클럭 중 공격속도 배율 */
+  get odFireMul(): number {
+    return this.overdrive ? this.os.v('atk', 2) : 1;
+  }
+
+  /** 뉴럴 오버클럭 중 적·적 탄 속도 배율 */
+  private get odSlowMul(): number {
+    return this.overdrive ? this.os.v('slow', 0.5) : 1;
+  }
+
+  isMarked(e: Enemy): boolean {
+    return (this.marks.get(e) ?? 0) > 0;
+  }
+
+  /** 판 시작·개발자 도구: OS를 끼움 */
+  private setOs(id: string, level: number): void {
+    if (this.specialOn) this.endSpecial();
+    this.os = new OsState(id, level);
+    this.specialId = this.os.id;
+    this.odGauge = 0;
+    this.osCdT = 0;
+    this.hud?.od.setColor(this.os.def.color);
+    this.rebuildLoadout(false);
+  }
+
   private updateOverdrive(dt: number): void {
-    if (!this.specialOn && this.odGauge >= 100) this.activateSpecial();
+    // OS 능력: 게이지가 차면 Q(모바일 OS 버튼)로 발동. 자동 조준이면 바로 발동
+    const wantSkill = this.controls.consumeSkill();
+    this.osCdT = Math.max(0, this.osCdT - dt);
+    if (!this.os.hasActive) this.odGauge = 0;
+    else if (!this.specialOn && this.osCdT > 0) this.odGauge = Math.min(this.odGauge, 99);
+    if (this.os.hasActive && !this.specialOn && this.odGauge >= 100 && (wantSkill || this.controls.autoAim)) this.activateSpecial();
     if (this.specialOn) {
       this.odTime -= dt;
-      this.odGauge = (this.odTime / this.specialDuration) * 100;
+      this.odGauge = Phaser.Math.Clamp((this.odTime / this.specialDuration) * 100, 0, 100);
       if (this.overdrive) {
         this.odOverlay.setAlpha(0.06 + Math.sin(this.elapsed * 12) * 0.03);
         // 잔상 효과
@@ -2430,23 +4059,9 @@ export class GameScene extends Phaser.Scene implements GameContext {
           this.spawnGhost(0xff2a3a);
         }
       } else if (this.specialId === 'orbital') this.updateOrbital(dt);
-      if (this.odTime <= 0) {
-        if (this.overdrive) {
-          Sound.slowWorld(false);
-          Sound.play('slowmo_out');
-        }
-        this.specialOn = this.overdrive = false;
-        this.odGauge = 0;
-        this.odOverlay.setVisible(false);
-        this.cameras.main.postFX?.clear();
-        this.odFxOn = false;
-        this.glitch.clear();
-        if (this.berserk) {
-          this.berserk = false;
-          this.recalcStats();
-        }
-      }
+      if (this.odTime <= 0) this.endSpecial();
     }
+    this.updateOsEffects(dt);
     for (const g of this.ghosts) {
       if (g.life <= 0) continue;
       g.life -= dt;
@@ -2455,10 +4070,39 @@ export class GameScene extends Phaser.Scene implements GameContext {
     }
   }
 
-  /** 게이지가 가득 차면 장착한 특수 능력을 10초간 켠다 */
-  /** 특수 능력 지속 시간 (능력마다 따로 정할 수 있음, 없으면 공통값) */
+  /** OS 능력이 끝날 때 */
+  private endSpecial(): void {
+    const os = this.os;
+    if (this.overdrive) {
+      Sound.slowWorld(false);
+      Sound.play('slowmo_out');
+      // 뉴럴 5줄: 끝날 때 주변 적 감속
+      if (os.has('neural.flush')) {
+        const r = os.v('radius', 160);
+        for (const e of this.grid.query(this.player.x, this.player.y, r, this.chainBuf)) if (e.active && (e.x - this.player.x) ** 2 + (e.y - this.player.y) ** 2 < r * r) this.slow(e, os.v('slowT', 2));
+        this.synRing(this.player.x, this.player.y, r, COLORS.magenta);
+      }
+    }
+    if (this.specialId === 'cloak' && os.has('cloak.ambush')) this.ambush = true;
+    this.specialOn = this.overdrive = false;
+    this.odGauge = 0;
+    this.odOverlay.setVisible(false);
+    this.cameras.main.postFX?.clear();
+    this.odFxOn = false;
+    this.glitch.clear();
+    if (this.berserk) {
+      this.berserk = false;
+      this.recalcStats();
+    }
+    // 뉴럴 5줄: 보조무기 재사용 대기 없음이 끝남
+    if (os.has('neural.flush')) this.rebuildLoadout(false);
+  }
+
+  /** OS 능력 지속 시간 */
   private get specialDuration(): number {
-    return (SP[this.specialId] as { duration?: number }).duration ?? OD.duration;
+    const os = this.os;
+    if (this.specialId === 'orbital') return 0.6 + os.v('strikes', 2) * 2.5;
+    return os.v('dur', OD.duration);
   }
 
   /**
@@ -2483,17 +4127,37 @@ export class GameScene extends Phaser.Scene implements GameContext {
     }
   }
 
-  /** 특수 능력 게이지 이름: 한국어 화면은 한글 이름, 영어는 대문자 라벨 */
+  /** OS 게이지 이름: 한국어 화면은 한글 이름, 영어는 대문자 라벨 + 레벨 */
   private specialLabel(): string {
-    const def = SP[this.specialId];
-    return I18n.lang === 'ko' ? def.name : def.label;
+    return `${I18n.lang === 'ko' ? this.os.def.name : this.os.def.label} Lv${this.os.level}`;
+  }
+
+  /** 조준점에서 가까운 적 n명 (r 안, 보스 포함 여부) */
+  private nearAim(n: number, r: number, bosses = true): Enemy[] {
+    const ax = this.aim.x;
+    const ay = this.aim.y;
+    const list = this.grid.query(ax, ay, r, this.chainBuf).filter((e) => e.active && (bosses || !e.isBoss) && (e.x - ax) ** 2 + (e.y - ay) ** 2 < r * r);
+    list.sort((a, b) => (a.x - ax) ** 2 + (a.y - ay) ** 2 - ((b.x - ax) ** 2 + (b.y - ay) ** 2));
+    return list.slice(0, n);
+  }
+
+  /** 보스 기절 (보스마다 cd초에 1번) */
+  private stunBoss(t: number, cd: number): void {
+    if (!this.boss || this.bossStunCd > 0 || this.cine || this.bossPhase === 'enter' || this.bossPhase === 'walkIn' || this.bossPhase === 'phaseShift') return;
+    this.bossStunT = t;
+    this.bossStunCd = cd;
+    this.boss.sprite.setTint(0x66ffff);
   }
 
   private activateSpecial(): void {
-    const def = SP[this.specialId];
+    const def = this.os.def;
+    const os = this.os;
+    const p = this.player;
     const color = Phaser.Display.Color.HexStringToColor(def.color).color;
     this.specialOn = true;
+    this.osExt = 0;
     this.odTime = this.specialDuration;
+    this.osCdT = def.active?.minCooldown ?? 0;
     this.screenFlash(color, 0.3, 350);
     Sound.play('overclock');
     if (this.specialId === 'neural') {
@@ -2501,25 +4165,59 @@ export class GameScene extends Phaser.Scene implements GameContext {
       this.odOverlay.setFillStyle(COLORS.magenta, 0.08).setVisible(true);
       // 슬로우 모션 + 충격파 + 색감 변화
       this.slowmo = OD.slowmoTime;
-      // 슬로우 모션: 깊게 떨어지는 '우우웅' + 음악도 같이 느려짐
       Sound.play('slowmo');
       // 발동 내내 배경음악·효과음이 느리고 낮게 (산데비스탄 느낌)
       Sound.slowWorld(true);
       this.shockwaves.push({ r: 0, life: 0.6 }, { r: -40, life: 0.8 });
       this.odFxOn = false;
       this.syncOdFx();
+      if (os.has('neural.flush')) this.rebuildLoadout(false);
     } else if (this.specialId === 'berserk') {
       this.berserk = true;
       this.recalcStats();
       this.odOverlay.setFillStyle(0xff2a3a, 0.08).setVisible(true);
       this.shake(200, 0.01);
     } else if (this.specialId === 'cloak') {
-      this.decoy = { x: this.player.x, y: this.player.y };
+      this.decoy = { x: p.x, y: p.y };
+      this.ambush = false;
       Sound.play('glitch');
-    } else {
+    } else if (this.specialId === 'orbital') {
       this.orbitalT = 0;
       this.orbitalDone = 0;
       Sound.play('bosswarn');
+    } else if (this.specialId === 'guardian') {
+      // 보호막: 지속 시간 동안 피해를 먼저 흡수 (순간 재부팅 쉴드와 같은 칸)
+      p.shield = Math.max(p.shield, os.v('shield', 40));
+      p.shieldT = Math.max(p.shieldT, this.odTime);
+      this.synRing(p.x, p.y, 40, 0x4fa8ff);
+    } else if (this.specialId === 'tactical') {
+      const n = os.has('tactical.multi') ? os.v('count', 5) : 1;
+      for (const e of this.nearAim(n, 140)) {
+        this.marks.set(e, os.v('dur', 8));
+        this.burst(e.x, e.y, 0x00e5f2, 6);
+      }
+      if (os.has('tactical.drop')) {
+        for (let i = 0; i < os.v('turrets', 2); i++) {
+          const x = this.aim.x + (i - 0.5) * 30;
+          const y = this.aim.y + 6;
+          this.freeTurrets.push({ x, y, t: 10, fire: 0.3, img: this.add.image(x, y, 'turretw').setDepth(9).setTint(0x00e5f2) });
+        }
+      }
+    } else if (this.specialId === 'hacker') {
+      const r = os.v('radius', 120);
+      for (const e of this.nearAim(60, r)) {
+        this.addDot(e, 'hack', os.v('dur', 4));
+        if (os.has('hacker.slow')) this.slow(e, os.v('dur', 4));
+        if (os.has('hacker.stun') && (e.isBoss || e.maxHp >= 1000)) {
+          if (e.isBoss) this.stunBoss(os.v('stun', 1), os.v('bossCd', 15));
+          else this.stun(e, os.v('stun', 1));
+        }
+      }
+      // 주변 적마다 OS 레벨에 따른 확률로 아군화 (보스 제외, 대원은 해커가 죽은 뒤에만: charm 안에서 막힘)
+      const convP = os.v('convP');
+      if (convP > 0) for (const e of this.nearAim(60, r, false)) if (Math.random() * 100 < convP) this.charm(e, os.v('convT', 5));
+      this.synRing(this.aim.x, this.aim.y, r, 0x9d6bff);
+      Sound.play('glitch');
     }
     const t = this.add
       .text(VIEW_W / 2, VIEW_H / 2 - 50, this.specialLabel(), { ...TEXT, fontSize: '22px', color: def.color })
@@ -2530,47 +4228,135 @@ export class GameScene extends Phaser.Scene implements GameContext {
     this.tweens.add({ targets: t, scale: 1.4, alpha: 0, duration: 900, onComplete: () => t.destroy() });
   }
 
-  /** 궤도 폭격: 예고 표시(붉은 조준선) 뒤 화면 안 모든 적에게 폭발 피해 */
+  /** OS 발동 중 처치 (지속 연장·체력 회복·표식 처치) */
+  private osKill(e: Enemy, tag?: DamageTag): void {
+    const os = this.os;
+    if (this.specialOn) {
+      const ext = this.specialId === 'neural' && os.has('neural.extend') ? os.v('ext') : this.specialId === 'cloak' && os.has('cloak.chain') ? os.v('ext') : 0;
+      if (ext > 0 && this.osExt < os.v('extMax', 3)) {
+        const add = Math.min(ext, os.v('extMax', 3) - this.osExt);
+        this.osExt += add;
+        this.odTime += add;
+      }
+      if (this.berserk && os.has('berserk.heal') && (tag === 'melee' || (this.dmgSrc && (this.wTags.get(this.dmgSrc) ?? []).includes('근접')))) this.heal(os.v('heal', 2), true);
+    }
+    if (this.isMarked(e) && os.has('tactical.cdr')) this.weapons.find((w) => w.slot === 'secondary')?.reduceCooldown(os.v('cdr', 1));
+    this.marks.delete(e);
+  }
+
+  /** 매 프레임: 표식, 화염 지대, 무료 포탑, 보스 기절 */
+  private updateOsEffects(dt: number): void {
+    const fx = this.fx;
+    this.bossStunCd = Math.max(0, this.bossStunCd - dt);
+    if (this.bossStunT > 0) {
+      this.bossStunT -= dt;
+      if (this.bossStunT <= 0 && this.boss) this.boss.sprite.clearTint();
+    }
+    for (const [e, t] of [...this.marks]) {
+      if (!e.active || t - dt <= 0) {
+        this.marks.delete(e);
+        continue;
+      }
+      this.marks.set(e, t - dt);
+      // 표식: 머리 위 노란 마름모
+      const y = e.y - e.radius - 8;
+      fx.lineStyle(1.5, 0x00e5f2, 0.9).strokeTriangle(e.x - 4, y, e.x + 4, y, e.x, y + 5);
+    }
+    if (this.fireZones.length) {
+      const dps = this.os.v('burn', 30) * this.stats.damageMul;
+      for (const z of this.fireZones) {
+        z.t -= dt;
+        fx.fillStyle(COLORS.orange, 0.18 + Math.sin(this.elapsed * 20 + z.x) * 0.05).fillCircle(z.x, z.y, 28);
+        // 0.25초마다 묶어서 (최종 피해가 정수라 매 프레임 작은 피해는 부풀려짐)
+        if (Math.floor((z.t + dt) * 4) === Math.floor(z.t * 4)) continue;
+        for (const e of this.grid.query(z.x, z.y, 28, this.chainBuf).slice()) if (e.active && (e.x - z.x) ** 2 + (e.y - z.y) ** 2 < 28 * 28) this.synDamage(e, dps * 0.25, 'explosive');
+      }
+      this.fireZones = this.fireZones.filter((z) => z.t > 0);
+    }
+    for (const t of this.freeTurrets) {
+      t.t -= dt;
+      t.fire -= dt;
+      if (t.t < 1) t.img.setAlpha(Math.floor(t.t * 10) % 2 ? 0.4 : 1);
+      if (t.fire > 0) continue;
+      const near = this.grid.query(t.x, t.y, 150, this.chainBuf).filter((e) => e.active);
+      const e = near.find((q) => this.isMarked(q)) ?? near.sort((a, b) => (a.x - t.x) ** 2 + (a.y - t.y) ** 2 - ((b.x - t.x) ** 2 + (b.y - t.y) ** 2))[0];
+      if (!e) continue;
+      t.fire = 0.35;
+      const a = Math.atan2(e.y - t.y, e.x - t.x);
+      t.img.setRotation(a);
+      this.fireBullet(t.x, t.y, a, 340, 14 * this.stats.damageMul, { life: 0.6, turnRate: 0 });
+    }
+    for (const t of this.freeTurrets) if (t.t <= 0) t.img.destroy();
+    this.freeTurrets = this.freeTurrets.filter((t) => t.t > 0);
+  }
+
+  /** 궤도 폭격: 예고 표시(붉은 조준선) 뒤 화면 안 적에게 폭발 피해 (레벨에 따라 대상 수·횟수·피해) */
   private updateOrbital(dt: number): void {
-    const O = SP.orbital;
+    const os = this.os;
+    const strikes = os.v('strikes', 2);
+    const warn = SP.orbital.warn;
     this.orbitalT += dt;
-    if (this.orbitalDone >= O.strikes) return;
-    const at = 0.4 + (this.orbitalDone * OD.duration) / O.strikes;
-    if (this.orbitalT >= at - O.warn) {
-      const k = Phaser.Math.Clamp((at - this.orbitalT) / O.warn, 0, 1);
+    if (this.orbitalDone >= strikes) return;
+    const at = 0.4 + this.orbitalDone * 2.5;
+    const all = os.has('orbital.full');
+    if (this.orbitalT >= at - warn) {
+      const k = Phaser.Math.Clamp((at - this.orbitalT) / warn, 0, 1);
       const cam = this.cameras.main;
-      // 화면 가운데 큰 조준 원 + 적마다 작은 표적
       this.fx.lineStyle(2, COLORS.yellow, 0.9 - k * 0.5).strokeCircle(cam.scrollX + VIEW_W / 2, cam.scrollY + VIEW_H / 2, 60 + k * 120);
+      if (!this.orbitalTargets.length || this.orbitalPick !== this.orbitalDone) {
+        this.orbitalPick = this.orbitalDone;
+        const on = this.enemyPool.items.filter((e) => e.active && this.onScreen(e.x, e.y));
+        this.orbitalTargets = all ? on : Phaser.Utils.Array.Shuffle(on).slice(0, os.v('targets', 6));
+      }
       let n = 0;
-      for (const e of this.enemyPool.items) {
-        if (!e.active || !this.onScreen(e.x, e.y) || n++ > 60) continue;
+      for (const e of this.orbitalTargets) {
+        if (!e.active || n++ > 60) continue;
         this.fx.lineStyle(1, 0xff2a3a, 0.8).strokeCircle(e.x, e.y, 4 + k * 8);
       }
     }
     if (this.orbitalT >= at) {
       this.orbitalDone++;
-      const dmg = O.damage * this.stats.damageMul * this.stats.explosiveMul;
+      const dmg = os.v('dmg', 250) * this.stats.damageMul * this.stats.explosiveMul;
       let bursts = 0;
-      for (const e of this.enemyPool.items.slice()) {
-        if (!e.active || !this.onScreen(e.x, e.y)) continue;
+      for (const e of this.orbitalTargets.slice()) {
+        if (!e.active) continue;
         if (bursts++ < 24) this.burst(e.x, e.y, COLORS.yellow, 6);
+        if (os.has('orbital.burn') && this.fireZones.length < 40) this.fireZones.push({ x: e.x, y: e.y, t: os.v('burnT', 3) });
+        if (e.isBoss && os.has('orbital.stun')) this.stunBoss(os.v('stun', 1), os.v('bossCd', 15));
         this.damage(e, dmg, 'explosive');
       }
+      this.orbitalTargets = [];
       this.screenFlash(0xfff6c0, 0.45, 300);
       this.shake(260, 0.014);
       Sound.play('explode');
     }
   }
+  private orbitalTargets: Enemy[] = [];
+  private orbitalPick = -1;
 
   /** 레벨업 카드 + 리퍼닥 영구 강화 + 러너 특성 + 광전사 모드를 합쳐 능력치를 다시 계산 */
   private recalcStats(): void {
     const st = computeStats(this.passives, this.overflow);
+    // 개편 2-2: 사이버웨어 효과
+    const L = this.kit;
+    st.damageMul *= 1 + L.v('cyber.dmg') / 100;
+    st.cooldownMul = Math.max(0.25, st.cooldownMul / (1 + L.v('cyber.atkSpeed') / 100));
+    st.pickupMul *= 1 + L.v('cyber.pickup') / 100;
+    st.maxHpBonus += L.v('cyber.maxHp');
+    st.moveMul *= 1 + L.v('cyber.move') / 100;
+    // 칩셋 (능력치)
+    st.damageMul *= 1 + L.v('chip.dmg') / 100;
+    st.cooldownMul = Math.max(0.25, st.cooldownMul / (1 + L.v('chip.atkSpeed') / 100));
+    st.maxHpBonus += L.v('chip.maxHp');
+    st.moveMul *= 1 + L.v('chip.move') / 100;
+    st.areaMul *= 1 + L.v('chip.area') / 100;
+    st.pickupMul *= 1 + L.v('chip.pickup') / 100;
     const m = this.runner.mods as Partial<Record<'creditMul' | 'maxHpMul' | 'meleeMul' | 'explosiveMul' | 'areaMul', number>>;
     st.damageMul *= 1 + Save.clinicValue('dmg') / 100;
-    st.moveMul *= (1 + Save.clinicValue('spd') / 100) * (this.berserk ? SP.berserk.moveMul : 1);
+    st.moveMul *= (1 + Save.clinicValue('spd') / 100) * (this.berserk && this.os.has('berserk.move') ? 1 + this.os.v('move') / 100 : 1);
     st.pickupMul *= 1 + Save.clinicValue('pick') / 100;
     st.areaMul *= m.areaMul ?? 1;
-    st.meleeMul = (m.meleeMul ?? 1) * (this.berserk ? SP.berserk.meleeMul : 1);
+    st.meleeMul = (m.meleeMul ?? 1) * (this.berserk ? this.os.v('melee', 1.4) : 1);
     st.explosiveMul = m.explosiveMul ?? 1;
     // 사이버웨어 신화: 거신 · 과부하 코어 · 거구
     if (this.pHas('titan')) {
@@ -2582,7 +4368,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
     this.stats = st;
     const hpMul = this.pHas('overloadCore') ? 0.8 : 1;
     this.player.maxHp = Math.round((PLAYER.maxHp + Save.clinicValue('hp') + st.maxHpBonus + (this.pHas('bulk') ? 100 : 0)) * (m.maxHpMul ?? 1) * hpMul);
-    this.player.dashCooldownMax = this.pHas('bladeDash') ? 1 : this.pHas('reboot') ? PLAYER.dashCooldown - 1 : PLAYER.dashCooldown;
+    this.player.dashCooldownMax = (this.pHas('bladeDash') ? 1 : this.pHas('reboot') ? PLAYER.dashCooldown - 1 : PLAYER.dashCooldown) * Math.max(0.3, 1 - L.v('cyber.dashCd') / 100 - (this.os.has('stock.dashCd') ? this.os.v('dashCd') / 100 : 0));
     this.player.hp = Math.min(this.player.hp, this.player.maxHp);
   }
 
@@ -2603,6 +4389,11 @@ export class GameScene extends Phaser.Scene implements GameContext {
   /** 광학 위장 또는 고스트 대시 직후: 적이 플레이어를 놓친 상태 */
   private get untracked(): boolean {
     return (this.specialOn && this.specialId === 'cloak') || this.player.cloakT > 0;
+  }
+
+  /** 엘리트(블랙 실드)·보스도 플레이어를 놓쳤는지: 광학 위장 4줄 '완전 위장' 또는 대시 위장 */
+  private get untrackedElite(): boolean {
+    return (this.specialOn && this.specialId === 'cloak' && this.os.has('cloak.full')) || this.player.cloakT > 0;
   }
 
   private get zone(): Zone {
@@ -2685,13 +4476,15 @@ export class GameScene extends Phaser.Scene implements GameContext {
     this.cameras.main.flash(400, 0, 240, 255);
     this.zoneIdx++;
     this.zoneStart = this.elapsed;
+    this.clearStations();
+    this.stationsFired = 0;
     this.bossesSpawned = 0;
     this.raidsInZone = 0;
     this.nextRaid = this.elapsed + this.zone.raidStart + Math.random() * gameData.raid.firstDelayMax;
     this.raidWaitClear = false;
     this.applyZone(true);
     Sound.music(this.zoneMusic, 1200);
-    this.startCarryOver();
+    // 개편 2단계: 빌드를 한 판 내내 이어감 (예전 챕터 전환 초기화·능력 고르기 없음)
   }
 
   // ───────────────────────────── 카운터 몬스터 ─────────────────────────────
@@ -2847,7 +4640,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
     this.forcedRarity = undefined;
     this.undyingUsed = false;
     this.streak = this.rushT = 0;
-    this.addWeapon(this.runner.startWeapon as WeaponId);
+    this.addStartWeapons();
     for (const keep of keeps) {
       const rarity = gameData.rarity.find((r) => r.id === keep.rarity)!;
       if (keep.kind === 'weapon') {
@@ -2866,7 +4659,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
       }
     }
     this.keepables = [...keeps];
-    this.recalcStats();
+    this.rebuildLoadout(false);
     this.player.hp = this.player.maxHp;
     const name = keeps.map((k) => this.keepInfo(k).ability.name).join(', ');
     const t = this.add
@@ -3460,8 +5253,8 @@ export class GameScene extends Phaser.Scene implements GameContext {
     if (ph === 'hookAim') {
       // 예고선이 플레이어를 따라가다가 발사 lockBefore초 전에 멈춘다 (비켜설 틈)
       if (this.bossTimer > (hk.lockBefore ?? 0)) {
-        const tx = (this.untracked ? this.decoy.x : p.x) - b.x;
-        const ty = (this.untracked ? this.decoy.y : p.y) - b.y;
+        const tx = (this.untrackedElite ? this.decoy.x : p.x) - b.x;
+        const ty = (this.untrackedElite ? this.decoy.y : p.y) - b.y;
         const dd = Math.hypot(tx, ty) || 1;
         h.ax = tx / dd;
         h.ay = ty / dd;
@@ -3657,7 +5450,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
   private updateBasili(b: Enemy, def: BossDef, bz: BasiliDef, dt: number, dx: number, dy: number, d: number, tg: { x: number; y: number }, p2: Phase2 | null): boolean {
     const ph = this.bossPhase;
     const p = this.player;
-    const slow = this.overdrive ? OD.enemySpeedMul : 1;
+    const slow = this.odSlowMul;
     const toWalk = () => {
       this.bossPhase = 'walk';
       this.bossTimer = def.walkTime;
@@ -4320,7 +6113,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
     const ph = this.bossPhase;
     const p = this.player;
     const p2 = this.bossPhase2;
-    const slow = this.overdrive ? OD.enemySpeedMul : 1;
+    const slow = this.odSlowMul;
     const toWalk = () => {
       this.bossPhase = 'walk';
       this.bossTimer = def.walkTime;
@@ -4396,7 +6189,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
           this.bossPhase = 'leap';
           this.bossTimer = sl.leap;
           this.bossFrom = { x: b.x, y: b.y };
-          this.bossTo = { x: (this.untracked ? this.decoy : p).x, y: (this.untracked ? this.decoy : p).y };
+          this.bossTo = { x: (this.untrackedElite ? this.decoy : p).x, y: (this.untrackedElite ? this.decoy : p).y };
         } else {
           this.bossLastAttack = this.elapsed;
           // 등장 상승은 반전(왼쪽 아래 = 06 방향)으로 끝났으므로 포탑 방향을 거기에 맞춰 이어 감
@@ -4479,7 +6272,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
             this.bossPhase = 'missileFire';
             this.bossTimer = xz.missileTime;
           } else if (act === 'jump') {
-            this.xmJumpFlip = (this.untracked ? this.decoy : p).x < b.x;
+            this.xmJumpFlip = (this.untrackedElite ? this.decoy : p).x < b.x;
             if (art && !this.xmDeployed) {
               // 1페이즈: 포탑을 02로 돌리고 내려 뚜껑을 닫은 뒤 점프 (빠르게)
               this.bossPhase = 'lower';
@@ -4492,7 +6285,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
               this.bossPhase = 'leap';
               this.bossTimer = sl.leap;
               this.bossFrom = { x: b.x, y: b.y };
-              this.bossTo = { x: (this.untracked ? this.decoy : p).x, y: (this.untracked ? this.decoy : p).y };
+              this.bossTo = { x: (this.untrackedElite ? this.decoy : p).x, y: (this.untrackedElite ? this.decoy : p).y };
             }
           }
         }
@@ -4565,7 +6358,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
   private updateGregor(b: Enemy, def: BossDef, gz: GregorDef, dt: number, dx: number, dy: number, d: number, rage: number): boolean {
     const ph = this.bossPhase;
     const p = this.player;
-    const slow = this.overdrive ? OD.enemySpeedMul : 1;
+    const slow = this.odSlowMul;
     const toWalk = () => {
       this.bossPhase = 'walk';
       this.bossTimer = def.walkTime;
@@ -4973,7 +6766,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
 
   private updateEnemyBullets(dt: number): void {
     const p = this.player;
-    const slow = this.overdrive ? OD.enemySpeedMul : 1;
+    const slow = this.odSlowMul;
     for (const b of this.enemyBullets.items) {
       if (!b.active) continue;
       if (b.homeDist > 0) {
@@ -4992,7 +6785,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
         if (xmMis) this.playSheet('fx_boss2_missile_hit', 8, b.x, b.y, 0.5, 0.5, 20, 16);
         continue;
       }
-      if (p.invuln <= 0 && !this.untracked && (b.x - p.x) ** 2 + (b.y - p.y) ** 2 < (p.radius + b.radius) ** 2) {
+      if (p.invuln <= 0 && !this.untrackedElite && (b.x - p.x) ** 2 + (b.y - p.y) ** 2 < (p.radius + b.radius) ** 2) {
         b.kill();
         if (xmMis) this.playSheet('fx_boss2_missile_hit', 8, b.x, b.y, 0.5, 0.5, 20, 16);
         // 반사 신경: 20% 확률로 피함
@@ -5257,7 +7050,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
     if (e.flash <= 0) return;
     e.flash -= dt;
     if (e.flash > 0) return;
-    if (e.charmT > 0) e.sprite.setTint(0xff2bd6);
+    if (e.charmT > 0) e.sprite.setTint(e.psycho ? PSYCHO_TINT : CHARM_TINT);
     else if (e.stun > 0) e.sprite.setTint(0x66ffff);
     else if (e === this.boss && this.bossEnraged) e.sprite.setTint(Number((this.bossDef as { enrage?: EnrageDef }).enrage?.tint ?? 0xff6a6a));
     else e.sprite.clearTint();
@@ -5477,11 +7270,11 @@ export class GameScene extends Phaser.Scene implements GameContext {
   private sniperAi(e: Enemy, dt: number, dx: number, dy: number, d: number, slow: number, setV: (x: number, y: number) => void): void {
     const S = gameData.squadAi.sniper;
     e.t -= dt;
-    if (e.state === 'walk' && e.t <= 0 && e.act === 'shoot' && !this.untracked && this.onScreen(e.x, e.y)) {
+    if (e.state === 'walk' && e.t <= 0 && e.act === 'shoot' && !this.untrackedElite && this.onScreen(e.x, e.y)) {
       e.state = 'wind';
       e.t = S.aim;
       Sound.play('lungewarn');
-    } else if (e.state === 'wind' && this.untracked) {
+    } else if (e.state === 'wind' && this.untrackedElite) {
       // 조준 중에 투명해지면 표적을 놓친다
       e.state = 'walk';
       e.t = 0.6;
@@ -5505,7 +7298,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
   /** 해커: 탱커 뒤에 숨어 있다가 초록 해킹 빔으로 플레이어를 느리게 하고 대시를 막는다 */
   private hackerAi(e: Enemy, dt: number, dx: number, dy: number, d: number, slow: number, setV: (x: number, y: number) => void): void {
     const H = gameData.squadAi.hacker;
-    const p = this.untracked ? this.decoy : this.player;
+    const p = this.untrackedElite ? this.decoy : this.player;
     const tank = this.enemyPool.items.find((o) => o.active && o.id === 'trooper_tank');
     let tx: number;
     let ty: number;
@@ -5525,11 +7318,11 @@ export class GameScene extends Phaser.Scene implements GameContext {
     // 이동은 SquadBrain이 정하고, 탱커 뒤로 숨기(cover)를 골랐을 때만 여기서 자리를 잡는다
     if (e.act === 'cover' && e.state === 'walk' && e.dodgeT <= 0) setV(gd > 6 ? (gx / gd) * e.speed * slow : 0, gd > 6 ? (gy / gd) * e.speed * slow : 0);
     e.t -= dt;
-    if (e.state === 'walk' && e.t <= 0 && e.act === 'hack' && !this.untracked && this.onScreen(e.x, e.y)) {
+    if (e.state === 'walk' && e.t <= 0 && e.act === 'hack' && !this.untrackedElite && this.onScreen(e.x, e.y)) {
       e.state = 'wind';
       e.t = H.cast;
       Sound.play('glitch');
-    } else if (e.state === 'wind' && this.untracked) {
+    } else if (e.state === 'wind' && this.untrackedElite) {
       e.state = 'walk';
       e.t = 0.6;
     } else if (e.state === 'wind') {
@@ -5707,9 +7500,9 @@ export class GameScene extends Phaser.Scene implements GameContext {
     const b = this.boss!;
     const def = this.bossDef!;
     const p = this.player;
-    const slow = this.overdrive ? OD.enemySpeedMul : 1;
+    const slow = this.odSlowMul;
     // 투명 중에는 보스도 마지막으로 본 자리를 노린다
-    const tg = this.untracked ? this.decoy : p;
+    const tg = this.untrackedElite ? this.decoy : p;
     const dx = tg.x - b.x;
     const dy = tg.y - b.y;
     const d = Math.hypot(dx, dy) || 1;
@@ -6039,60 +7832,30 @@ export class GameScene extends Phaser.Scene implements GameContext {
     const m = String(Math.floor(this.elapsed / 60)).padStart(2, '0');
     const s = String(Math.floor(this.elapsed % 60)).padStart(2, '0');
     this.hud.time.setText(`${m}:${s}`);
-    this.hud.level.setText(`LV ${this.level}`);
-    this.hud.kills.setText(`KILL ${this.kills}`);
     this.hud.zone.setText(`${this.zone.label} · ${this.zone.name}${this.heat ? `  ·  HEAT ${this.heat}` : ''}`);
-    this.hud.credits.setText(`₵ ${this.creditsNow(false)}`);
-    // 보유 아이템: 아이콘 + 레벨 숫자 (윗줄 무기, 아랫줄 사이버웨어), ★는 특수 능력
-    const items = [
-      ...this.weapons.map((w, i) => ({ key: `icon_${w.id}`, lvl: w.level, stars: w.abilities.size, row: 0, col: i })),
-      ...[...this.passives].map(([id, st], i) => ({ key: `icon_${id}`, lvl: st.level, stars: st.abilities?.length ?? 0, row: 1, col: i })),
-    ];
-    for (let i = items.length; i < this.icons.length; i++) {
-      const ic = this.icons[i];
-      ic.img.setVisible(false);
-      ic.lvl.setText('');
-      ic.star.setText('');
-    }
-    items.forEach((it, i) => {
-      let ic = this.icons[i];
-      if (!ic) {
-        ic = {
-          img: this.add.image(0, 0, it.key).setOrigin(0).setScrollFactor(0).setDepth(100),
-          lvl: this.add.text(0, 0, '', { ...TEXT, fontSize: '10px' }).setOrigin(1, 1).setScrollFactor(0).setDepth(101),
-          star: this.add.text(0, 0, '', { ...TEXT, fontSize: '9px', color: '#fff23a' }).setOrigin(1, 0).setScrollFactor(0).setDepth(101),
-        };
-        this.icons.push(ic);
-      }
-      const x = 8 + it.col * 22;
-      const y = 30 + it.row * 22;
-      ic.img.setTexture(it.key).setPosition(x, y).setVisible(true);
-      ic.lvl.setPosition(x + 18, y + 19).setText(String(it.lvl));
-      ic.star.setPosition(x + 19, y - 4).setText('★'.repeat(it.stars));
-    });
-
     const g = this.hud.bars;
     g.clear();
     g.fillStyle(0x1a1030).fillRect(0, 0, VIEW_W, 4);
     g.fillStyle(COLORS.green).fillRect(0, 0, (VIEW_W * this.xp) / this.xpToNext(), 4);
-
-    // 왼쪽 위 큰 체력바 (30% 아래로 떨어지면 빨갛게 깜빡임)
-    const hpK = Math.max(0, p.hp) / p.maxHp;
-    const low = hpK < 0.3;
-    g.fillStyle(0x07060f, 0.85).fillRect(6, 6, HP_W + 4, 15);
-    g.fillStyle(0x300010).fillRect(8, 8, HP_W, 11);
-    g.fillStyle(low && Math.floor(this.elapsed * 6) % 2 ? 0xffffff : low ? 0xff2a3a : COLORS.magenta).fillRect(8, 8, HP_W * hpK, 11);
-    if (p.shieldT > 0 && p.shield > 0) g.fillStyle(COLORS.cyan, 0.8).fillRect(8, 17, Math.min(HP_W, (HP_W * p.shield) / p.maxHp), 2);
-    this.hud.hp.setText(`${Math.ceil(Math.max(0, p.hp))} / ${p.maxHp}`);
-
-    // 오버드라이브 게이지
-    const ow = 160;
-    const ox = VIEW_W / 2 - ow / 2;
-    const oy = VIEW_H - 18;
-    g.fillStyle(0x2a0a24).fillRect(ox, oy, ow, 5);
-    const full = this.specialOn || this.odGauge >= 100;
-    g.fillStyle(full ? (Math.floor(this.elapsed * 10) % 2 ? COLORS.magenta : COLORS.cyan) : COLORS.magenta).fillRect(ox, oy, (ow * this.odGauge) / 100, 5);
-    this.hud.od.setAlpha(full ? 1 : 0.6);
+    this.hudUi.update({
+      elapsed: this.elapsed,
+      level: this.level,
+      kills: this.kills,
+      credits: this.creditsNow(false),
+      chips: this.chips,
+      hp: p.hp,
+      maxHp: p.maxHp,
+      shield: p.shield,
+      shieldOn: p.shieldT > 0,
+      weapons: this.weapons,
+      sockets: this.sockets,
+      os: { id: this.os.id, level: this.os.level, color: this.os.def.color, hasActive: this.os.hasActive, label: this.specialLabel() },
+      odGauge: this.odGauge,
+      specialOn: this.specialOn,
+      osCdT: this.osCdT,
+      dash: 1 - p.dashCd / p.dashCooldownMax,
+      touch: isTouch(),
+    });
 
     // 플레이어 아래 체력·대시 바
     const cam = this.cameras.main;
@@ -6101,6 +7864,12 @@ export class GameScene extends Phaser.Scene implements GameContext {
     g.fillStyle(0x300010).fillRect(sx, sy, 24, 3);
     g.fillStyle(COLORS.magenta).fillRect(sx, sy, (24 * Math.max(0, p.hp)) / p.maxHp, 3);
     g.fillStyle(COLORS.cyan, 0.8).fillRect(sx, sy + 4, 24 * (1 - p.dashCd / p.dashCooldownMax), 1);
+    // 보조무기 준비 (노랑). 켜짐 창 무기가 켜져 있으면 깜빡임
+    const sub = this.weapons.find((w) => w.slot === 'secondary');
+    if (sub) {
+      const k = sub.readiness();
+      g.fillStyle(COLORS.yellow, sub.activeOn ? 0.5 + Math.sin(this.elapsed * 12) * 0.4 : k >= 1 ? 0.9 : 0.45).fillRect(sx, sy + 6, 24 * k, 1);
+    }
 
     this.placeVisorGlows();
     this.drawSquadDebug();

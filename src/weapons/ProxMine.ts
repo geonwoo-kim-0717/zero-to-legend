@@ -27,13 +27,18 @@ export class ProxMine extends WeaponBase {
   private clayT = 7;
   private rainT = 8;
   private readonly buf: Enemy[] = [];
+  /** 연쇄 기폭: 곧 터질 지뢰 */
+  private chainQ: { m: Mine; t: number; bonus: number }[] = [];
 
   update(dt: number): void {
     const { player: p, fx } = this.ctx;
     this.timer -= dt;
-    if (this.timer <= 0) {
+    if (this.timer <= 0 && this.trigger) {
+      // 트윈스틱: 오른쪽 클릭으로 커서 자리에 지뢰 (여러 개면 그 둘레에)
+      this.fired();
       this.timer = this.interval;
-      for (let i = 0; i < this.s.count; i++) this.drop(p.x + (Math.random() - 0.5) * 16 * i, p.y + (Math.random() - 0.5) * 16 * i, ARM);
+      const at = this.aimPoint(160);
+      for (let i = 0; i < this.cnt; i++) this.drop(at.x + (i ? Math.cos(i * 2.4) * 18 : 0), at.y + (i ? Math.sin(i * 2.4) * 18 : 0), ARM);
     }
     // 신화: 클레이모어 벽
     if (this.has('claymore') && (this.clayT -= dt) <= 0) {
@@ -84,6 +89,8 @@ export class ProxMine extends WeaponBase {
         }
       }
     }
+    for (const q of this.chainQ) if ((q.t -= dt) <= 0) this.explode(q.m, 1, q.bonus);
+    this.chainQ = this.chainQ.filter((q) => q.t > 0);
     for (const m of this.mines.filter((o) => o.life <= 0)) m.img.destroy();
     this.mines = this.mines.filter((o) => o.life > 0);
     for (const b of this.blasts) {
@@ -102,19 +109,28 @@ export class ProxMine extends WeaponBase {
     this.mines.push({ x, y, arm, life: LIFE, pull: -1, img: this.ctx.phaser.add.image(x, y, 'mine').setDepth(8) });
   }
 
-  private explode(m: Mine, mul = 1): void {
+  private explode(m: Mine, mul = 1, bonus = 1): void {
     if (m.life <= 0) return;
     m.life = 0;
     m.pull = -1;
-    const r = BASE_R * this.area * mul;
-    this.hitCircle(m.x, m.y, r, this.damage * mul);
+    // 폭발 5단계 대폭발: n번째 폭발은 범위·피해 배율
+    const bs = this.ctx.boomScale();
+    const r = BASE_R * this.area * mul * bs;
+    this.hitCircle(m.x, m.y, r, this.damage * mul * bonus * bs);
+    // 무기 전용 칩셋 연쇄 기폭: 폭발 범위 안의 다른 지뢰도 잠시 뒤 터지고, 이어질 때마다 피해 +p%
+    const step = this.wc('p');
+    if (step > 0) {
+      for (const o of this.mines) {
+        if (o === m || o.life <= 0 || o.pull >= 0 || this.chainQ.some((q) => q.m === o) || (o.x - m.x) ** 2 + (o.y - m.y) ** 2 > r * r) continue;
+        this.chainQ.push({ m: o, t: 0.08, bonus: bonus * (1 + step / 100) });
+      }
+    }
     // 전설: 파편 지뢰 (사방으로 파편 6개)
     if (this.has('fragMine')) for (let k = 0; k < 6; k++) this.ctx.fireBullet(m.x, m.y, (k / 6) * Math.PI * 2, 280, this.damage * 0.5, { life: 0.35, turnRate: 0 });
     if (this.blasts.length < 30) this.blasts.push({ x: m.x, y: m.y, r, life: 0.3 });
     this.ctx.playFx('proxMine_boom', m.x, m.y, { scale: (r * 1.5) / 48, frameTime: 0.06, alpha: 0.9 });
     this.ctx.burst(m.x, m.y, COLORS.orange, 8);
     this.ctx.sfx('explode');
-    // 전설: 연쇄 기폭
   }
 
   destroy(): void {
