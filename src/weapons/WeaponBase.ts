@@ -73,7 +73,7 @@ export abstract class WeaponBase {
     return { x: p.x + (dx / d) * max, y: p.y + (dy / d) * max };
   }
 
-  // ── 켜짐 창 (드론·EMP처럼 상시 효과인 보조무기: 누르면 time초 켜지고 cooldown초 뒤 다시) ──
+  // ── 켜짐 창 (드론·EMP처럼 상시 효과인 보조무기: 켜지면 time초 유지, 재사용 대기 cooldown초는 켜진 순간부터) ──
   private activeLeft = 0;
   private activeCd = 0;
 
@@ -92,19 +92,20 @@ export abstract class WeaponBase {
     if (this.activeLeft <= 0 && this.activeCd <= 0 && this.trigger) {
       this.fired();
       this.activeLeft = A.time;
-      this.activeCd = A.time + A.cooldown * this.ctx.stats.cooldownMul * this.ctx.weaponMul(this.id).sub;
+      // 재사용 대기는 켜진 순간부터 돈다 (켜져 있는 동안에도 줄어듦)
+      this.activeCd = A.cooldown * this.ctx.stats.cooldownMul * this.ctx.weaponMul(this.id).sub;
       this.ctx.sfx('select');
     }
     return this.activeLeft > 0;
   }
 
-  /** 보조무기 준비 정도 0~1 (HUD 표시용). 켜짐 창 무기는 켜져 있으면 1 */
+  /** 보조무기 준비 정도 0~1 (HUD 표시용). 켜짐 창 무기는 재사용 대기 진행 (늘 켜짐이면 1) */
   readiness(): number {
-    const A = (weapons[this.id] as { active?: { time: number; cooldown: number } }).active;
+    const A = (weapons[this.id] as { active?: { time: number; cooldown: number; permanentAt?: number } }).active;
     if (A) {
-      if (this.activeLeft > 0) return 1;
-      const full = A.time + A.cooldown * this.ctx.stats.cooldownMul * this.ctx.weaponMul(this.id).sub;
-      return 1 - this.activeCd / full;
+      if (A.permanentAt && this.level >= A.permanentAt) return 1;
+      const full = A.cooldown * this.ctx.stats.cooldownMul * this.ctx.weaponMul(this.id).sub;
+      return Math.max(0, 1 - this.activeCd / full);
     }
     const iv = this.interval || 1;
     return 1 - Math.max(0, Math.min(iv, this.timer)) / iv;

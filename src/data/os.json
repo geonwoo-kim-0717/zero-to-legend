@@ -60,7 +60,7 @@
       "dur": 6,
       "slow": 0.7
      },
-     "text": "[Q] {dur}초 동안 공격속도 ×{atk}, 적·적 탄 속도 ×{slow}"
+     "text": "[Q] {dur}초 동안 공격 속도 ×{atk}, 적·적 탄 속도 ×{slow}"
     },
     {
      "hook": "neural.boost2",
@@ -68,7 +68,7 @@
       "atk": 1.75,
       "slow": 0.6
      },
-     "text": "오버클럭 강화: 공격속도 ×{atk}, 적·적 탄 속도 ×{slow}"
+     "text": "오버클럭 강화: 공격 속도 ×{atk}, 적·적 탄 속도 ×{slow}"
     },
     {
      "hook": "neural.extend",
@@ -85,7 +85,7 @@
       "dur": 10,
       "slow": 0.5
      },
-     "text": "완전 오버클럭: 공격속도 ×{atk}, 적·적 탄 속도 ×{slow}, 기본 지속 {dur}초"
+     "text": "완전 오버클럭: 공격 속도 ×{atk}, 적·적 탄 속도 ×{slow}, 기본 지속 {dur}초"
     },
     {
      "hook": "neural.flush",
@@ -126,7 +126,7 @@
      "params": {
       "move": 20
      },
-     "text": "발동 중 이동속도 증가 {move}%"
+     "text": "발동 중 이동 속도 증가 {move}%"
     },
     {
      "hook": "berserk.heal",
@@ -290,7 +290,7 @@
      "params": {
       "move": 10
      },
-     "text": "보호막이 남아 있으면 넉백 무시, 이동속도 증가 {move}%"
+     "text": "보호막이 남아 있으면 넉백 무시, 이동 속도 증가 {move}%"
     },
     {
      "hook": "guardian.burst",

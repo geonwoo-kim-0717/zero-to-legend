@@ -113,7 +113,7 @@
   "en": "Attack speed +{v}% below half HP"
  },
  "t_scanner": {
-  "ko": "커서 근처 적이 받는 피해 증가 {v}%",
-  "en": "Enemies near cursor take +{v}%"
+  "ko": "조준한 곳 근처 적이 받는 피해 증가 {v}%",
+  "en": "Enemies near your aim take +{v}%"
  }
 }

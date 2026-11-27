@@ -79,7 +79,7 @@
       "name": "뉴럴 오버클럭",
       "label": "NEURAL OVERCLOCK",
       "color": "#ff2bd6",
-      "desc": "공격속도 2배, 적과 적 탄 속도 0.5배",
+      "desc": "공격 속도 2배, 적과 적 탄 속도 0.5배",
       "cost": 1000,
       "duration": 5
     },
@@ -87,7 +87,7 @@
       "name": "광전사 모드",
       "label": "BERSERK",
       "color": "#ff2a3a",
-      "desc": "근접 피해 2배, 이동속도 +20%, 근접 무기로 처치할 때마다 체력 2 회복",
+      "desc": "근접 피해 2배, 이동 속도 +20%, 근접 무기로 처치할 때마다 체력 2 회복",
       "cost": 1000,
       "meleeMul": 2,
       "moveMul": 1.2,
