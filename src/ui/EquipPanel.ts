@@ -57,6 +57,9 @@ const LABEL_KO: Record<SlotKey, string> = { primary: '주무기', secondary: '�
 const LABEL_EN: Record<SlotKey, string> = { primary: 'Primary', secondary: 'Secondary', os: 'OS', neural: 'Neural', optic: 'Optic', skeletal: 'Skeletal', defense: 'Defense', tactical: 'Tactical' };
 
 /** 인체도 배치: 칸 왼쪽 위 좌표, 몸에 이어지는 점 */
+/** 오른쪽 자세히 칸 설명이 내려갈 수 있는 끝 (논리 px). 그 아래는 시너지·칩셋 탭과 버튼 자리 */
+const DETAIL_MAX_Y = 196;
+
 const LAYOUT: Record<SlotKey, { x: number; y: number; to: [number, number] }> = {
   os: { x: 146, y: 34, to: [174, 126] },
   neural: { x: 40, y: 44, to: [168, 128] },
@@ -334,6 +337,8 @@ export function buildEquipPanel(scene: Phaser.Scene, d: EquipInput, cb: { onResu
         ty += 18;
       }
       const ds = txt(RX + 8, ty, v.text, 10.5, '#e8f7ff', { strokeThickness: 0, lineSpacing: 2, wordWrap: { width: RW - 16, useAdvancedWrap: true } }, right);
+      // 긴 설명(OS 5줄 등)이 아래 시너지 탭을 버튼 쪽으로 밀지 않게: 칸 높이를 넘으면 글자를 줄임 (최소 7px)
+      for (let fs = 10; ds.y + ds.height > DETAIL_MAX_Y && fs >= 7; fs -= 0.5) ds.setFontSize(`${fs}px`).setLineSpacing(fs < 9 ? 1 : 2);
       body.push(ds);
       ty = ds.y + ds.height + 3;
       for (const a of v.abilities) {
@@ -392,7 +397,9 @@ export function buildEquipPanel(scene: Phaser.Scene, d: EquipInput, cb: { onResu
     const top: Record<string, ActiveTier> = {};
     for (const tr of d.tiers) if (!top[tr.tag] || top[tr.tag].count < tr.count) top[tr.tag] = tr;
     const pg = add(s.add.graphics(), right);
-    for (const [tag, n] of rows.slice(0, 6)) {
+    // 아래 버튼(VIEW_H - 46) 위까지만: 자리가 모자라면 줄 수를 줄임
+    const synRoom = Math.max(1, Math.floor((VIEW_H - 46 - y) / 16));
+    for (const [tag, n] of rows.slice(0, Math.min(6, synRoom))) {
       const tc = TAG_COLOR[tag] ?? 0xb8a8d8;
       const tt = txt(RX + 17, y + 1, tagName(tag), en ? 7 : 9, hex(tc), { strokeThickness: 0 }, right).setOrigin(0.5, 0);
       pg.fillStyle(tc, 0.12).fillRect(RX, y, 34, 13);
@@ -422,7 +429,7 @@ export function buildEquipPanel(scene: Phaser.Scene, d: EquipInput, cb: { onResu
       const nm = ITEMS[id] ? itemName(ITEMS[id].kind as ItemKind, id) : ((weaponsData as Record<string, { name: string }>)[id]?.name ?? id);
       lines.push({ name: comboName(c.name), text: en ? `needs ${nm}` : `${nm} 필요`, on: false });
     }
-    if (lines.length) {
+    if (lines.length && y + 4 + 15 + 13 <= VIEW_H - 46) {
       y += 4;
       txt(RX, y, en ? 'COMBOS' : '조합', 10, '#b8a8d8', { strokeThickness: 0 }, right).setLetterSpacing(1);
       y += 15;

@@ -5,7 +5,8 @@ import { Sound } from '../systems/Sound';
 import type { Choice } from '../systems/Progression';
 import { LevelUpUI, TAG_COLOR } from './LevelUpUI';
 import { tagName } from './synergyText';
-import { t } from '../i18n';
+import { t, I18n } from '../i18n';
+import { SLOT_EN } from './cardInfo';
 
 /** 블랙마켓 화면에 넘길 것 */
 export interface ShopModel {
@@ -232,7 +233,7 @@ export class StationUI {
           g.lineBetween(tx + 52, ty + a2, tx + 52, ty + Math.min(52, a2 + 3));
         }
         this.txt(tx + 26, ty + 26, '+', 20, '#ffffff').setOrigin(0.5).setAlpha(0.3);
-        this.txt(tx + 64, ty + 12, t('station.empty', { part: c.label }), 12, '#8a7aa8');
+        this.txt(tx + 64, ty + 12, t('station.empty', { part: partLabel(c) }), 12, '#8a7aa8');
         this.txt(tx + 64, ty + 30, t('station.emptyHint'), 9, '#5a4a78');
         return;
       }
@@ -241,7 +242,7 @@ export class StationUI {
       const key = `card_${it.art}`;
       if (s.textures.exists(key)) this.add(s.add.image(tx + 26, ty + 26, key), D + 2);
       const nm = this.txt(tx + 62, ty, it.name, 12, '#ffffff', { strokeThickness: 2 }).setShadow(0, 0, hex(it.color), 5, true, true);
-      this.txt(nm.x + nm.width + 5, ty + 2, c.label, 8.5, '#8a7aa8');
+      this.txt(nm.x + nm.width + 5, ty + 2, partLabel(c), 8.5, '#8a7aa8');
       const maxed = it.level >= it.max;
       const room = LW - 16 - 62 - 6 - 68;
       if (maxed) {
@@ -296,7 +297,8 @@ export class StationUI {
     // 고른 OS 자세히
     const o = m.os.list.find((x) => x.id === this.selOs)!;
     const col = Phaser.Display.Color.HexStringToColor(o.color).color;
-    const dy = 76 + 2 * 62 + 2;
+    // OS가 4개 이하면 한 줄만 쓰니 자세히 칸을 위로 늘림
+    const dy = 76 + Math.max(1, Math.ceil(m.os.list.length / 4)) * 62 + 2;
     const dh = 308 - 6 - dy;
     g.fillStyle(0x120a24, 1).fillRect(RX + 8, dy, RW - 16, dh);
     g.lineStyle(1, col, 0.9).strokeRect(RX + 8.5, dy + 0.5, RW - 17, dh - 1);
@@ -309,12 +311,22 @@ export class StationUI {
       g.lineStyle(1, tc, 0.6).strokeRect(tagX + 0.5, dy + 6.5, tt.width + 7, 12);
       tagX += tt.width + 11;
     }
+    // 레벨 줄은 완결 문장: 줄바꿈해서 보여 주고, 칸을 넘치면 글자를 줄임(최소 7px). 그래도 넘치는 줄은 숨기고 '외 n줄'
+    const lineObjs = o.lines.map((l) => this.txt(RX + 16, 0, `${l.on ? '●' : '○'} ${l.text}`, 9, l.on ? '#e8f7ff' : '#5a4a78', { lineSpacing: 0, wordWrap: { width: RW - 32, useAdvancedWrap: true } }));
+    const room = dy + dh - 4 - (dy + 23);
+    const total = () => lineObjs.reduce((a, x) => a + x.height + 1, 0);
+    for (let fs = 8.5; total() > room && fs >= 7; fs -= 0.5) for (const x of lineObjs) x.setFontSize(`${fs}px`);
     let ly = dy + 23;
-    for (const l of o.lines) {
-      if (ly > dy + dh - 12) break;
-      this.fit(this.txt(RX + 16, ly, `${l.on ? '●' : '○'} ${l.text}`, 9, l.on ? '#e8f7ff' : '#5a4a78'), RW - 32);
-      ly += 12;
+    let hidden = 0;
+    for (const x of lineObjs) {
+      x.setY(ly);
+      if (ly + x.height > dy + dh - 4) {
+        x.setVisible(false);
+        hidden++;
+      }
+      ly += x.height + 1;
     }
+    if (hidden) this.txt(RX + RW - 16, dy + dh - 3, I18n.lang === 'en' ? `+${hidden} more` : `외 ${hidden}줄`, 8, '#8a7aa8').setOrigin(1, 1);
     if (o.id !== m.os.cur) {
       const ok = m.os.price <= m.chips;
       this.priceButton(RX + RW - 8 - 6 - 74, dy + 4, 74, 18, m.os.price, t('station.swap'), ok, col, () => a.swap(o.id), 10);
@@ -331,4 +343,9 @@ export class StationUI {
     }
     return o;
   }
+}
+
+/** 리퍼닥 소켓 이름 (영어판이면 영어) */
+function partLabel(c: { part: string; label: string }): string {
+  return I18n.lang === 'en' ? (SLOT_EN[c.part] ?? c.label) : c.label;
 }
