@@ -33,13 +33,18 @@ export class SmartPistol extends WeaponBase {
     return best;
   }
 
-  private get shots(): number {
-    return Math.min(MAX_SHOTS, Math.max(1, this.cnt));
+  /** 탄창 개조 조합: 피해가 깎이지 않는 탄 수 증가 */
+  private get extraShots(): number {
+    return this.ctx.mod('combo.pistolMag')?.n ?? 0;
   }
 
-  /** 탄 수에 따라 깎인 한 발 피해 (일반 사격만. 신화 탄막 오버로드·데드아이는 깎지 않는다) */
+  private get shots(): number {
+    return Math.min(MAX_SHOTS, Math.max(1, this.cnt)) + this.extraShots;
+  }
+
+  /** 탄 수에 따라 깎인 한 발 피해 (일반 사격만, 탄창 개조로 늘어난 탄은 깎지 않음. 신화 탄막 오버로드·데드아이는 깎지 않는다) */
   private get shotDamage(): number {
-    return this.damage * (1 - SPLIT_PENALTY * (this.shots - 1));
+    return this.damage * (1 - SPLIT_PENALTY * (this.shots - this.extraShots - 1));
   }
 
   update(dt: number): void {
@@ -93,7 +98,7 @@ export class SmartPistol extends WeaponBase {
     this.ctx.playFx('smartPistol_muzzle', p.x + Math.cos(ma) * 6, p.y + Math.sin(ma) * 6, { angle: ma, originX: 0 });
     for (let i = 0; i < count; i++) {
       const a = ma + (i - (count - 1) / 2) * 0.12;
-      this.ctx.fireBullet(p.x, p.y, a, this.s.speed, this.shotDamage * mul, { pierce: this.s.pierce, target: lock, turnRate: lock ? 3.5 : 0, chain, texture: 'fx_smartPistol_tracer_1', hitFx: 'smartPistol_hit', onExpire: onExpire?.(), life: onExpire ? RETARGET_LIFE : undefined });
+      this.ctx.fireBullet(p.x, p.y, a, this.s.speed, this.shotDamage * mul, { pierce: this.s.pierce, target: lock, turnRate: lock ? (this.ctx.mod('combo.pistolAim') ? 8 : 3.5) : 0, chain, texture: 'fx_smartPistol_tracer_1', hitFx: 'smartPistol_hit', onExpire: onExpire?.(), life: onExpire ? RETARGET_LIFE : undefined });
     }
   }
 

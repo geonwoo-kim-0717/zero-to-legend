@@ -48,6 +48,18 @@ export class Monowire extends WeaponBase {
       this.puppetLeft = 0;
       this.ctx.sfx('slash');
     }
+    // 잡아채기 조합: 대시가 끝나면 주변 적을 플레이어 쪽으로 끌어당김
+    const yank = this.ctx.mod('combo.wireYank');
+    if (yank && this.ctx.dashPath) {
+      const R = yank.r ?? 120;
+      for (const e of this.ctx.grid.query(p.x, p.y, R, this.near).slice()) {
+        if (!e.active || e.isBoss || (e.x - p.x) ** 2 + (e.y - p.y) ** 2 > R * R) continue;
+        const k = 0.6 * this.ctx.ccMul(e);
+        e.x += (p.x - e.x) * k;
+        e.y += (p.y - e.y) * k;
+      }
+      this.ctx.burst(p.x, p.y, COLORS.magenta, 8);
+    }
     for (const r of this.rewinds) if ((r.t -= dt) <= 0) this.lash(r.angle, 0.8);
     this.rewinds = this.rewinds.filter((r) => r.t > 0);
     // 신화: 레이저 그물

@@ -26,7 +26,8 @@ export class MicroMissile extends WeaponBase {
     if (this.timer <= 0 && this.trigger) {
       // 트윈스틱: 오른쪽 클릭으로 커서 근처 적들에게 일제 발사 (근처에 없으면 화면 안 적)
       this.fired();
-      if (this.launch(this.cnt, true)) this.timer = this.interval;
+      // 다중 락온 조합: 미사일 수 증가
+      if (this.launch(this.cnt + (this.ctx.mod('combo.missileMulti')?.n ?? 0), true)) this.timer = this.interval;
     }
     // 신화: 미사일 폭풍 (6초마다 20발을 1초 동안)
     if (this.has('missileStorm') && (this.stormT -= dt) <= 0) {

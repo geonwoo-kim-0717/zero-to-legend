@@ -896,7 +896,7 @@
    "name": "포탑 거점",
    "needs": [
     "turret",
-    "t_dock"
+    "g_nano"
    ],
    "text": "동시 포탑 수 증가 {n}",
    "params": {
@@ -996,6 +996,175 @@
     "range": 150
    },
    "hook": "combo.droneScanner",
+   "enabled": true
+  },
+  "c_pistolAim": {
+   "name": "스마트 조준",
+   "needs": [
+    "smartPistol",
+    "o_target"
+   ],
+   "text": "조준한 적에게 탄이 더 세게 휘어 감기고, 스마트 피스톨 피해가 {v}% 오른다.",
+   "params": {
+    "v": 20
+   },
+   "hook": "combo.pistolAim",
+   "enabled": true
+  },
+  "c_pistolMag": {
+   "name": "탄창 개조",
+   "needs": [
+    "smartPistol",
+    "n_accel"
+   ],
+   "text": "한 발 피해가 줄지 않고 스마트 피스톨 탄 수가 {n} 늘어난다.",
+   "params": {
+    "n": 1
+   },
+   "hook": "combo.pistolMag",
+   "enabled": true
+  },
+  "c_mineReactive": {
+   "name": "반응 지뢰",
+   "needs": [
+    "proxMine",
+    "g_reactive"
+   ],
+   "text": "맞으면 발밑에 지뢰를 깐다. {cd}초에 한 번만 깐다.",
+   "params": {
+    "cd": 2
+   },
+   "hook": "combo.mineReactive",
+   "enabled": true
+  },
+  "c_mineDash": {
+   "name": "지뢰 살포",
+   "needs": [
+    "proxMine",
+    "s_hydraulic"
+   ],
+   "text": "대시가 끝나면 지나간 길에 지뢰 {n}개를 깐다.",
+   "params": {
+    "n": 2
+   },
+   "hook": "combo.mineDash",
+   "enabled": true
+  },
+  "c_shotgunGuard": {
+   "name": "근접 사격",
+   "needs": [
+    "shotgun",
+    "g_exo"
+   ],
+   "text": "맞은 뒤 {t}초 동안 샷건 피해가 {v}% 오른다.",
+   "params": {
+    "v": 50,
+    "t": 2
+   },
+   "hook": "combo.shotgunGuard",
+   "enabled": true
+  },
+  "c_railShock": {
+   "name": "전도 레일",
+   "needs": [
+    "railgun",
+    "t_amp"
+   ],
+   "text": "레일건 빔에 맞은 적은 {dur}초 동안 감전되어 초당 {dps} 피해를 입는다.",
+   "params": {
+    "dur": 2,
+    "dps": 10
+   },
+   "hook": "combo.railShock",
+   "enabled": true
+  },
+  "c_bladeMuscle": {
+   "name": "칼날 강화",
+   "needs": [
+    "mantisBlade",
+    "s_muscle"
+   ],
+   "text": "맨티스 블레이드의 베기 범위가 {v}% 넓어진다.",
+   "params": {
+    "v": 25
+   },
+   "hook": "combo.bladeMuscle",
+   "enabled": true
+  },
+  "c_wireYank": {
+   "name": "잡아채기",
+   "needs": [
+    "monowire",
+    "n_reflex"
+   ],
+   "text": "대시가 끝나면 주변 {r}px 안의 적을 끌어당긴다.",
+   "params": {
+    "r": 120
+   },
+   "hook": "combo.wireYank",
+   "enabled": true
+  },
+  "c_coilCrit": {
+   "name": "약점 방전",
+   "needs": [
+    "arcCoil",
+    "o_target"
+   ],
+   "text": "아크 코일 연쇄에서 치명타가 나면 연쇄가 {n}명 더 튄다.",
+   "params": {
+    "n": 1
+   },
+   "hook": "combo.coilCrit",
+   "enabled": true
+  },
+  "c_grenadeThrow": {
+   "name": "투척 강화",
+   "needs": [
+    "plasmaGrenade",
+    "s_hydraulic"
+   ],
+   "text": "플라즈마 유탄의 폭발 범위가 {v}% 넓어진다.",
+   "params": {
+    "v": 20
+   },
+   "hook": "combo.grenadeThrow",
+   "enabled": true
+  },
+  "c_missileMulti": {
+   "name": "다중 락온",
+   "needs": [
+    "microMissile",
+    "n_multitask"
+   ],
+   "text": "마이크로 미사일 수가 {n} 늘어난다.",
+   "params": {
+    "n": 2
+   },
+   "hook": "combo.missileMulti",
+   "enabled": true
+  },
+  "c_turretWall": {
+   "name": "방벽 포탑",
+   "needs": [
+    "turret",
+    "s_dermal"
+   ],
+   "text": "포탑 몸에 닿는 적 탄을 막는다.",
+   "params": {},
+   "hook": "combo.turretWall",
+   "enabled": true
+  },
+  "c_empArmor": {
+   "name": "자기 갑옷",
+   "needs": [
+    "empField",
+    "s_dermal"
+   ],
+   "text": "EMP 필드가 켜져 있는 동안 받는 피해가 {v}% 줄어든다.",
+   "params": {
+    "v": 20
+   },
+   "hook": "combo.empArmor",
    "enabled": true
   }
  },

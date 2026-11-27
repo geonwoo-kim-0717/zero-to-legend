@@ -128,25 +128,25 @@
           "desc": "Acquired"
         },
         "1": {
-          "desc": "Damage +6"
+          "desc": "Damage +10"
         },
         "2": {
-          "desc": "Length +20%"
+          "desc": "Length +20%, Damage +6"
         },
         "3": {
-          "desc": "Splash damage to 2 nearby enemies"
+          "desc": "Splash damage to 2 nearby enemies, Damage +8"
         },
         "4": {
-          "desc": "Cooldown -15%"
+          "desc": "Cooldown -25%"
         },
         "5": {
-          "desc": "Damage +8"
+          "desc": "Damage +15"
         },
         "6": {
-          "desc": "Length +20%, hit enemies fight for you 1.5s"
+          "desc": "Length +20%, hit enemies fight for you 1.5s, Damage +12"
         },
         "7": {
-          "desc": "2 lashes, Damage +10"
+          "desc": "2 lashes, Damage +20"
         }
       }
     },
@@ -161,7 +161,7 @@
           "desc": "Area +15%"
         },
         "2": {
-          "desc": "Damage +3"
+          "desc": "Damage +4"
         },
         "3": {
           "desc": "Area +15%"
@@ -173,10 +173,10 @@
           "desc": "Damage +4"
         },
         "6": {
-          "desc": "Area +20%"
+          "desc": "Area +20%, Damage +7"
         },
         "7": {
-          "desc": "Damage +5"
+          "desc": "Damage +10"
         }
       }
     },
@@ -308,25 +308,25 @@
           "desc": "Acquired"
         },
         "1": {
-          "desc": "Chain +1"
+          "desc": "Chain +1, Damage +4"
         },
         "2": {
-          "desc": "Damage +4"
+          "desc": "Damage +10"
         },
         "3": {
           "desc": "Cooldown -15%"
         },
         "4": {
-          "desc": "Chain +2"
+          "desc": "Chain +2, Damage +8"
         },
         "5": {
-          "desc": "Damage +6"
+          "desc": "Damage +10"
         },
         "6": {
-          "desc": "Range +20%"
+          "desc": "Range +20%, Cooldown -15%"
         },
         "7": {
-          "desc": "Chain +2, Damage +6"
+          "desc": "Chain +2, Damage +16"
         }
       }
     },

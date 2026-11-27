@@ -45,6 +45,8 @@ export interface GameContext {
   /** 택티컬 OS: 표식된 적인지 (포탑이 먼저 노림) */
   isMarked(e: Enemy): boolean;
   fx: Phaser.GameObjects.Graphics;
+  /** 마지막 damage()가 치명타였는지 (약점 방전 조합) */
+  readonly lastCrit: boolean;
   /** 피해를 주고, 그 공격으로 죽었으면 true */
   damage(e: Enemy, amount: number, tag?: DamageTag): boolean;
   fireBullet(x: number, y: number, angle: number, speed: number, damage: number, opts?: BulletOpts): void;

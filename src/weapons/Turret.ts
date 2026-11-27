@@ -11,6 +11,8 @@ const RANGE = 160;
 const REPAIR_R = 70;
 /** 가열 연사 칩셋: 최대 속도까지 걸리는 발사 수 */
 const RAMP_SHOTS = 12;
+/** 방벽 포탑 조합: 탄을 막는 반경 */
+const WALL_R = 12;
 
 interface Post {
   x: number;
@@ -68,6 +70,8 @@ export class Turret extends WeaponBase {
       }
       fx.lineStyle(1, COLORS.yellow, 0.15).strokeCircle(t.x, t.y, range);
       if ((t.x - p.x) ** 2 + (t.y - p.y) ** 2 < REPAIR_R * REPAIR_R) nearPost = true;
+      // 방벽 포탑 조합: 포탑 몸에 닿은 적 탄을 막음
+      if (this.ctx.mod('combo.turretWall')) this.ctx.blockEnemyBullets(t.x, t.y, WALL_R);
       const jam = this.ctx.jammed(t.x, t.y);
       t.img.setTint(jam ? 0x39ff88 : 0xffffff);
       if (t.fire <= 0 && !jam) {

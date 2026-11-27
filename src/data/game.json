@@ -721,7 +721,7 @@
   "twinStickCards": { "note": "레벨업 카드에 섞는 교체 카드(같은 소켓 다른 무기) 수", "swapPerRoll": 2 },
   "supply": {
     "note": "보급 상자: chestEvery초(사이 무작위)마다 플레이어 근처에 1개, 블랙 실드 대원 처치 때 trooperChance 확률로 희귀 이상, 중간보스 midbossMin 이상, 챕터 보스 bossMin 이상(다음 챕터 시작 때 열림). 칩: 일반 처치는 chipDrop.chance% 확률로 칩 드롭(개수 counts: [개수, 가중치]), 대원은 trooper개 늘 드롭, 중간보스 midboss·챕터 보스 boss는 바로 받음. 칩을 주우면 칩 1개당 경험치 chipXp (처치 경험치는 줍지 않아도 바로 오름). mapChips: every초마다 플레이어에서 무작위 방향으로 start px부터 gap px 간격 한 줄로 칩 count개 (빵 부스러기, 보스 경계 안에서만). skipChips: 선택 포기 때 받는 칩 (상자 최소 등급 일반·희귀·영웅·전설·신화 순, 레벨업 포기는 첫 값)",
-    "chestEvery": [40, 60],
+    "chestEvery": [20, 30],
     "chipDrop": { "chance": 10, "counts": [[1, 70], [2, 20], [3, 10]] },
     "chipXp": 1,
     "mapChips": { "every": 30, "count": [5, 10], "start": 70, "gap": 30 },

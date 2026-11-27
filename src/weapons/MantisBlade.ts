@@ -27,7 +27,8 @@ export class MantisBlade extends WeaponBase {
       this.timer = this.interval * (whirl ? 0.6 : 1);
       // 전설: 반격 자세 — 대시 직후 강화
       const counter = this.has('counterStance') && p.sinceDash < 0.5 ? 2 : 1;
-      const r = BASE_R * this.area * counter * (whirl ? 1.15 : 1);
+      // 칼날 강화 조합: 베기 범위 증가
+      const r = BASE_R * this.area * counter * (whirl ? 1.15 : 1) * (1 + (this.ctx.mod('combo.bladeMuscle')?.v ?? 0) / 100);
       const dmg = this.damage * counter;
       // 트윈스틱: 커서 방향으로 벤다 (검기도 같은 방향)
       const base = this.aimAngle;
