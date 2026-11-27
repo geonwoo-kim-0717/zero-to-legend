@@ -233,7 +233,6 @@ export class GameScene extends Phaser.Scene implements GameContext {
   readonly aim = { x: 0, y: 0, primary: false, secondary: false, subX: 0, subY: 0 };
 
   consumeSecondary(): void {
-    this.controls.consumeSecondary();
     this.aim.secondary = false;
   }
 

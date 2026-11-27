@@ -118,9 +118,8 @@ export class Hud {
       this.keys.push(k);
       return k;
     };
-    // 보조무기 자동 발사면 키 대신 '자동'
-    const autoSub = (gameData.twinStick as { autoSecondary?: boolean }).autoSecondary === true;
-    key(cx - 46, by + 19, autoSub ? (en ? 'AUTO' : '자동') : en ? 'R-CLICK' : '우클릭');
+    // 보조무기는 자동 발사라 키 대신 '자동'
+    key(cx - 46, by + 19, en ? 'AUTO' : '자동');
     key(cx, by + 19, 'OS');
     key(cx + 46, by + 19, 'SPACE');
     this.bar.push(this.subImg, this.osImg, this.osQ, this.osCd, this.dashTxt, ...this.keys, this.t.od);
