@@ -98,7 +98,7 @@ export const STRINGS = {
     'chip.stat': '능력치 칩셋',
     'fill.label': '보급',
     'fill.chips': '칩 +{n}',
-    'fill.chipsDesc': '칩 {n}개를 받음',
+    'fill.chipsDesc': '칩 획득 {n}',
     'fill.heal': '응급 수리',
     'fill.healDesc': '체력 {pct}% 회복',
     'chip.special': '특수 칩셋',

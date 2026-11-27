@@ -88,6 +88,7 @@ function drawChip(scene: Phaser.Scene, ctx: CanvasRenderingContext2D, id: string
 
 /** 게임 시작 때 한 번: 모든 칩셋 그림 텍스처를 만듦 (이미 있으면 건너뜀) */
 export function makeChipArt(scene: Phaser.Scene): void {
+  makeChipCard(scene);
   for (const id of CHIPSET_IDS) {
     const small = `icon_chip_${id}`;
     const big = `card_chip_${id}`;
@@ -105,6 +106,35 @@ export function makeChipArt(scene: Phaser.Scene): void {
     scene.textures.get(small).setFilter(Phaser.Textures.FilterMode.NEAREST);
     scene.textures.get(big).setFilter(Phaser.Textures.FilterMode.NEAREST);
   }
+}
+
+/** 보급 카드 '칩 +n' 그림 (card_chip, 48px): 판 안 칩과 같은 하늘색 마름모를 크게, 픽셀 그대로 */
+function makeChipCard(scene: Phaser.Scene): void {
+  if (scene.textures.exists('card_chip')) return;
+  const c = scene.textures.createCanvas('card_chip', 48, 48);
+  if (!c) return;
+  const ctx = c.getContext();
+  const p = (x: number, y: number, w: number, h: number, f: string) => {
+    ctx.fillStyle = f;
+    ctx.fillRect(x * 2, y * 2, w * 2, h * 2);
+  };
+  // 24×24 격자에 마름모 3개 (가운데 큰 것 + 양옆 작은 것)
+  const diamond = (cx: number, cy: number, r: number, body: string, light: string) => {
+    for (let dy = -r; dy <= r; dy++) {
+      const w = r - Math.abs(dy);
+      p(cx - w, cy + dy, w * 2 + 1, 1, '#05030c');
+    }
+    for (let dy = -r + 1; dy <= r - 1; dy++) {
+      const w = r - 1 - Math.abs(dy);
+      p(cx - w, cy + dy, w * 2 + 1, 1, dy < 0 ? light : body);
+    }
+    p(cx - 1, cy - r + 2, 1, 2, '#ffffff');
+  };
+  diamond(6, 15, 4, '#0090a0', '#3ad7ff');
+  diamond(18, 15, 4, '#0090a0', '#3ad7ff');
+  diamond(12, 11, 8, '#00b8c8', '#7ae8ff');
+  c.refresh();
+  scene.textures.get('card_chip').setFilter(Phaser.Textures.FilterMode.NEAREST);
 }
 
 /** 칩셋 카드 그림 이름 (LevelUpUI는 card_<art>를 찾음) */

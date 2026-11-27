@@ -63,6 +63,71 @@
    "en": "Drone Sniper Net",
    "ko_s": "드론이 레이저 사격",
    "en_s": "Drones fire lasers"
+  },
+  "c_pistolAim": {
+   "en": "Smart Aim",
+   "ko_s": "탄이 더 휘고 피해 증가 {v}%",
+   "en_s": "Curves harder, damage +{v}%"
+  },
+  "c_pistolMag": {
+   "en": "Mag Mod",
+   "ko_s": "탄 수 증가 {n}, 피해가 줄지 않는다",
+   "en_s": "Shots +{n}, no damage loss"
+  },
+  "c_mineReactive": {
+   "en": "Reactive Mines",
+   "ko_s": "맞으면 발밑에 지뢰를 깐다",
+   "en_s": "Getting hit drops a mine"
+  },
+  "c_mineDash": {
+   "en": "Mine Trail",
+   "ko_s": "대시한 길에 지뢰 {n}개를 깐다",
+   "en_s": "Dashes drop {n} mines"
+  },
+  "c_shotgunGuard": {
+   "en": "Point Blank",
+   "ko_s": "맞은 뒤 {t}초간 피해 증가 {v}%",
+   "en_s": "After a hit: +{v}% for {t}s"
+  },
+  "c_railShock": {
+   "en": "Conductive Rail",
+   "ko_s": "빔에 맞은 적이 감전된다",
+   "en_s": "Beams shock foes"
+  },
+  "c_bladeMuscle": {
+   "en": "Honed Edge",
+   "ko_s": "베기 범위 증가 {v}%",
+   "en_s": "Slash range +{v}%"
+  },
+  "c_wireYank": {
+   "en": "Yank",
+   "ko_s": "대시가 끝나면 적을 끌어당긴다",
+   "en_s": "Dashes pull foes in"
+  },
+  "c_coilCrit": {
+   "en": "Weakpoint Arc",
+   "ko_s": "치명타가 나면 연쇄가 더 튄다",
+   "en_s": "Crits extend the chain"
+  },
+  "c_grenadeThrow": {
+   "en": "Long Toss",
+   "ko_s": "폭발 범위 증가 {v}%",
+   "en_s": "Blast size +{v}%"
+  },
+  "c_missileMulti": {
+   "en": "Multi-Lock",
+   "ko_s": "미사일 수 증가 {n}",
+   "en_s": "Missiles +{n}"
+  },
+  "c_turretWall": {
+   "en": "Bulwark Turret",
+   "ko_s": "포탑이 적 탄을 막는다",
+   "en_s": "Turrets block shots"
+  },
+  "c_empArmor": {
+   "en": "Magnetic Armor",
+   "ko_s": "필드가 켜진 동안 받는 피해 감소 {v}%",
+   "en_s": "Field on: damage taken -{v}%"
   }
  },
  "tiers": {
