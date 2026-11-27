@@ -2140,6 +2140,22 @@ export class GameScene extends Phaser.Scene implements GameContext {
     this.chips += n * (1 + (this.kit.v('cyber.pickup', 'chip') + this.kit.v('chip.chips')) / 100);
   }
 
+  /**
+   * 이 카드를 고르면 빠지는(바꿔 끼워지는) 장착품 이름. 없으면 null (UI가 교체 확인을 받을 때 씀)
+   * 무기: 같은 자리(주·보조)에 다른 무기가 있으면 / 사이버웨어·장비: 같은 부위 소켓에 다른 아이템이 있으면
+   */
+  replaceTarget(c: Choice): string | null {
+    if (!c.item || c.promote || c.pickAbility || c.chipset || c.socket) return null;
+    if (c.item.kind === 'weapon') {
+      const slot = weaponSlot(c.item.id as WeaponId);
+      const cur = this.weapons.find((w) => w.slot === slot);
+      return cur && cur.id !== c.item.id ? cur.name : null;
+    }
+    const it = ITEMS[c.item.id];
+    const cur = it ? this.sockets.get(it.part) : undefined;
+    return cur && cur.id !== c.item.id ? itemName(it.kind as ItemKind, cur.id) : null;
+  }
+
   private pick(i: number): void {
     const c = this.choices[i];
     if (!c || this.state !== 'levelup') return;
@@ -7448,12 +7464,14 @@ export class GameScene extends Phaser.Scene implements GameContext {
         .setDepth(13);
     }
     const bx = this.arena ? this.arena.x + this.arena.w - 60 : p.x + 260;
-    this.boss = this.spawnEnemy(id, bx, p.y, 1);
+    // 2·3챕터 보스 체력: 일반 적이 1챕터 같은 시각보다 오른 비율만큼 (레벨이 이어지므로, 사용자 결정)
+    const bossHp = this.zoneIdx > 0 ? this.enemyHpMul(def.time) / hpScaleAt(def.time) : 1;
+    this.boss = this.spawnEnemy(id, bx, p.y, bossHp);
     if (!this.boss) {
       // 적 수 한도에 걸리면 가장 먼 적 하나를 치우고 다시 시도
       const far = this.enemyPool.items.find((e) => e.active);
       far?.kill();
-      this.boss = this.spawnEnemy(id, bx, p.y, 1);
+      this.boss = this.spawnEnemy(id, bx, p.y, bossHp);
     }
     this.bossPhase2 = false;
     this.bossEnraged = false;
