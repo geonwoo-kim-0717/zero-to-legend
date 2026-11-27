@@ -30,14 +30,12 @@ export class InputController {
   private keys: Record<string, Phaser.Input.Keyboard.Key>;
   private moveStick = { id: null as number | null, bx: 0, by: 0, x: 0, y: 0 };
   private readonly stickR = 36;
-  // UI 시안 A: 오른쪽 아래 보조무기 재사용 표시(누르지 않음), 왼쪽에 대시, 왼쪽 위에 OS (누름 판정은 대시·OS만)
-  private readonly secBtn = { x: VIEW_W - 50, y: VIEW_H - 52, r: 26 };
-  private readonly dashBtn = { x: VIEW_W - 118, y: VIEW_H - 36, r: 20 };
-  private readonly skillBtn = { x: VIEW_W - 102, y: VIEW_H - 94, r: 21 };
+  // 오른쪽 아래 엄지 자리에 대시, 그 왼쪽에 OS (보조무기는 자동 발사라 버튼 없음, 재사용 대기는 HUD 왼쪽 위 소켓 칸에)
+  private readonly dashBtn = { x: VIEW_W - 50, y: VIEW_H - 52, r: 24 };
+  private readonly skillBtn = { x: VIEW_W - 114, y: VIEW_H - 40, r: 21 };
   private gfx: Phaser.GameObjects.Graphics;
   /** 버튼 위 글자·그림 (터치일 때만) */
   private labels: Phaser.GameObjects.Text[] = [];
-  private subImg: Phaser.GameObjects.Image;
   private osImg: Phaser.GameObjects.Image;
   private dashTxt: Phaser.GameObjects.Text;
   private osQ: Phaser.GameObjects.Text;
@@ -65,13 +63,11 @@ export class InputController {
       return o;
     };
     // 버튼 아래 이름
-    txt(this.secBtn.x, this.secBtn.y + this.secBtn.r + 7, t('ui.subAuto'), 8, '#b8a8d8', { strokeThickness: 2 });
     txt(this.dashBtn.x, this.dashBtn.y + this.dashBtn.r + 7, t('ui.dash'), 8, '#b8a8d8', { strokeThickness: 2 });
     txt(this.skillBtn.x, this.skillBtn.y + this.skillBtn.r + 8, 'OS', 8, '#b8a8d8', { strokeThickness: 2 });
     this.dashTxt = txt(this.dashBtn.x, this.dashBtn.y - 2, '»', 17, '#00f0ff', { fontStyle: '900' });
     this.osQ = txt(this.skillBtn.x, this.skillBtn.y, 'Q', 13, '#0a0614', { fontStyle: '900', strokeThickness: 0 });
     this.osCd = txt(this.skillBtn.x, this.skillBtn.y, '', 12, '#ffffff', { fontStyle: '900' });
-    this.subImg = scene.add.image(this.secBtn.x, this.secBtn.y, '__WHITE').setScrollFactor(0).setDepth(201).setVisible(false);
     this.osImg = scene.add.image(this.skillBtn.x, this.skillBtn.y, '__WHITE').setScrollFactor(0).setDepth(201).setVisible(false);
 
     const near = (px: number, py: number, b: { x: number; y: number; r: number }) => Phaser.Math.Distance.Between(px, py, b.x, b.y) < b.r + 8;
@@ -133,7 +129,6 @@ export class InputController {
     this.gfx.setVisible(v);
     if (!v) {
       for (const l of this.labels) l.setVisible(false);
-      this.subImg.setVisible(false);
       this.osImg.setVisible(false);
     }
   }
@@ -158,10 +153,10 @@ export class InputController {
   }
 
   /**
-   * dashReady: 0(쿨다운 시작) ~ 1(사용 가능), subReady: 보조무기 준비 0~1, subOn: 켜짐 창 무기가 켜져 있음
+   * dashReady: 0(쿨다운 시작) ~ 1(사용 가능). _subReady·_subOn·_player: 예전 보조 버튼용, 지금은 안 씀 (호출 모양은 그대로)
    * _player: 플레이어 화면 좌표 (예전 끌기 미리보기용, 지금은 안 씀. 호출 모양은 그대로 둠)
    */
-  update(dashReady: number, skillReady = false, subReady = 0, subOn = false, _player?: { x: number; y: number }): void {
+  update(dashReady: number, skillReady = false, _subReady = 0, _subOn = false, _player?: { x: number; y: number }): void {
     const k = this.keys;
     let x = (k.D.isDown || k.RIGHT.isDown ? 1 : 0) - (k.A.isDown || k.LEFT.isDown ? 1 : 0);
     let y = (k.S.isDown || k.DOWN.isDown ? 1 : 0) - (k.W.isDown || k.UP.isDown ? 1 : 0);
@@ -175,10 +170,10 @@ export class InputController {
     }
     this.moveX = x;
     this.moveY = y;
-    this.draw(dashReady, skillReady, subReady, subOn);
+    this.draw(dashReady, skillReady);
   }
 
-  private draw(dashReady: number, skillReady: boolean, subReady: number, subOn: boolean): void {
+  private draw(dashReady: number, skillReady: boolean): void {
     const g = this.gfx;
     g.clear();
     // 마우스 조준점 (십자선)
@@ -196,7 +191,6 @@ export class InputController {
     const show = this.touchUsed && this.gfx.visible;
     for (const l of this.labels) l.setVisible(show);
     if (!show) {
-      this.subImg.setVisible(false);
       this.osImg.setVisible(false);
       return;
     }
@@ -214,21 +208,6 @@ export class InputController {
       g.fillPath();
     };
 
-    // 보조무기 (자동 발사, 누르지 않음): 무기 그림 + 등급 색 테두리, 재사용 대기 부채꼴, 켜져 있으면 깜빡이는 고리
-    const sb = this.secBtn;
-    const hasSub = this.subUse !== 'none';
-    this.labels[0].setVisible(hasSub);
-    if (hasSub) {
-      const ready = subReady >= 1;
-      const col = this.look.subColor ?? COLORS.cyan;
-      g.fillStyle(0x0a0716, 0.78).fillCircle(sb.x, sb.y, sb.r);
-      const key = this.look.subId ? `icon_${this.look.subId}` : '';
-      if (key && this.scene.textures.exists(key)) this.subImg.setTexture(key).setScale(2).setVisible(true).setAlpha(ready || subOn ? 1 : 0.55);
-      else this.subImg.setVisible(false);
-      if (!subOn) cover(sb, subReady);
-      g.lineStyle(2, col, 1).strokeCircle(sb.x, sb.y, sb.r);
-      if (subOn) g.lineStyle(3, col, 0.5 + Math.sin(now / 80) * 0.4).strokeCircle(sb.x, sb.y, sb.r + 4);
-    } else this.subImg.setVisible(false);
 
     // 대시: » + 재사용 대기 부채꼴, 준비되면 시안 고리
     const b = this.dashBtn;
@@ -243,7 +222,7 @@ export class InputController {
     const o = this.look.os;
     const k = this.skillBtn;
     const osOn = !!o?.hasActive;
-    this.labels[2].setVisible(osOn);
+    this.labels[1].setVisible(osOn);
     this.osQ.setVisible(false);
     this.osCd.setText('');
     if (!o || !osOn) {
