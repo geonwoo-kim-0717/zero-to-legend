@@ -37,6 +37,7 @@ import { LevelUpUI } from '../ui/LevelUpUI';
 import { itemCard, shortText, upgradeCard, recommend } from '../ui/cardInfo';
 import { StationUI } from '../ui/StationUI';
 import { makeChipArt, chipArt, CHIP_COLOR } from '../ui/ChipArt';
+import { makeCrateArt } from '../ui/CrateArt';
 import { chipShort } from '../ui/synergyText';
 import { drawStall, drawMarker } from '../ui/StationMarks';
 import { buildEquipPanel } from '../ui/EquipPanel';
@@ -866,6 +867,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
     this.player.hp = this.player.maxHp;
     this.enemyPool = new Pool(() => new Enemy(this));
     this.bullets = new Pool(() => new Projectile(this));
+    makeCrateArt(this); // 상자 그림·빛 텍스처는 Pickup을 만들기 전에
     this.pickups = new Pool(() => new Pickup(this));
     this.enemyBullets = new Pool(() => new EnemyBullet(this));
     this.slowmo = 0;
@@ -3919,6 +3921,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
       k.x += (dx / (d || 1)) * k.vel * dt;
       k.y += (dy / (d || 1)) * k.vel * dt;
       k.sprite.setPosition(k.x, k.y);
+      k.follow();
       if (d < 10) {
         k.kill();
         if (k.kind === 'heal') {
