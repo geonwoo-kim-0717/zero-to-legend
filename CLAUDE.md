@@ -14,7 +14,7 @@
 - Playwright 테스트에서 클릭·입력은 대상 씬이 실제로 활성화된 것을 확인한 뒤에 한다.
 - 테스트에서 `Math.random`을 바꿔치기하면 Phaser가 깨진다. 위치·상태를 직접 지정해서 재현한다.
 - 문구를 바꾸면 `python3 tools/font/subset.py <폰트 패키지>`로 폰트 서브셋을 다시 만들고, 아티팩트에 fonts/도 함께 올린다.
-- main 푸시는 곧 GitHub Pages 배포다. 확정 전 시안은 별도 브랜치에 올린다.
+- main 푸시는 곧 GitHub Pages 배포다(11월 27일부터 일반 주소 = 개편판). 확정 전 작업은 redesign/step1-twinstick에 올리고 pages.yml을 수동 실행하면 ?preview로 미리 본다. 기존 판은 legacy 브랜치, ?legacy 주소.
 - GitHub 503 등으로 push가 실패하면 재시도하고, 올라갈 때까지 "반영됨"이라고 보고하지 않는다.
 - 서버 키(플레이어 ID 등)는 서버 스키마 형식(UUID)에 맞춰 만든다.
 - 보고에서 확인한 것과 확인하지 못한 것을 구분해 적는다.
