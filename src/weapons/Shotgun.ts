@@ -13,18 +13,33 @@ export class Shotgun extends WeaponBase {
   private again = -1;
   private lastAngle = 0;
   /** 넉백은 한 번 발사의 산탄이 다 도착한 뒤 적마다 한 번만 (먼저 맞은 산탄이 적을 밀어 나머지가 빗나가지 않게) */
-  private knocks: { t: number; hits: Map<Enemy, { a: number; d: number }> }[] = [];
+  private knocks: { t: number; dmg: number; hits: Map<Enemy, { a: number; d: number }> }[] = [];
+  private crashBuf: Enemy[] = [];
 
   update(dt: number): void {
     this.timer -= dt;
     this.tickEffects(dt, COLORS.orange);
     for (const k of this.knocks) {
       if ((k.t -= dt) > 0) continue;
+      const crash = this.wc('c');
+      const hitBy = new Set<Enemy>();
       for (const [e, v] of k.hits) {
         if (!e.active) continue;
-        const k = this.ctx.ccMul(e);
-        e.x += Math.cos(v.a) * v.d * k;
-        e.y += Math.sin(v.a) * v.d * k;
+        const m = this.ctx.ccMul(e);
+        e.x += Math.cos(v.a) * v.d * m;
+        e.y += Math.sin(v.a) * v.d * m;
+        // 무기 전용 칩셋 충돌: 밀려난 적이 다른 적과 부딪히면 둘 다 피해 (발사마다 적 하나에 한 번)
+        if (crash > 0 && m > 0 && !hitBy.has(e)) {
+          for (const o of this.ctx.grid.query(e.x, e.y, 40, this.crashBuf)) {
+            if (o === e || !o.active || hitBy.has(o) || (o.x - e.x) ** 2 + (o.y - e.y) ** 2 > (e.radius + o.radius) ** 2) continue;
+            const dmg = (k.dmg * crash) / 100;
+            hitBy.add(e).add(o);
+            this.ctx.burst((e.x + o.x) / 2, (e.y + o.y) / 2, COLORS.orange, 4);
+            this.ctx.damage(e, dmg);
+            this.ctx.damage(o, dmg);
+            break;
+          }
+        }
       }
     }
     this.knocks = this.knocks.filter((k) => k.t > 0);
@@ -47,7 +62,7 @@ export class Shotgun extends WeaponBase {
     const dmg = this.damage;
     this.ctx.sfx('shotgun');
     this.ctx.playFx('shotgun_blast', p.x + Math.cos(angle) * 6, p.y + Math.sin(angle) * 6, { angle, originX: 0 });
-    const vol = { t: 0.15, hits: new Map<Enemy, { a: number; d: number }>() };
+    const vol = { t: 0.15, dmg, hits: new Map<Enemy, { a: number; d: number }>() };
     this.knocks.push(vol);
     const onHit = (a: number, knock: number) => (e: Enemy, killed: boolean) => {
       // 전설: 근거리 사냥 (가까운 적에게 ×1.6)

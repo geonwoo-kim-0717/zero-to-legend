@@ -22,6 +22,8 @@ export interface BulletOpts {
   radius?: number;
   /** 그림 크기 배율 (기본 1) */
   scale?: number;
+  /** 수명이 다했을 때. true를 돌려주면 사라지지 않고 계속 (재조준 칩셋) */
+  onExpire?: (b: Projectile) => boolean;
 }
 
 export class Projectile {
@@ -42,6 +44,7 @@ export class Projectile {
   onKill: ((e: Enemy) => void) | null = null;
   tag: DamageTag | undefined = undefined;
   onHit: ((e: Enemy, killed: boolean) => void) | null = null;
+  onExpire: ((b: Projectile) => boolean) | null = null;
   hitFx: string | undefined = undefined;
   readonly hits: Enemy[] = [];
   /** 이 탄을 쏜 무기 id (무기별 DPS 집계용) */
@@ -69,6 +72,7 @@ export class Projectile {
     this.onKill = o.onKill ?? null;
     this.tag = o.tag;
     this.onHit = o.onHit ?? null;
+    this.onExpire = o.onExpire ?? null;
     this.hitFx = o.hitFx;
     const tex = o.texture ?? 'bullet';
     this.radius = o.radius ?? (tex === 'wave' ? 9 : 3);
@@ -90,7 +94,7 @@ export class Projectile {
     this.y += this.vy * dt;
     this.life -= dt;
     this.sprite.setPosition(this.x, this.y);
-    if (this.life <= 0) this.kill();
+    if (this.life <= 0 && !this.onExpire?.(this)) this.kill();
   }
 
   kill(): void {
@@ -98,6 +102,7 @@ export class Projectile {
     this.target = null;
     this.onKill = null;
     this.onHit = null;
+    this.onExpire = null;
     this.sprite.setVisible(false);
   }
 }

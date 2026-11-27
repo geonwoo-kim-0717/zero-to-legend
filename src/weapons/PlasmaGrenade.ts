@@ -131,6 +131,12 @@ export class PlasmaGrenade extends WeaponBase {
   }
 
   private explode(x: number, y: number, r: number, dmg: number, primary: boolean): void {
+    // 폭발 5단계 대폭발: n번째 폭발은 범위·피해 배율
+    if (primary) {
+      const big = this.ctx.boomScale();
+      r *= big;
+      dmg *= big;
+    }
     // 전설: 중력탄 — 주변 적을 중심으로 끌어당김
     if (primary && this.has('gravity')) {
       for (const e of this.ctx.grid.query(x, y, r * 2, this.pullBuf)) {
@@ -141,7 +147,11 @@ export class PlasmaGrenade extends WeaponBase {
       }
     }
     const chainOn = this.has('chainReaction');
+    // 무기 전용 칩셋 띄우기: 맞은 적이 t초 동안 떠올랐다가 떨어질 때 유탄 피해의 p%
+    const air = this.wc('t');
+    const airDmg = (dmg * this.wc('p', 50)) / 100;
     this.hitCircle(x, y, r, dmg, undefined, (e, killed) => {
+      if (!killed && air > 0) this.ctx.launchEnemy(e, air, airDmg);
       if (killed && chainOn && this.chainBudget >= 1 && this.chainFree(e.x, e.y)) {
         this.chainBudget--;
         // 연쇄될 때마다 피해 ×0.6 누적

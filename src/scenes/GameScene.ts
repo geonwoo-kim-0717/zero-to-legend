@@ -55,6 +55,10 @@ import visorAnchors from '../data/visor_anchors.json';
 /** 아군이 된 적 빛깔 (사이코시스 광폭화는 빨간빛) */
 const CHARM_TINT = 0xff2bd6;
 const PSYCHO_TINT = 0xff4a5a;
+/** 띄우기 칩셋: 가장 높이 떴을 때 높이 (px) */
+const AIR_LIFT = 26;
+/** 기계 5단계 작은 드론: 사격 간격(초), 사거리, 한 발 피해 */
+const MINI_DRONE = { gap: 0.5, range: 180, damage: 12 };
 /** 공격 상태가 없는 접촉형 적: 플레이어에게 붙으면 공격 그림 */
 const CONTACT_POSE = new Set<string>(['trooper_tank', 'thug', 'sec_bot', 'drone', 'rat_bot']);
 
@@ -718,6 +722,11 @@ export class GameScene extends Phaser.Scene implements GameContext {
     // scene.start()로 다시 들어올 때 같은 인스턴스를 재사용하므로 상태를 전부 초기화
     this.state = 'play';
     this.elapsed = this.kills = this.xp = this.pendingLevels = this.bossRewards = this.chips = 0;
+    // 판 시작: 칩셋·5단계 상태 초기화 (씬은 다시 쓰이므로)
+    this.wireLinks.clear();
+    this.miniDrones = [];
+    this.focusUntil = [];
+    this.elecHits = this.boomCount = this.meleeKills5 = this.mechKills = 0;
     this.chestQueue = [];
     this.abilityPending = null;
     this.nextChestT = Phaser.Math.FloatBetween(gameData.supply.chestEvery[0], gameData.supply.chestEvery[1]);
@@ -1078,8 +1087,10 @@ export class GameScene extends Phaser.Scene implements GameContext {
     this.dmgNumber(e, amount, critMul);
     if (e === this.boss) this.xmHitT = Math.max(this.xmHitT, 0.12);
     if (proc) this.hitProcs(e, amount, tag, src, crit);
+    if (proc && this.wireLinks.size) this.linkShare(e, amount, tag);
     if (e.hit(amount)) {
       if (tag === 'melee') this.run.meleeKills++;
+      this.tier5Kill(tag, src, crit);
       this.killEnemy(e, tag);
       return true;
     }
@@ -1334,6 +1345,177 @@ export class GameScene extends Phaser.Scene implements GameContext {
       }
     }
     return n;
+  }
+
+  reflectEnemyBullets(x: number, y: number, r: number, inArc: (bx: number, by: number) => boolean, dmg: number): number {
+    let n = 0;
+    for (const b of this.enemyBullets.items) {
+      if (!b.active || (b.x - x) ** 2 + (b.y - y) ** 2 > (r + b.radius) ** 2 || !inArc(b.x, b.y)) continue;
+      const a = Math.atan2(-b.vy, -b.vx);
+      const bx = b.x;
+      const by = b.y;
+      b.kill();
+      this.burst(bx, by, COLORS.cyan, 3);
+      this.fireBullet(bx, by, a, 360, dmg, { pierce: 1, life: 0.9, turnRate: 0, texture: 'wave', scale: 0.5, tag: 'melee' });
+      n++;
+    }
+    if (n) Sound.play('block');
+    return n;
+  }
+
+  interceptEnemyBullet(x: number, y: number, r: number): { x: number; y: number } | null {
+    let best: EnemyBullet | null = null;
+    let bd = r * r;
+    for (const b of this.enemyBullets.items) {
+      if (!b.active) continue;
+      const d = (b.x - x) ** 2 + (b.y - y) ** 2;
+      if (d < bd) ((bd = d), (best = b));
+    }
+    if (!best) return null;
+    const at = { x: best.x, y: best.y };
+    best.kill();
+    return at;
+  }
+
+  /** 연결 칩셋: 이어진 적 무리 (같은 무리는 같은 객체) */
+  private wireLinks = new Map<Enemy, { members: Enemy[]; t: number; pct: number }>();
+
+  linkEnemies(list: Enemy[], seconds: number, pct: number): void {
+    const g = { members: list.slice(), t: seconds, pct };
+    for (const e of list) this.wireLinks.set(e, g);
+  }
+
+  /** 이어진 적이 맞으면 나머지도 pct% 피해 (시너지 피해라 다시 퍼지지 않음) */
+  private linkShare(e: Enemy, amount: number, tag?: DamageTag): void {
+    const g = this.wireLinks.get(e);
+    if (!g || g.t <= 0) return;
+    for (const o of g.members) if (o !== e && o.active) this.synDamage(o, (amount * g.pct) / 100, tag);
+  }
+
+  private updateLinks(dt: number): void {
+    if (!this.wireLinks.size) return;
+    const seen = new Set<object>();
+    for (const [e, g] of this.wireLinks) {
+      if (!seen.has(g)) {
+        seen.add(g);
+        g.t -= dt;
+        const live = g.members.filter((m) => m.active);
+        for (let i = 1; i < live.length; i++) this.fx.lineStyle(1, COLORS.magenta, 0.5).lineBetween(live[i - 1].x, live[i - 1].y, live[i].x, live[i].y);
+      }
+      if (g.t <= 0 || !e.active) this.wireLinks.delete(e);
+    }
+  }
+
+  launchEnemy(e: Enemy, seconds: number, dmg: number): void {
+    if (!e.active || e.isBoss || e.flying || e.airT > 0 || this.ccMul(e) <= 0) return;
+    e.airT = e.airMax = seconds;
+    e.airDmg = dmg;
+  }
+
+  /** 떠 있는 적: 공격·이동 없이 포물선으로 떴다가, 떨어지면 피해 */
+  private updateAir(e: Enemy, dt: number): void {
+    e.airT -= dt;
+    if (e.airT <= 0) {
+      e.airT = 0;
+      this.placeEnemy(e);
+      this.burst(e.x, e.y, COLORS.orange, 5);
+      this.synDamage(e, e.airDmg, 'explosive');
+      return;
+    }
+    const k = 1 - e.airT / e.airMax;
+    this.placeEnemy(e);
+    e.sprite.y -= Math.sin(k * Math.PI) * AIR_LIFT;
+  }
+
+  // ───────────── 태그 시너지 5단계 (해킹 사이코시스는 updatePsycho) ─────────────
+  private elecHits = 0;
+  private boomCount = 0;
+  private meleeKills5 = 0;
+  private mechKills = 0;
+  /** 정밀 5단계 집중: 겹친 공격 속도 증가마다 끝나는 시각 */
+  private focusUntil: number[] = [];
+  /** 기계 5단계 부품 조립: 따라다니는 작은 드론 */
+  private miniDrones: { t: number; fire: number; a: number; img: Phaser.GameObjects.Image }[] = [];
+
+  boomScale(): number {
+    const L = this.kit;
+    if (!L.has('syn.boom5') || ++this.boomCount < L.v('syn.boom5', 'n', 10)) return 1;
+    this.boomCount = 0;
+    this.shake(120, 0.004);
+    return L.v('syn.boom5', 'mul', 2);
+  }
+
+  /** 전기 5단계: 화면 안 모든 적에게 방전 (시너지 피해라 다시 퍼지지 않음) */
+  private overcharge(dmg: number): void {
+    let n = 0;
+    for (const o of this.enemyPool.items) {
+      if (!o.active || !this.onScreen(o.x, o.y)) continue;
+      if (n++ < 40) this.fx.lineStyle(1, COLORS.cyan, 0.8).lineBetween(o.x, o.y - 120, o.x, o.y);
+      this.synDamage(o, dmg * this.stats.damageMul, 'electric');
+    }
+    this.screenFlash(0xe8f7ff, 0.12, 150);
+    Sound.play('glitch');
+  }
+
+  /** 처치 때 5단계 셈: 근접 연속 돌진, 정밀 집중, 기계 부품 조립 */
+  private tier5Kill(tag: DamageTag | undefined, src: string | null, crit: boolean): void {
+    const L = this.kit;
+    const melee = tag === 'melee' || (!!src && (this.wTags.get(src) ?? []).includes('근접'));
+    if (L.has('syn.melee5') && melee && ++this.meleeKills5 >= L.v('syn.melee5', 'n', 15)) {
+      this.meleeKills5 = 0;
+      if (this.player.dashCd > 0) {
+        this.player.dashCd = 0;
+        this.burst(this.player.x, this.player.y, COLORS.cyan, 8);
+      }
+    }
+    if (L.has('syn.prec5') && crit) {
+      const max = L.v('syn.prec5', 'max', 5);
+      this.focusUntil.push(this.elapsed + L.v('syn.prec5', 't', 3));
+      if (this.focusUntil.length > max) this.focusUntil.shift();
+    }
+    if (L.has('syn.mech5') && (src === 'hackDrone' || src === 'turret' || src === 'miniDrone') && ++this.mechKills >= L.v('syn.mech5', 'n', 30)) {
+      this.mechKills = 0;
+      if (this.miniDrones.length < L.v('syn.mech5', 'max', 3)) {
+        const img = this.add.image(this.player.x, this.player.y, 'hackdrone').setScale(0.6).setDepth(18).setTint(0xfff23a);
+        this.miniDrones.push({ t: L.v('syn.mech5', 't', 10), fire: 0.3, a: Math.random() * Math.PI * 2, img });
+      }
+    }
+  }
+
+  /** 정밀 5단계 집중: 지금 겹친 수 */
+  private get focusStacks(): number {
+    if (!this.focusUntil.length) return 0;
+    this.focusUntil = this.focusUntil.filter((t) => t > this.elapsed);
+    return this.focusUntil.length;
+  }
+
+  /** 기계 5단계: 작은 드론이 플레이어 둘레를 돌며 가장 가까운 적에게 사격 */
+  private updateMiniDrones(dt: number): void {
+    if (!this.miniDrones.length) return;
+    const p = this.player;
+    for (const d of this.miniDrones) {
+      d.t -= dt;
+      d.a += dt * 2;
+      const x = p.x + Math.cos(d.a) * 28;
+      const y = p.y + Math.sin(d.a) * 18 - 14;
+      d.img.setPosition(x, y).setAlpha(d.t < 2 && Math.floor(d.t * 6) % 2 ? 0.4 : 1);
+      if ((d.fire -= dt) > 0) continue;
+      d.fire = MINI_DRONE.gap * this.stats.cooldownMul;
+      let best: Enemy | null = null;
+      let bd = MINI_DRONE.range ** 2;
+      for (const e of this.grid.query(x, y, MINI_DRONE.range, this.chainBuf)) {
+        if (!e.active || e.charmT > 0) continue;
+        const dd = (e.x - x) ** 2 + (e.y - y) ** 2;
+        if (dd < bd) ((bd = dd), (best = e));
+      }
+      if (!best) continue;
+      const prev = this.dmgSrc;
+      this.dmgSrc = 'miniDrone';
+      this.fireBullet(x, y, Math.atan2(best.y - y, best.x - x), 340, MINI_DRONE.damage * this.stats.damageMul, { target: best, turnRate: 8, life: 0.8 });
+      this.dmgSrc = prev;
+    }
+    for (const d of this.miniDrones) if (d.t <= 0) d.img.destroy();
+    this.miniDrones = this.miniDrones.filter((d) => d.t > 0);
   }
 
   screenFlash(color: number, alpha: number, ms: number): void {
@@ -2936,10 +3118,17 @@ export class GameScene extends Phaser.Scene implements GameContext {
     const hidden = this.untracked;
     const conv = this.zone.rule === 'conveyor';
     this.updatePsycho(dt);
+    this.updateLinks(dt);
+    this.updateMiniDrones(dt);
     for (const e of this.enemyPool.items) {
       if (!e.active) continue;
       if (e.dropT > 0 || e.landT > 0) {
         this.updateDrop(e, dt);
+        continue;
+      }
+      if (e.airT > 0) {
+        this.updateAir(e, dt);
+        this.tickHitFlash(e, dt);
         continue;
       }
       if (e.charmT > 0) {
@@ -3361,7 +3550,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
     if (this.streakT > 0 && (this.streakT -= dt) <= 0) this.streak = 0;
     // 가속 연쇄: 처치 후 1초 동안 공격 속도 +20% (곱연산)
     if (this.rushT > 0) this.rushT -= dt;
-    this.stats.cooldownMul = this.baseCooldownMul / (this.rushT > 0 ? 1.2 : 1);
+    this.stats.cooldownMul = this.baseCooldownMul / (this.rushT > 0 ? 1.2 : 1) / (1 + (this.focusStacks * this.kit.v('syn.prec5', 'v', 5)) / 100);
     // 특이점: 화면의 적을 한 점으로 끌어모은 뒤 폭발
     if (this.pHas('singularity')) {
       if (!this.singPull && (this.singT -= dt) <= 0) {
@@ -3505,6 +3694,11 @@ export class GameScene extends Phaser.Scene implements GameContext {
   private hitProcs(e: Enemy, amount: number, tag: DamageTag | undefined, src: string | null, crit: boolean): void {
     const L = this.kit;
     const wt = (src && this.wTags.get(src)) || [];
+    // 전기 5단계 과충전: 전기 공격으로 n번 맞히면 화면 안 모든 적에게 방전
+    if (L.has('syn.elec5') && (tag === 'electric' || wt.includes('전기')) && ++this.elecHits >= L.v('syn.elec5', 'n', 100)) {
+      this.elecHits = 0;
+      this.overcharge(L.v('syn.elec5', 'dmg', 80));
+    }
     if (L.has('syn.elec2') && (tag === 'electric' || wt.includes('전기')) && Math.random() * 100 < L.v('syn.elec2', 'chance')) this.addDot(e, 'shock', L.v('syn.elec2', 'dur'));
     if (L.has('syn.boom3') && (tag === 'explosive' || wt.includes('폭발'))) this.addDot(e, 'burn', L.v('syn.boom3', 'dur'));
     if (L.has('syn.boom4') && tag === 'explosive' && this.echoes.length < 80) this.echoes.push({ e, t: L.v('syn.boom4', 'delay'), dmg: (amount * L.v('syn.boom4', 'pct')) / 100 });

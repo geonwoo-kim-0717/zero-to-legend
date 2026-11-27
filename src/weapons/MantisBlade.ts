@@ -52,6 +52,9 @@ export class MantisBlade extends WeaponBase {
             }
           },
         );
+        // 무기 전용 칩셋 탄 반사: 베기에 닿은 적 탄을 되받아침 (블레이드 피해의 p%)
+        const ref = this.wc('p');
+        if (ref > 0) this.ctx.reflectEnemyBullets(p.x, p.y, r * HIT_MUL, (bx, by) => whirl || Math.abs(Phaser.Math.Angle.Wrap(Math.atan2(by - p.y, bx - p.x) - a)) <= half, (dmg * ref) / 100);
         this.slashes.push({ angle: a, half, r, life: 0.15 });
         // 칼날 궤적 그림 (회전 칼날은 네 방향)
         for (let q = 0; q < (whirl ? 4 : 1); q++) this.ctx.playFx('mantisBlade_slash', p.x, p.y, { angle: a + (q * Math.PI) / 2, originX: 8 / 48, scale: r / 40, frameTime: 0.035 });

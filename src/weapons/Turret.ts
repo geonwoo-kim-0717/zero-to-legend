@@ -9,6 +9,8 @@ const FIRE = 0.4;
 const RANGE = 160;
 /** 수리 포탑: 이 거리 안이면 회복 */
 const REPAIR_R = 70;
+/** 가열 연사 칩셋: 최대 속도까지 걸리는 발사 수 */
+const RAMP_SHOTS = 12;
 
 interface Post {
   x: number;
@@ -73,7 +75,9 @@ export class Turret extends WeaponBase {
         const e = this.markedNear(t.x, t.y, range) ?? this.nearest(t.x, t.y, range);
         if (e) {
           // 발사 간격에도 공격속도(신경 가속기·냉각 코어)와 오버클럭이 적용된다
-          t.fire = FIRE * this.ctx.stats.cooldownMul * this.ctx.weaponMul(this.id).cd * (1 / this.ctx.odFireMul);
+          // 무기 전용 칩셋 가열 연사: 쏠수록(RAMP_SHOTS발에 걸쳐) 공격 속도가 최대 m%까지 오름
+          const heat = 1 + (this.wc('m') / 100) * Math.min(1, t.shots / RAMP_SHOTS);
+          t.fire = (FIRE * this.ctx.stats.cooldownMul * this.ctx.weaponMul(this.id).cd) / this.ctx.odFireMul / heat;
           t.shots++;
           const a = Math.atan2(e.y - t.y, e.x - t.x);
           t.img.setRotation(a);

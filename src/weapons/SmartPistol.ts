@@ -1,8 +1,13 @@
 import Phaser from 'phaser';
 import { WeaponBase } from './WeaponBase';
 import type { Enemy } from '../entities/Enemy';
+import type { Projectile } from '../entities/Projectile';
 
 const RANGE = 190;
+/** 재조준 칩셋: 다시 쫓을 적을 찾는 반경 */
+const RETARGET_R = 320;
+/** 재조준 칩셋이 있으면 탄 수명을 줄여 사거리 근처에서 빗나간 탄을 다시 쏘게 함 (초) */
+const RETARGET_LIFE = 0.8;
 /** 한 번에 쏘는 탄은 최대 4발. 탄이 1발 늘 때마다 한 발 피해 -10% (2발 90%, 3발 80%, 4발 70%) */
 const MAX_SHOTS = 4;
 const SPLIT_PENALTY = 0.1;
@@ -82,10 +87,36 @@ export class SmartPistol extends WeaponBase {
       mul = 1 + 0.1 * this.lockStack;
     }
 
+    // 무기 전용 칩셋 재조준: 수명이 다한 탄이 가까운 적을 r번 다시 쫓음
+    const reAim = Math.floor(this.wc('r'));
+    const onExpire = reAim > 0 ? this.retarget(reAim) : undefined;
     this.ctx.playFx('smartPistol_muzzle', p.x + Math.cos(ma) * 6, p.y + Math.sin(ma) * 6, { angle: ma, originX: 0 });
     for (let i = 0; i < count; i++) {
       const a = ma + (i - (count - 1) / 2) * 0.12;
-      this.ctx.fireBullet(p.x, p.y, a, this.s.speed, this.shotDamage * mul, { pierce: this.s.pierce, target: lock, turnRate: lock ? 3.5 : 0, chain, texture: 'fx_smartPistol_tracer_1', hitFx: 'smartPistol_hit' });
+      this.ctx.fireBullet(p.x, p.y, a, this.s.speed, this.shotDamage * mul, { pierce: this.s.pierce, target: lock, turnRate: lock ? 3.5 : 0, chain, texture: 'fx_smartPistol_tracer_1', hitFx: 'smartPistol_hit', onExpire: onExpire?.(), life: onExpire ? RETARGET_LIFE : undefined });
     }
   }
+
+  /** 재조준 콜백 (탄마다 따로 횟수를 셈) */
+  private retarget(n: number): () => (b: Projectile) => boolean {
+    return () => {
+      let left = n;
+      return (b) => {
+        if (left-- <= 0) return false;
+        let best: Enemy | null = null;
+        let bd = RETARGET_R * RETARGET_R;
+        for (const e of this.ctx.grid.query(b.x, b.y, RETARGET_R, this.reBuf)) {
+          if (!e.active || b.hits.includes(e)) continue;
+          const d = (e.x - b.x) ** 2 + (e.y - b.y) ** 2;
+          if (d < bd) ((bd = d), (best = e));
+        }
+        if (!best) return false;
+        b.target = best;
+        b.turnRate = 14;
+        b.life = 0.8;
+        return true;
+      };
+    };
+  }
+  private reBuf: Enemy[] = [];
 }

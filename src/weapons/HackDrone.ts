@@ -140,6 +140,7 @@ export class HackDrone extends WeaponBase {
       this.ctx.fx.fillStyle(COLORS.cyan, 0.06).fillCircle(p.x, p.y, orbit + 6);
       this.ctx.fx.lineStyle(2, COLORS.cyan, pulse).strokeCircle(p.x, p.y, orbit);
     }
+    const jamT = this.wc('t');
     if (this.prev.length !== n) this.prev = [];
     for (let i = 0; i < n; i++) {
       const a = this.angle + (i / n) * Math.PI * 2;
@@ -184,6 +185,8 @@ export class HackDrone extends WeaponBase {
         canHit,
         (e, killed) => {
           this.ctx.playFx('hackDrone_zap', e.x, e.y);
+          // 무기 전용 칩셋 교란: 닿은 원거리 적은 t초 동안 쏘지 못함 (다음 사격까지 남은 시간을 늘림)
+          if (jamT > 0 && !killed) e.cd = Math.max(e.cd, jamT);
           // 전설: 방어 궤도 — 바깥으로 밀어냄
           if (this.has('defenseOrbit') && !killed && !e.isBoss) {
             const d = Math.hypot(e.x - p.x, e.y - p.y) || 1;

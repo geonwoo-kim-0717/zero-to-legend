@@ -57,6 +57,16 @@ export interface GameContext {
   screenFlash(color: number, alpha: number, ms: number): void;
   /** (x,y) 반경 r 안의 적 탄을 지운다. 지운 수 반환 */
   blockEnemyBullets(x: number, y: number, r: number): number;
+  /** (x,y) 반경 r 안에서 inArc를 만족하는 적 탄을 되받아친다 (쏜 쪽으로 dmg 피해 탄). 되받아친 수 반환 */
+  reflectEnemyBullets(x: number, y: number, r: number, inArc: (bx: number, by: number) => boolean, dmg: number): number;
+  /** (x,y) 반경 r 안의 가장 가까운 적 탄(미사일 포함)을 터뜨리고 그 자리를 돌려준다 (없으면 null) */
+  interceptEnemyBullet(x: number, y: number, r: number): { x: number; y: number } | null;
+  /** 적들을 seconds초 동안 이어, 하나가 입은 피해의 pct%를 나머지도 입게 한다 (연결 칩셋) */
+  linkEnemies(list: Enemy[], seconds: number, pct: number): void;
+  /** 적을 seconds초 동안 띄움: 공격·이동 못 하고, 떨어질 때 dmg 피해 (띄우기 칩셋, 보스 제외) */
+  launchEnemy(e: Enemy, seconds: number, dmg: number): void;
+  /** 폭발 한 번: 폭발 5단계 '대폭발'이면 n번째 폭발에 범위·피해 배율(아니면 1) */
+  boomScale(): number;
   /** 플레이어 중심 고리(안쪽 반지름~바깥 반지름)에 걸친 적 탄을 지운다 */
   blockEnemyBulletsRing(rIn: number, rOut: number): number;
   /** 적을 잠깐 느리게 (둔화 면역 카운터는 무시) */

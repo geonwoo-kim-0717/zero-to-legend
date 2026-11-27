@@ -9,6 +9,7 @@ const HOP = 90;
 export class ArcCoil extends WeaponBase {
   protected readonly tag = 'electric' as const;
   private bolts: { pts: number[]; life: number }[] = [];
+  private blasts: { x: number; y: number; r: number; life: number }[] = [];
   private stormT = 5;
   private readonly seen = new Set<Enemy>();
   private rodT = 3;
@@ -81,6 +82,12 @@ export class ArcCoil extends WeaponBase {
       fx.strokePath();
     }
     this.bolts = this.bolts.filter((b) => b.life > 0);
+    for (const b of this.blasts) {
+      b.life -= dt;
+      fx.fillStyle(COLORS.cyan, (b.life / 0.2) * 0.3).fillCircle(b.x, b.y, b.r);
+      fx.lineStyle(1, 0xffffff, b.life / 0.2).strokeCircle(b.x, b.y, b.r);
+    }
+    this.blasts = this.blasts.filter((b) => b.life > 0);
   }
 
   private chain(sx: number, sy: number, first: Enemy): void {
@@ -103,6 +110,13 @@ export class ArcCoil extends WeaponBase {
       if (cur.id === 'c_insulator') break;
       from = { x: cur.x, y: cur.y };
       cur = this.nearest(from.x, from.y, HOP * this.area, this.seen);
+    }
+    // 무기 전용 칩셋 끝 방전: 연쇄의 마지막 적 자리에서 반경 r px 폭발 (코일 피해)
+    const endR = this.wc('r');
+    if (endR > 0 && chain.length) {
+      const r = endR * this.area;
+      this.hitCircle(from.x, from.y, r, this.damage);
+      this.blasts.push({ x: from.x, y: from.y, r, life: 0.2 });
     }
     // 신화: 테슬라 감옥
     if (this.has('teslaCage') && chain.length > 1 && this.cages.length < 6) this.cages.push({ list: chain, t: 2, acc: 0 });

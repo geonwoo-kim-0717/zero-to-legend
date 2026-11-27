@@ -15,6 +15,8 @@ export interface ChipsetDef {
   /** 무기 전용 칩셋의 무기 id */
   weapon?: string;
   text: string;
+  /** 영어 문구 (없으면 한국어) */
+  textEn?: string;
   params?: Record<string, { base: number; per: number }>;
   hook: string;
   weight?: number;
@@ -35,7 +37,7 @@ export function chipValues(id: string, n: number): Record<string, number> {
 /** 중첩 n일 때 문구 (표시용 반올림) */
 export function chipText(id: string, n: number): string {
   const v = chipValues(id, n);
-  return (CHIPSETS[id]?.text ?? '').replace(/\{([A-Za-z][A-Za-z0-9_]*)\}/g, (_m, k: string) => (k in v ? String(displayNum(v[k])) : '?'));
+  return ((I18n.lang === 'en' && CHIPSETS[id]?.textEn) || CHIPSETS[id]?.text || '').replace(/\{([A-Za-z][A-Za-z0-9_]*)\}/g, (_m, k: string) => (k in v ? String(displayNum(v[k])) : '?'));
 }
 
 export function chipName(id: string): string {

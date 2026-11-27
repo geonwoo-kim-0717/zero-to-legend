@@ -91,7 +91,7 @@ export abstract class WeaponBase {
     this.activeCd = Math.max(0, this.activeCd - dt);
     if (this.activeLeft <= 0 && this.activeCd <= 0 && this.trigger) {
       this.fired();
-      this.activeLeft = A.time + (this.ctx.mod(`wchip.${this.id}`)?.t ?? 0);
+      this.activeLeft = A.time;
       this.activeCd = A.time + A.cooldown * this.ctx.stats.cooldownMul * this.ctx.weaponMul(this.id).sub;
       this.ctx.sfx('select');
     }
@@ -120,10 +120,14 @@ export abstract class WeaponBase {
     return this.slot === 'primary' ? this.ctx.aim.primary : this.ctx.aim.secondary;
   }
 
-  /** 개수(탄·산탄·빔·베기·채찍·연쇄·유탄·미사일·지뢰·포탑·드론): 레벨 값 + 무기 전용 칩셋 n (최대 +6) */
+  /** 개수(탄·산탄·빔·베기·채찍·연쇄·유탄·미사일·지뢰·포탑·드론): 레벨 값 */
   protected get cnt(): number {
-    const n = this.ctx.mod(`wchip.${this.id}`)?.n ?? 0;
-    return this.s.count + Math.min(6, Math.floor(n));
+    return this.s.count;
+  }
+
+  /** 이 무기 전용 칩셋 값 (없으면 def) */
+  protected wc(key: string, def = 0): number {
+    return this.ctx.mod(`wchip.${this.id}`)?.[key] ?? def;
   }
 
   /** 재사용 대기를 s초 줄임 (택티컬 OS: 표식된 적 처치) */

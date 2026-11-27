@@ -4,6 +4,8 @@ import { COLORS } from '../config';
 
 /** 기본 빔 굵기 (블랙마켓 상향: 5 → 6.5) */
 const BASE_W = 6.5;
+/** 굴절 칩셋: 꺾인 빔 길이 */
+const REFRACT_LEN = 320;
 
 /** 레일건: 가장 체력이 많은 적을 향해 화면을 꿰뚫는 빔 */
 export class Railgun extends WeaponBase {
@@ -110,17 +112,51 @@ export class Railgun extends WeaponBase {
     const y2 = p.y + Math.sin(angle) * 700;
     const amp = this.has('piercingAmp');
     const weak = this.has('weakSpot');
-    this.hitLine(p.x, p.y, x2, y2, w, (e: Enemy, n) => {
-      this.ctx.playFx('railgun_impact', e.x, e.y, { angle });
-      let d = this.damage * mul * (amp ? Math.min(2, 1 + 0.15 * n) : 1);
-      // 전설: 약점 저격
-      if (weak && e.hp >= e.maxHp * 0.5) d *= 1.5;
-      return d;
-    });
+    let kill: Enemy | null = null;
+    const hit = this.hitLine(
+      p.x,
+      p.y,
+      x2,
+      y2,
+      w,
+      (e: Enemy, n) => {
+        this.ctx.playFx('railgun_impact', e.x, e.y, { angle });
+        let d = this.damage * mul * (amp ? Math.min(2, 1 + 0.15 * n) : 1);
+        // 전설: 약점 저격
+        if (weak && e.hp >= e.maxHp * 0.5) d *= 1.5;
+        return d;
+      },
+      (e, killed) => {
+        if (killed && !kill) kill = e;
+      },
+    );
+    // 무기 전용 칩셋 굴절: 빔이 적을 처치하면 그 자리에서 가장 가까운 적 쪽으로 꺾임 (최대 r번)
+    const bends = Math.floor(this.wc('r'));
+    if (bends > 0 && kill) this.refract(kill as Enemy, bends, new Set(hit), w, mul);
     this.beams.push({ x1: p.x, y1: p.y, x2, y2, w, life: 0.25 });
     this.beamSprite(p.x, p.y, angle, 700, w);
     // 전설: 과열 잔상 (2초 동안 타는 선)
     if (this.has('heatTrail')) this.addZone(p.x, p.y, x2, y2, Math.max(3, w * 0.6), 2, this.damage * 0.2, COLORS.orange);
+  }
+
+  /** 굴절 빔: from 자리에서 가장 가까운 (안 맞은) 적 쪽으로 REFRACT_LEN px. 이 빔도 처치하면 남은 횟수만큼 또 꺾임 */
+  private refract(from: Enemy, left: number, done: Set<Enemy>, w: number, mul: number): void {
+    const x = from.x;
+    const y = from.y;
+    const t = this.nearest(x, y, REFRACT_LEN, done);
+    if (!t) return;
+    const a = Math.atan2(t.y - y, t.x - x);
+    const x2 = x + Math.cos(a) * REFRACT_LEN;
+    const y2 = y + Math.sin(a) * REFRACT_LEN;
+    let kill: Enemy | null = null;
+    const hit = this.hitLine(x, y, x2, y2, w, this.damage * mul, (e, killed) => {
+      if (done.has(e)) return;
+      if (killed && !kill) kill = e;
+    });
+    for (const e of hit) done.add(e);
+    this.beams.push({ x1: x, y1: y, x2, y2, w, life: 0.25 });
+    this.beamSprite(x, y, a, REFRACT_LEN, w);
+    if (left > 1 && kill) this.refract(kill as Enemy, left - 1, done, w, mul);
   }
 
   /** 화면 안에서 지금 체력이 가장 많은 적 n명 */
