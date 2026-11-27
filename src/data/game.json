@@ -401,9 +401,11 @@
     "despawnDistance": 700,
     "maxEnemies": 600
   },
-  "zoneWarmup": {
-    "time": 144,
-    "spawnFrom": 0.45
+  "zoneCurve": {
+    "note": "2·3챕터 일반 적 체력: 레벨이 이어지므로 직전 챕터 끝 체력 배율의 carry배에서 시작해 len초(챕터 보스 시각) 동안 (1+growth)배까지 오름. 1챕터는 hpCurve 그대로 (사용자 결정: 끝의 0.8배에서 시작)",
+    "carry": 0.8,
+    "growth": 0.72,
+    "len": 480
   },
   "droneAi": {
     "hover": 4,

@@ -43,7 +43,7 @@ export class HackDrone extends WeaponBase {
     this.syncSprites();
   }
 
-  // ── 원거리 레이저: 드론 저격망 조합(해킹 드론 + 전술 스캐너), 택티컬 OS 2줄(표식된 적만) ──
+  // ── 원거리 레이저: 드론 저격망 조합(해킹 드론 + 타겟팅 아이), 택티컬 OS 2줄(표식된 적만) ──
   private snipeT = 0;
   private beams: { x1: number; y1: number; x2: number; y2: number; life: number }[] = [];
   private readonly snipeBuf: Enemy[] = [];

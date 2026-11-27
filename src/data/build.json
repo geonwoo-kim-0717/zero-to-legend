@@ -987,7 +987,7 @@
    "name": "드론 저격망",
    "needs": [
     "hackDrone",
-    "t_scanner"
+    "o_target"
    ],
    "text": "드론이 켜진 동안 {range}px 안의 적에게 레이저 (드론 피해의 {pct}%, {gap}초마다, 표식된 적 먼저)",
    "params": {

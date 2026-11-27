@@ -3043,7 +3043,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
     if (nextBoss && !this.boss && !this.raid && this.transitionT <= 0 && zt >= nextBoss.time) this.spawnBoss(nextBoss);
     if (this.transitionT <= 0) this.updateRaid(dt);
     this.drawArena(dt);
-    if (this.transitionT <= 0) this.spawner.update(dt, zt, zt, (wavesData as Record<string, Wave[]>)[this.zone.id], p.x, p.y, this.zoneHpMul(zt), this.zoneSpawnMul(zt), this.directorSense(), this.elapsed);
+    if (this.transitionT <= 0) this.spawner.update(dt, zt, zt, (wavesData as Record<string, Wave[]>)[this.zone.id], p.x, p.y, this.zoneHpMul(zt), 1, this.directorSense(), this.elapsed);
     this.updateZoneRule(dt);
     if (this.transitionT <= 0) this.updateCounters(dt, zt);
     this.updateStations(dt, zt);
@@ -3292,7 +3292,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
         // 너무 멀어진 적은 플레이어 주변으로 재배치
         if (d > gameData.spawn.despawnDistance && e.maxHp < 1000) {
           e.kill();
-          this.spawner.spawnAround(e.id, p.x, p.y, hpScaleAt(this.elapsed - this.zoneStart) * this.zone.hpMul, true);
+          this.spawner.spawnAround(e.id, p.x, p.y, this.enemyHpMul(this.elapsed - this.zoneStart), true);
           continue;
         }
       }
@@ -4432,18 +4432,24 @@ export class GameScene extends Phaser.Scene implements GameContext {
   }
 
   /**
-   * 2·3챕터 초반 워밍업: 빌드가 레벨 1로 초기화된 직후라, 처음 warmup.time초 동안
-   * 적 체력 배율은 1배에서 구역 배율까지, 생성 수는 spawnFrom배에서 1배까지 서서히 올린다.
+   * 일반 적 체력 배율 (챕터 시간 zt초). 1챕터는 hpCurve 그대로.
+   * 2·3챕터는 레벨이 이어지므로 직전 챕터 끝 값의 zoneCurve.carry배에서 시작해 챕터 길이(len초) 동안 (1+growth)배까지 같은 기울기로 오른다 (넘으면 그대로 이어짐)
    */
-  private zoneWarm(zt: number): number {
-    return this.zoneIdx === 0 ? 1 : Phaser.Math.Clamp(zt / gameData.zoneWarmup.time, 0, 1);
+  enemyHpMul(zt: number): number {
+    if (this.zoneIdx === 0) return hpScaleAt(zt);
+    const Z = gameData.zoneCurve;
+    let end = hpScaleAt(Z.len);
+    let start = end;
+    for (let k = 1; k <= this.zoneIdx; k++) {
+      start = end * Z.carry;
+      end = start * (1 + Z.growth);
+    }
+    return start * (1 + (Z.growth * Math.max(0, zt)) / Z.len);
   }
+
+  /** 스포너용: hpCurve에 곱할 배율 (2·3챕터 곡선 ÷ 1챕터 곡선) */
   private zoneHpMul(zt: number): number {
-    return 1 + (this.zone.hpMul - 1) * this.zoneWarm(zt);
-  }
-  private zoneSpawnMul(zt: number): number {
-    const from = gameData.zoneWarmup.spawnFrom;
-    return from + (1 - from) * this.zoneWarm(zt);
+    return this.enemyHpMul(zt) / hpScaleAt(zt);
   }
 
   /** 지금 챕터의 전투 음악 (1 하층가 · 2 공장 · 3 기업 타워) */
@@ -4531,7 +4537,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
     for (const e of this.enemyPool.items) if (e.active && e.id.startsWith('c_')) alive++;
     if (alive >= CT.maxAlive) return;
     const p = this.player;
-    const hp = hpScaleAt(zt) * this.zone.hpMul;
+    const hp = this.enemyHpMul(zt);
     for (let i = 0; i < CT.count; i++) {
       const id = Phaser.Utils.Array.GetRandom(types) as EnemyId;
       this.spawner.spawnAround(id, p.x, p.y, hp, true);
@@ -5621,7 +5627,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
         this.callSpawned = true;
         // 호위가 둘레에 나타남 (체력은 보스 부하와 같은 기준)
         const n = p2 ? bz.p2.guards : bz.call.count;
-        const hp = hpScaleAt(this.elapsed - this.zoneStart) * this.zone.hpMul;
+        const hp = this.enemyHpMul(this.elapsed - this.zoneStart);
         for (let i = 0; i < n; i++) {
           const a = (i / n) * Math.PI * 2;
           const e = this.spawnEnemy(bz.call.id as EnemyId, b.x + Math.cos(a) * bz.call.radius, b.y + Math.sin(a) * bz.call.radius * 0.7, hp);
@@ -7816,7 +7822,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
       // 소환 목록: summons가 있으면 여러 종류, 없으면 summon × summonCount
       const refill = !!(def as { refill?: boolean }).refill;
       // 보충형(아르코난 코어): 체력은 첫 소환 때 값으로 고정, 살아 있는 부하는 빼고 모자란 만큼만 소환
-      if (!refill || this.bossMinionHp <= 0) this.bossMinionHp = hpScaleAt(this.elapsed - this.zoneStart) * this.zone.hpMul;
+      if (!refill || this.bossMinionHp <= 0) this.bossMinionHp = this.enemyHpMul(this.elapsed - this.zoneStart);
       if (refill) this.bossMinions = this.bossMinions.filter((m) => m.e.active && m.e.id === m.id);
       const list = ((def as { summons?: { id: string; count: number }[] }).summons ?? [{ id: def.summon, count: def.summonCount }]).flatMap((s) => {
         const alive = refill ? this.bossMinions.filter((m) => m.id === s.id).length : 0;
