@@ -49,43 +49,43 @@
   "en": "8s field that damages and slows"
  },
  "n_accel": {
-  "ko": "공격 속도 +{v}%",
+  "ko": "공격 속도 증가 {v}%",
   "en": "Attack speed +{v}%"
  },
  "n_reflex": {
-  "ko": "대시 재사용 대기 -{v}%",
+  "ko": "대시 재사용 대기 감소 {v}%",
   "en": "Dash cooldown -{v}%"
  },
  "n_multitask": {
-  "ko": "보조무기 재사용 대기 -{v}%",
+  "ko": "보조무기 재사용 대기 감소 {v}%",
   "en": "Secondary cooldown -{v}%"
  },
  "o_target": {
-  "ko": "치명타 확률 +{v}%",
+  "ko": "치명타 확률 증가 {v}%",
   "en": "Crit chance +{v}%"
  },
  "o_thermal": {
-  "ko": "엘리트·보스 피해 +{v}%",
+  "ko": "엘리트·보스 피해 증가 {v}%",
   "en": "Elite·boss damage +{v}%"
  },
  "o_collector": {
-  "ko": "획득 범위 +{v}%, 칩 +{chip}%",
+  "ko": "획득 범위 증가 {v}%, 칩 획득 증가 {chip}%",
   "en": "Pickup range +{v}%, chips +{chip}%"
  },
  "s_muscle": {
-  "ko": "공격력 +{v}%",
+  "ko": "공격력 증가 {v}%",
   "en": "Damage +{v}%"
  },
  "s_dermal": {
-  "ko": "최대 체력 +{v}",
+  "ko": "최대 체력 증가 {v}",
   "en": "Max HP +{v}"
  },
  "s_hydraulic": {
-  "ko": "이동 속도 +{v}%",
+  "ko": "이동 속도 증가 {v}%",
   "en": "Move speed +{v}%"
  },
  "g_exo": {
-  "ko": "받는 피해 -{v}%",
+  "ko": "받는 피해 감소 {v}%",
   "en": "Damage taken -{v}%"
  },
  "g_shield": {
@@ -101,19 +101,19 @@
   "en": "Shockwave {v} when hit"
  },
  "t_dock": {
-  "ko": "드론·포탑 피해 +{v}%",
+  "ko": "드론·포탑 피해 증가 {v}%",
   "en": "Drone·turret damage +{v}%"
  },
  "t_amp": {
-  "ko": "전기 범위·연쇄 거리 +{v}%",
+  "ko": "전기 범위·연쇄 거리 증가 {v}%",
   "en": "Electric range·chain +{v}%"
  },
  "t_adren": {
-  "ko": "체력 절반 이하일 때 공격 속도 +{v}%",
+  "ko": "체력 절반 이하일 때 공격 속도 증가 {v}%",
   "en": "Attack speed +{v}% below half HP"
  },
  "t_scanner": {
-  "ko": "커서 근처 적이 받는 피해 +{v}%",
+  "ko": "커서 근처 적이 받는 피해 증가 {v}%",
   "en": "Enemies near cursor take +{v}%"
  }
 }
