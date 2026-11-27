@@ -1,5 +1,9 @@
 # Zero to Legend — M2 MVP
 
+![Zero to Legend 시작 화면](public/og.jpg)
+
+[바로 플레이](https://geonwoo-kim-0717.github.io/zero-to-legend/)
+
 이름 없는 용병이 전설을 꿈꾸며 기업 타워 꼭대기까지 올라가는 사이버펑크 자동 전투 로그라이트. Phaser 3 + TypeScript + Vite.
 
 ## 실행
