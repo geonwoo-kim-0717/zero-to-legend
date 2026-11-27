@@ -302,7 +302,7 @@ export function buildEquipPanel(scene: Phaser.Scene, d: EquipInput, cb: { onResu
         fit(nm, Math.max(20, x + colW - 4 - 28 - st.width - 4));
         st.setX(nm.x + nm.width + 4);
       }
-      fit(txt(x + 28, y + 13, off ? (en ? 'Off · weapon not equipped' : '꺼짐 · 무기 없음') : chipStat(id, n), 8.5, off ? '#6a5a88' : '#8a7aa8', { strokeThickness: 0 }, right), colW - 32);
+      fit(txt(x + 28, y + 13, off ? (en ? 'Off: no weapon' : '꺼짐: 무기 없음') : chipStat(id, n), 8.5, off ? '#6a5a88' : '#8a7aa8', { strokeThickness: 0 }, right), colW - 32);
     });
     if (shown.length < list.length) {
       const i = shown.length;
