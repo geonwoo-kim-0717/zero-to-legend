@@ -12,6 +12,8 @@ export interface OsLine {
   hook: string;
   params?: Record<string, number>;
   text: string;
+  /** 영어 문구 (없으면 한국어) */
+  textEn?: string;
 }
 export interface OsDef {
   name: string;
@@ -70,7 +72,7 @@ export class OsState {
 
   /** 레벨별 줄 문구 (켜짐 여부와 함께) */
   lines(): { text: string; on: boolean }[] {
-    return this.def.levels.map((l, i) => ({ text: fill(l.text, l.params ?? {}), on: i < this.level }));
+    return this.def.levels.map((l, i) => ({ text: fill((I18n.lang === 'en' && l.textEn) || l.text, l.params ?? {}), on: i < this.level }));
   }
 }
 

@@ -1,6 +1,7 @@
 import build from '../data/build.json';
 import { ITEMS, itemValues } from './Build';
 import { CHIPSETS, chipValues } from './Chipsets';
+import { I18n } from '../i18n';
 
 /**
  * 개편 2단계 (2-2): 장착한 것 전체(무기 2 + 사이버웨어 3 + 장비 2)에서 효과를 모은다.
@@ -24,6 +25,8 @@ interface TierDef {
   hook: string;
   params?: Record<string, number>;
   text: string;
+  /** 영어 문구 (없으면 한국어) */
+  textEn?: string;
 }
 interface ComboDef {
   name: string;
@@ -97,7 +100,7 @@ export class Loadout {
       for (const t of tiers) {
         if (n < t.count) continue;
         this.mods.set(t.hook, { ...(t.params ?? {}) });
-        this.tiers.push({ tag, count: t.count, hook: t.hook, text: fill(t.text, t.params) });
+        this.tiers.push({ tag, count: t.count, hook: t.hook, text: fill((I18n.lang === 'en' && t.textEn) || t.text, t.params) });
       }
     }
     for (const [id, c] of Object.entries(COMBOS)) {

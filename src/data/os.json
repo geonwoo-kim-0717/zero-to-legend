@@ -393,7 +393,8 @@
       "dur": 4,
       "radius": 120
      },
-     "text": "[Q] 커서 근처 {radius}px 적 {dur}초 감전 (초당 {dot} 피해), 적마다 {convP}% 확률로 {convT}초 아군화 (보스 제외)"
+     "text": "[Q] 커서 근처 {radius}px 안의 적을 {dur}초 동안 감전시켜 초당 {dot} 피해를 주고, 보스를 제외한 적은 {convP}% 확률로 {convT}초간 아군이 된다.",
+     "textEn": "[Q] Shocks foes within {radius}px of the cursor for {dur}s, dealing {dot} damage per second. Each non-boss foe has a {convP}% chance to become an ally for {convT}s."
     },
     {
      "hook": "hacker.slow",
@@ -402,7 +403,8 @@
       "convT": 6,
       "slow": 30
      },
-     "text": "감전된 적 이동속도 -{slow}% · 아군화 {convP}%·{convT}초"
+     "text": "감전된 적은 이동 속도가 {slow}% 느려진다. 아군화 확률은 {convP}%, 지속 시간은 {convT}초가 된다.",
+     "textEn": "Shocked foes move {slow}% slower. Ally chance rises to {convP}% for {convT}s."
     },
     {
      "hook": "hacker.chain",
@@ -411,7 +413,8 @@
       "convP": 35,
       "convT": 8
      },
-     "text": "감전된 적이 죽으면 근처 {chain}명에게 감전이 옮음 · 아군화 {convP}%·{convT}초"
+     "text": "감전된 적이 죽으면 감전이 근처 적 {chain}명에게 옮겨 간다. 아군화 확률은 {convP}%, 지속 시간은 {convT}초가 된다.",
+     "textEn": "When a shocked foe dies, the shock spreads to {chain} nearby foes. Ally chance rises to {convP}% for {convT}s."
     },
     {
      "hook": "hacker.convert",
@@ -419,7 +422,8 @@
       "convP": 43,
       "convT": 9
      },
-     "text": "아군화 확률 {convP}%·지속 {convT}초로 강화"
+     "text": "아군화 확률이 {convP}%로 오르고, 아군으로 남는 시간이 {convT}초로 늘어난다.",
+     "textEn": "Ally chance rises to {convP}%, and allies stay for {convT}s."
     },
     {
      "hook": "hacker.stun",
@@ -429,7 +433,8 @@
       "convT": 10,
       "stun": 1
      },
-     "text": "엘리트·보스가 감전되면 {stun}초 마비 (보스마다 {bossCd}초에 1번) · 아군화 {convP}%·{convT}초"
+     "text": "감전된 엘리트와 보스는 {stun}초간 마비된다. 보스는 {bossCd}초에 한 번만 마비된다. 아군화 확률은 {convP}%, 지속 시간은 {convT}초가 된다.",
+     "textEn": "Shocked elites and bosses are paralyzed for {stun}s, a boss at most once every {bossCd}s. Ally chance rises to {convP}% for {convT}s."
     }
    ],
    "memo": "새 OS (감전·교란·아군화). 아크 코일·EMP·모노와이어와 시너지.",
