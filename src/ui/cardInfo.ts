@@ -46,7 +46,7 @@ export function shortText(id: string, lv: number, rarity: string): string | null
 }
 
 /** 소켓 칩 글자 */
-const SLOT_EN: Record<string, string> = { primary: 'Primary', secondary: 'Secondary', neural: 'Neural', optic: 'Optic', skeletal: 'Skeletal', defense: 'Defense', tactical: 'Tactical' };
+export const SLOT_EN: Record<string, string> = { primary: 'Primary', secondary: 'Secondary', neural: 'Neural', optic: 'Optic', skeletal: 'Skeletal', defense: 'Defense', tactical: 'Tactical' };
 export function slotName(kind: ItemKind, id: string): string {
   const en = I18n.lang === 'en';
   if (kind === 'weapon') {

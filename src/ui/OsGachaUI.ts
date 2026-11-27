@@ -210,7 +210,13 @@ export function drawDock(
   const ox = rx + rw + 12;
   const ow = box.x + box.w - 10 - ox;
   const oy = ry;
-  const oh = 106;
+  // 레벨 줄은 완결 문장이라 길다: 줄바꿈해서 다 보여 주고, 아래 OS 고르기 줄이 판 밖으로 나가지 않을 만큼만 칸을 늘림 (넘치면 글자를 줄임)
+  const pwGuess = Math.min(44, Math.floor((ow - (d.list.length - 1) * 5) / d.list.length));
+  const ohMax = box.y + box.h - 8 - (oy + 12 + pwGuess + 6 + 12);
+  const lineObjs = cur.lines.map((l) => add(s.add.text(ox + 64, 0, `${l.on ? '●' : '○'} ${l.text}`, T(9, l.on ? '#e8f7ff' : '#5a4a78', { lineSpacing: 1, wordWrap: { width: ow - 72, useAdvancedWrap: true } }))));
+  const linesH = () => lineObjs.reduce((a, o) => a + o.height + 2, 0);
+  for (let fs = 8.5; 28 + linesH() + 6 > ohMax && fs >= 7; fs -= 0.5) for (const o of lineObjs) o.setFontSize(`${fs}px`);
+  const oh = Math.min(ohMax, Math.max(106, 28 + linesH() + 6));
   g.fillStyle(0x120a24, 1).fillRect(ox, oy, ow, oh);
   g.lineStyle(2, col, 1).strokeRect(ox + 1, oy + 1, ow - 2, oh - 2);
   g.lineStyle(2, col, 0.25).strokeRect(ox - 2, oy - 2, ow + 4, oh + 4);
@@ -225,15 +231,9 @@ export function drawDock(
     tx += tt.width + 11;
   }
   let ly = oy + 28;
-  for (const l of cur.lines) {
-    if (ly > oy + oh - 12) break;
-    const lt = add(s.add.text(ox + 64, ly, `${l.on ? '●' : '○'} ${l.text}`, T(9, l.on ? '#e8f7ff' : '#5a4a78')));
-    let str = lt.text;
-    while (lt.width > ow - 72 && str.length > 2) {
-      str = str.slice(0, -1);
-      lt.setText(`${str}…`);
-    }
-    ly += 13;
+  for (const lt of lineObjs) {
+    lt.setY(ly).setVisible(ly + lt.height <= oy + oh - 2);
+    ly += lt.height + 2;
   }
 
   // OS 고르기 줄
