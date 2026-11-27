@@ -2,17 +2,15 @@ import Phaser from 'phaser';
 import { VIEW_W, VIEW_H, COLORS, ZOOM } from '../config';
 import { BASE_TEXT } from '../ui/text';
 import { t } from '../i18n';
-import gameData from '../data/game.json';
 
-/** 보조무기 쓰는 법: tap = 누르면 바로(EMP·드론·미사일), drag = 끌어 놓은 자리에(유탄·포탑·지뢰) */
+/** 보조무기 종류: tap = 가까운 적이 있으면 바로(EMP·드론·미사일), drag = 적이 몰린 곳에(유탄·포탑·지뢰). 둘 다 자동 발사 (GameScene) */
 export type SubUse = 'tap' | 'drag' | 'none';
 
 /**
  * 트윈스틱 입력: 키보드·마우스와 터치(이동 스틱 + 버튼)를 하나로 합친다.
  * - 이동: WASD/방향키, 터치는 버튼이 아닌 곳을 누르고 끄는 가상 스틱
  * - 주무기: 자동 발사. 마우스를 쓰면 커서 방향, 아니면(터치) 가장 가까운 적 (GameScene이 조준점을 정함)
- * - 보조무기: 화면 오른쪽 아래 버튼 (둘레에 재사용 대기 표시)
- *   tap 무기는 버튼·우클릭·E를 누르면 바로, drag 무기는 버튼에서 끌어 놓은 자리에 (우클릭·E는 커서 자리)
+ * - 보조무기: 자동 발사. 터치 화면 오른쪽 아래에 누르지 못하는 재사용 표시만 그림
  * - 대시: Space·Shift / 터치 버튼, OS 능력: Q / 터치 버튼
  */
 export class InputController {
@@ -23,25 +21,17 @@ export class InputController {
   /** 마우스 화면 좌표 (VIEW 기준) */
   pointerX = VIEW_W / 2;
   pointerY = VIEW_H / 2;
-  /** 자동 조준 (봇·개발자 도구): 가까운 적을 노리고 보조무기도 알아서 씀 */
+  /** 자동 조준 (봇·개발자 도구): 가까운 적을 노림 */
   autoAim = false;
-  /** 지금 낀 보조무기를 쓰는 법 (GameScene이 정함) */
+  /** 지금 낀 보조무기 종류 (GameScene이 정함, none이면 재사용 표시를 안 그림) */
   subUse: SubUse = 'none';
   private dashQueued = false;
   private skillQueued = false;
-  /** 보조무기 신호를 받은 시각 (ms, 버퍼 시간 안이면 유효) */
-  private secondaryAt = -1e9;
-  /** 보조무기를 쓸 화면 좌표 (VIEW 기준). null이면 자동(가까운 적) */
-  private subAt: { x: number; y: number } | null = null;
   private keys: Record<string, Phaser.Input.Keyboard.Key>;
   private moveStick = { id: null as number | null, bx: 0, by: 0, x: 0, y: 0 };
-  /** 보조무기 버튼에서 끌고 있는 손가락·마우스 */
-  private drag: { id: number; sx: number; sy: number; x: number; y: number; rx: number; ry: number } | null = null;
   private readonly stickR = 36;
-  // UI 시안 A: 오른쪽 아래 보조 버튼을 엄지 자리로, 왼쪽에 대시, 왼쪽 위에 OS (누름 판정도 이 좌표)
+  // UI 시안 A: 오른쪽 아래 보조무기 재사용 표시(누르지 않음), 왼쪽에 대시, 왼쪽 위에 OS (누름 판정은 대시·OS만)
   private readonly secBtn = { x: VIEW_W - 50, y: VIEW_H - 52, r: 26 };
-  /** 보조무기 자동 발사 (game.json twinStick.autoSecondary): 보조 버튼은 누르지 못하는 재사용 표시로만 남음 */
-  private readonly autoSub = (gameData.twinStick as { autoSecondary?: boolean }).autoSecondary === true;
   private readonly dashBtn = { x: VIEW_W - 118, y: VIEW_H - 36, r: 20 };
   private readonly skillBtn = { x: VIEW_W - 102, y: VIEW_H - 94, r: 21 };
   private gfx: Phaser.GameObjects.Graphics;
@@ -65,7 +55,6 @@ export class InputController {
     this.keys = kb.addKeys('W,A,S,D,UP,DOWN,LEFT,RIGHT,SPACE,SHIFT,E,Q') as Record<string, Phaser.Input.Keyboard.Key>;
     kb.on('keydown-SPACE', () => (this.dashQueued = true));
     kb.on('keydown-SHIFT', () => (this.dashQueued = true));
-    kb.on('keydown-E', () => this.pressSecondary(this.aimMode === 'mouse' ? { x: this.pointerX, y: this.pointerY } : null));
     kb.on('keydown-Q', () => (this.skillQueued = true));
     scene.input.addPointer(3);
     scene.input.mouse?.disableContextMenu();
@@ -76,7 +65,7 @@ export class InputController {
       return o;
     };
     // 버튼 아래 이름
-    txt(this.secBtn.x, this.secBtn.y + this.secBtn.r + 7, t(this.autoSub ? 'ui.subAuto' : 'ui.sub'), 8, '#b8a8d8', { strokeThickness: 2 });
+    txt(this.secBtn.x, this.secBtn.y + this.secBtn.r + 7, t('ui.subAuto'), 8, '#b8a8d8', { strokeThickness: 2 });
     txt(this.dashBtn.x, this.dashBtn.y + this.dashBtn.r + 7, t('ui.dash'), 8, '#b8a8d8', { strokeThickness: 2 });
     txt(this.skillBtn.x, this.skillBtn.y + this.skillBtn.r + 8, 'OS', 8, '#b8a8d8', { strokeThickness: 2 });
     this.dashTxt = txt(this.dashBtn.x, this.dashBtn.y - 2, '»', 17, '#00f0ff', { fontStyle: '900' });
@@ -93,16 +82,12 @@ export class InputController {
         this.aimMode = 'mouse';
         this.pointerX = x;
         this.pointerY = y;
-        // 마우스: 오른쪽 = 커서 자리에 보조무기, 왼쪽으로 버튼을 누르면 터치와 같음
-        if (p.rightButtonDown()) return void this.pressSecondary({ x, y });
-        // PC에서는 보조 버튼을 그리지 않으므로 마우스로 끌기도 없음 (우클릭·E가 커서 자리에 씀)
         return;
       }
       this.touchUsed = true;
       this.aimMode = 'auto';
       if (near(x, y, this.dashBtn)) return void (this.dashQueued = true);
       if (near(x, y, this.skillBtn)) return void (this.skillQueued = true);
-      if (!this.autoSub && this.subUse !== 'none' && near(x, y, this.secBtn)) return void this.startSub(p.id, x, y);
       const s = this.moveStick;
       if (s.id === null) {
         s.id = p.id;
@@ -114,14 +99,6 @@ export class InputController {
     scene.input.on('pointermove', (p: Phaser.Input.Pointer) => {
       const x = p.x / ZOOM;
       const y = p.y / ZOOM;
-      if (this.drag && p.id === this.drag.id) {
-        // 버튼이 오른쪽 아래라 왼쪽은 엄지가 덜 감: 왼쪽으로 끈 거리만 2배 (사용자 요청)
-        const dx = x - this.drag.sx;
-        this.drag.rx = x;
-        this.drag.ry = y;
-        this.drag.x = this.drag.sx + (dx < 0 ? dx * gameData.twinStick.dragLeftMul : dx);
-        this.drag.y = y;
-      }
       if (!p.wasTouch) {
         this.pointerX = x;
         this.pointerY = y;
@@ -138,14 +115,6 @@ export class InputController {
       s.y = (dy * k) / this.stickR;
     });
     const release = (p: Phaser.Input.Pointer) => {
-      if (this.drag && p.id === this.drag.id) {
-        const d = this.drag;
-        this.drag = null;
-        // 짧게 누르기 = 자동(가까운 적), 끌어 놓기 = 놓은 자리
-        const moved = Math.hypot(d.rx - d.sx, d.ry - d.sy) >= gameData.twinStick.dragMin;
-        // 손가락을 버튼 위로 되돌려 놓으면 자동(가까운 적)
-        this.pressSecondary(moved && !near(d.rx, d.ry, this.secBtn) ? { x: d.x, y: d.y } : null);
-      }
       if (!p.wasTouch) return;
       const s = this.moveStick;
       if (p.id !== s.id) return;
@@ -166,26 +135,13 @@ export class InputController {
       for (const l of this.labels) l.setVisible(false);
       this.subImg.setVisible(false);
       this.osImg.setVisible(false);
-      this.drag = null;
     }
-  }
-
-  /** 보조무기 버튼을 누름: tap 무기는 바로, drag 무기는 끌기 시작 */
-  private startSub(id: number, x: number, y: number): void {
-    if (this.subUse === 'tap') return void this.pressSecondary(null);
-    this.drag = { id, sx: x, sy: y, x, y, rx: x, ry: y };
   }
 
   /** 창을 벗어나면 누르고 있던 것을 놓은 것으로 */
   private reset(): void {
-    this.drag = null;
     this.moveStick.id = null;
     this.moveStick.x = this.moveStick.y = 0;
-  }
-
-  private pressSecondary(at: { x: number; y: number } | null): void {
-    this.secondaryAt = this.scene.time.now;
-    this.subAt = at;
   }
 
   consumeDash(): boolean {
@@ -201,25 +157,11 @@ export class InputController {
     return d;
   }
 
-  /** 보조무기 신호가 남아 있는지 (누른 뒤 bufferSec 안) */
-  get secondaryPending(): boolean {
-    return this.scene.time.now - this.secondaryAt < gameData.twinStick.bufferSec * 1000;
-  }
-
-  /** 보조무기를 쓸 화면 좌표 (VIEW 기준). null이면 자동 */
-  get secondaryTarget(): { x: number; y: number } | null {
-    return this.subAt;
-  }
-
-  consumeSecondary(): void {
-    this.secondaryAt = -1e9;
-  }
-
   /**
    * dashReady: 0(쿨다운 시작) ~ 1(사용 가능), subReady: 보조무기 준비 0~1, subOn: 켜짐 창 무기가 켜져 있음
-   * player: 플레이어 화면 좌표 (끌기 미리보기 선)
+   * _player: 플레이어 화면 좌표 (예전 끌기 미리보기용, 지금은 안 씀. 호출 모양은 그대로 둠)
    */
-  update(dashReady: number, skillReady = false, subReady = 0, subOn = false, player?: { x: number; y: number }): void {
+  update(dashReady: number, skillReady = false, subReady = 0, subOn = false, _player?: { x: number; y: number }): void {
     const k = this.keys;
     let x = (k.D.isDown || k.RIGHT.isDown ? 1 : 0) - (k.A.isDown || k.LEFT.isDown ? 1 : 0);
     let y = (k.S.isDown || k.DOWN.isDown ? 1 : 0) - (k.W.isDown || k.UP.isDown ? 1 : 0);
@@ -233,10 +175,10 @@ export class InputController {
     }
     this.moveX = x;
     this.moveY = y;
-    this.draw(dashReady, skillReady, subReady, subOn, player);
+    this.draw(dashReady, skillReady, subReady, subOn);
   }
 
-  private draw(dashReady: number, skillReady: boolean, subReady: number, subOn: boolean, player?: { x: number; y: number }): void {
+  private draw(dashReady: number, skillReady: boolean, subReady: number, subOn: boolean): void {
     const g = this.gfx;
     g.clear();
     // 마우스 조준점 (십자선)
@@ -272,7 +214,7 @@ export class InputController {
       g.fillPath();
     };
 
-    // 보조무기: 무기 그림 + 등급 색 테두리, 재사용 대기 부채꼴, 준비되면 노란 고리
+    // 보조무기 (자동 발사, 누르지 않음): 무기 그림 + 등급 색 테두리, 재사용 대기 부채꼴, 켜져 있으면 깜빡이는 고리
     const sb = this.secBtn;
     const hasSub = this.subUse !== 'none';
     this.labels[0].setVisible(hasSub);
@@ -280,27 +222,12 @@ export class InputController {
       const ready = subReady >= 1;
       const col = this.look.subColor ?? COLORS.cyan;
       g.fillStyle(0x0a0716, 0.78).fillCircle(sb.x, sb.y, sb.r);
-      if (this.secondaryPending) g.fillStyle(col, 0.35).fillCircle(sb.x, sb.y, sb.r);
       const key = this.look.subId ? `icon_${this.look.subId}` : '';
       if (key && this.scene.textures.exists(key)) this.subImg.setTexture(key).setScale(2).setVisible(true).setAlpha(ready || subOn ? 1 : 0.55);
       else this.subImg.setVisible(false);
       if (!subOn) cover(sb, subReady);
       g.lineStyle(2, col, 1).strokeCircle(sb.x, sb.y, sb.r);
       if (subOn) g.lineStyle(3, col, 0.5 + Math.sin(now / 80) * 0.4).strokeCircle(sb.x, sb.y, sb.r + 4);
-      else if (ready && !this.autoSub) {
-        g.lineStyle(3, COLORS.yellow, 1).strokeCircle(sb.x, sb.y, sb.r + 4);
-        g.lineStyle(2, COLORS.yellow, 0.25).strokeCircle(sb.x, sb.y, sb.r + 7);
-      }
-      // 끌기 미리보기: 플레이어에서 떨어질 자리까지 선 + 원
-      const d = this.drag;
-      if (d && Math.hypot(d.rx - d.sx, d.ry - d.sy) >= gameData.twinStick.dragMin) {
-        const from = player ?? sb;
-        g.lineStyle(1, COLORS.yellow, 0.5).lineBetween(from.x, from.y, d.x, d.y);
-        g.lineStyle(2, COLORS.yellow, 0.9).strokeCircle(d.x, d.y, 14);
-        g.fillStyle(COLORS.yellow, 0.15).fillCircle(d.x, d.y, 14);
-        // 손가락 자리 → 겨눈 자리 (왼쪽 2배일 때 얼마나 늘었는지)
-        if (Math.abs(d.x - d.rx) > 2) g.lineStyle(1, COLORS.yellow, 0.25).lineBetween(d.rx, d.ry, d.x, d.y);
-      }
     } else this.subImg.setVisible(false);
 
     // 대시: » + 재사용 대기 부채꼴, 준비되면 시안 고리
