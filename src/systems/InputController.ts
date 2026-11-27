@@ -153,7 +153,7 @@ export class InputController {
   }
 
   /**
-   * dashReady: 0(쿨다운 시작) ~ 1(사용 가능). _subReady·_subOn·_player: 예전 보조 버튼용, 지금은 안 씀 (호출 모양은 그대로)
+   * dashReady: 0(재사용 대기 시작) ~ 1(사용 가능). _subReady·_subOn·_player: 예전 보조 버튼용, 지금은 안 씀 (호출 모양은 그대로)
    * _player: 플레이어 화면 좌표 (예전 끌기 미리보기용, 지금은 안 씀. 호출 모양은 그대로 둠)
    */
   update(dashReady: number, skillReady = false, _subReady = 0, _subOn = false, _player?: { x: number; y: number }): void {
