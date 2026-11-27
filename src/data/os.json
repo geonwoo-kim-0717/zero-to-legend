@@ -387,41 +387,49 @@
     {
      "hook": "hacker.q",
      "params": {
+      "convP": 20,
+      "convT": 5,
       "dot": 15,
       "dur": 4,
       "radius": 120
      },
-     "text": "[Q] 커서 근처 {radius}px 적 {dur}초 감전 (초당 {dot} 피해)"
+     "text": "[Q] 커서 근처 {radius}px 적 {dur}초 감전 (초당 {dot} 피해), 적마다 {convP}% 확률로 {convT}초 아군화 (보스 제외)"
     },
     {
      "hook": "hacker.slow",
      "params": {
+      "convP": 28,
+      "convT": 6,
       "slow": 30
      },
-     "text": "감전된 적 이동속도 -{slow}%"
+     "text": "감전된 적 이동속도 -{slow}% · 아군화 {convP}%·{convT}초"
     },
     {
      "hook": "hacker.chain",
      "params": {
-      "chain": 2
+      "chain": 2,
+      "convP": 35,
+      "convT": 8
      },
-     "text": "감전된 적이 죽으면 근처 {chain}명에게 감전이 옮음"
+     "text": "감전된 적이 죽으면 근처 {chain}명에게 감전이 옮음 · 아군화 {convP}%·{convT}초"
     },
     {
      "hook": "hacker.convert",
      "params": {
-      "conv": 3,
-      "convT": 6
+      "convP": 43,
+      "convT": 9
      },
-     "text": "일반 적 {conv}명을 {convT}초 동안 아군으로 해킹"
+     "text": "아군화 확률 {convP}%·지속 {convT}초로 강화"
     },
     {
      "hook": "hacker.stun",
      "params": {
       "bossCd": 15,
+      "convP": 50,
+      "convT": 10,
       "stun": 1
      },
-     "text": "엘리트·보스가 감전되면 {stun}초 마비 (보스마다 {bossCd}초에 1번)"
+     "text": "엘리트·보스가 감전되면 {stun}초 마비 (보스마다 {bossCd}초에 1번) · 아군화 {convP}%·{convT}초"
     }
    ],
    "memo": "새 OS (감전·교란·아군화). 아크 코일·EMP·모노와이어와 시너지.",

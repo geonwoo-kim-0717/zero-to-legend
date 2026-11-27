@@ -627,7 +627,7 @@
     "hook": "syn.elec2",
     "params": {
      "chance": 25,
-     "dps": 8,
+     "dps": 10,
      "dur": 2
     },
     "text": "전기 공격에 맞은 적 {chance}% 확률로 감전 ({dur}초, 초당 {dps} 피해)"
@@ -691,7 +691,7 @@
     "count": 3,
     "hook": "syn.prec3",
     "params": {
-     "mul": 2.5
+     "mul": 2
     },
     "text": "치명타 피해 ×{mul}"
    },
@@ -709,7 +709,7 @@
     "count": 2,
     "hook": "syn.melee2",
     "params": {
-     "v": 15
+     "v": 30
     },
     "text": "근접 피해 +{v}%"
    },
@@ -725,8 +725,8 @@
     "count": 4,
     "hook": "syn.melee4",
     "params": {
-     "dmg": 40,
-     "r": 60
+     "dmg": 100,
+     "r": 150
     },
     "text": "대시가 끝날 때 주변 {r}px 베기 ({dmg} 피해)"
    }
@@ -744,7 +744,7 @@
     "count": 3,
     "hook": "syn.mech3",
     "params": {
-     "v": 20
+     "v": 25
     },
     "text": "드론·포탑 공격 속도 +{v}%"
    },
@@ -752,8 +752,8 @@
     "count": 4,
     "hook": "syn.mech4",
     "params": {
-     "dmg": 60,
-     "r": 60
+     "dmg": 150,
+     "r": 100
     },
     "text": "포탑이 사라질 때 반경 {r}px 폭발 ({dmg} 피해)"
    }
@@ -771,7 +771,7 @@
     "count": 3,
     "hook": "syn.hack3",
     "params": {
-     "chance": 5,
+     "chance": 10,
      "dur": 4
     },
     "text": "처치하면 {chance}% 확률로 근처 적 1명을 {dur}초 아군화"
@@ -784,6 +784,17 @@
      "slow": 1.5
     },
     "text": "아군화된 적이 죽으면 반경 {r}px EMP (감속 {slow}초)"
+   },
+   {
+    "count": 5,
+    "hook": "syn.hack5",
+    "params": {
+     "atk": 50,
+     "n": 5,
+     "scale": 1.2,
+     "spd": 50
+    },
+    "text": "사이코시스: 아군이 된 적 중 무작위 {n}명이 광폭화 (공격력·이동속도 +{atk}%, 크기 {scale}배)"
    }
   ]
  },
@@ -796,7 +807,7 @@
    ],
    "text": "드론에 맞은 적 {chance}% 확률로 {dur}초 아군화",
    "params": {
-    "chance": 10,
+    "chance": 15,
     "dur": 3
    },
    "hook": "combo.droneNeural",
@@ -902,7 +913,7 @@
    ],
    "text": "미사일이 엘리트·보스를 먼저 노리고 피해 +{v}%",
    "params": {
-    "v": 25
+    "v": 30
    },
    "hook": "combo.missileThermal",
    "enabled": true
@@ -913,7 +924,7 @@
     "monowire",
     "s_muscle"
    ],
-   "text": "채찍 길이 +{v}%",
+   "text": "채찍 길이 +{v}%, 채찍 데미지 +30%",
    "params": {
     "v": 30
    },

@@ -62,7 +62,7 @@
   "bosses": [
     {
       "id": "midboss",
-      "time": 300,
+      "time": 240,
       "final": false,
       "title": "바실리 갱단 행동대장 '도살자' 코박",
       "chargeSpeed": 360,
@@ -144,7 +144,7 @@
     },
     {
       "id": "boss",
-      "time": 600,
+      "time": 480,
       "final": true,
       "title": "갱단 두목 카를로 '레드' 바실리",
       "chargeSpeed": 330,
@@ -186,7 +186,7 @@
     {
       "id": "midboss2",
       "zone": "industrial",
-      "time": 300,
+      "time": 240,
       "final": false,
       "title": "빚에 팔려 크레인이 된 작업반장 '강철손' 그레고르",
       "chargeSpeed": 300,
@@ -212,7 +212,7 @@
     {
       "id": "boss2",
       "zone": "industrial",
-      "time": 600,
+      "time": 480,
       "final": true,
       "title": "블랙 실드 전투 메크 XM-4 스웜하운드",
       "brain": "xm4",
@@ -278,7 +278,7 @@
     {
       "id": "midboss3",
       "zone": "tower",
-      "time": 300,
+      "time": 240,
       "final": false,
       "title": "타워 보안 디렉터 노라 베일",
       "chargeSpeed": 340,
@@ -311,7 +311,7 @@
     {
       "id": "boss3",
       "zone": "tower",
-      "time": 600,
+      "time": 480,
       "final": true,
       "title": "도시 관리 AI 센서스",
       "chargeSpeed": 260,
@@ -367,8 +367,8 @@
       "refill": true
     }
   ],
-  "hpCurve": [[0, 1], [60, 1.05], [120, 1.1], [180, 1.15], [240, 1.38], [300, 1.79], [360, 2.13], [420, 2.72], [480, 3.31], [540, 4.05], [600, 4.36]],
-  "hpCurveNote": "챕터 시작부터 흐른 초 → 일반 적 체력 배율. 현재 버전 봇 4판(신규·숙련 × 기존·보강) 무리 DPS 기하평균에 맞춤: 3분 이후 플레이어가 적보다 앞서는 정도가 10분에 1.2배가 되도록(사용자 플레이테스트: 10분 넘기기 어려움). 600초 뒤는 마지막 기울기로 이어짐",
+  "hpCurve": [[0, 1], [48, 1.05], [96, 1.1], [144, 1.15], [192, 1.38], [240, 1.79], [288, 2.13], [336, 2.72], [384, 3.31], [432, 4.05], [480, 4.36]],
+  "hpCurveNote": "챕터 시작부터 흐른 초 → 일반 적 체력 배율. 현재 버전 봇 4판(신규·숙련 × 기존·보강) 무리 DPS 기하평균에 맞춤: 3분 이후 플레이어가 적보다 앞서는 정도가 10분에 1.2배가 되도록(사용자 플레이테스트: 10분 넘기기 어려움). 600초 뒤는 마지막 기울기로 이어짐. 보스 4분·8분으로 당기면서 시간 축 0.8배 (사용자 확인)",
   "ranged": {
     "gunner": {
       "range": 170,
@@ -402,7 +402,7 @@
     "maxEnemies": 600
   },
   "zoneWarmup": {
-    "time": 180,
+    "time": 144,
     "spawnFrom": 0.45
   },
   "droneAi": {
@@ -503,7 +503,7 @@
     }
   ],
   "raid": {
-    "start": 330,
+    "start": 264,
     "firstDelayMax": 40,
     "minGap": 40,
     "maxGap": 60,
@@ -612,8 +612,8 @@
   },
   "counters": {
     "startZone": 1,
-    "startTime": 300,
-    "minZoneTime": 180,
+    "startTime": 240,
+    "minZoneTime": 144,
     "every": 5,
     "count": 2,
     "maxAlive": 12,
@@ -683,8 +683,8 @@
   "maxedAbilityChance": 0.15,
   "enemyDamageGrowthPerMin": 0.04,
   "stations": {
-    "note": "개편 3단계: 상점·리퍼닥. 챕터 시간 times초(4분·9분)에 둘 다 화면 밖 dist px 쯤 서로 다른 방향에 나타나고, life초 뒤(또는 보스 등장·들렀다 나오면) 사라짐. 화면 가장자리 화살표로 방향 안내. 닿으면 게임이 멈추고 화면이 열림. 값은 칩 (임시, 플레이로 조정). shop: 아이템 items개(등급별 price, 등급 확률 rarity: 일반 없음·전설 10%·신화 3%, 나머지는 희귀:영웅 = 기본 가중치 비율 25:5), 다시 뽑기 reroll (rerollMax번까지), 체력 회복 heal.pct% (한 번). ripper: 사이버웨어 소켓 레벨 +1 = cyberLevel[지금 레벨-1], OS 바꿔 끼기 osSwap. 값은 상점이 나올 때마다 priceGrowth배(k번째 상점 ×priceGrowth^(k-1)), 아이템·칩셋·다시 뽑기·회복 모두",
-    "times": [240, 540],
+    "note": "개편 3단계: 상점·리퍼닥. 챕터 시간 schedule의 t초에 kinds(블랙마켓 3분·7분, 리퍼닥 7분 30초)가 화면 밖 dist px 쯤 무작위 방향에 나타나고, life초 뒤(또는 보스 등장·들렀다 나오면) 사라짐. 화면 가장자리 화살표로 방향 안내. 닿으면 게임이 멈추고 화면이 열림. 값은 칩 (임시, 플레이로 조정). shop: 아이템 items개(등급별 price, 등급 확률 rarity: 일반 없음·전설 10%·신화 3%, 나머지는 희귀:영웅 = 기본 가중치 비율 25:5), 다시 뽑기 reroll (rerollMax번까지), 체력 회복 heal.pct% (한 번). ripper: 사이버웨어 소켓 레벨 +1 = cyberLevel[지금 레벨-1], OS 바꿔 끼기 osSwap. 값은 상점이 나올 때마다 priceGrowth배(k번째 상점 ×priceGrowth^(k-1)), 아이템·칩셋·다시 뽑기·회복 모두",
+    "schedule": [{ "t": 180, "kinds": ["shop"] }, { "t": 420, "kinds": ["shop"] }, { "t": 450, "kinds": ["ripper"] }],
     "life": 60,
     "dist": 420,
     "reach": 22,
@@ -725,10 +725,11 @@
   },
   "twinStickCards": { "note": "레벨업 카드에 섞는 교체 카드(같은 소켓 다른 무기) 수", "swapPerRoll": 2 },
   "supply": {
-    "note": "보급 상자: chestEvery초(사이 무작위)마다 플레이어 근처에 1개, 블랙 실드 대원 처치 때 trooperChance 확률로 희귀 이상, 중간보스 midbossMin 이상, 챕터 보스 bossMin 이상(다음 챕터 시작 때 열림). 칩: 일반 처치는 chipDrop.chance% 확률로 칩 드롭(개수 counts: [개수, 가중치]), 대원은 trooper개 늘 드롭, 중간보스 midboss·챕터 보스 boss는 바로 받음. mapChips: every초마다 플레이어에서 dist px 떨어진 곳에 칩 count개 무더기. skipChips: 선택 포기 때 받는 칩 (상자 최소 등급 일반·희귀·영웅·전설·신화 순, 레벨업 포기는 첫 값)",
+    "note": "보급 상자: chestEvery초(사이 무작위)마다 플레이어 근처에 1개, 블랙 실드 대원 처치 때 trooperChance 확률로 희귀 이상, 중간보스 midbossMin 이상, 챕터 보스 bossMin 이상(다음 챕터 시작 때 열림). 칩: 일반 처치는 chipDrop.chance% 확률로 칩 드롭(개수 counts: [개수, 가중치]), 대원은 trooper개 늘 드롭, 중간보스 midboss·챕터 보스 boss는 바로 받음. 칩을 주우면 칩 1개당 경험치 chipXp (처치 경험치는 줍지 않아도 바로 오름). mapChips: every초마다 플레이어에서 무작위 방향으로 start px부터 gap px 간격 한 줄로 칩 count개 (빵 부스러기, 보스 경계 안에서만). skipChips: 선택 포기 때 받는 칩 (상자 최소 등급 일반·희귀·영웅·전설·신화 순, 레벨업 포기는 첫 값)",
     "chestEvery": [40, 60],
-    "chipDrop": { "chance": 20, "counts": [[1, 60], [2, 30], [3, 10]] },
-    "mapChips": { "every": 30, "count": [5, 10], "dist": [220, 320] },
+    "chipDrop": { "chance": 10, "counts": [[1, 70], [2, 20], [3, 10]] },
+    "chipXp": 1,
+    "mapChips": { "every": 30, "count": [5, 10], "start": 70, "gap": 30 },
     "trooperChance": 0.08,
     "midbossMin": "legendary",
     "bossMin": "legendary",

@@ -134,13 +134,14 @@
         "damage": 8
       },
       {
-        "desc": "드론 +2",
+        "desc": "드론 +2 · 늘 켜짐",
         "count": 2
       }
     ],
     "active": {
       "time": 8,
-      "cooldown": 14
+      "cooldown": 14,
+      "permanentAt": 8
     }
   },
   "plasmaGrenade": {

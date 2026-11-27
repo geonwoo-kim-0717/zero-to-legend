@@ -52,6 +52,9 @@ import { pickAct, roleOf, type Role } from '../systems/SquadBrain';
 import { RANGED, type DirSense } from '../systems/Director';
 import visorAnchors from '../data/visor_anchors.json';
 
+/** 아군이 된 적 빛깔 (사이코시스 광폭화는 빨간빛) */
+const CHARM_TINT = 0xff2bd6;
+const PSYCHO_TINT = 0xff4a5a;
 /** 공격 상태가 없는 접촉형 적: 플레이어에게 붙으면 공격 그림 */
 const CONTACT_POSE = new Set<string>(['trooper_tank', 'thug', 'sec_bot', 'drone', 'rat_bot']);
 
@@ -1291,7 +1294,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
     if (!e.active || e.isBoss) return;
     if (this.hackerShield(e)) return;
     e.charmT = Math.max(e.charmT, seconds * (1 + this.kit.v('syn.hack2') / 100));
-    e.sprite.setTint(0xff2bd6);
+    e.sprite.setTint(e.psycho ? PSYCHO_TINT : CHARM_TINT);
   }
 
   stun(e: Enemy, seconds: number): void {
@@ -2026,9 +2029,9 @@ export class GameScene extends Phaser.Scene implements GameContext {
     else this.state = 'play';
   }
 
-  // ───────────── 개편 3단계: 상점·리퍼닥 (챕터 4분·9분, 화면 밖에 나타남) ─────────────
+  // ───────────── 개편 3단계: 상점·리퍼닥 (챕터 시간표 stations.schedule, 화면 밖에 나타남) ─────────────
   private stations: Station[] = [];
-  /** 이번 챕터에서 이미 나온 횟수 (stations.times 순서) */
+  /** 이번 챕터 시간표(stations.schedule)에서 이미 지난 칸 수 */
   private stationsFired = 0;
   /** 지금 열려 있는 상점·리퍼닥 (능력 고르기 뒤 다시 열기용) */
   private stationOpen: Station | null = null;
@@ -2041,7 +2044,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
     return list[list.length - 1][0];
   }
 
-  /** 보급 상자(40~60초마다, 플레이어 근처)와 맵 칩 무더기(30초마다, 조금 떨어진 곳) */
+  /** 보급 상자(40~60초마다, 플레이어 근처)와 맵 칩 줄(30초마다, 플레이어에서 한 방향으로) */
   private updateSupply(dt: number): void {
     const SU = gameData.supply;
     const p = this.player;
@@ -2054,12 +2057,17 @@ export class GameScene extends Phaser.Scene implements GameContext {
     if ((this.mapChipT -= dt) <= 0) {
       const M = SU.mapChips;
       this.mapChipT = M.every;
+      // 빵 부스러기: 플레이어에서 무작위 방향으로 한 줄. 보스 경계 안이면 경계 밖 칸은 버림
       const a = Math.random() * Math.PI * 2;
-      const d = Phaser.Math.Between(M.dist[0], M.dist[1]);
-      const cx = p.x + Math.cos(a) * d;
-      const cy = p.y + Math.sin(a) * d * 0.7;
       const n = Phaser.Math.Between(M.count[0], M.count[1]);
-      for (let i = 0; i < n; i++) this.dropPickup('chip', cx + Phaser.Math.Between(-16, 16), cy + Phaser.Math.Between(-12, 12), 1);
+      const ar = this.arena;
+      for (let i = 0; i < n; i++) {
+        const d = M.start + i * M.gap;
+        const x = p.x + Math.cos(a) * d;
+        const y = p.y + Math.sin(a) * d;
+        if (ar && (x < ar.x + 16 || x > ar.x + ar.w - 16 || y < ar.y + 20 || y > ar.y + ar.h - 20)) break;
+        this.dropPickup('chip', x, y, 1);
+      }
     }
   }
 
@@ -2072,7 +2080,8 @@ export class GameScene extends Phaser.Scene implements GameContext {
     this.stationOpen = null;
   }
 
-  private spawnStations(): void {
+  private spawnStations(kinds: ('shop' | 'ripper')[]): void {
+    if (!kinds.length) return;
     const ST = gameData.stations;
     const p = this.player;
     const a = Math.random() * Math.PI * 2;
@@ -2085,10 +2094,11 @@ export class GameScene extends Phaser.Scene implements GameContext {
       const arrow = this.add.text(0, 0, '', { ...TEXT, fontSize: '9px', color }).setOrigin(0.5).setScrollFactor(0).setDepth(115);
       return { kind, x, y, t: ST.life, label, arrow, stock: null, rerolls: 0, healed: false, osPage: -1, priceMul: kind === 'shop' ? ST.shop.priceGrowth ** Math.max(0, this.shopsSeen - 1) : 1 };
     };
-    this.shopsSeen++;
-    this.stations.push(make('shop', a), make('ripper', a + 2.2));
+    if (kinds.includes('shop')) this.shopsSeen++;
+    // 이미 떠 있는 곳과 겹치지 않게 방향을 돌림
+    kinds.forEach((k, i) => this.stations.push(make(k, a + i * 2.2)));
     // 진이 알려 줌
-    this.phoneMsg(tr('station.notice'));
+    this.phoneMsg(tr(kinds.length > 1 ? 'station.notice' : `station.notice.${kinds[0]}`));
   }
 
   /** 진 무전 한 줄 (없으면 화면 가운데 안내) */
@@ -2101,9 +2111,12 @@ export class GameScene extends Phaser.Scene implements GameContext {
   private updateStations(dt: number, zt: number): void {
     const ST = gameData.stations;
     // 보스전 중이면 끝날 때까지 기다렸다가 나옴 (그 사이 다음 시간이 지나도 한 번만)
-    if (!this.boss && !this.arena && this.stationsFired < ST.times.length && zt >= ST.times[this.stationsFired]) {
-      while (this.stationsFired < ST.times.length && zt >= ST.times[this.stationsFired]) this.stationsFired++;
-      this.spawnStations();
+    const SC = ST.schedule as { t: number; kinds: ('shop' | 'ripper')[] }[];
+    if (!this.boss && !this.arena && this.stationsFired < SC.length && zt >= SC[this.stationsFired].t) {
+      const kinds = new Set<'shop' | 'ripper'>();
+      while (this.stationsFired < SC.length && zt >= SC[this.stationsFired].t) for (const k of SC[this.stationsFired++].kinds) kinds.add(k);
+      // 같은 종류가 아직 떠 있으면 새로 띄우지 않고 그대로 둠
+      this.spawnStations([...kinds].filter((k) => !this.stations.some((s) => s.kind === k && s.t > 0)));
     }
     if (!this.stations.length) return;
     const p = this.player;
@@ -2923,6 +2936,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
     const slow = this.odSlowMul;
     const hidden = this.untracked;
     const conv = this.zone.rule === 'conveyor';
+    this.updatePsycho(dt);
     for (const e of this.enemyPool.items) {
       if (!e.active) continue;
       if (e.dropT > 0 || e.landT > 0) {
@@ -2931,8 +2945,10 @@ export class GameScene extends Phaser.Scene implements GameContext {
       }
       if (e.charmT > 0) {
         e.charmT -= dt;
-        if (e.charmT <= 0) e.sprite.clearTint();
-        else {
+        if (e.charmT <= 0) {
+          e.sprite.clearTint();
+          if (e.psycho) this.setPsycho(e, false);
+        } else {
           this.charmedAi(e, dt);
           this.tickHitFlash(e, dt);
           continue;
@@ -3097,7 +3113,32 @@ export class GameScene extends Phaser.Scene implements GameContext {
     }
   }
 
-  /** 조종당한 적: 가장 가까운 다른 적에게 달려가 들이받는다 */
+  private psychoT = 0;
+  /** 해킹 시너지 5 '사이코시스': 아군이 된 적 중 무작위 n명만 광폭화 (0.25초마다 빈자리 채움) */
+  private updatePsycho(dt: number): void {
+    if ((this.psychoT -= dt) > 0) return;
+    this.psychoT = 0.25;
+    const on = this.kit.has('syn.hack5');
+    const charmed = this.enemyPool.items.filter((e) => e.active && e.charmT > 0);
+    if (!on) {
+      for (const e of charmed) if (e.psycho) this.setPsycho(e, false);
+      return;
+    }
+    let need = this.kit.v('syn.hack5', 'n', 5) - charmed.filter((e) => e.psycho).length;
+    const pool = charmed.filter((e) => !e.psycho);
+    while (need-- > 0 && pool.length) this.setPsycho(pool.splice(Math.floor(Math.random() * pool.length), 1)[0], true);
+  }
+
+  private setPsycho(e: Enemy, on: boolean): void {
+    e.psycho = on;
+    e.sprite.setScale(e.baseScale * (on ? this.kit.v('syn.hack5', 'scale', 1.2) : 1));
+    if (on) {
+      e.sprite.setTint(PSYCHO_TINT);
+      this.burst(e.x, e.y, 0xff3a4a, 6);
+    } else if (e.charmT > 0) e.sprite.setTint(CHARM_TINT);
+  }
+
+  /** 조종당한 적: 가장 가까운 다른 적에게 달려가 들이받는다 (광폭화면 공격력·이동속도 증가) */
   private charmedAi(e: Enemy, dt: number): void {
     let best: Enemy | null = null;
     let bd = 200 * 200;
@@ -3107,13 +3148,15 @@ export class GameScene extends Phaser.Scene implements GameContext {
       if (d < bd) ((bd = d), (best = o));
     }
     e.charmCd -= dt;
+    const spdMul = e.psycho ? 1 + this.kit.v('syn.hack5', 'spd', 50) / 100 : 1;
+    const atkMul = e.psycho ? 1 + this.kit.v('syn.hack5', 'atk', 50) / 100 : 1;
     if (best) {
       const d = Math.sqrt(bd) || 1;
-      e.x += ((best.x - e.x) / d) * e.speed * 1.3 * dt;
-      e.y += ((best.y - e.y) / d) * e.speed * 1.3 * dt;
+      e.x += ((best.x - e.x) / d) * e.speed * 1.3 * spdMul * dt;
+      e.y += ((best.y - e.y) / d) * e.speed * 1.3 * spdMul * dt;
       if (d < e.radius + best.radius + 2 && e.charmCd <= 0) {
         e.charmCd = 0.5;
-        this.damage(best, (20 + e.damage * 3) * this.stats.damageMul, 'melee');
+        this.damage(best, (20 + e.damage * 3) * this.stats.damageMul * atkMul, 'melee');
         this.burst(best.x, best.y, COLORS.magenta, 4);
       }
     }
@@ -3417,8 +3460,8 @@ export class GameScene extends Phaser.Scene implements GameContext {
           if (this.state === 'play') this.startDialog((zonesData as { ending?: Line[] }).ending ?? [], () => this.endRun(true));
         });
       } else {
-        // 중간 보스 보상: 큰 경험치 덩어리와 회복
-        this.dropPickup('xp', e.x, e.y, def.rewardXp);
+        // 중간 보스 보상: 큰 경험치(바로 오름)와 회복
+        this.gainXp(def.rewardXp);
         this.dropPickup('heal', e.x + 14, e.y, gameData.healAmount * 2);
         // 엘리트 보스 보상: 전설 이상 보급 상자 + 칩
         this.dropChest(e.x - 14, e.y, gameData.supply.midbossMin);
@@ -3429,7 +3472,12 @@ export class GameScene extends Phaser.Scene implements GameContext {
     }
     this.burst(e.x, e.y, e.id === 'thug' ? COLORS.orange : e.id === 'gunner' ? 0xb6ff3a : e.id.startsWith('trooper') ? 0xff2a3a : COLORS.magenta, e.id.startsWith('trooper') ? 20 : 8);
     Sound.play('kill');
-    this.dropPickup('xp', e.x, e.y, e.xp);
+    // 경험치는 줍지 않아도 바로 오름
+    this.gainXp(e.xp);
+    if (this.pHas('healCollect') && ++this.shardCount >= 50) {
+      this.shardCount = 0;
+      this.heal(5);
+    }
     // 칩: 일반 처치는 확률로 1~3개 드롭, 블랙 실드 대원은 늘 드롭. 대원은 가끔 희귀 이상 상자 (상자는 시간마다 따로)
     const SU = gameData.supply;
     if (e.id.startsWith('trooper')) {
@@ -3687,8 +3735,13 @@ export class GameScene extends Phaser.Scene implements GameContext {
           this.chestQueue.push(gameData.rarity[Math.round(k.value)]?.id ?? 'common');
           Sound.play('select');
         } else if (k.kind === 'chip') {
+          // 칩 = 재화 + 경험치
           this.addChips(k.value);
-          Sound.play('hover');
+          this.gainXp(k.value * gameData.supply.chipXp);
+          const now = this.time.now;
+          this.pickupStep = now - this.pickupAt > 400 ? 0 : Math.min(this.pickupStep + 1, 12);
+          this.pickupAt = now;
+          Sound.play('pickup', this.pickupStep * 50);
         } else {
           this.gainXp(k.value);
           // 연달아 주우면 음이 한 칸씩 올라간다 (무작위 음정 대신 계단처럼). 잠깐 쉬면 처음 음으로
@@ -3967,7 +4020,9 @@ export class GameScene extends Phaser.Scene implements GameContext {
           else this.stun(e, os.v('stun', 1));
         }
       }
-      if (os.has('hacker.convert')) for (const e of this.nearAim(os.v('conv', 3), r, false)) this.charm(e, os.v('convT', 6));
+      // 주변 적마다 OS 레벨에 따른 확률로 아군화 (보스 제외, 대원은 해커가 죽은 뒤에만: charm 안에서 막힘)
+      const convP = os.v('convP');
+      if (convP > 0) for (const e of this.nearAim(60, r, false)) if (Math.random() * 100 < convP) this.charm(e, os.v('convT', 5));
       this.synRing(this.aim.x, this.aim.y, r, 0x9d6bff);
       Sound.play('glitch');
     }
@@ -6802,7 +6857,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
     if (e.flash <= 0) return;
     e.flash -= dt;
     if (e.flash > 0) return;
-    if (e.charmT > 0) e.sprite.setTint(0xff2bd6);
+    if (e.charmT > 0) e.sprite.setTint(e.psycho ? PSYCHO_TINT : CHARM_TINT);
     else if (e.stun > 0) e.sprite.setTint(0x66ffff);
     else if (e === this.boss && this.bossEnraged) e.sprite.setTint(Number((this.bossDef as { enrage?: EnrageDef }).enrage?.tint ?? 0xff6a6a));
     else e.sprite.clearTint();

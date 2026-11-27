@@ -40,6 +40,8 @@ export class Enemy {
   /** 실 인형에 조종당한 남은 시간 (다른 적을 공격) */
   charmT = 0;
   charmCd = 0;
+  /** 해킹 시너지 5 '사이코시스'로 광폭화된 아군 (공격력·이동속도·크기 증가, 빨간빛) */
+  psycho = false;
   /** 진압대 회피 기동: 남은 시간, 다음 회피까지, 회피 속도 */
   dodgeT = 0;
   dodgeCd = 0;
@@ -120,6 +122,7 @@ export class Enemy {
     this.slowT = 0;
     this.atkT = 0;
     this.charmT = 0;
+    this.psycho = false;
     this.dodgeT = 0;
     this.dodgeCd = 1 + Math.random() * 2;
     this.fled = false;

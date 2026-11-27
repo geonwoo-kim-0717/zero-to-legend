@@ -79,8 +79,14 @@ export abstract class WeaponBase {
 
   /** 켜짐 창 진행. 켜져 있으면 true */
   protected activeWindow(dt: number): boolean {
-    const A = (weapons[this.id] as { active?: { time: number; cooldown: number } }).active;
+    const A = (weapons[this.id] as { active?: { time: number; cooldown: number; permanentAt?: number } }).active;
     if (!A) return true;
+    // 무기 레벨 permanentAt 이상이면 재사용 대기 없이 늘 켜짐 (해킹 드론 8레벨)
+    if (A.permanentAt && this.level >= A.permanentAt) {
+      this.activeLeft = 1;
+      this.activeCd = 0;
+      return true;
+    }
     this.activeLeft = Math.max(0, this.activeLeft - dt);
     this.activeCd = Math.max(0, this.activeCd - dt);
     if (this.activeLeft <= 0 && this.activeCd <= 0 && this.trigger) {
