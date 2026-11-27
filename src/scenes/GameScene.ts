@@ -38,6 +38,7 @@ import { itemCard, shortText, upgradeCard, recommend } from '../ui/cardInfo';
 import { StationUI } from '../ui/StationUI';
 import { makeChipArt, chipArt, CHIP_COLOR } from '../ui/ChipArt';
 import { makeCrateArt } from '../ui/CrateArt';
+import { toneBackground } from '../ui/BgTone';
 import { chipShort } from '../ui/synergyText';
 import { drawStall, drawMarker } from '../ui/StationMarks';
 import { buildEquipPanel } from '../ui/EquipPanel';
@@ -858,6 +859,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
     this.cameras.main.setBackgroundColor(COLORS.bg);
     this.bg = this.add.tileSprite(0, 0, VIEW_W, VIEW_H, 'ground').setOrigin(0).setScrollFactor(0).setDepth(0);
     this.skyline = this.add.tileSprite(0, 0, VIEW_W, 150, 'skyline_ch1').setOrigin(0).setScrollFactor(0).setDepth(1.5); // 바닥 무늬(컨베이어 등) 위, 아이템·적 아래
+    toneBackground([this.bg, this.skyline]); // UI: 배경 채도 30% 낮춤
     this.floorG = this.add.graphics().setDepth(1);
     this.rainFx = this.add.tileSprite(0, 0, VIEW_W, VIEW_H, 'rain').setOrigin(0).setScrollFactor(0).setDepth(144).setAlpha(0.7);
     this.fx = this.add.graphics().setDepth(17);
