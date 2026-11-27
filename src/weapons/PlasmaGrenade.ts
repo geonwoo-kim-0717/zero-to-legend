@@ -182,7 +182,8 @@ export class PlasmaGrenade extends WeaponBase {
   private throwOne(px: number, py: number, tx: number, ty: number): void {
     const orbital = this.has('orbitalStrike');
     this.ctx.player.attackPose(tx, 0.2);
-    const r = BASE_R * this.area;
+    // 투척 강화 조합: 폭발 범위 증가
+    const r = BASE_R * this.area * (1 + (this.ctx.mod('combo.grenadeThrow')?.v ?? 0) / 100);
     if (orbital) {
       // 신화 궤도 폭격은 개수 감소 없음 (스마트 피스톨 신화와 같은 방식)
       this.grenades.push({ sx: tx, sy: ty, tx, ty, t: 0, fuse: 0.6, r: r * 2, dmg: this.damage, mini: false, orbital: true, sprite: null });

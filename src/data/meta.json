@@ -293,6 +293,11 @@
     "creditPer": 0.25,
     "desc": "적 체력 +30%, 적 피해 +10%, 크레딧 +25% (단계마다)"
   },
+  "armory": {
+    "note": "도크9 무기고: 크레딧으로 무기를 사면 영구히 시작 무기로 고를 수 있음. free는 처음부터 가진 무기",
+    "price": 1000,
+    "free": ["smartPistol", "plasmaGrenade"]
+  },
   "market": {
     "starter": [
       "smartPistol",

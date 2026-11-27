@@ -51,6 +51,10 @@ export class ProxMine extends WeaponBase {
       const v = this.ctx.view();
       for (let i = 0; i < 12; i++) this.drop(v.x + 20 + Math.random() * (v.width - 40), v.y + 20 + Math.random() * (v.height - 40), 0.3);
     }
+    // 지뢰 살포 조합: 대시가 끝나면 지나간 길에 지뢰 n개
+    const dp = this.ctx.dashPath;
+    const dashN = this.ctx.mod('combo.mineDash')?.n ?? 0;
+    if (dp && dashN > 0) for (let i = 1; i <= dashN; i++) this.drop(dp.x1 + ((dp.x2 - dp.x1) * i) / (dashN + 1), dp.y1 + ((dp.y2 - dp.y1) * i) / (dashN + 1), ARM);
     const sticky = this.has('sticky');
     for (const m of this.mines) {
       m.life -= dt;
@@ -99,6 +103,11 @@ export class ProxMine extends WeaponBase {
       fx.lineStyle(2, COLORS.yellow, b.life / 0.3).strokeCircle(b.x, b.y, b.r);
     }
     this.blasts = this.blasts.filter((b) => b.life > 0);
+  }
+
+  /** 반응 지뢰 조합: 플레이어 발밑에 바로 지뢰 */
+  dropAt(x: number, y: number): void {
+    this.drop(x, y, ARM);
   }
 
   private drop(x: number, y: number, arm: number): void {

@@ -728,6 +728,8 @@ export class GameScene extends Phaser.Scene implements GameContext {
     this.miniDrones = [];
     this.focusUntil = [];
     this.elecHits = this.boomCount = this.meleeKills5 = this.mechKills = 0;
+    this.lastHurtAt = -99;
+    this.mineReactT = 0;
     this.chestQueue = [];
     this.abilityPending = null;
     this.nextChestT = Phaser.Math.FloatBetween(gameData.supply.chestEvery[0], gameData.supply.chestEvery[1]);
@@ -1023,7 +1025,15 @@ export class GameScene extends Phaser.Scene implements GameContext {
   }
 
   // ───────────────────────────── GameContext ─────────────────────────────
+  /** 마지막 damage()가 치명타였는지 */
+  lastCrit = false;
+  /** 마지막으로 맞은 시각 (근접 사격 조합) */
+  private lastHurtAt = -99;
+  /** 반응 지뢰 조합 재사용 대기 */
+  private mineReactT = 0;
+
   damage(e: Enemy, amount: number, tag?: DamageTag): boolean {
+    this.lastCrit = false;
     if (!e.active) return false;
     if (e === this.boss && (this.cine || this.bossGod || this.xmEntering || this.bossShieldT > 0 || this.bossPhase === 'enter' || this.bossPhase === 'walkIn' || this.bossPhase === 'phaseShift')) return false;
     // 회피 기동 중인 진압대는 피해를 받지 않음
@@ -1061,6 +1071,10 @@ export class GameScene extends Phaser.Scene implements GameContext {
     }
     if (L.has('chip.execute') && !e.isBoss && e.maxHp < 1000 && e.hp - amount <= (e.maxHp * Math.min(30, L.v('chip.execute'))) / 100) amount = Math.max(amount, e.hp);
     if (src === 'mantisBlade' && L.has('combo.bladeReflex') && this.sinceDash <= L.v('combo.bladeReflex', 't')) amount *= L.v('combo.bladeReflex', 'mul', 1);
+    // 근접 사격 조합: 맞은 뒤 t초 동안 샷건 피해 증가
+    if (src === 'shotgun' && L.has('combo.shotgunGuard') && this.elapsed - this.lastHurtAt <= L.v('combo.shotgunGuard', 't', 2)) amount *= 1 + L.v('combo.shotgunGuard') / 100;
+    // 스마트 조준 조합: 스마트 피스톨 피해 증가
+    if (src === 'smartPistol' && L.has('combo.pistolAim')) amount *= 1 + L.v('combo.pistolAim') / 100;
     // 강화 근섬유 특수 능력: 치명타 · 치명 폭주 · 분노 · 연속 처치
     const frenzy = this.pHas('critFrenzy');
     let critMul = 1;
@@ -1078,6 +1092,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
       amount *= critMul;
       this.burst(e.x, e.y, COLORS.yellow, 4);
     }
+    this.lastCrit = critMul > 1;
     if (this.pHas('rage')) amount *= 1 + 0.4 * (1 - this.player.hp / this.player.maxHp);
     if (this.streak > 0) amount *= 1 + 0.02 * this.streak;
     // 처형자: 맞고 체력 15% 이하로 남는 일반 적은 즉사
@@ -2227,7 +2242,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
     return list[list.length - 1][0];
   }
 
-  /** 보급 상자(40~60초마다, 플레이어 근처)와 맵 칩 줄(30초마다, 플레이어에서 한 방향으로) */
+  /** 보급 상자(chestEvery초마다, 플레이어 근처)와 맵 칩 줄(30초마다, 플레이어에서 한 방향으로) */
   private updateSupply(dt: number): void {
     const SU = gameData.supply;
     const p = this.player;
@@ -2823,12 +2838,12 @@ export class GameScene extends Phaser.Scene implements GameContext {
     return w;
   }
 
-  /** 판 시작 무기: 러너 시작 무기 + 비어 있는 소켓은 기본 무기 (주무기 스마트 피스톨, 보조무기 플라즈마 유탄) */
+  /** 판 시작 무기: 도크9 무기고에서 고른 주무기·보조무기 (기본 스마트 피스톨·플라즈마 유탄) */
   private addStartWeapons(): void {
-    const start = this.runner.startWeapon as WeaponId;
-    this.addWeapon(start);
-    if (weaponSlot(start) !== 'primary') this.addWeapon('smartPistol');
-    if (weaponSlot(start) !== 'secondary') this.addWeapon('plasmaGrenade');
+    const pri = Save.data.startPrimary as WeaponId;
+    const sec = Save.data.startSecondary as WeaponId;
+    this.addWeapon(weaponSlot(pri) === 'primary' ? pri : 'smartPistol');
+    this.addWeapon(weaponSlot(sec) === 'secondary' ? sec : 'plasmaGrenade');
     this.rebuildLoadout(false);
   }
 
@@ -3388,6 +3403,17 @@ export class GameScene extends Phaser.Scene implements GameContext {
     const L = this.kit;
     dmg *= 1 - Math.min(80, L.v('gear.dr') + Math.min(50, L.v('chip.dr'))) / 100;
     this.sinceHurt = 0;
+    this.lastHurtAt = this.elapsed;
+    // 자기 갑옷 조합: EMP 필드가 켜져 있는 동안 받는 피해 감소
+    if (L.has('combo.empArmor') && this.weapons.some((w) => w.id === 'empField' && w.activeOn)) dmg *= 1 - L.v('combo.empArmor') / 100;
+    // 반응 지뢰 조합: 맞으면 발밑에 지뢰 (cd초에 1번)
+    if (L.has('combo.mineReactive') && this.mineReactT <= this.elapsed) {
+      const mw = this.weapons.find((w) => w.id === 'proxMine') as unknown as { dropAt?: (x: number, y: number) => void } | undefined;
+      if (mw?.dropAt) {
+        this.mineReactT = this.elapsed + L.v('combo.mineReactive', 'cd', 2);
+        mw.dropAt(p.x, p.y);
+      }
+    }
     // 개편 2-2 반격: 반응 장갑 충격파, 반격 유탄 (맞으면 바로, 막아도)
     if (L.has('chip.hurtZap')) this.zapNearest(p.x, p.y, L.v('chip.hurtZap', 'n', 2), L.v('chip.hurtZap', 'dmg') * this.stats.damageMul);
     if (L.has('gear.reactive') && this.reactiveT <= 0) {
@@ -3704,6 +3730,8 @@ export class GameScene extends Phaser.Scene implements GameContext {
     if (L.has('syn.elec2') && (tag === 'electric' || wt.includes('전기')) && Math.random() * 100 < L.v('syn.elec2', 'chance')) this.addDot(e, 'shock', L.v('syn.elec2', 'dur'));
     if (L.has('syn.boom3') && (tag === 'explosive' || wt.includes('폭발'))) this.addDot(e, 'burn', L.v('syn.boom3', 'dur'));
     if (L.has('syn.boom4') && tag === 'explosive' && this.echoes.length < 80) this.echoes.push({ e, t: L.v('syn.boom4', 'delay'), dmg: (amount * L.v('syn.boom4', 'pct')) / 100 });
+    // 전도 레일 조합: 레일건에 맞은 적은 감전
+    if (src === 'railgun' && L.has('combo.railShock')) this.addDot(e, 'shock', L.v('combo.railShock', 'dur', 2));
     if (src === 'hackDrone' && L.has('combo.droneNeural') && Math.random() * 100 < L.v('combo.droneNeural', 'chance')) this.charm(e, L.v('combo.droneNeural', 'dur'));
     // 정밀 4단계: 치명타는 뒤의 적 n명에게도 같은 피해 (관통)
     if (crit && L.has('syn.prec4')) {
@@ -3774,7 +3802,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
   }
 
   private shockDps(): number {
-    return this.kit.v('syn.elec2', 'dps') * this.kit.v('syn.elec4', 'mul', 1) * this.stats.damageMul;
+    return Math.max(this.kit.v('syn.elec2', 'dps'), this.kit.v('combo.railShock', 'dps')) * this.kit.v('syn.elec4', 'mul', 1) * this.stats.damageMul;
   }
 
   private addDot(e: Enemy, kind: 'shock' | 'burn' | 'hack', dur: number): void {

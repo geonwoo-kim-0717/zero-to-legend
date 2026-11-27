@@ -1,5 +1,6 @@
 import meta from '../data/meta.json';
 import osData from '../data/os.json';
+import weaponsData from '../data/weapons.json';
 import { clearDevOsPick } from './Os';
 
 export type RunnerId = 'zero' | 'viper' | 'ghost' | 'nova';
@@ -77,7 +78,14 @@ export interface SaveData {
   os: string;
   /** OS 뽑기 횟수 (기록) */
   osPulls: number;
+  /** 도크9 무기고: 산 무기(영구), 판 시작 주무기·보조무기 */
+  armory: string[];
+  startPrimary: string;
+  startSecondary: string;
 }
+
+const ARMORY = (meta as unknown as { armory: { price: number; free: string[] } }).armory;
+const WEAPON_SLOT = Object.fromEntries(Object.entries(weaponsData as Record<string, { slot: string }>).map(([k, v]) => [k, v.slot])) as Record<string, 'primary' | 'secondary'>;
 
 /** 한 판에서 얻은 기록. 결과 화면에서 저장에 더한다 */
 export interface RunStats {
@@ -129,6 +137,9 @@ function fresh(): SaveData {
     osCopies: { [osData.gacha.basicOs]: 1 },
     os: osData.gacha.basicOs,
     osPulls: 0,
+    armory: [...ARMORY.free],
+    startPrimary: ARMORY.free.find((id) => WEAPON_SLOT[id] === 'primary') ?? 'smartPistol',
+    startSecondary: ARMORY.free.find((id) => WEAPON_SLOT[id] === 'secondary') ?? 'plasmaGrenade',
     stats: { runs: 0, totalKills: 0, droneKills: 0, meleeKills: 0, trooperKills: 0, midbossKills: 0, bossKills: 0, hexKills: 0, coreKills: 0, marketBuys: 0, totalTime: 0, bestTime: 0, bestLevel: 0 },
   };
 }
@@ -153,6 +164,9 @@ function normalize(raw: unknown): SaveData {
     stats: { ...d.stats, ...(r.stats ?? {}) },
     osCopies: { ...d.osCopies, ...(r.osCopies ?? {}) },
     os: typeof r.os === 'string' && r.os in osData.os ? r.os : d.os,
+    armory: Array.from(new Set([...d.armory, ...(r.armory ?? [])])).filter((id) => id in WEAPON_SLOT),
+    startPrimary: WEAPON_SLOT[r.startPrimary ?? ''] === 'primary' && (r.armory ?? []).concat(d.armory).includes(r.startPrimary!) ? r.startPrimary! : d.startPrimary,
+    startSecondary: WEAPON_SLOT[r.startSecondary ?? ''] === 'secondary' && (r.armory ?? []).concat(d.armory).includes(r.startSecondary!) ? r.startSecondary! : d.startSecondary,
     tut: 3,
     tutGo: true,
     tutEquip: false,
@@ -256,6 +270,34 @@ export const Save = {
     this.data.osPulls += n;
     this.write();
     return out;
+  },
+
+  /** 무기고: 이 무기를 샀는지 (기본 무기는 처음부터) */
+  weaponOwned(id: string): boolean {
+    return this.data.armory.includes(id);
+  },
+
+  /** 무기고 값 (크레딧) */
+  weaponPrice(): number {
+    return ARMORY.price;
+  },
+
+  /** 무기고에서 무기 사기 (영구). 크레딧이 모자라거나 이미 있으면 false */
+  buyWeapon(id: string): boolean {
+    if (!(id in WEAPON_SLOT) || this.weaponOwned(id) || this.data.credits < ARMORY.price) return false;
+    this.data.credits -= ARMORY.price;
+    this.data.armory.push(id);
+    this.write();
+    return true;
+  },
+
+  /** 판 시작 무기 고르기 (산 무기만, 슬롯은 무기에 따라 주무기·보조무기 자리로) */
+  setStartWeapon(id: string): boolean {
+    if (!this.weaponOwned(id)) return false;
+    if (WEAPON_SLOT[id] === 'primary') this.data.startPrimary = id;
+    else this.data.startSecondary = id;
+    this.write();
+    return true;
   },
 
   /** 판에 들고 나갈 OS (해금한 것만) */
