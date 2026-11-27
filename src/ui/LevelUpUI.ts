@@ -202,6 +202,19 @@ export class LevelUpUI {
         body.push(wt);
         bottom = wt.y + wt.height;
       }
+      // 긴 완결 문장(칩셋 등)이 아래 줄과 겹치지 않게: 카드가 더 커질 수 없으면 설명 글자를 줄이고 그 아래 것들을 끌어올림
+      const maxBottom = (opts.fixedH ? top + opts.fixedH : VIEW_H - 40) - 20 - 12;
+      if (bottom > maxBottom) {
+        const di = body.indexOf(desc);
+        const after = body.slice(di + 1);
+        for (let fs = 10.5; bottom > maxBottom && fs >= 7; fs -= 0.5) {
+          const before = desc.y + desc.height;
+          desc.setFontSize(`${fs}px`).setLineSpacing(fs < 9.5 ? 0 : 2);
+          const d0 = before - (desc.y + desc.height);
+          for (const o of after) (o as unknown as { y: number }).y -= d0;
+          bottom -= d0;
+        }
+      }
       built.push({ x, tier, col, label: R.label, info, c, body, contentBottom: bottom });
     });
     const footH = 20;
