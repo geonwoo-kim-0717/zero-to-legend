@@ -36,7 +36,7 @@
      "params": {
       "dashCd": 10
      },
-     "text": "대시 재사용 대기 -{dashCd}%"
+     "text": "대시 재사용 대기 감소 {dashCd}%"
     }
    ],
    "memo": "처음부터 주는 기본 OS. 레벨 1 고정, 뽑기에 안 나옴.",
@@ -76,7 +76,7 @@
       "ext": 0.2,
       "extMax": 4
      },
-     "text": "발동 중 처치 1명마다 지속 +{ext}초 (최대 +{extMax}초)"
+     "text": "발동 중 처치 1명마다 지속 시간 증가 {ext}초 (최대 {extMax}초)"
     },
     {
      "hook": "neural.boost4",
@@ -126,14 +126,14 @@
      "params": {
       "move": 20
      },
-     "text": "발동 중 이동속도 +{move}%"
+     "text": "발동 중 이동속도 증가 {move}%"
     },
     {
      "hook": "berserk.heal",
      "params": {
       "heal": 2
      },
-     "text": "발동 중 근접 무기로 처치하면 체력 +{heal}"
+     "text": "발동 중 근접 무기로 처치하면 체력 회복 {heal}"
     },
     {
      "hook": "berserk.boost4",
@@ -149,7 +149,7 @@
       "dr": 30,
       "hpPct": 30
      },
-     "text": "체력 {hpPct}% 이하가 되면 자동 발동, 발동 중 받는 피해 -{dr}%"
+     "text": "체력 {hpPct}% 이하가 되면 자동 발동, 발동 중 받는 피해 감소 {dr}%"
     }
    ],
    "memo": "지금 특수 능력(근접 피해 2배, 이동 +20%, 근접 처치 시 체력 2)이 4레벨 수준.",
@@ -290,7 +290,7 @@
      "params": {
       "move": 10
      },
-     "text": "보호막이 남아 있으면 넉백 무시, 이동속도 +{move}%"
+     "text": "보호막이 남아 있으면 넉백 무시, 이동속도 증가 {move}%"
     },
     {
      "hook": "guardian.burst",
@@ -338,7 +338,7 @@
       "dur": 8,
       "mark": 25
      },
-     "text": "[Q] 커서 근처 적에게 표식: {dur}초 동안 받는 피해 +{mark}%"
+     "text": "[Q] 커서 근처 적에게 표식: {dur}초 동안 받는 피해 증가 {mark}%"
     },
     {
      "hook": "tactical.focus",
@@ -357,7 +357,7 @@
      "params": {
       "cdr": 1
      },
-     "text": "표식된 적을 처치하면 보조무기 재사용 대기 -{cdr}초"
+     "text": "표식된 적을 처치하면 보조무기 재사용 대기 감소 {cdr}초"
     },
     {
      "hook": "tactical.drop",

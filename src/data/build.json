@@ -9,7 +9,7 @@
    "tags": [
     "전기"
    ],
-   "text": "모든 무기 공격 속도 +{v}%",
+   "text": "모든 무기 공격 속도 증가 {v}%",
    "params": {
     "v": {
      "base": 8,
@@ -31,7 +31,7 @@
    "tags": [
     "근접"
    ],
-   "text": "대시 재사용 대기 -{v}%",
+   "text": "대시 재사용 대기 감소 {v}%",
    "params": {
     "v": {
      "base": 8,
@@ -54,7 +54,7 @@
     "기계",
     "해킹"
    ],
-   "text": "보조무기 재사용 대기 -{v}%",
+   "text": "보조무기 재사용 대기 감소 {v}%",
    "params": {
     "v": {
      "base": 8,
@@ -76,7 +76,7 @@
    "tags": [
     "정밀"
    ],
-   "text": "치명타 확률 +{v}% (치명타 피해 ×2)",
+   "text": "치명타 확률 증가 {v}% (치명타 피해 ×2)",
    "params": {
     "v": {
      "base": 5,
@@ -99,7 +99,7 @@
     "정밀",
     "폭발"
    ],
-   "text": "엘리트·보스에게 주는 피해 +{v}%",
+   "text": "엘리트·보스에게 주는 피해 증가 {v}%",
    "params": {
     "v": {
      "base": 8,
@@ -121,7 +121,7 @@
    "tags": [
     "해킹"
    ],
-   "text": "아이템 획득 범위 +{v}%, 칩 획득 +{chip}%",
+   "text": "아이템 획득 범위 증가 {v}%, 칩 획득 증가 {chip}%",
    "params": {
     "chip": {
      "base": 5,
@@ -148,7 +148,7 @@
    "tags": [
     "근접"
    ],
-   "text": "모든 무기 공격력 +{v}%",
+   "text": "모든 무기 공격력 증가 {v}%",
    "params": {
     "v": {
      "base": 8,
@@ -170,7 +170,7 @@
    "tags": [
     "기계"
    ],
-   "text": "최대 체력 +{v}",
+   "text": "최대 체력 증가 {v}",
    "params": {
     "v": {
      "base": 15,
@@ -192,7 +192,7 @@
    "tags": [
     "근접"
    ],
-   "text": "이동 속도 +{v}%",
+   "text": "이동 속도 증가 {v}%",
    "params": {
     "v": {
      "base": 5,
@@ -214,7 +214,7 @@
    "tags": [
     "근접"
    ],
-   "text": "받는 피해 -{v}%",
+   "text": "받는 피해 감소 {v}%",
    "params": {
     "v": {
      "base": 6,
@@ -310,7 +310,7 @@
    "tags": [
     "기계"
    ],
-   "text": "드론·포탑 피해 +{v}%",
+   "text": "드론·포탑 피해 증가 {v}%",
    "params": {
     "v": {
      "base": 15,
@@ -332,7 +332,7 @@
    "tags": [
     "전기"
    ],
-   "text": "전기 공격 범위·연쇄 거리 +{v}%",
+   "text": "전기 공격 범위·연쇄 거리 증가 {v}%",
    "params": {
     "v": {
      "base": 10,
@@ -354,7 +354,7 @@
    "tags": [
     "근접"
    ],
-   "text": "체력 50% 이하일 때 공격 속도 +{v}%",
+   "text": "체력 50% 이하일 때 공격 속도 증가 {v}%",
    "params": {
     "v": {
      "base": 15,
@@ -377,7 +377,7 @@
     "정밀",
     "해킹"
    ],
-   "text": "커서 근처 적에게 약점 표시: 받는 피해 +{v}%",
+   "text": "커서 근처 적에게 약점 표시: 받는 피해 증가 {v}%",
    "params": {
     "v": {
      "base": 10,
@@ -647,7 +647,7 @@
      "mul": 2,
      "n": 2
     },
-    "text": "번개 연쇄 +{n}, 감전 피해 ×{mul}"
+    "text": "번개 연쇄 수 증가 {n}, 감전 피해 ×{mul}"
    },
    {
     "count": 5,
@@ -667,7 +667,7 @@
     "params": {
      "v": 15
     },
-    "text": "폭발 범위 +{v}%"
+    "text": "폭발 범위 증가 {v}%"
    },
    {
     "count": 3,
@@ -705,7 +705,7 @@
     "params": {
      "v": 5
     },
-    "text": "치명타 확률 +{v}%"
+    "text": "치명타 확률 증가 {v}%"
    },
    {
     "count": 3,
@@ -721,7 +721,7 @@
     "params": {
      "n": 1
     },
-    "text": "치명타는 관통 +{n}"
+    "text": "치명타 관통 수 증가 {n}"
    },
    {
     "count": 5,
@@ -742,7 +742,7 @@
     "params": {
      "v": 30
     },
-    "text": "근접 피해 +{v}%"
+    "text": "근접 피해 증가 {v}%"
    },
    {
     "count": 3,
@@ -750,7 +750,7 @@
     "params": {
      "heal": 1
     },
-    "text": "근접 무기로 처치하면 체력 +{heal}"
+    "text": "근접 무기로 처치하면 체력 회복 {heal}"
    },
    {
     "count": 4,
@@ -778,7 +778,7 @@
     "params": {
      "n": 1
     },
-    "text": "드론·포탑 수 +{n}"
+    "text": "드론·포탑 수 증가 {n}"
    },
    {
     "count": 3,
@@ -786,7 +786,7 @@
     "params": {
      "v": 25
     },
-    "text": "드론·포탑 공격 속도 +{v}%"
+    "text": "드론·포탑 공격 속도 증가 {v}%"
    },
    {
     "count": 4,
@@ -816,7 +816,7 @@
     "params": {
      "v": 50
     },
-    "text": "아군이 된 적의 지속 시간 +{v}%"
+    "text": "아군이 된 적의 지속 시간 증가 {v}%"
    },
    {
     "count": 3,
@@ -885,7 +885,7 @@
     "railgun",
     "o_target"
    ],
-   "text": "레일건 치명타 피해 +{v}%",
+   "text": "레일건 치명타 피해 증가 {v}%",
    "params": {
     "v": 50
    },
@@ -898,7 +898,7 @@
     "turret",
     "t_dock"
    ],
-   "text": "포탑 동시 설치 +{n}",
+   "text": "동시 포탑 수 증가 {n}",
    "params": {
     "n": 1
    },
@@ -925,7 +925,7 @@
     "arcCoil",
     "t_amp"
    ],
-   "text": "아크 코일 연쇄 +{n}",
+   "text": "아크 코일 연쇄 수 증가 {n}",
    "params": {
     "n": 2
    },
@@ -963,7 +963,7 @@
     "microMissile",
     "o_thermal"
    ],
-   "text": "미사일이 엘리트·보스를 먼저 노리고 피해 +{v}%",
+   "text": "미사일이 엘리트·보스를 먼저 노리고 피해 증가 {v}%",
    "params": {
     "v": 30
    },
@@ -976,7 +976,7 @@
     "monowire",
     "s_muscle"
    ],
-   "text": "채찍 길이 +{v}%, 채찍 데미지 +30%",
+   "text": "채찍 길이 증가 {v}%, 채찍 피해 증가 30%",
    "params": {
     "v": 30
    },
@@ -1353,8 +1353,8 @@
    "nameEn": "Re-aim",
    "kind": "weapon",
    "weapon": "smartPistol",
-   "text": "스마트 피스톨의 피해가 {v}% 오르고, 빗나간 탄은 사라지기 전에 가까운 적을 {r}번까지 다시 쫓는다.",
-   "textEn": "Smart Pistol deals {v}% more damage, and missed shots chase a nearby foe up to {r} more times before fading.",
+   "text": "피해 증가 {v}%\n빗나간 탄은 사라지기 전에 가까운 적을 {r}번까지 다시 쫓는다.",
+   "textEn": "Damage +{v}%\nMissed shots chase a nearby foe up to {r} more times before fading.",
    "params": {
     "r": {
      "base": 1,
@@ -1375,8 +1375,8 @@
    "nameEn": "Collision",
    "kind": "weapon",
    "weapon": "shotgun",
-   "text": "스캐터 샷건의 피해가 {v}% 오르고, 산탄에 밀려난 적이 다른 적과 부딪히면 둘 다 샷건 피해의 {c}%를 입는다.",
-   "textEn": "Scatter Shotgun deals {v}% more damage, and foes knocked into other foes both take {c}% of the shotgun's damage.",
+   "text": "피해 증가 {v}%\n산탄에 밀려난 적이 다른 적과 부딪히면 둘 다 샷건 피해의 {c}%를 입는다.",
+   "textEn": "Damage +{v}%\nFoes knocked into other foes both take {c}% of the shotgun's damage.",
    "params": {
     "c": {
      "base": 30,
@@ -1397,8 +1397,8 @@
    "nameEn": "Refraction",
    "kind": "weapon",
    "weapon": "railgun",
-   "text": "레일건의 피해가 {v}% 오르고, 빔이 적을 처치하면 가장 가까운 적 쪽으로 최대 {r}번 꺾인다.",
-   "textEn": "Railgun deals {v}% more damage, and a beam that kills bends toward the nearest foe up to {r} times.",
+   "text": "피해 증가 {v}%\n빔이 적을 처치하면 가장 가까운 적 쪽으로 최대 {r}번 꺾인다.",
+   "textEn": "Damage +{v}%\nA beam that kills bends toward the nearest foe up to {r} times.",
    "params": {
     "r": {
      "base": 1,
@@ -1419,8 +1419,8 @@
    "nameEn": "Deflect",
    "kind": "weapon",
    "weapon": "mantisBlade",
-   "text": "맨티스 블레이드의 피해가 {v}% 오르고, 베기에 닿은 적 탄은 되받아쳐져 블레이드 피해의 {p}%를 준다.",
-   "textEn": "Mantis Blade deals {v}% more damage, and slashes knock enemy shots back for {p}% of the blade's damage.",
+   "text": "피해 증가 {v}%\n베기에 닿은 적 탄은 되받아쳐져 블레이드 피해의 {p}%를 준다.",
+   "textEn": "Damage +{v}%\nSlashes knock enemy shots back for {p}% of the blade's damage.",
    "params": {
     "p": {
      "base": 50,
@@ -1441,8 +1441,8 @@
    "nameEn": "Linked",
    "kind": "weapon",
    "weapon": "monowire",
-   "text": "모노와이어의 피해가 {v}% 오르고, 한 번에 함께 맞은 적들은 3초 동안 이어져 하나가 입은 피해의 {s}%를 나머지도 입는다.",
-   "textEn": "Monowire deals {v}% more damage, and foes hit by the same swing are linked for 3s, sharing {s}% of the damage any one takes.",
+   "text": "피해 증가 {v}%\n한 번에 함께 맞은 적들은 3초 동안 이어져 하나가 입은 피해의 {s}%를 나머지도 입는다.",
+   "textEn": "Damage +{v}%\nFoes hit by the same swing are linked for 3s, sharing {s}% of the damage any one takes.",
    "params": {
     "s": {
      "base": 20,
@@ -1463,8 +1463,8 @@
    "nameEn": "End Discharge",
    "kind": "weapon",
    "weapon": "arcCoil",
-   "text": "아크 코일의 피해가 {v}% 오르고, 연쇄의 마지막 적이 반경 {r}px로 터져 코일 피해를 준다.",
-   "textEn": "Arc Coil deals {v}% more damage, and the last foe in a chain bursts, dealing coil damage within {r}px.",
+   "text": "피해 증가 {v}%\n연쇄의 마지막 적이 반경 {r}px로 터져 코일 피해를 준다.",
+   "textEn": "Damage +{v}%\nThe last foe in a chain bursts, dealing coil damage within {r}px.",
    "params": {
     "r": {
      "base": 40,
@@ -1485,8 +1485,8 @@
    "nameEn": "Launch",
    "kind": "weapon",
    "weapon": "plasmaGrenade",
-   "text": "플라즈마 유탄의 피해가 {v}% 오르고, 폭발에 맞은 적은 {t}초 동안 떠올라 공격하지 못하며, 떨어질 때 유탄 피해의 {p}%를 더 입는다.",
-   "textEn": "Plasma Grenade deals {v}% more damage. Foes caught in the blast float helplessly for {t}s and take {p}% of the grenade's damage when they land.",
+   "text": "피해 증가 {v}%\n폭발에 맞은 적은 {t}초 동안 떠올라 공격하지 못하며, 떨어질 때 유탄 피해의 {p}%를 더 입는다.",
+   "textEn": "Damage +{v}%\nFoes caught in the blast float helplessly for {t}s and take {p}% of the grenade's damage when they land.",
    "params": {
     "p": {
      "base": 50,
@@ -1511,8 +1511,8 @@
    "nameEn": "Intercept",
    "kind": "weapon",
    "weapon": "microMissile",
-   "text": "마이크로 미사일의 피해가 {v}% 오르고, 미사일은 {c}% 확률로 가까운 적 탄이나 적 미사일을 쫓아가 터뜨린다.",
-   "textEn": "Micro Missiles deal {v}% more damage, and each missile has a {c}% chance to hunt down a nearby enemy shot or missile.",
+   "text": "피해 증가 {v}%\n미사일은 {c}% 확률로 가까운 적 탄이나 적 미사일을 쫓아가 터뜨린다.",
+   "textEn": "Damage +{v}%\nEach missile has a {c}% chance to hunt down a nearby enemy shot or missile.",
    "params": {
     "c": {
      "base": 15,
@@ -1533,8 +1533,8 @@
    "nameEn": "Chain Detonation",
    "kind": "weapon",
    "weapon": "proxMine",
-   "text": "근접 지뢰의 피해가 {v}% 오르고, 지뢰가 터지면 가까운 지뢰도 함께 터지며, 이어질 때마다 피해가 {p}%씩 오른다.",
-   "textEn": "Proximity Mine deals {v}% more damage. A blast sets off nearby mines, and each link deals {p}% more damage.",
+   "text": "피해 증가 {v}%\n지뢰가 터지면 가까운 지뢰도 함께 터지며, 이어질 때마다 피해가 {p}%씩 오른다.",
+   "textEn": "Damage +{v}%\nA blast sets off nearby mines, and each link deals {p}% more damage.",
    "params": {
     "p": {
      "base": 20,
@@ -1555,8 +1555,8 @@
    "nameEn": "Heat Up",
    "kind": "weapon",
    "weapon": "turret",
-   "text": "포탑의 피해가 {v}% 오르고, 포탑은 쏠수록 공격 속도가 올라 최대 {m}%까지 빨라진다.",
-   "textEn": "Turrets deal {v}% more damage and fire faster the longer they shoot, up to {m}%.",
+   "text": "피해 증가 {v}%\n포탑은 쏠수록 공격 속도가 올라 최대 {m}%까지 빨라진다.",
+   "textEn": "Damage +{v}%\nTurrets fire faster the longer they shoot, up to {m}%.",
    "params": {
     "m": {
      "base": 40,
@@ -1577,8 +1577,8 @@
    "nameEn": "Disrupt",
    "kind": "weapon",
    "weapon": "hackDrone",
-   "text": "해킹 드론의 피해가 {v}% 오르고, 드론에 닿은 원거리 적은 {t}초 동안 쏘지 못한다.",
-   "textEn": "Hack Drone deals {v}% more damage, and ranged foes touched by a drone can't shoot for {t}s.",
+   "text": "피해 증가 {v}%\n드론에 닿은 원거리 적은 {t}초 동안 쏘지 못한다.",
+   "textEn": "Damage +{v}%\nRanged foes touched by a drone can't shoot for {t}s.",
    "params": {
     "t": {
      "base": 1,
@@ -1599,8 +1599,8 @@
    "nameEn": "Discharge",
    "kind": "weapon",
    "weapon": "empField",
-   "text": "EMP 필드의 피해가 {v}% 오르고, 장이 꺼질 때 켜져 있는 동안 준 피해의 {p}%를 한 번에 터뜨린다.",
-   "textEn": "EMP Field deals {v}% more damage. When the field ends, it releases {p}% of the damage it dealt in one blast.",
+   "text": "피해 증가 {v}%\n장이 꺼질 때 켜져 있는 동안 준 피해의 {p}%를 한 번에 터뜨린다.",
+   "textEn": "Damage +{v}%\nWhen the field ends, it releases {p}% of the damage it dealt in one blast.",
    "params": {
     "p": {
      "base": 20,
