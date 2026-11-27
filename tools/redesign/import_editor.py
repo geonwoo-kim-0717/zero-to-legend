@@ -34,7 +34,7 @@ build = {
     'abilityTags': {a['id']: {x['id']: x.get('addTags', []) for t in ('legendary', 'mythic') for x in a.get(t, [])} for a in abil},
     'abilityMemos': {f"{a['id']}.{x['id']}": x['memo'] for a in abil for t in ('legendary', 'mythic') for x in a.get(t, []) if x.get('memo')},
     'tagTiers': {t['tag']: t['tiers'] for t in tags},
-    'combos': {c['id']: {k: c[k] for k in ('name', 'needs', 'text', 'params', 'hook', 'enabled') if k in c} for c in combos},
+    'combos': {c['id']: {k: c[k] for k in ('name', 'nameEn', 'needs', 'text', 'textEn', 'params', 'hook', 'enabled') if k in c} for c in combos},
     'chipsets': {c['id']: {k: c[k] for k in ('name', 'nameEn', 'kind', 'weapon', 'text', 'textEn', 'params', 'hook', 'weight', 'price', 'enabled') if k in c} for c in chips},
 }
 json.dump(build, open(os.path.join(root, 'build.json'), 'w', encoding='utf-8'), ensure_ascii=False, indent=1)

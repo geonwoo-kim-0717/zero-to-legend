@@ -30,8 +30,11 @@ interface TierDef {
 }
 interface ComboDef {
   name: string;
+  nameEn?: string;
   needs: string[];
   text: string;
+  /** 영어 문구 (없으면 한국어) */
+  textEn?: string;
   params?: Record<string, number>;
   hook: string;
   enabled?: boolean;
@@ -41,6 +44,8 @@ const COMBOS = build.combos as unknown as Record<string, ComboDef>;
 const WEAPON_TAGS = build.weaponTags as Record<string, string[]>;
 const ABILITY_TAGS = build.abilityTags as Record<string, Record<string, string[]>>;
 
+const comboName = (c: ComboDef) => (I18n.lang === 'en' && c.nameEn) || c.name;
+const comboText = (c: ComboDef) => (I18n.lang === 'en' && c.textEn) || c.text;
 const fill = (text: string, v: Record<string, number> = {}) => text.replace(/\{([A-Za-z][A-Za-z0-9_]*)\}/g, (_m, k: string) => (k in v ? String(v[k]) : '?'));
 
 /** 무기 태그 (기본 태그 + 고른 능력이 더한 태그) */
@@ -106,7 +111,7 @@ export class Loadout {
     for (const [id, c] of Object.entries(COMBOS)) {
       if (c.enabled === false || !c.needs.every((n) => ids.has(n))) continue;
       this.mods.set(c.hook, { ...(c.params ?? {}) });
-      this.combos.push({ id, name: c.name, hook: c.hook, text: fill(c.text, c.params) });
+      this.combos.push({ id, name: comboName(c), hook: c.hook, text: fill(comboText(c), c.params) });
     }
   }
 
@@ -129,7 +134,7 @@ export function combosWith(id: string): { name: string; other: string; text: str
   const out: { name: string; other: string; text: string }[] = [];
   for (const c of Object.values(COMBOS)) {
     if (c.enabled === false || !c.needs.includes(id)) continue;
-    for (const o of c.needs) if (o !== id) out.push({ name: c.name, other: o, text: fill(c.text, c.params) });
+    for (const o of c.needs) if (o !== id) out.push({ name: comboName(c), other: o, text: fill(comboText(c), c.params) });
   }
   return out;
 }

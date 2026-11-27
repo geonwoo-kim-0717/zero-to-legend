@@ -134,7 +134,7 @@
           "desc": "Length +20%, Damage +6"
         },
         "3": {
-          "desc": "Splash damage to 2 nearby enemies, Damage +8"
+          "desc": "Damage +8\nDamage splashes to 2 nearby foes."
         },
         "4": {
           "desc": "Cooldown -25%"
@@ -143,10 +143,10 @@
           "desc": "Damage +15"
         },
         "6": {
-          "desc": "Length +20%, hit enemies fight for you 1.5s, Damage +12"
+          "desc": "Length +20%, Damage +12\nFoes hit fight for you for 1.5s."
         },
         "7": {
-          "desc": "2 lashes, Damage +20"
+          "desc": "Damage +20\nThe whip splits in two."
         }
       }
     },
