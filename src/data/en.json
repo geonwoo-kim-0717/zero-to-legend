@@ -83,10 +83,10 @@
           "desc": "Orbit +25%"
         },
         "6": {
-          "desc": "Damage +8"
+          "desc": "Damage +8, Drones +2"
         },
         "7": {
-          "desc": "Adds 2 drones, and they stay active with no cooldown."
+          "desc": "Stays active with no cooldown."
         }
       }
     },

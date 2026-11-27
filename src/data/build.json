@@ -794,8 +794,8 @@
      "scale": 1.2,
      "spd": 50
     },
-    "text": "사이코시스: 아군이 된 적 중 무작위 {n}명이 광폭화하여 공격력과 이동 속도가 {atk}% 오르고, 몸집이 {scale}배로 커진다.",
-    "textEn": "Psychosis: {n} random allies go berserk, gaining {atk}% attack and move speed and growing to {scale}× size."
+    "text": "사이코시스: 아군이 된 적 중 무작위 {n}명이 광폭화하여 공격력과 이동 속도가 {atk}% 오른다.",
+    "textEn": "Psychosis: {n} random allies go berserk, gaining {atk}% attack and move speed."
    }
   ]
  },
