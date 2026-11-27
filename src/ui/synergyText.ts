@@ -5,7 +5,7 @@ import { CHIPSETS, chipText, chipValues } from '../systems/Chipsets';
 import { displayNum, itemName } from '../systems/Build';
 
 /** 화면용 태그·시너지·조합 글자 (짧게, 한국어·영어). 원문 데이터는 build.json */
-type ComboDef = { name: string; needs: string[]; params?: Record<string, number> };
+type ComboDef = { name: string; nameEn?: string; needs: string[]; params?: Record<string, number> };
 type TierDef = { count: number; params?: Record<string, number> };
 const COMBOS = build.combos as unknown as Record<string, ComboDef>;
 const TIERS = build.tagTiers as unknown as Record<string, TierDef[]>;
@@ -24,7 +24,8 @@ export function tagName(tag: string): string {
 
 /** 조합 id (이름으로 찾기) */
 export function comboId(name: string): string | undefined {
-  return Object.keys(COMBOS).find((k) => COMBOS[k].name === name);
+  // 영어판에서는 조합 이름이 nameEn으로 들어올 수 있어 둘 다 봄
+  return Object.keys(COMBOS).find((k) => COMBOS[k].name === name || COMBOS[k].nameEn === name);
 }
 
 /** 조합 이름 (id 또는 한국어 이름) */
