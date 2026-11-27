@@ -1581,7 +1581,7 @@
    "textEn": "Damage +{v}%\nRanged foes touched by a drone can't shoot for {t}s.",
    "params": {
     "t": {
-     "base": 1,
+     "base": 3,
      "per": 0.5
     },
     "v": {
