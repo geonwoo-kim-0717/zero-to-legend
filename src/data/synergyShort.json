@@ -139,8 +139,28 @@
    "en": "Ally death → EMP"
   },
   "해킹:5": {
-   "ko": "사이코시스: 아군 {n}명 광폭화",
-   "en": "Psychosis: {n} allies frenzy"
+   "ko": "사이코시스: 아군 {n}명이 광폭화한다",
+   "en": "Psychosis: {n} allies go berserk"
+  },
+  "전기:5": {
+   "ko": "과충전: {n}번 맞힐 때마다 전체 방전한다",
+   "en": "Overcharge: zap the screen every {n} hits"
+  },
+  "폭발:5": {
+   "ko": "대폭발: {n}번째 폭발이 {mul}배로 터진다",
+   "en": "Big Bang: every {n}th blast is ×{mul}"
+  },
+  "정밀:5": {
+   "ko": "집중: 치명타 처치로 공격 속도가 오른다",
+   "en": "Focus: crit kills speed up attacks"
+  },
+  "근접:5": {
+   "ko": "연속 돌진: {n}명 처치마다 대시가 준비된다",
+   "en": "Dash Chain: dash resets every {n} kills"
+  },
+  "기계:5": {
+   "ko": "부품 조립: {n}명 처치마다 작은 드론이 생긴다",
+   "en": "Assembly: a mini drone every {n} kills"
   }
  },
  "chipsets": {
@@ -265,76 +285,76 @@
    "en_l": "Foes within {r}px are slowed by the cold."
   },
   "cw_smartPistol": {
-   "ko": "피해 +{v}%, 탄 +{n}",
-   "en": "Dmg +{v}%, shots +{n}",
-   "ko_l": "{w}의 피해가 {v}% 증가하고, 탄이 {n}발 늘어난다.",
-   "en_l": "{w} deals {v}% more damage and fires {n} more rounds."
+   "ko": "피해 +{v}%, 빗나간 탄이 다시 쫓는다",
+   "en": "Dmg +{v}%, missed shots re-home",
+   "ko_l": "{w}의 피해가 {v}% 오르고, 빗나간 탄은 사라지기 전에 가까운 적을 {r}번까지 다시 쫓는다.",
+   "en_l": "{w} deals {v}% more damage, and missed shots chase a nearby foe up to {r} more times before fading."
   },
   "cw_shotgun": {
-   "ko": "피해 +{v}%, 산탄 +{n}",
-   "en": "Dmg +{v}%, pellets +{n}",
-   "ko_l": "{w}의 피해가 {v}% 증가하고, 산탄이 {n}발 늘어난다.",
-   "en_l": "{w} deals {v}% more damage and fires {n} more pellets."
+   "ko": "피해 +{v}%, 밀린 적끼리 부딪혀 다친다",
+   "en": "Dmg +{v}%, knocked foes collide",
+   "ko_l": "{w}의 피해가 {v}% 오르고, 산탄에 밀려난 적이 다른 적과 부딪히면 둘 다 샷건 피해의 {c}%를 입는다.",
+   "en_l": "{w} deals {v}% more damage, and foes knocked into other foes both take {c}% of the shotgun's damage."
   },
   "cw_railgun": {
-   "ko": "피해 +{v}%, 빔 +{n}",
-   "en": "Dmg +{v}%, beams +{n}",
-   "ko_l": "{w}의 피해가 {v}% 증가하고, 빔이 {n}줄 늘어난다.",
-   "en_l": "{w} deals {v}% more damage and fires {n} more beams."
+   "ko": "피해 +{v}%, 처치하면 빔이 꺾인다",
+   "en": "Dmg +{v}%, kills bend the beam",
+   "ko_l": "{w}의 피해가 {v}% 오르고, 빔이 적을 처치하면 가장 가까운 적 쪽으로 최대 {r}번 꺾인다.",
+   "en_l": "{w} deals {v}% more damage, and a beam that kills bends toward the nearest foe up to {r} times."
   },
   "cw_mantisBlade": {
-   "ko": "피해 +{v}%, 베기 +{n}",
-   "en": "Dmg +{v}%, slashes +{n}",
-   "ko_l": "{w}의 피해가 {v}% 증가하고, 베는 방향이 {n}개 늘어난다.",
-   "en_l": "{w} deals {v}% more damage and slashes in {n} more directions."
+   "ko": "피해 +{v}%, 베기가 적 탄을 되받아친다",
+   "en": "Dmg +{v}%, slashes reflect shots",
+   "ko_l": "{w}의 피해가 {v}% 오르고, 베기에 닿은 적 탄은 되받아쳐져 블레이드 피해의 {p}%를 준다.",
+   "en_l": "{w} deals {v}% more damage, and slashes knock enemy shots back for {p}% of the blade's damage."
   },
   "cw_monowire": {
-   "ko": "피해 +{v}%, 채찍 +{n}",
-   "en": "Dmg +{v}%, whips +{n}",
-   "ko_l": "{w}의 피해가 {v}% 증가하고, 채찍이 {n}줄 늘어난다.",
-   "en_l": "{w} deals {v}% more damage and lashes {n} more whips."
+   "ko": "피해 +{v}%, 함께 맞은 적끼리 피해를 나눈다",
+   "en": "Dmg +{v}%, linked foes share damage",
+   "ko_l": "{w}의 피해가 {v}% 오르고, 한 번에 함께 맞은 적들은 3초 동안 이어져 하나가 입은 피해의 {s}%를 나머지도 입는다.",
+   "en_l": "{w} deals {v}% more damage, and foes hit by the same swing are linked for 3s, sharing {s}% of the damage any one takes."
   },
   "cw_arcCoil": {
-   "ko": "피해 +{v}%, 연쇄 +{n}",
-   "en": "Dmg +{v}%, chain +{n}",
-   "ko_l": "{w}의 피해가 {v}% 증가하고, 번개가 {n}번 더 연쇄된다.",
-   "en_l": "{w} deals {v}% more damage and chains {n} more times."
+   "ko": "피해 +{v}%, 연쇄 끝에서 터진다",
+   "en": "Dmg +{v}%, chains end in a burst",
+   "ko_l": "{w}의 피해가 {v}% 오르고, 연쇄의 마지막 적이 반경 {r}px로 터져 코일 피해를 준다.",
+   "en_l": "{w} deals {v}% more damage, and the last foe in a chain bursts, dealing coil damage within {r}px."
   },
   "cw_plasmaGrenade": {
-   "ko": "피해 +{v}%, 유탄 +{n}",
-   "en": "Dmg +{v}%, grenades +{n}",
-   "ko_l": "{w}의 피해가 {v}% 증가하고, 유탄이 {n}발 늘어난다.",
-   "en_l": "{w} deals {v}% more damage and lobs {n} more grenades."
+   "ko": "피해 +{v}%, 맞은 적이 떠오른다",
+   "en": "Dmg +{v}%, blasts lift foes",
+   "ko_l": "{w}의 피해가 {v}% 오르고, 폭발에 맞은 적은 {t}초 동안 떠올라 공격하지 못하며, 떨어질 때 유탄 피해의 {p}%를 더 입는다.",
+   "en_l": "{w} deals {v}% more damage. Foes caught in the blast float helplessly for {t}s and take {p}% of the grenade's damage when they land."
   },
   "cw_microMissile": {
-   "ko": "피해 +{v}%, 미사일 +{n}",
-   "en": "Dmg +{v}%, missiles +{n}",
-   "ko_l": "{w}의 피해가 {v}% 증가하고, 미사일이 {n}발 늘어난다.",
-   "en_l": "{w} deals {v}% more damage and fires {n} more missiles."
+   "ko": "피해 +{v}%, 미사일이 적 탄을 요격한다",
+   "en": "Dmg +{v}%, missiles intercept shots",
+   "ko_l": "{w}의 피해가 {v}% 오르고, 미사일은 {c}% 확률로 가까운 적 탄이나 적 미사일을 쫓아가 터뜨린다.",
+   "en_l": "{w} deals {v}% more damage, and each missile has a {c}% chance to hunt down a nearby enemy shot or missile."
   },
   "cw_proxMine": {
-   "ko": "피해 +{v}%, 지뢰 +{n}",
-   "en": "Dmg +{v}%, mines +{n}",
-   "ko_l": "{w}의 피해가 {v}% 증가하고, 지뢰가 {n}개 늘어난다.",
-   "en_l": "{w} deals {v}% more damage and lays {n} more mines."
+   "ko": "피해 +{v}%, 지뢰가 이어서 터진다",
+   "en": "Dmg +{v}%, mines chain-detonate",
+   "ko_l": "{w}의 피해가 {v}% 오르고, 지뢰가 터지면 가까운 지뢰도 함께 터지며, 이어질 때마다 피해가 {p}%씩 오른다.",
+   "en_l": "{w} deals {v}% more damage. A blast sets off nearby mines, and each link deals {p}% more damage."
   },
   "cw_turret": {
-   "ko": "피해 +{v}%, 포탑 +{n}",
-   "en": "Dmg +{v}%, turrets +{n}",
-   "ko_l": "{w}의 피해가 {v}% 증가하고, 동시에 세우는 포탑이 {n}대 늘어난다.",
-   "en_l": "{w} deals {v}% more damage and keeps {n} more turrets up."
+   "ko": "피해 +{v}%, 쏠수록 빨라진다",
+   "en": "Dmg +{v}%, fires faster over time",
+   "ko_l": "포탑의 피해가 {v}% 오르고, 포탑은 쏠수록 공격 속도가 올라 최대 {m}%까지 빨라진다.",
+   "en_l": "Turrets deal {v}% more damage and fire faster the longer they shoot, up to {m}%."
   },
   "cw_hackDrone": {
-   "ko": "피해 +{v}%, 드론 +{n}",
-   "en": "Dmg +{v}%, drones +{n}",
-   "ko_l": "{w}의 피해가 {v}% 증가하고, 드론이 {n}대 늘어난다.",
-   "en_l": "{w} deals {v}% more damage and launches {n} more drones."
+   "ko": "피해 +{v}%, 닿은 원거리 적이 못 쏜다",
+   "en": "Dmg +{v}%, touched gunners can't shoot",
+   "ko_l": "{w}의 피해가 {v}% 오르고, 드론에 닿은 원거리 적은 {t}초 동안 쏘지 못한다.",
+   "en_l": "{w} deals {v}% more damage, and ranged foes touched by a drone can't shoot for {t}s."
   },
   "cw_empField": {
-   "ko": "피해 +{v}%, 켜짐 +{t}초",
-   "en": "Dmg +{v}%, +{t}s on",
-   "ko_l": "{w}의 피해가 {v}% 증가하고, 켜져 있는 시간이 {t}초 늘어난다.",
-   "en_l": "{w} deals {v}% more damage and stays on {t}s longer."
+   "ko": "피해 +{v}%, 꺼질 때 폭발한다",
+   "en": "Dmg +{v}%, bursts when it ends",
+   "ko_l": "{w}의 피해가 {v}% 오르고, 장이 꺼질 때 켜져 있는 동안 준 피해의 {p}%를 한 번에 터뜨린다.",
+   "en_l": "{w} deals {v}% more damage. When the field ends, it releases {p}% of the damage it dealt in one blast."
   }
  }
 }
