@@ -219,9 +219,11 @@ export class Hud {
           const ready = sub.readiness();
           // 늘 켜짐(해킹 드론 permanentAt 레벨 이상)이면 깜빡이지 않는 테두리
           const permAt = (weaponsData as Record<string, { active?: { permanentAt?: number } }>)[sub.id]?.active?.permanentAt;
-          if (permAt !== undefined && sub.level >= permAt) cg.lineStyle(2, col, 0.7).strokeRect(x - 1, y - 1, 22, 22);
+          const perm = permAt !== undefined && sub.level >= permAt;
+          if (perm) cg.lineStyle(2, col, 0.7).strokeRect(x - 1, y - 1, 22, 22);
           else if (sub.activeOn) cg.lineStyle(2, col, 0.55 + Math.sin(st.elapsed * 12) * 0.35).strokeRect(x - 1, y - 1, 22, 22);
-          else if (ready < 1) {
+          // 재사용 대기는 켜진 순간부터 돌므로 켜져 있는 동안에도 부채꼴을 그림 (늘 켜짐이면 없음)
+          if (!perm && ready < 1) {
             // 부채꼴을 칸(20×20) 안으로 자름: 가운데에서 쏜 반직선이 칸 테두리와 만나는 점들로 다각형
             const pts: Phaser.Math.Vector2[] = [new Phaser.Math.Vector2(x + 10, y + 10)];
             const a0 = -Math.PI / 2 + Math.PI * 2 * Math.max(0, ready);
@@ -266,7 +268,8 @@ export class Hud {
       g.lineStyle(2, sc, 1).strokeRect(sx - 18, by - 18, 36, 36);
       this.subImg.setTexture(s.textures.exists(`icon_${sub.id}`) ? `icon_${sub.id}` : '__WHITE').setScale(2).setVisible(true);
       // 재사용 대기: 아직 안 찬 만큼 위에서부터 어둡게 덮음
-      if (!ready) g.fillStyle(0x05030c, 0.72).fillRect(sx - 17, by - 17, 34, 34 * (1 - k));
+      // (아이콘보다 위 깊이의 cdG에 그림: g는 아이콘 아래라 덮개가 가려졌음)
+      if (!ready) this.cdG.fillStyle(0x05030c, 0.72).fillRect(sx - 17, by - 17, 34, 34 * (1 - k));
     } else {
       this.subImg.setVisible(false);
       g.lineStyle(1, 0xffffff, 0.3).strokeRect(sx - 18, by - 18, 36, 36);
