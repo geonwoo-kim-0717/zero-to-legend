@@ -165,8 +165,8 @@
         "chargeSpeed": 360
       },
       "arena": {
-        "w": 560,
-        "h": 300
+        "w": 1120,
+        "h": 600
       },
       "brain": "basili",
       "cine": { "note": "클로즈업 연출: 걸어 들어온 뒤 intro, 2페이즈 전환 동작 뒤 p2 대사", "intro": ["boss.intro.boss.1", "boss.intro.boss.2"], "p2": ["boss.p2.boss"], "zoom": 1.6, "lineTime": 1.6, "lift": 22, "standFrame": 3 },
@@ -229,8 +229,8 @@
       "firstSummon": 5,
       "phase2": { "note": "XM-4 2페이즈: 체력 at 아래. 공격 준비가 maxGap2초에 다 참, 콤보 weight2, xm4.p2 배율", "at": 0.5 },
       "arena": {
-        "w": 560,
-        "h": 300
+        "w": 1120,
+        "h": 600
       },
       "missile": {
         "note": "XM-4는 점수 AI가 미사일을 고를 때만 발사(every 무시). 2페이즈 발 수는 xm4.p2.missileCount",
@@ -343,8 +343,8 @@
         "shield": 4
       },
       "arena": {
-        "w": 560,
-        "h": 300
+        "w": 1120,
+        "h": 600
       },
       "summons": [
         {
