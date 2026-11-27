@@ -137,6 +137,10 @@
   "해킹:4": {
    "ko": "아군 사망 시 EMP",
    "en": "Ally death → EMP"
+  },
+  "해킹:5": {
+   "ko": "사이코시스: 아군 {n}명 광폭화",
+   "en": "Psychosis: {n} allies frenzy"
   }
  },
  "chipsets": {

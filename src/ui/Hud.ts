@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { BASE_TEXT } from './text';
 import { VIEW_W, VIEW_H, COLORS } from '../config';
 import gameData from '../data/game.json';
+import weaponsData from '../data/weapons.json';
 import { itemArt } from '../systems/Build';
 import type { Sock } from '../systems/Loadout';
 import { I18n } from '../i18n';
@@ -58,6 +59,8 @@ export class Hud {
     center: Phaser.GameObjects.Text;
   };
   private readonly g: Phaser.GameObjects.Graphics;
+  /** 소켓 줄 보조무기 칸 위에 덮는 재사용 대기 표시 (아이콘보다 위) */
+  private readonly cdG: Phaser.GameObjects.Graphics;
   private readonly chips: Phaser.GameObjects.Text;
   private readonly sockImgs: Phaser.GameObjects.Image[] = [];
   private readonly sockLv: Phaser.GameObjects.Text[] = [];
@@ -79,6 +82,7 @@ export class Hud {
     const fixed = <T extends Phaser.GameObjects.Text>(o: T, depth = 100) => o.setScrollFactor(0).setDepth(depth);
     const HP_W = Hud.HP_W;
     this.g = s.add.graphics().setScrollFactor(0).setDepth(99.5);
+    this.cdG = s.add.graphics().setScrollFactor(0).setDepth(101.5);
     this.t = {
       bars: s.add.graphics().setScrollFactor(0).setDepth(100),
       time: fixed(s.add.text(VIEW_W / 2, 8, '00:00', { ...TEXT, fontSize: '16px', fontStyle: '900' }).setOrigin(0.5, 0)),
@@ -118,9 +122,8 @@ export class Hud {
       this.keys.push(k);
       return k;
     };
-    // 보조무기 자동 발사면 키 대신 '자동'
-    const autoSub = (gameData.twinStick as { autoSecondary?: boolean }).autoSecondary === true;
-    key(cx - 46, by + 19, autoSub ? (en ? 'AUTO' : '자동') : en ? 'R-CLICK' : '우클릭');
+    // 보조무기는 자동 발사라 키 대신 '자동'
+    key(cx - 46, by + 19, en ? 'AUTO' : '자동');
     key(cx, by + 19, 'OS');
     key(cx + 46, by + 19, 'SPACE');
     this.bar.push(this.subImg, this.osImg, this.osQ, this.osCd, this.dashTxt, ...this.keys, this.t.od);
@@ -161,6 +164,8 @@ export class Hud {
 
     // 소켓 8칸
     const w = (slot: 'primary' | 'secondary') => st.weapons.find((o) => o.slot === slot);
+    const cg = this.cdG;
+    cg.clear();
     ORDER.forEach((k, i) => {
       const { x, y } = this.sockPos(i);
       let tex: string | null = null;
@@ -208,6 +213,28 @@ export class Hud {
         g.lineStyle(rank >= 3 ? 2 : 1, col, rank === 0 ? 0.8 : 1).strokeRect(x + 0.5, y + 0.5, 19, 19);
         if (s.textures.exists(tex)) img.setTexture(tex).setVisible(true);
         else img.setVisible(false);
+        // 보조무기(자동 발사) 재사용 대기: 안 찬 만큼 어둡게 덮는 부채꼴(12시부터 시계 방향으로 차오름), 켜져 있으면 깜빡이는 테두리
+        const sub = k === 'secondary' ? w('secondary') : undefined;
+        if (sub) {
+          const ready = sub.readiness();
+          // 늘 켜짐(해킹 드론 permanentAt 레벨 이상)이면 깜빡이지 않는 테두리
+          const permAt = (weaponsData as Record<string, { active?: { permanentAt?: number } }>)[sub.id]?.active?.permanentAt;
+          if (permAt !== undefined && sub.level >= permAt) cg.lineStyle(2, col, 0.7).strokeRect(x - 1, y - 1, 22, 22);
+          else if (sub.activeOn) cg.lineStyle(2, col, 0.55 + Math.sin(st.elapsed * 12) * 0.35).strokeRect(x - 1, y - 1, 22, 22);
+          else if (ready < 1) {
+            // 부채꼴을 칸(20×20) 안으로 자름: 가운데에서 쏜 반직선이 칸 테두리와 만나는 점들로 다각형
+            const pts: Phaser.Math.Vector2[] = [new Phaser.Math.Vector2(x + 10, y + 10)];
+            const a0 = -Math.PI / 2 + Math.PI * 2 * Math.max(0, ready);
+            for (let a = a0, n = 0; n <= 48; n++, a = a0 + ((Math.PI * 1.5 - a0) * n) / 48) {
+              const c = Math.cos(a);
+              const sn = Math.sin(a);
+              const m = 10 / Math.max(Math.abs(c), Math.abs(sn));
+              pts.push(new Phaser.Math.Vector2(x + 10 + c * m, y + 10 + sn * m));
+            }
+            cg.fillStyle(0x05030c, 0.82).fillPoints(pts, true);
+            cg.lineStyle(1, col, 1).strokeRect(x + 0.5, y + 0.5, 19, 19);
+          }
+        }
       }
       this.sockLv[i].setText(lv);
       this.star[i].setText('★'.repeat(stars)).setColor(Phaser.Display.Color.IntegerToColor(col).rgba);
