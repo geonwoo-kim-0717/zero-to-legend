@@ -174,13 +174,13 @@ export function drawOsTab(
 
 /**
  * 도크 9 · 출격 준비 (UI 시안 확정본)
- * 왼쪽: 제로 카드 (시작 무기 고정), 오른쪽 위: 고른 OS 자세히, 아래: OS 8종 문양 줄 (누르면 바로 고름)
+ * 왼쪽: 제로 카드 (고른 주무기·보조무기, 바꾸기는 무기고 탭), 오른쪽 위: 고른 OS 자세히, 아래: OS 8종 문양 줄 (누르면 바로 고름)
  */
 export function drawDock(
   s: Phaser.Scene,
   panel: Phaser.GameObjects.Container,
   box: PanelBox,
-  d: { runner: { name: string; texture: string; weapon: string }; list: OsView[]; topRight: number },
+  d: { runner: { name: string; texture: string; weapons: { id: string; name: string }[] }; list: OsView[]; topRight: number },
   act: { equip: (id: string) => void },
 ): void {
   const add = <G extends Phaser.GameObjects.GameObject>(o: G): G => {
@@ -201,8 +201,16 @@ export function drawDock(
   g.lineStyle(2, 0xff2bd6, 1).strokeRect(rx + 1, ry + 1, rw - 2, rh - 2);
   add(s.add.image(rx + rw / 2, ry + 52, d.runner.texture).setScale(2));
   add(s.add.text(rx + rw / 2, ry + 94, d.runner.name, T(14, '#ffffff', { strokeThickness: 2 })).setOrigin(0.5, 0));
-  add(s.add.text(rx + rw / 2, ry + 114, d.runner.weapon, T(11, '#00f0ff')).setOrigin(0.5, 0));
-  add(s.add.text(rx + rw / 2, ry + 132, t('bar.fixedWeapon2'), T(9, '#8a7aa8', { align: 'center', wordWrap: { width: rw - 16, useAdvancedWrap: true } })).setOrigin(0.5, 0));
+  // 고른 시작 무기 (주무기·보조무기) — 바꾸기는 무기고 탭
+  d.runner.weapons.forEach((w, i) => {
+    const wy = ry + 116 + i * 22;
+    g.fillStyle(0x150d2a, 1).fillRect(rx + 10, wy, 20, 20);
+    g.lineStyle(1, 0x00f0ff, 0.7).strokeRect(rx + 10.5, wy + 0.5, 19, 19);
+    if (s.textures.exists(`icon_${w.id}`)) add(s.add.image(rx + 20, wy + 10, `icon_${w.id}`));
+    const nt = add(s.add.text(rx + 36, wy + 10, w.name, T(10, '#00f0ff')).setOrigin(0, 0.5));
+    if (nt.width > rw - 44) nt.setScale((rw - 44) / nt.width);
+  });
+  add(s.add.text(rx + rw / 2, ry + 166, t('bar.weaponHint'), T(8.5, '#8a7aa8', { align: 'center', wordWrap: { width: rw - 16, useAdvancedWrap: true } })).setOrigin(0.5, 0));
 
   // 고른 OS 자세히
   const cur = d.list.find((o) => o.equipped) ?? d.list[0];

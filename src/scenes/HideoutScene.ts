@@ -13,15 +13,18 @@ import { OS_DEFS, OS_IDS, OS_GACHA, OsState } from '../systems/Os';
 import { t as tr, I18n } from '../i18n';
 import { Ads } from '../systems/Ads';
 import { drawOsTab, drawDock, PullReveal, type OsView } from '../ui/OsGachaUI';
+import { drawArmory, type ArmoryWeapon } from '../ui/ArmoryUI';
+import { shortText } from '../ui/cardInfo';
+import build from '../data/build.json';
 
-type Tab = 'clinic' | 'bar' | 'board' | 'os';
+type Tab = 'clinic' | 'bar' | 'board' | 'os' | 'armory';
 type Who = 'jin' | 'doc' | 'runner';
 interface DLine {
   who: Who;
   text: string;
 }
 /** 개편 4단계: 블랙마켓 대신 OS 뽑기 */
-const TABS: Tab[] = ['clinic', 'bar', 'board', 'os'];
+const TABS: Tab[] = ['clinic', 'bar', 'board', 'os', 'armory'];
 const T = (size: number, color = '#e8f7ff') => ({ ...BASE_TEXT, fontSize: `${size}px`, color });
 const PX = 156;
 const PY = 44;
@@ -38,6 +41,9 @@ const TUT_RICH = 2200;
 
 export class HideoutScene extends Phaser.Scene {
   private tab: Tab = 'bar';
+  /** UI: 무기고에서 고른 무기, 구매 확인 대기 중인 무기 (한 번 더 누르면 삼) */
+  private armorySel = '';
+  private armoryConfirm: string | null = null;
   /** UI: OS 뽑기 연출 */
   private reveal!: PullReveal;
   private panel!: Phaser.GameObjects.Container;
@@ -476,6 +482,7 @@ export class HideoutScene extends Phaser.Scene {
     if (this.tab === 'clinic') this.drawClinic();
     else if (this.tab === 'bar') this.drawBar();
     else if (this.tab === 'board') this.drawBoard();
+    else if (this.tab === 'armory') this.drawArmoryTab();
     else this.drawOs();
     this.drawSummary();
   }
@@ -483,6 +490,7 @@ export class HideoutScene extends Phaser.Scene {
   private setTab(t: Tab): void {
     if (this.tab === t) return;
     this.tab = t;
+    this.armoryConfirm = null;
     Sound.play('hover');
     this.refresh();
   }
@@ -512,7 +520,12 @@ export class HideoutScene extends Phaser.Scene {
     const x = 250;
     this.summary.add(this.add.image(x, 330, r.texture).setScale(1.2));
     this.summary.add(this.add.text(x + 24, 316, r.name, T(13)));
-    this.summary.add(this.add.text(x + 24, 333, `${weapons[r.startWeapon as keyof typeof weapons].name} · ${os.name} Lv${os.level}`, T(11, os.def.color)));
+    const wn = (id: string) => weapons[id as keyof typeof weapons]?.name ?? id;
+    const line = this.add.text(x + 24, 333, `${wn(Save.data.startPrimary)} · ${wn(Save.data.startSecondary)} · ${os.name} Lv${os.level}`, T(11, os.def.color));
+    // 출격 버튼(왼쪽 끝 약 494) 앞에서 끝나게 줄임
+    const room = 490 - line.x;
+    if (line.width > room) line.setScale(room / line.width);
+    this.summary.add(line);
   }
 
   /** 패널 안에 들어가는 버튼. enabled가 false면 흐리게만 그린다 */
@@ -601,7 +614,11 @@ export class HideoutScene extends Phaser.Scene {
       this,
       this.panel,
       { x: PX, y: PY, w: PW, h: PH },
-      { runner: { name: r.name, texture: r.texture, weapon: weapons[r.startWeapon as keyof typeof weapons].name }, list: this.osViews(OS_IDS), topRight },
+      {
+        runner: { name: r.name, texture: r.texture, weapons: [Save.data.startPrimary, Save.data.startSecondary].map((id) => ({ id, name: weapons[id as keyof typeof weapons]?.name ?? id })) },
+        list: this.osViews(OS_IDS),
+        topRight,
+      },
       { equip: (id) => this.equipOs(id) },
     );
   }
@@ -702,6 +719,54 @@ export class HideoutScene extends Phaser.Scene {
 
   // ───────────────────────────── OS 뽑기 (개편 4단계) ─────────────────────────────
   /** 마지막 뽑기 결과 (탭을 다시 그려도 보이게) */
+
+  // ───────────────────────────── 무기고 (UI: src/ui/ArmoryUI.ts) ─────────────────────────────
+  private drawArmoryTab(): void {
+    const W = weapons as unknown as Record<string, { name: string; slot?: string }>;
+    const tags = (build as unknown as { weaponTags: Record<string, string[]> }).weaponTags;
+    const ids = Object.keys(W).filter((id) => W[id].slot === 'primary' || W[id].slot === 'secondary');
+    const list: ArmoryWeapon[] = ids.map((id) => ({
+      id,
+      name: W[id].name,
+      slot: W[id].slot as 'primary' | 'secondary',
+      tags: tags[id] ?? [],
+      short: shortText(id, 1, 'common') ?? '',
+      owned: Save.weaponOwned(id),
+      equipped: Save.data.startPrimary === id || Save.data.startSecondary === id,
+    }));
+    if (!list.some((w) => w.id === this.armorySel)) this.armorySel = Save.data.startPrimary;
+    drawArmory(
+      this,
+      this.panel,
+      { x: PX, y: PY, w: PW, h: PH },
+      { list, credits: Save.data.credits, price: Save.weaponPrice(), sel: this.armorySel, confirm: this.armoryConfirm },
+      {
+        select: (id) => {
+          if (this.armorySel === id) return;
+          this.armorySel = id;
+          this.armoryConfirm = null;
+          Sound.play('hover');
+          this.refresh();
+        },
+        buy: (id) => {
+          // 첫 번째 누름은 확인 대기, 두 번째에 삼
+          if (this.armoryConfirm !== id) {
+            this.armoryConfirm = id;
+            Sound.play('hover');
+            this.refresh();
+            return;
+          }
+          this.armoryConfirm = null;
+          if (Save.buyWeapon(id)) Sound.play('levelup');
+          this.refresh();
+        },
+        equip: (id) => {
+          if (Save.setStartWeapon(id)) Sound.play('select');
+          this.refresh();
+        },
+      },
+    );
+  }
 
   private drawOs(): void {
     // UI: OS 뽑기 탭 (src/ui/OsGachaUI.ts drawOsTab)
