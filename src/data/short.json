@@ -25,20 +25,20 @@
   "en": "Lightning that chains to nearby enemies"
  },
  "plasmaGrenade": {
-  "ko": "커서 자리에 범위 폭발",
-  "en": "Area blast at the cursor"
+  "ko": "적이 몰린 곳에 범위 폭발",
+  "en": "Area blast where foes crowd"
  },
  "microMissile": {
-  "ko": "커서 근처 적에게 유도 미사일",
-  "en": "Homing missiles near the cursor"
+  "ko": "가까운 적에게 유도 미사일",
+  "en": "Homing missiles at nearby foes"
  },
  "proxMine": {
-  "ko": "커서 자리에 지뢰 2개",
-  "en": "2 mines at the cursor"
+  "ko": "적이 몰린 곳에 지뢰 2개",
+  "en": "2 mines where foes crowd"
  },
  "turret": {
-  "ko": "커서 자리에 10초 자동 포탑",
-  "en": "Auto turret at the cursor for 10s"
+  "ko": "적이 몰린 곳에 10초 자동 포탑",
+  "en": "10s auto turret where foes crowd"
  },
  "hackDrone": {
   "ko": "8초간 주위를 돌며 공격하는 드론",
