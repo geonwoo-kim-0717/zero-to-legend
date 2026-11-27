@@ -39,6 +39,7 @@ import { StationUI } from '../ui/StationUI';
 import { makeChipArt, chipArt, CHIP_COLOR } from '../ui/ChipArt';
 import { makeCrateArt } from '../ui/CrateArt';
 import { toneBackground } from '../ui/BgTone';
+import { CRATE_COLOR, crateKey } from '../ui/CrateArt';
 import { chipShort } from '../ui/synergyText';
 import { drawStall, drawMarker } from '../ui/StationMarks';
 import { buildEquipPanel } from '../ui/EquipPanel';
@@ -727,6 +728,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
     // 판 시작: 칩셋·5단계 상태 초기화 (씬은 다시 쓰이므로)
     this.wireLinks.clear();
     this.miniDrones = [];
+    this.chestMarks = [];
     this.focusUntil = [];
     this.elecHits = this.boomCount = this.meleeKills5 = this.mechKills = 0;
     this.lastHurtAt = -99;
@@ -857,9 +859,10 @@ export class GameScene extends Phaser.Scene implements GameContext {
     this.god = false;
 
     this.cameras.main.setBackgroundColor(COLORS.bg);
+    // UI: 배경 채도 30% 낮춤 (텍스처 자체를 바꿔 끼움, 클로즈업 확대에도 잘리지 않음)
+    toneBackground(this, ['skyline_ch1', ...new Set(ZONES.flatMap((z) => [z.ground, z.skyline].filter((k): k is string => !!k)))]);
     this.bg = this.add.tileSprite(0, 0, VIEW_W, VIEW_H, 'ground').setOrigin(0).setScrollFactor(0).setDepth(0);
     this.skyline = this.add.tileSprite(0, 0, VIEW_W, 150, 'skyline_ch1').setOrigin(0).setScrollFactor(0).setDepth(1.5); // 바닥 무늬(컨베이어 등) 위, 아이템·적 아래
-    toneBackground([this.bg, this.skyline]); // UI: 배경 채도 30% 낮춤
     this.floorG = this.add.graphics().setDepth(1);
     this.rainFx = this.add.tileSprite(0, 0, VIEW_W, VIEW_H, 'rain').setOrigin(0).setScrollFactor(0).setDepth(144).setAlpha(0.7);
     this.fx = this.add.graphics().setDepth(17);
@@ -2260,7 +2263,7 @@ export class GameScene extends Phaser.Scene implements GameContext {
     return list[list.length - 1][0];
   }
 
-  /** 보급 상자(chestEvery초마다, 플레이어 근처)와 맵 칩 줄(30초마다, 플레이어에서 한 방향으로) */
+  /** 보급 상자(chestEvery초마다, 플레이어 근처)와 맵 칩 줄(mapChips.every초마다, 플레이어에서 한 방향으로) */
   private updateSupply(dt: number): void {
     const SU = gameData.supply;
     const p = this.player;
@@ -3709,8 +3712,8 @@ export class GameScene extends Phaser.Scene implements GameContext {
     }
     this.burst(e.x, e.y, e.id === 'thug' ? COLORS.orange : e.id === 'gunner' ? 0xb6ff3a : e.id.startsWith('trooper') ? 0xff2a3a : COLORS.magenta, e.id.startsWith('trooper') ? 20 : 8);
     Sound.play('kill');
-    // 경험치는 줍지 않아도 바로 오름
-    this.gainXp(e.xp);
+    // 경험치는 줍지 않아도 바로 오름 (적 경험치 × killXpMul, 사용자 결정 절반)
+    this.gainXp(e.xp * gameData.supply.killXpMul);
     if (this.pHas('healCollect') && ++this.shardCount >= 50) {
       this.shardCount = 0;
       this.heal(5);
@@ -3949,7 +3952,45 @@ export class GameScene extends Phaser.Scene implements GameContext {
     this.pickups.acquire().spawn(kind, x, y, v);
   }
 
+  /** 화면 밖 보급 상자 방향 표시 (상자 그림, 가장자리) */
+  private chestMarks: Phaser.GameObjects.Image[] = [];
+
+  private updateChestMarks(): void {
+    const cam = this.cameras.main;
+    const g = this.fx;
+    let n = 0;
+    for (const k of this.pickups.items) {
+      if (!k.active || k.kind !== 'chest' || n >= 6) continue;
+      const sx = k.x - cam.scrollX;
+      const sy = k.y - cam.scrollY;
+      if (sx > 0 && sx < VIEW_W && sy > 0 && sy < VIEW_H) continue;
+      const cx = VIEW_W / 2;
+      const cy = VIEW_H / 2;
+      const ang = Math.atan2(sy - cy, sx - cx);
+      const c = Math.cos(ang);
+      const sn = Math.sin(ang);
+      // 가장자리 안쪽 (위는 HUD, 아래는 능력 막대를 피함, 상점 표시와 같은 틀)
+      const t = Math.min(c > 0 ? (VIEW_W - 30 - cx) / c : c < 0 ? (30 - cx) / c : 1e9, sn > 0 ? (VIEW_H - 36 - cy) / sn : sn < 0 ? (72 - cy) / sn : 1e9);
+      const x = cam.scrollX + cx + c * t;
+      const y = cam.scrollY + cy + sn * t;
+      const col = Phaser.Display.Color.HexStringToColor(CRATE_COLOR[Math.max(0, Math.min(4, Math.round(k.value)))] ?? '#ffffff').color;
+      const r = 12;
+      const bx = (w: number) => x + Math.cos(ang + w) * (r + 2);
+      const by = (w: number) => y + Math.sin(ang + w) * (r + 2);
+      g.fillStyle(col, 0.95).fillTriangle(x + c * (r + 9), y + sn * (r + 9), bx(0.45), by(0.45), bx(-0.45), by(-0.45));
+      g.fillStyle(0x0a0716, 0.9).fillCircle(x, y, r);
+      g.lineStyle(1, col, 0.9).strokeCircle(x, y, r);
+      let img = this.chestMarks[n];
+      if (!img) this.chestMarks.push((img = this.add.image(0, 0, 'chest').setDepth(115)));
+      const key = crateKey(k.value);
+      img.setTexture(this.textures.exists(key) ? key : 'chest').setPosition(x, y).setScale(0.75).setVisible(true);
+      n++;
+    }
+    for (let i = n; i < this.chestMarks.length; i++) this.chestMarks[i].setVisible(false);
+  }
+
   private updatePickups(dt: number): void {
+    this.updateChestMarks();
     const p = this.player;
     const pk = gameData.pickup;
     const radius = pk.radius * this.stats.pickupMul;
