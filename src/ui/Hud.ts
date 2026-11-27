@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { BASE_TEXT } from './text';
 import { VIEW_W, VIEW_H, COLORS } from '../config';
 import gameData from '../data/game.json';
+import weaponsData from '../data/weapons.json';
 import { itemArt } from '../systems/Build';
 import type { Sock } from '../systems/Loadout';
 import { I18n } from '../i18n';
@@ -216,7 +217,10 @@ export class Hud {
         const sub = k === 'secondary' ? w('secondary') : undefined;
         if (sub) {
           const ready = sub.readiness();
-          if (sub.activeOn) cg.lineStyle(2, col, 0.55 + Math.sin(st.elapsed * 12) * 0.35).strokeRect(x - 1, y - 1, 22, 22);
+          // 늘 켜짐(해킹 드론 permanentAt 레벨 이상)이면 깜빡이지 않는 테두리
+          const permAt = (weaponsData as Record<string, { active?: { permanentAt?: number } }>)[sub.id]?.active?.permanentAt;
+          if (permAt !== undefined && sub.level >= permAt) cg.lineStyle(2, col, 0.7).strokeRect(x - 1, y - 1, 22, 22);
+          else if (sub.activeOn) cg.lineStyle(2, col, 0.55 + Math.sin(st.elapsed * 12) * 0.35).strokeRect(x - 1, y - 1, 22, 22);
           else if (ready < 1) {
             // 부채꼴을 칸(20×20) 안으로 자름: 가운데에서 쏜 반직선이 칸 테두리와 만나는 점들로 다각형
             const pts: Phaser.Math.Vector2[] = [new Phaser.Math.Vector2(x + 10, y + 10)];
