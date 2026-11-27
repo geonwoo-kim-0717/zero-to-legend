@@ -2753,7 +2753,10 @@ export class GameScene extends Phaser.Scene implements GameContext {
       if (cur) desc += '\n' + tr('item.replace', { cur: itemName(ITEMS[cur.id].kind as ItemKind, cur.id) });
     }
     desc += this.tagLine(r.kind, r.id);
-    return { kind, id: r.id, art: itemArt(r.id), rarity: r.rarity, title: itemName(r.kind, r.id), levelLabel: `${socketLabel(r.kind, r.id)} · ${tr('lvl.socket', { lv })}`, desc, isNew: true, item: { kind: r.kind, id: r.id }, card: itemCard({ kind: r.kind, id: r.id, rarity: r.rarity, lv, cur: was, tagCount: this.kit.tagCount, equipped: this.equippedIds(), activeCombos: this.kit.combos.map((c) => c.name), curId }) } as Choice;
+    const choice = { kind, id: r.id, art: itemArt(r.id), rarity: r.rarity, title: itemName(r.kind, r.id), levelLabel: `${socketLabel(r.kind, r.id)} · ${tr('lvl.socket', { lv })}`, desc, isNew: true, item: { kind: r.kind, id: r.id }, card: itemCard({ kind: r.kind, id: r.id, rarity: r.rarity, lv, cur: was, tagCount: this.kit.tagCount, equipped: this.equippedIds(), activeCombos: this.kit.combos.map((c) => c.name), curId }) } as Choice;
+    // UI: 교체 카드는 한 번 더 눌러야 고름 (LevelUpUI 교체 확인)
+    if (choice.card) choice.card.replace = this.replaceTarget(choice) ?? undefined;
+    return choice;
   }
 
   /** 전설·신화 무기를 얻은 뒤 그 등급 능력 중 하나 고르기 */

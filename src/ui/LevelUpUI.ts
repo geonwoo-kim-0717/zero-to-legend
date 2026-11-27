@@ -5,7 +5,7 @@ import { VIEW_W, VIEW_H } from '../config';
 import type { Choice } from '../systems/Progression';
 import type { CardInfo } from './cardInfo';
 import { tagName } from './synergyText';
-import { t } from '../i18n';
+import { t, I18n } from '../i18n';
 
 /** 태그 색 (시안 확정본) */
 export const TAG_COLOR: Record<string, number> = {
@@ -97,6 +97,13 @@ export class LevelUpUI {
   private objs: Phaser.GameObjects.GameObject[] = [];
   private tweens: Phaser.Tweens.Tween[] = [];
   private keyHandler?: (e: KeyboardEvent) => void;
+  private guardFn?: (i: number, act: () => void) => void;
+
+  /** 교체 카드면 첫 번째 누름은 확인 띠만 띄우고, 같은 카드를 한 번 더 누르면 act (상점 구매 버튼도 이걸 씀) */
+  guard(i: number, act: () => void): void {
+    if (this.guardFn) this.guardFn(i, act);
+    else act();
+  }
 
   constructor(private readonly scene: Phaser.Scene) {}
 
@@ -385,10 +392,55 @@ export class LevelUpUI {
       hit.on('pointerout', () => hit.setFillStyle(0xffffff, 0));
       hit.on('pointerdown', () => (armed = i));
       hit.on('pointerup', () => {
-        if (armed === i) onPick(i);
+        if (armed === i) this.guard(i, () => onPick(i));
         armed = -1;
       });
     });
+
+    // 교체 확인 (사용자 요청: 실수로 바꿔 끼우는 것 방지): 빠지는 장착품을 알려 주는 붉은 띠, 같은 카드를 한 번 더 누르면 고름
+    let confirmIdx = -1;
+    let confirmObjs: Phaser.GameObjects.GameObject[] = [];
+    let confirmTw: Phaser.Tweens.Tween | null = null;
+    const clearConfirm = () => {
+      confirmTw?.remove();
+      confirmTw = null;
+      for (const o of confirmObjs) {
+        o.destroy();
+        this.objs = this.objs.filter((x) => x !== o);
+      }
+      confirmObjs = [];
+      confirmIdx = -1;
+    };
+    const showConfirm = (i: number) => {
+      const x = built[i].x;
+      const name = choices[i].card?.replace ?? '';
+      const en = I18n.lang === 'en';
+      const last = name.charCodeAt(name.length - 1);
+      const josa = last >= 0xac00 && last <= 0xd7a3 ? ((last - 0xac00) % 28 ? '을' : '를') : '을(를)';
+      const by = top + Math.round(ch * 0.58);
+      const ring = add(s.add.graphics(), D + 6);
+      ring.lineStyle(3, 0xff2a3a, 1).strokeRect(x - 2, top - 2, cw + 4, ch + 4);
+      const band = add(s.add.rectangle(x + 4, by, cw - 8, 40, 0x2a0610, 1).setOrigin(0).setStrokeStyle(1.5, 0xff2a3a, 1), D + 6);
+      const l1 = txt(x + cw / 2, by + 6, t('rep.band', { name: en ? name : name + josa }), 10, '#ffffff', { strokeThickness: 2, fontStyle: '900', align: 'center', wordWrap: { width: cw - 16, useAdvancedWrap: true } }, D + 7).setOrigin(0.5, 0);
+      const l2 = txt(x + cw / 2, by + 26, t('rep.again'), 9, '#ff8a9a', { strokeThickness: 2, align: 'center' }, D + 7).setOrigin(0.5, 0);
+      if (l1.height > 18) {
+        band.setSize(cw - 8, 22 + l1.height);
+        l2.setY(by + 8 + l1.height);
+      }
+      confirmObjs = [ring, band, l1, l2];
+      confirmTw = s.tweens.add({ targets: ring, alpha: { from: 1, to: 0.35 }, duration: 380, yoyo: true, repeat: -1 });
+      confirmIdx = i;
+    };
+    this.guardFn = (i, act) => {
+      if (!choices[i]?.card?.replace || opts.dimmed?.[i] || confirmIdx === i) {
+        clearConfirm();
+        act();
+        return;
+      }
+      clearConfirm();
+      showConfirm(i);
+      Sound.play('hover');
+    };
 
     // 아래 버튼: 다시 뽑기, 선택 포기 (둘 다 있으면 나란히)
     const by = Math.min(VIEW_H - 16, top + ch + 22);
@@ -411,7 +463,7 @@ export class LevelUpUI {
 
     this.keyHandler = (e: KeyboardEvent) => {
       const k = Number(e.key);
-      if (k >= 1 && k <= choices.length) onPick(k - 1);
+      if (k >= 1 && k <= choices.length) this.guard(k - 1, () => onPick(k - 1));
       else if ((e.key === 'r' || e.key === 'R') && rerolls > 0) onReroll();
       else if ((e.key === 'x' || e.key === 'X') && skip) skip.onSkip();
     };
@@ -434,5 +486,6 @@ export class LevelUpUI {
     this.objs = [];
     if (this.keyHandler) this.scene.input.keyboard!.off('keydown', this.keyHandler);
     this.keyHandler = undefined;
+    this.guardFn = undefined;
   }
 }

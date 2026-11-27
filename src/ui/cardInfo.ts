@@ -29,6 +29,8 @@ export interface CardInfo {
   rarity?: Rarity;
   /** 추천: 고르면 이름 붙은 조합이 완성되거나 태그 시너지 단계가 오름 */
   rec?: { title: string; text: string; combo: boolean };
+  /** 교체: 이 카드를 고르면 빠지는 장착품 이름 (있으면 한 번 더 눌러야 고름, GameScene.replaceTarget) */
+  replace?: string;
   /** 경고: 바꿔 끼우면 켜진 조합이 풀림 */
   warn?: string;
 }

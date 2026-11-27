@@ -158,7 +158,7 @@ export class StationUI {
     this.balance(m.chips);
     // 카드마다 구매 버튼
     // 카드 높이를 고정해 구매 버튼이 아래 버튼 줄(VIEW_H - 32)과 겹치지 않게
-    m.items.forEach((it, i) => this.priceButton(lay.xs[i], lay.top + lay.ch + 4, lay.cw, 20, it.price, t('station.buy'), !dimmed[i], CHIP, () => a.buy(i)));
+    m.items.forEach((it, i) => this.priceButton(lay.xs[i], lay.top + lay.ch + 4, lay.cw, 20, it.price, t('station.buy'), !dimmed[i], CHIP, () => this.cards.guard(i, () => a.buy(i))));
     // 아래 줄: 체력 회복 · 다시 뽑기 · 떠나기
     const by = VIEW_H - 32;
     const svc = (x: number, icon: string, iconCol: number, label: string, price: number, act: () => void) => {
