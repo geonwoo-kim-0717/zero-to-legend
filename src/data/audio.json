@@ -9,9 +9,9 @@
       "lazy": false
     },
     "battle": {
-      "file": "music/battle.mp3",
+      "file": "music/ch1.mp3",
       "volume": 0.9,
-      "name": "Space City",
+      "name": "Neon Alley Run (Suno, 사용자 제작)",
       "lazy": false
     },
     "boss": {

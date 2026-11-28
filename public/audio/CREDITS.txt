@@ -5,8 +5,6 @@ Files were trimmed, converted to MP3 and loudness-normalized (tools/audio/proces
 MUSIC
 - title.mp3  : "Calm Ambient 2 (Synthwave 15k)" by cynicmusic (The Cynic Project)
                https://opengameart.org/content/calm-ambient-2-synthwave-15k
-- battle.mp3 : "Space City" by MintoDog
-               https://opengameart.org/content/space-city
 - boss.mp3   : "Cyberpunk Moonlight Sonata" (v2) by Joth
                https://opengameart.org/content/cyberpunk-moonlight-sonata
 
@@ -32,3 +30,6 @@ MUSIC (added in Version 18)
                https://opengameart.org/content/t-t-free-cyberpunk-pack-2  (CC0)
 
 raidsiren.mp3, phone.mp3: 이 게임용으로 직접 합성 (tools/audio/synth_alerts.py, CC0)
+
+MUSIC (Nov 2026, redesign)
+- ch1.mp3 : "Neon Alley Run" - made by the game author with Suno (chapter 1, Slum). Intro and ending trimmed, 0.5s crossfade loop, normalized to about -16 LUFS. Replaces "Space City".
